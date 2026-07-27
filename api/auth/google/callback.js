@@ -21,6 +21,7 @@ module.exports = async (req, res) => {
       return res.redirect('/login?error=oauth_not_configured');
     }
 
+    // 1. Exchange code for access token
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -40,6 +41,7 @@ module.exports = async (req, res) => {
       return res.redirect(`/login?error=${encodeURIComponent(errMsg)}`);
     }
 
+    // 2. Fetch User Profile
     const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
@@ -49,6 +51,7 @@ module.exports = async (req, res) => {
       return res.redirect('/login?error=no_email');
     }
 
+    // 3. Upsert user into Neon PostgreSQL DB
     const connectionString = process.env.DATABASE_URL || NEON_DB_URL;
     const client = new Client({
       connectionString,
@@ -71,7 +74,9 @@ module.exports = async (req, res) => {
       console.error('Database connection error in Google callback:', dbErr);
     }
 
-    res.redirect(`/?auth=success&email=${encodeURIComponent(profile.email)}`);
+    // 4. Set Cookie and redirect cleanly to / (NO query parameters in URL bar)
+    res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000`);
+    res.redirect('/');
   } catch (err) {
     console.error('Google OAuth Callback Server Error:', err);
     res.redirect(`/login?error=${encodeURIComponent(err.message || 'server_error')}`);

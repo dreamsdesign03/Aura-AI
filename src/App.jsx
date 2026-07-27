@@ -356,6 +356,9 @@ function App() {
             if (urlEmail) {
                 sessionStorage.setItem("aura_user_email", urlEmail);
             }
+            if (window.location.search.includes("auth=success") || urlEmail) {
+                window.history.replaceState({}, "", "/");
+            }
             const activeEmail = urlEmail || sessionStorage.getItem("aura_user_email");
             const apiUrl = activeEmail ? `/api/auth/me?email=${encodeURIComponent(activeEmail)}` : `/api/auth/me`;
 

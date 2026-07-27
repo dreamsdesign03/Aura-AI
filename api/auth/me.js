@@ -2,8 +2,21 @@ const { Client } = require('pg');
 
 const NEON_DB_URL = 'postgresql://neondb_owner:npg_Yx39FAMrXPeG@ep-muddy-cell-azvgujn9-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
 
+function parseCookies(req) {
+  const list = {};
+  const rc = req.headers.cookie;
+  if (rc) {
+    rc.split(';').forEach(cookie => {
+      const parts = cookie.split('=');
+      list[parts.shift().trim()] = decodeURIComponent(parts.join('='));
+    });
+  }
+  return list;
+}
+
 module.exports = async (req, res) => {
-  const { email } = req.query;
+  const cookies = parseCookies(req);
+  const email = req.query.email || cookies.aura_user_email;
 
   if (!email) {
     return res.status(401).json({ error: 'Unauthenticated. Please log in first.' });
