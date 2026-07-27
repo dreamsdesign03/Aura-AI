@@ -351,20 +351,24 @@ function App() {
     const [showOnboarding, setShowOnboarding] = useState(false);
     async function checkAuth() {
         try {
-            // If user explicitly logged out, show Login page
-            if (sessionStorage.getItem("aura_logged_out") === "true") {
+            const params = new URLSearchParams(window.location.search);
+            const urlEmail = params.get("email");
+            const authSuccess = params.get("auth") === "success";
+
+            // Google OAuth redirect clears the logged_out flag
+            if (urlEmail || authSuccess) {
+                sessionStorage.removeItem("aura_logged_out");
+            }
+
+            // If user explicitly logged out (and no OAuth redirect), show Login page
+            if (!urlEmail && !authSuccess && sessionStorage.getItem("aura_logged_out") === "true") {
                 setAuthUser(null);
                 setAuth("logged_out");
                 return;
             }
 
-            const params = new URLSearchParams(window.location.search);
-            const urlEmail = params.get("email");
-            const authSuccess = params.get("auth") === "success";
-
             if (urlEmail) {
                 sessionStorage.setItem("aura_user_email", urlEmail);
-                sessionStorage.removeItem("aura_logged_out");
             }
 
             if (authSuccess || urlEmail) {
@@ -397,13 +401,11 @@ function App() {
                     setShowOnboarding(false);
                     setAuth("authenticated");
                 } else {
-                    // User exists but not active → show Register
                     setAuthUser(null);
                     setAuth("unauthenticated");
                 }
             }
             else {
-                // 401 or error → user not registered → show Register
                 setAuthUser(null);
                 setAuth("unauthenticated");
             }
