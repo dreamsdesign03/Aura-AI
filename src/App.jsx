@@ -394,7 +394,7 @@ function App() {
                 if (data.isActive) {
                     setAuthUser(data);
                     sessionStorage.setItem("aura_user_email", data.email);
-                    setShowOnboarding(data.onboardingCompleted === false);
+                    setShowOnboarding(false);
                     setAuth("authenticated");
                 } else {
                     // User exists but not active → show Register

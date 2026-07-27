@@ -68,7 +68,7 @@ module.exports = async (req, res) => {
       if (existingUser.rows.length === 0) {
         await client.query(
           `INSERT INTO users (first_name, last_name, email, password_hash, is_active, onboarding_completed, created_at)
-           VALUES ($1, $2, $3, 'oauth_google', true, false, NOW())`,
+           VALUES ($1, $2, $3, 'oauth_google', true, true, NOW())`,
           [firstName, lastName, profile.email]
         );
       } else {
