@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListIcps, useCreateIcp, useDeleteIcp, useUpdateIcp, useGenerateIcpSuggestions, getListIcpsQueryKey, getListLeadsQueryKey, } from "@workspace/api-client-react";
+import { useListIcps, useCreateIcp, useDeleteIcp, useUpdateIcp, useGenerateIcpSuggestions } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Edit2, Users, Globe, Briefcase, DollarSign, Monitor, CheckSquare, X, Power, Sparkles, Loader2, Zap, } from "lucide-react";
 function TargetIcon(props) {
@@ -169,10 +169,11 @@ function SuggestionCard({ suggestion, index, selected, onToggle, }) {
 export default function IcpManager() {
     const qc = useQueryClient();
     const userEmail = sessionStorage.getItem("aura_user_email") || "";
-    const { data: icps = [], isLoading } = useListIcps({ query: { queryKey: getListIcpsQueryKey(), staleTime: 0 } });
-    const createIcp = useCreateIcp({ onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setShowCreate(false); resetForm(); } });
-    const deleteIcp = useDeleteIcp({ onSuccess: () => qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }) });
-    const updateIcp = useUpdateIcp({ onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setEditingIcpId(null); } });
+    const ICP_KEY = ["useListIcps"];
+    const { data: icps = [], isLoading } = useListIcps();
+    const createIcp = useCreateIcp({ onSuccess: () => { qc.invalidateQueries({ queryKey: ICP_KEY }); setShowCreate(false); resetForm(); } });
+    const deleteIcp = useDeleteIcp({ onSuccess: () => qc.invalidateQueries({ queryKey: ICP_KEY }) });
+    const updateIcp = useUpdateIcp({ onSuccess: () => { qc.invalidateQueries({ queryKey: ICP_KEY }); setEditingIcpId(null); } });
     const [showCreate, setShowCreate] = useState(false);
     const [form, setForm] = useState({ name: "", markets: "", industries: "", roles: "", companySize: "" });
     const [qualFilters, setQualFilters] = useState(DEFAULT_FILTERS);
@@ -276,7 +277,7 @@ export default function IcpManager() {
             const data = await res.json();
             if (data.success) {
                 alert(`Generated ${data.count} leads for "${icpName}"!`);
-                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+                qc.invalidateQueries({ queryKey: ["useListLeads"] });
             } else {
                 alert(`Error: ${data.error || "Failed to generate leads"}`);
             }
@@ -316,7 +317,7 @@ export default function IcpManager() {
                     },
                 });
             }
-            await qc.invalidateQueries({ queryKey: getListIcpsQueryKey() });
+            await qc.invalidateQueries({ queryKey: ICP_KEY });
             closeFindIcp();
         }
         catch (err) {
