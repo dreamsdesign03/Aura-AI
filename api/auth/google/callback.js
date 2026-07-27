@@ -67,13 +67,13 @@ module.exports = async (req, res) => {
 
       if (existingUser.rows.length === 0) {
         await client.query(
-          `INSERT INTO users (first_name, last_name, email, password_hash, onboarding_completed, created_at)
-           VALUES ($1, $2, $3, 'oauth_google', true, NOW())`,
+          `INSERT INTO users (first_name, last_name, email, password_hash, is_active, onboarding_completed, created_at)
+           VALUES ($1, $2, $3, 'oauth_google', true, false, NOW())`,
           [firstName, lastName, profile.email]
         );
       } else {
         await client.query(
-          `UPDATE users SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name) WHERE email = $3`,
+          `UPDATE users SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name), is_active = true WHERE email = $3`,
           [firstName, lastName, profile.email]
         );
       }

@@ -340,9 +340,9 @@ function UnauthenticatedRouter({ onSuccess }) {
       <Route path="/verify" component={() => (<Verify onSuccess={handleSuccess}/>)}/>
       <Route path="/invite/:token" component={() => (<AcceptInvite />)}/>
       <Route path="/audit/share/:token" component={() => (<AuditShare />)}/>
-      <Route path="/register" component={() => (<Register onSuccess={handleSuccess} onLoginClick={() => navigate("/")}/>)}/>
       <Route path="/login" component={() => (<Login onSuccess={handleSuccess} onRegisterClick={() => navigate("/register")}/>)}/>
-      <Route component={() => (<Login onSuccess={handleSuccess} onRegisterClick={() => navigate("/register")}/>)}/>
+      <Route path="/register" component={() => (<Register onSuccess={handleSuccess} onLoginClick={() => navigate("/login")}/>)}/>
+      <Route component={() => (<Register onSuccess={handleSuccess} onLoginClick={() => navigate("/login")}/>)}/>
     </Switch>);
 }
 function App() {
@@ -351,9 +351,10 @@ function App() {
     const [showOnboarding, setShowOnboarding] = useState(false);
     async function checkAuth() {
         try {
-            if (sessionStorage.getItem("aura_logged_out") === "true" || window.location.pathname === "/login") {
+            // If user explicitly logged out, show Login page
+            if (sessionStorage.getItem("aura_logged_out") === "true") {
                 setAuthUser(null);
-                setAuth("unauthenticated");
+                setAuth("logged_out");
                 return;
             }
 
@@ -376,9 +377,9 @@ function App() {
             if (activeEmail) {
                 apiUrl = `/api/auth/me?email=${encodeURIComponent(activeEmail)}`;
             } else if (authSuccess) {
-                // Cookie-only path: server reads aura_user_email cookie
                 apiUrl = `/api/auth/me`;
             } else {
+                // No email, no auth param → show Register (new visitor)
                 setAuthUser(null);
                 setAuth("unauthenticated");
                 return;
@@ -390,12 +391,19 @@ function App() {
             });
             if (res.ok) {
                 const data = await res.json();
-                setAuthUser(data);
-                sessionStorage.setItem("aura_user_email", data.email);
-                setShowOnboarding(data.onboardingCompleted === false);
-                setAuth("authenticated");
+                if (data.isActive) {
+                    setAuthUser(data);
+                    sessionStorage.setItem("aura_user_email", data.email);
+                    setShowOnboarding(data.onboardingCompleted === false);
+                    setAuth("authenticated");
+                } else {
+                    // User exists but not active → show Register
+                    setAuthUser(null);
+                    setAuth("unauthenticated");
+                }
             }
             else {
+                // 401 or error → user not registered → show Register
                 setAuthUser(null);
                 setAuth("unauthenticated");
             }
@@ -426,6 +434,22 @@ function App() {
         return (<QueryClientProvider client={queryClient}>
         <WouterRouter base={base}>
           <UnauthenticatedRouter onSuccess={() => checkAuth()}/>
+        </WouterRouter>
+        <Toaster />
+      </QueryClientProvider>);
+    }
+    if (auth === "logged_out") {
+        return (<QueryClientProvider client={queryClient}>
+        <WouterRouter base={base}>
+          <Switch>
+            <Route path="/chatbot-preview" component={() => <ChatbotPreview />}/>
+            <Route path="/form-quest" component={() => <GrowthQuestForm />}/>
+            <Route path="/verify" component={() => <Verify onSuccess={() => checkAuth()}/>}/>
+            <Route path="/invite/:token" component={() => <AcceptInvite />}/>
+            <Route path="/audit/share/:token" component={() => <AuditShare />}/>
+            <Route path="/register" component={() => <Register onSuccess={() => checkAuth()} onLoginClick={() => { sessionStorage.removeItem("aura_logged_out"); window.location.href = "/login"; }}/>}/>
+            <Route component={() => <Login onSuccess={() => checkAuth()} onRegisterClick={() => { sessionStorage.removeItem("aura_logged_out"); window.location.href = "/register"; }}/>}/>
+          </Switch>
         </WouterRouter>
         <Toaster />
       </QueryClientProvider>);

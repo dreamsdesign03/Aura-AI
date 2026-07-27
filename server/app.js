@@ -97,13 +97,13 @@ app.get('/api/auth/google/callback', async (req, res) => {
       const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [profile.email]);
       if (existingUser.rows.length === 0) {
         await db.query(
-          `INSERT INTO users (first_name, last_name, email, password_hash, onboarding_completed, created_at)
-           VALUES ($1, $2, $3, 'oauth_google', true, NOW())`,
+          `INSERT INTO users (first_name, last_name, email, password_hash, is_active, onboarding_completed, created_at)
+           VALUES ($1, $2, $3, 'oauth_google', true, false, NOW())`,
           [firstName, lastName, profile.email]
         );
       } else {
         await db.query(
-          `UPDATE users SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name) WHERE email = $3`,
+          `UPDATE users SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name), is_active = true WHERE email = $3`,
           [firstName, lastName, profile.email]
         );
       }
@@ -119,7 +119,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
   }
 });
 
-// 3. Auth Current User Status Check (Fail-Safe Response)
+// 3. Auth Current User Status Check
 app.get('/api/auth/me', async (req, res) => {
   let email = req.query.email;
 
@@ -139,33 +139,26 @@ app.get('/api/auth/me', async (req, res) => {
 
   const namePart = email.split('@')[0];
   const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-  let dbUser = null;
 
   try {
-    let userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userRes.rows.length > 0) {
-      dbUser = userRes.rows[0];
-    } else {
-      const inserted = await db.query(
-        `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
-         VALUES ($1, '', $2, true, NOW()) RETURNING *`,
-        [formattedName, email]
-      );
-      if (inserted.rows.length > 0) {
-        dbUser = inserted.rows[0];
-      }
+      const dbUser = userRes.rows[0];
+      return res.status(200).json({
+        id: dbUser.id,
+        firstName: dbUser.first_name || formattedName,
+        lastName: dbUser.last_name || '',
+        email: dbUser.email,
+        isActive: dbUser.is_active ?? false,
+        onboardingCompleted: dbUser.onboarding_completed ?? true
+      });
     }
   } catch (err) {
-    console.error('DB query warning in /api/auth/me:', err.message);
+    console.error('DB query error in /api/auth/me:', err.message);
   }
 
-  return res.status(200).json({
-    id: dbUser ? dbUser.id : 1,
-    firstName: dbUser ? (dbUser.first_name || formattedName) : formattedName,
-    lastName: dbUser ? (dbUser.last_name || '') : '',
-    email: email,
-    onboardingCompleted: dbUser ? (dbUser.onboarding_completed ?? true) : true
-  });
+  // User not found — not registered yet
+  return res.status(401).json({ error: 'not_registered' });
 });
 
 // Standard Login API
@@ -176,22 +169,40 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' });
     }
     
-    let userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
-    let user;
-    if (userRes.rows.length > 0) {
-      user = userRes.rows[0];
-    } else {
-      const inserted = await db.query(
-        `INSERT INTO users (first_name, email, onboarding_completed, created_at)
-         VALUES ($1, $2, true, NOW()) RETURNING *`,
-        [email.split('@')[0], email]
-      );
-      user = inserted.rows[0];
+    const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userRes.rows.length === 0) {
+      return res.status(400).json({ error: 'not_registered' });
     }
 
-    res.json({ success: true, user });
+    const user = userRes.rows[0];
+    await db.query('UPDATE users SET is_active = true WHERE email = $1', [email]);
+
+    res.json({ success: true, user: { ...user, is_active: true } });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Logout — set is_active = false
+app.post('/api/auth/logout', async (req, res) => {
+  try {
+    let email = null;
+    if (req.headers.cookie) {
+      const cookies = {};
+      req.headers.cookie.split(';').forEach(c => {
+        const [key, ...rest] = c.split('=');
+        cookies[key.trim()] = decodeURIComponent(rest.join('='));
+      });
+      email = cookies.aura_user_email;
+    }
+    if (email) {
+      await db.query('UPDATE users SET is_active = false WHERE email = $1', [email]);
+    }
+    res.clearCookie('aura_user_email');
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Logout error:', err.message);
+    res.json({ success: true });
   }
 });
 
