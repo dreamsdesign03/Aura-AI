@@ -95,8 +95,14 @@ const mobileBottomNav = [
     { href: "/audit", label: "Audit", icon: Search },
 ];
 async function doLogout() {
-    await fetch(`/api/auth/logout`, { method: "POST", credentials: "include" });
-    window.location.reload();
+    sessionStorage.setItem("aura_logged_out", "true");
+    sessionStorage.removeItem("aura_user_email");
+    localStorage.clear();
+    document.cookie = "aura_user_email=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    try {
+        await fetch(`/api/auth/logout`, { method: "POST", credentials: "include" });
+    } catch { /* ignore */ }
+    window.location.href = "/login";
 }
 const FEEDBACK_CATEGORIES = [
     { value: "bug", label: "🐛 Bug Report", color: "#EF4444" },
