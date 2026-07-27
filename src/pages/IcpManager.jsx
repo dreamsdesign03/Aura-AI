@@ -170,9 +170,9 @@ export default function IcpManager() {
     const qc = useQueryClient();
     const userEmail = sessionStorage.getItem("aura_user_email") || "";
     const { data: icps = [], isLoading } = useListIcps({ query: { queryKey: getListIcpsQueryKey(), staleTime: 0 } });
-    const createIcp = useCreateIcp({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setShowCreate(false); resetForm(); } } });
-    const deleteIcp = useDeleteIcp({ mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }) } });
-    const updateIcp = useUpdateIcp({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setEditingIcpId(null); } } });
+    const createIcp = useCreateIcp({ onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setShowCreate(false); resetForm(); } });
+    const deleteIcp = useDeleteIcp({ onSuccess: () => qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }) });
+    const updateIcp = useUpdateIcp({ onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setEditingIcpId(null); } });
     const [showCreate, setShowCreate] = useState(false);
     const [form, setForm] = useState({ name: "", markets: "", industries: "", roles: "", companySize: "" });
     const [qualFilters, setQualFilters] = useState(DEFAULT_FILTERS);
