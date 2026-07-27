@@ -1,47 +1,37 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
 
-function parseCookies(req) {
-  const list = {};
-  const rc = req.headers.cookie;
-  if (rc) {
-    rc.split(';').forEach(cookie => {
-      const parts = cookie.split('=');
-      list[parts.shift().trim()] = decodeURIComponent(parts.join('='));
-    });
-  }
-  return list;
-}
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 module.exports = async (req, res) => {
-  const cookies = parseCookies(req);
-  const email = req.query.email || cookies.aura_user_email;
-  const connectionString = process.env.DATABASE_URL;
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  if (!connectionString) return res.status(200).json([]);
-
-  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
+  let email = req.query?.email;
+  if (!email && req.headers.cookie) {
+    const m = req.headers.cookie.match(/aura_user_email=([^;]+)/);
+    if (m) email = decodeURIComponent(m[1]);
+  }
 
   try {
-    await client.connect();
-
     let query = 'SELECT * FROM icps';
     let params = [];
 
     if (email) {
-      const userRes = await client.query('SELECT id FROM users WHERE email = $1', [email]);
-      if (userRes.rows.length > 0) {
+      const ur = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (ur.rows.length > 0) {
         query += ' WHERE user_id = $1';
-        params = [userRes.rows[0].id];
+        params = [ur.rows[0].id];
       }
     }
 
     query += ' ORDER BY id DESC';
-    const result = await client.query(query, params);
-    await client.end();
+    const result = await pool.query(query, params);
     return res.status(200).json(result.rows);
   } catch (err) {
-    console.error('useListIcps error:', err.message);
-    try { await client.end(); } catch {}
+    console.error('useListIcps:', err.message);
     return res.status(200).json([]);
   }
 };

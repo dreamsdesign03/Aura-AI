@@ -17,6 +17,22 @@ module.exports = async (req, res) => {
     try { body = JSON.parse(body); } catch { return res.status(400).json({ error: 'Invalid JSON' }); }
   }
 
+  try {
+    // Auto-migrate: add user_id column if missing
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'icps' AND column_name = 'user_id'
+        ) THEN
+          ALTER TABLE icps ADD COLUMN user_id INT REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `);
+  } catch (migrateErr) {
+    console.error('useCreateIcp migrate:', migrateErr.message);
+  }
+
   const data = body?.data || body || {};
   const { name, markets = [], industries = [], roles = [], companySize = '', filters = {}, active = true } = data;
 
@@ -43,7 +59,7 @@ module.exports = async (req, res) => {
 
     return res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('useCreateIcp:', err);
+    console.error('useCreateIcp:', err.message);
     return res.status(500).json({ error: err.message });
   }
 };

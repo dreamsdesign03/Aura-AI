@@ -1,23 +1,30 @@
-const { Client } = require('pg');
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 module.exports = async (req, res) => {
-  const connectionString = process.env.DATABASE_URL;
-  if (!connectionString) return res.status(500).json({ error: 'No DATABASE_URL' });
-
-  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
-
   try {
-    await client.connect();
+    // Add user_id column if missing
+    await pool.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'icps' AND column_name = 'user_id'
+        ) THEN
+          ALTER TABLE icps ADD COLUMN user_id INT REFERENCES users(id) ON DELETE CASCADE;
+        END IF;
+      END $$;
+    `);
 
-    // Check what columns icps actually has
-    const cols = await client.query(
+    const cols = await pool.query(
       "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'icps' ORDER BY ordinal_position"
     );
 
-    await client.end();
     return res.status(200).json({ columns: cols.rows });
   } catch (err) {
-    try { await client.end(); } catch {}
     return res.status(500).json({ error: err.message });
   }
 };
