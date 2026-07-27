@@ -1,6 +1,5 @@
 -- =============================================================================
--- AURA AI PLATFORM - NEON POSTGRESQL DATABASE SCHEMA (52 TABLES)
--- Database Connection: postgresql://neondb_owner:...@ep-muddy-cell-azvgujn9...
+-- AURA AI PLATFORM - NEON POSTGRESQL DATABASE SCHEMA
 -- =============================================================================
 
 -- 1. Users Table
@@ -18,6 +17,17 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Ensure password_hash column exists (for backward compatibility)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'users' AND column_name = 'password_hash'
+  ) THEN
+    ALTER TABLE users ADD COLUMN password_hash TEXT;
+  END IF;
+END $$;
+
 -- 2. Organizations Table
 CREATE TABLE IF NOT EXISTS organizations (
   id SERIAL PRIMARY KEY,
@@ -28,6 +38,7 @@ CREATE TABLE IF NOT EXISTS organizations (
 -- 3. Leads Table
 CREATE TABLE IF NOT EXISTS leads (
   id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
   org_id INT,
   first_name TEXT,
   last_name TEXT,
@@ -49,9 +60,21 @@ CREATE TABLE IF NOT EXISTS leads (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add user_id column to leads if it doesn't exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'leads' AND column_name = 'user_id'
+  ) THEN
+    ALTER TABLE leads ADD COLUMN user_id INT REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 -- 4. Ideal Customer Profiles (ICPs) Table
 CREATE TABLE IF NOT EXISTS icps (
   id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
   org_id INT,
   name TEXT,
   company_size TEXT,
@@ -62,9 +85,21 @@ CREATE TABLE IF NOT EXISTS icps (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add user_id to icps if missing
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'icps' AND column_name = 'user_id'
+  ) THEN
+    ALTER TABLE icps ADD COLUMN user_id INT REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
+
 -- 5. Campaigns Table
 CREATE TABLE IF NOT EXISTS campaigns (
   id SERIAL PRIMARY KEY,
+  user_id INT REFERENCES users(id) ON DELETE CASCADE,
   name TEXT,
   icp_name TEXT,
   status TEXT DEFAULT 'Active',
@@ -72,6 +107,17 @@ CREATE TABLE IF NOT EXISTS campaigns (
   response_rate TEXT DEFAULT '0%',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add user_id to campaigns if missing
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'campaigns' AND column_name = 'user_id'
+  ) THEN
+    ALTER TABLE campaigns ADD COLUMN user_id INT REFERENCES users(id) ON DELETE CASCADE;
+  END IF;
+END $$;
 
 -- 6. Meetings Table
 CREATE TABLE IF NOT EXISTS meetings (

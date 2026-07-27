@@ -90,20 +90,29 @@ app.get('/api/auth/google/callback', async (req, res) => {
       return res.redirect('/login?error=no_email');
     }
 
+    const firstName = profile.given_name || (profile.name ? profile.name.split(' ')[0] : 'User');
+    const lastName = profile.family_name || (profile.name && profile.name.split(' ').length > 1 ? profile.name.split(' ').slice(1).join(' ') : '');
+
     try {
       const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [profile.email]);
       if (existingUser.rows.length === 0) {
         await db.query(
-          `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
-           VALUES ($1, $2, $3, true, NOW())`,
-          [profile.given_name || 'User', profile.family_name || '', profile.email]
+          `INSERT INTO users (first_name, last_name, email, password_hash, onboarding_completed, created_at)
+           VALUES ($1, $2, $3, 'oauth_google', true, NOW())`,
+          [firstName, lastName, profile.email]
+        );
+      } else {
+        await db.query(
+          `UPDATE users SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name) WHERE email = $3`,
+          [firstName, lastName, profile.email]
         );
       }
     } catch (dbErr) {
       console.error('Database connection warning in Google callback:', dbErr);
     }
 
-    res.redirect(`/?auth=success&email=${encodeURIComponent(profile.email)}`);
+    res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000`);
+    res.redirect('/?auth=success');
   } catch (err) {
     console.error('Google OAuth Callback Server Error:', err);
     res.redirect(`/login?error=${encodeURIComponent(err.message || 'server_error')}`);
@@ -202,17 +211,29 @@ app.patch('/api/users/me', async (req, res) => {
 // 4. Executive Stats & Dashboard Analytics
 app.get('/api/stats', async (req, res) => {
   try {
-    const totalLeadsRes = await db.query('SELECT COUNT(*) FROM leads');
-    const bantQualifiedRes = await db.query('SELECT COUNT(*) FROM leads WHERE bant_score >= 70 OR bantb_total >= 70');
-    const meetingsRes = await db.query('SELECT COUNT(*) FROM meetings');
-    const campaignsRes = await db.query('SELECT COUNT(*) FROM campaigns');
+    const { email } = req.query;
+    let userFilter = '';
+    let userParams = [];
+
+    if (email) {
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (userRes.rows.length > 0) {
+        userFilter = 'WHERE user_id = $1';
+        userParams = [userRes.rows[0].id];
+      }
+    }
+
+    const totalLeadsRes = await db.query(`SELECT COUNT(*) FROM leads ${userFilter}`, userParams);
+    const bantQualifiedRes = await db.query(`SELECT COUNT(*) FROM leads ${userFilter ? userFilter + ' AND' : 'WHERE'} (bant_score >= 70 OR bantb_total >= 70)`, userParams);
+    const meetingsRes = await db.query(`SELECT COUNT(*) FROM meetings ${userFilter ? 'WHERE lead_id IN (SELECT id FROM leads ' + userFilter + ')' : ''}`, userParams);
+    const campaignsRes = await db.query(`SELECT COUNT(*) FROM campaigns ${userFilter}`, userParams);
     const reportsRes = await db.query('SELECT COUNT(*) FROM daily_reports');
 
     const pipelineRes = await db.query(`
       SELECT COALESCE(pipeline_stage, status, 'New') as stage, COUNT(*) as count 
-      FROM leads 
+      FROM leads ${userFilter}
       GROUP BY stage
-    `);
+    `, userParams);
 
     const bantDistRes = await db.query(`
       SELECT 
@@ -222,9 +243,9 @@ app.get('/api/stats', async (req, res) => {
           ELSE 'Unqualified (<50)'
         END as category,
         COUNT(*) as count
-      FROM leads
+      FROM leads ${userFilter}
       GROUP BY category
-    `);
+    `, userParams);
 
     res.json({
       totalLeads: parseInt(totalLeadsRes.rows[0].count) || 0,
@@ -244,9 +265,18 @@ app.get('/api/stats', async (req, res) => {
 // 5. Leads API
 app.get('/api/leads', async (req, res) => {
   try {
-    const { search, status, stage, minBant, limit = 50, page = 1 } = req.query;
+    const { search, status, stage, minBant, limit = 50, page = 1, email } = req.query;
     let whereClauses = [];
     let queryParams = [];
+
+    // Filter by user if email is provided
+    if (email) {
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (userRes.rows.length > 0) {
+        whereClauses.push(`user_id = $${queryParams.length + 1}`);
+        queryParams.push(userRes.rows[0].id);
+      }
+    }
 
     if (search) {
       queryParams.push(`%${search}%`);
@@ -303,16 +333,25 @@ app.post('/api/leads', async (req, res) => {
   try {
     const {
       first_name, last_name, email, phone, company, designation,
-      website, industry, country, status = 'New', bant_score = 50, deal_value = 0
+      website, industry, country, status = 'New', bant_score = 50, deal_value = 0,
+      userEmail
     } = req.body;
+
+    let userId = null;
+    if (userEmail) {
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [userEmail]);
+      if (userRes.rows.length > 0) {
+        userId = userRes.rows[0].id;
+      }
+    }
 
     const insertRes = await db.query(
       `INSERT INTO leads (
-        first_name, last_name, email, phone, company, designation, 
+        user_id, first_name, last_name, email, phone, company, designation, 
         website, industry, country, status, bant_score, deal_value, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
       RETURNING *`,
-      [first_name, last_name, email, phone, company, designation, website, industry, country, status, bant_score, deal_value]
+      [userId, first_name, last_name, email, phone, company, designation, website, industry, country, status, bant_score, deal_value]
     );
 
     res.status(201).json(insertRes.rows[0]);
@@ -367,7 +406,20 @@ app.delete('/api/leads/:id', async (req, res) => {
 // 6. Campaigns & ICPs
 app.get('/api/campaigns', async (req, res) => {
   try {
-    const campaignsRes = await db.query('SELECT * FROM campaigns ORDER BY id DESC');
+    const { email } = req.query;
+    let query = 'SELECT * FROM campaigns';
+    let params = [];
+
+    if (email) {
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (userRes.rows.length > 0) {
+        query += ' WHERE user_id = $1';
+        params = [userRes.rows[0].id];
+      }
+    }
+
+    query += ' ORDER BY id DESC';
+    const campaignsRes = await db.query(query, params);
     res.json(campaignsRes.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -376,7 +428,20 @@ app.get('/api/campaigns', async (req, res) => {
 
 app.get('/api/icps', async (req, res) => {
   try {
-    const icpsRes = await db.query('SELECT * FROM icps ORDER BY id DESC');
+    const { email } = req.query;
+    let query = 'SELECT * FROM icps';
+    let params = [];
+
+    if (email) {
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (userRes.rows.length > 0) {
+        query += ' WHERE user_id = $1';
+        params = [userRes.rows[0].id];
+      }
+    }
+
+    query += ' ORDER BY id DESC';
+    const icpsRes = await db.query(query, params);
     res.json(icpsRes.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -453,12 +518,24 @@ app.get('/api/db/table/:tableName', async (req, res) => {
   }
 });
 
-// Run Custom SQL Query
+// Run Custom SQL Query (Admin only)
 app.post('/api/db/query', async (req, res) => {
   try {
-    const { sql } = req.body;
+    const { sql, email } = req.body;
     if (!sql) {
       return res.status(400).json({ error: 'SQL query string required' });
+    }
+
+    // Basic admin check
+    const ADMIN_EMAIL = 'admin@aurai.clinic';
+    if (!email || email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()) {
+      return res.status(403).json({ error: 'Unauthorized. Admin access required.' });
+    }
+
+    // Only allow SELECT queries
+    const trimmedSql = sql.trim().toUpperCase();
+    if (!trimmedSql.startsWith('SELECT')) {
+      return res.status(403).json({ error: 'Only SELECT queries are allowed.' });
     }
 
     const queryRes = await db.query(sql);

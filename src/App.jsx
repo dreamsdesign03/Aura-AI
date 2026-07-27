@@ -359,14 +359,26 @@ function App() {
 
             const params = new URLSearchParams(window.location.search);
             const urlEmail = params.get("email");
+            const authSuccess = params.get("auth") === "success";
+
             if (urlEmail) {
                 sessionStorage.setItem("aura_user_email", urlEmail);
                 sessionStorage.removeItem("aura_logged_out");
             }
-            if (window.location.search.includes("auth=success") || urlEmail) {
+
+            if (authSuccess || urlEmail) {
                 window.history.replaceState({}, "", "/");
             }
-            const activeEmail = urlEmail || sessionStorage.getItem("aura_user_email") || "dreamsdesign.in03@gmail.com";
+
+            // Try to get email from cookie first, then sessionStorage
+            const activeEmail = urlEmail || sessionStorage.getItem("aura_user_email");
+
+            if (!activeEmail) {
+                setAuthUser(null);
+                setAuth("unauthenticated");
+                return;
+            }
+
             const apiUrl = `/api/auth/me?email=${encodeURIComponent(activeEmail)}`;
 
             const res = await fetch(apiUrl, {
@@ -376,17 +388,18 @@ function App() {
             if (res.ok) {
                 const data = await res.json();
                 setAuthUser(data);
+                sessionStorage.setItem("aura_user_email", data.email);
                 setShowOnboarding(data.onboardingCompleted === false);
                 setAuth("authenticated");
             }
             else {
-                setAuthUser({ id: 26, firstName: "Mansi", lastName: "Shah", email: "dreamsdesign.in03@gmail.com", onboardingCompleted: true });
-                setAuth("authenticated");
+                setAuthUser(null);
+                setAuth("unauthenticated");
             }
         }
         catch {
-            setAuthUser({ id: 26, firstName: "Mansi", lastName: "Shah", email: "dreamsdesign.in03@gmail.com", onboardingCompleted: true });
-            setAuth("authenticated");
+            setAuthUser(null);
+            setAuth("unauthenticated");
         }
     }
     useEffect(() => { checkAuth(); }, []);

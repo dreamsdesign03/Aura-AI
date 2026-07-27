@@ -1,7 +1,5 @@
 const { Client } = require('pg');
 
-const NEON_DB_URL = 'postgresql://neondb_owner:npg_Yx39FAMrXPeG@ep-muddy-cell-azvgujn9-pooler.c-3.ap-southeast-1.aws.neon.tech/neondb?sslmode=require';
-
 module.exports = async (req, res) => {
   const { code, error } = req.query;
 
@@ -49,10 +47,15 @@ module.exports = async (req, res) => {
       return res.redirect('/login?error=no_email');
     }
 
-    const firstName = profile.given_name || (profile.name ? profile.name.split(' ')[0] : 'Mansi');
-    const lastName = profile.family_name || (profile.name && profile.name.split(' ').length > 1 ? profile.name.split(' ').slice(1).join(' ') : 'Shah');
+    const firstName = profile.given_name || (profile.name ? profile.name.split(' ')[0] : '');
+    const lastName = profile.family_name || (profile.name && profile.name.split(' ').length > 1 ? profile.name.split(' ').slice(1).join(' ') : '');
 
-    const connectionString = process.env.DATABASE_URL || NEON_DB_URL;
+    const connectionString = process.env.DATABASE_URL;
+    if (!connectionString) {
+      console.error('DATABASE_URL is not set');
+      return res.redirect('/login?error=db_not_configured');
+    }
+
     const client = new Client({
       connectionString,
       ssl: { rejectUnauthorized: false }
@@ -65,22 +68,22 @@ module.exports = async (req, res) => {
       if (existingUser.rows.length === 0) {
         await client.query(
           `INSERT INTO users (first_name, last_name, email, password_hash, onboarding_completed, created_at)
-           VALUES ($1, $2, $3, 'oauth_google_authenticated', true, NOW())`,
+           VALUES ($1, $2, $3, 'oauth_google', true, NOW())`,
           [firstName, lastName, profile.email]
         );
       } else {
         await client.query(
-          `UPDATE users SET first_name = COALESCE(NULLIF(first_name, ''), $1), last_name = COALESCE(NULLIF(last_name, ''), $2) WHERE email = $3`,
+          `UPDATE users SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name) WHERE email = $3`,
           [firstName, lastName, profile.email]
         );
       }
       await client.end();
     } catch (dbErr) {
-      console.error('Database connection error in Google callback:', dbErr);
+      console.error('Database error in Google callback:', dbErr);
     }
 
-    res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000`);
-    res.redirect('/');
+    res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000; HttpOnly`);
+    res.redirect('/?auth=success');
   } catch (err) {
     console.error('Google OAuth Callback Server Error:', err);
     res.redirect(`/login?error=${encodeURIComponent(err.message || 'server_error')}`);
