@@ -112,7 +112,7 @@ app.get('/api/auth/google/callback', async (req, res) => {
     }
 
     res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000`);
-    res.redirect('/?auth=success');
+    res.redirect(`/?auth=success&email=${encodeURIComponent(profile.email)}`);
   } catch (err) {
     console.error('Google OAuth Callback Server Error:', err);
     res.redirect(`/login?error=${encodeURIComponent(err.message || 'server_error')}`);
@@ -121,7 +121,17 @@ app.get('/api/auth/google/callback', async (req, res) => {
 
 // 3. Auth Current User Status Check (Fail-Safe Response)
 app.get('/api/auth/me', async (req, res) => {
-  const { email } = req.query;
+  let email = req.query.email;
+
+  // Fallback: read email from aura_user_email cookie
+  if (!email && req.headers.cookie) {
+    const cookies = {};
+    req.headers.cookie.split(';').forEach(c => {
+      const [key, ...rest] = c.split('=');
+      cookies[key.trim()] = decodeURIComponent(rest.join('='));
+    });
+    email = cookies.aura_user_email;
+  }
 
   if (!email) {
     return res.status(401).json({ error: 'Unauthenticated' });

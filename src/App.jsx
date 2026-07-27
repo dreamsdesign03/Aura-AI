@@ -370,16 +370,19 @@ function App() {
                 window.history.replaceState({}, "", "/");
             }
 
-            // Try to get email from cookie first, then sessionStorage
             const activeEmail = urlEmail || sessionStorage.getItem("aura_user_email");
 
-            if (!activeEmail) {
+            let apiUrl;
+            if (activeEmail) {
+                apiUrl = `/api/auth/me?email=${encodeURIComponent(activeEmail)}`;
+            } else if (authSuccess) {
+                // Cookie-only path: server reads aura_user_email cookie
+                apiUrl = `/api/auth/me`;
+            } else {
                 setAuthUser(null);
                 setAuth("unauthenticated");
                 return;
             }
-
-            const apiUrl = `/api/auth/me?email=${encodeURIComponent(activeEmail)}`;
 
             const res = await fetch(apiUrl, {
                 credentials: "include",

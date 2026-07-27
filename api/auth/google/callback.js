@@ -83,7 +83,7 @@ module.exports = async (req, res) => {
     }
 
     res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000; HttpOnly`);
-    res.redirect('/?auth=success');
+    res.redirect(`/?auth=success&email=${encodeURIComponent(profile.email)}`);
   } catch (err) {
     console.error('Google OAuth Callback Server Error:', err);
     res.redirect(`/login?error=${encodeURIComponent(err.message || 'server_error')}`);
