@@ -351,7 +351,15 @@ function App() {
     const [showOnboarding, setShowOnboarding] = useState(false);
     async function checkAuth() {
         try {
-            const res = await fetch(`/api/auth/me`, {
+            const params = new URLSearchParams(window.location.search);
+            const urlEmail = params.get("email");
+            if (urlEmail) {
+                localStorage.setItem("aura_user_email", urlEmail);
+            }
+            const savedEmail = urlEmail || localStorage.getItem("aura_user_email");
+            const apiUrl = savedEmail ? `/api/auth/me?email=${encodeURIComponent(savedEmail)}` : `/api/auth/me`;
+
+            const res = await fetch(apiUrl, {
                 credentials: "include",
                 signal: AbortSignal.timeout(8000),
             });
