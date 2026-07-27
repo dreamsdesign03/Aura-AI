@@ -26,9 +26,24 @@ module.exports = async (req, res) => {
   try {
     await client.connect();
 
+    // Auto-migrate: ensure filters column exists
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'icps' AND column_name = 'filters'
+        ) THEN
+          ALTER TABLE icps ADD COLUMN filters JSONB DEFAULT '{}';
+        END IF;
+      END $$;
+    `);
+
     const { name, markets = [], industries = [], roles = [], companySize = '', filters = {}, active = true } = req.body?.data || {};
 
-    if (!name) return res.status(400).json({ error: 'ICP name is required' });
+    if (!name) {
+      await client.end();
+      return res.status(400).json({ error: 'ICP name is required' });
+    }
 
     let userId = null;
     if (email) {
@@ -46,6 +61,7 @@ module.exports = async (req, res) => {
     return res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('useCreateIcp error:', err.message);
+    try { await client.end(); } catch {}
     return res.status(500).json({ error: err.message });
   }
 };

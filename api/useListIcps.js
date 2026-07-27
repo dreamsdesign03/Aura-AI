@@ -17,9 +17,7 @@ module.exports = async (req, res) => {
   const email = req.query.email || cookies.aura_user_email;
   const connectionString = process.env.DATABASE_URL;
 
-  if (!connectionString) {
-    return res.status(200).json([]);
-  }
+  if (!connectionString) return res.status(200).json([]);
 
   const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
 
@@ -43,6 +41,7 @@ module.exports = async (req, res) => {
     return res.status(200).json(result.rows);
   } catch (err) {
     console.error('useListIcps error:', err.message);
+    try { await client.end(); } catch {}
     return res.status(200).json([]);
   }
 };

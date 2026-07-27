@@ -11,8 +11,23 @@ module.exports = async (req, res) => {
   try {
     await client.connect();
 
+    // Auto-migrate: ensure filters column exists
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'icps' AND column_name = 'filters'
+        ) THEN
+          ALTER TABLE icps ADD COLUMN filters JSONB DEFAULT '{}';
+        END IF;
+      END $$;
+    `);
+
     const { id, data } = req.body || {};
-    if (!id) return res.status(400).json({ error: 'ICP id is required' });
+    if (!id) {
+      await client.end();
+      return res.status(400).json({ error: 'ICP id is required' });
+    }
 
     const { name, markets, industries, roles, companySize, filters, active } = data || {};
 
@@ -35,6 +50,7 @@ module.exports = async (req, res) => {
     return res.status(200).json(result.rows[0]);
   } catch (err) {
     console.error('useUpdateIcp error:', err.message);
+    try { await client.end(); } catch {}
     return res.status(500).json({ error: err.message });
   }
 };
