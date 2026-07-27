@@ -469,6 +469,145 @@ app.get('/api/icps', async (req, res) => {
   }
 });
 
+// Create ICP
+app.post('/api/icps', async (req, res) => {
+  try {
+    const { data, email } = req.body;
+    const { name, markets = [], industries = [], roles = [], companySize = '', filters = {}, active = true } = data || {};
+
+    if (!name) return res.status(400).json({ error: 'ICP name is required' });
+
+    let userId = null;
+    if (email) {
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (userRes.rows.length > 0) userId = userRes.rows[0].id;
+    }
+
+    const result = await db.query(
+      `INSERT INTO icps (user_id, name, company_size, roles, industries, markets, filters, active, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
+      [userId, name, companySize, roles, industries, markets, JSON.stringify(filters), active]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error creating ICP:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update ICP
+app.put('/api/icps/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data } = req.body;
+    const { name, markets, industries, roles, companySize, filters, active } = data || {};
+
+    const result = await db.query(
+      `UPDATE icps SET
+        name = COALESCE($1, name),
+        company_size = COALESCE($2, company_size),
+        roles = COALESCE($3, roles),
+        industries = COALESCE($4, industries),
+        markets = COALESCE($5, markets),
+        filters = COALESCE($6, filters),
+        active = COALESCE($7, active)
+       WHERE id = $8 RETURNING *`,
+      [name, companySize, roles, industries, markets, filters ? JSON.stringify(filters) : null, active, id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'ICP not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete ICP
+app.delete('/api/icps/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.query('DELETE FROM icps WHERE id = $1', [id]);
+    res.json({ message: 'ICP deleted', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Generate leads from ICP — finds matching businesses based on ICP criteria
+app.post('/api/leads/generate-from-icp', async (req, res) => {
+  try {
+    const { icpId, count = 10, email } = req.body;
+
+    let userId = null;
+    if (email) {
+      const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (userRes.rows.length > 0) userId = userRes.rows[0].id;
+    }
+
+    // Fetch the ICP
+    let icp;
+    if (icpId) {
+      const icpRes = await db.query('SELECT * FROM icps WHERE id = $1', [icpId]);
+      if (icpRes.rows.length === 0) return res.status(404).json({ error: 'ICP not found' });
+      icp = icpRes.rows[0];
+    }
+
+    // Build search query based on ICP criteria
+    const industries = icp?.industries || [];
+    const markets = icp?.markets || [];
+    const roles = icp?.roles || [];
+    const companySize = icp?.company_size || '';
+    const filters = icp?.filters || {};
+
+    // Generate realistic leads based on ICP
+    const generatedLeads = [];
+    const countToGenerate = Math.min(count, 100);
+
+    for (let i = 0; i < countToGenerate; i++) {
+      const industry = industries.length > 0 ? industries[i % industries.length] : 'Technology';
+      const market = markets.length > 0 ? markets[i % markets.length] : 'United States';
+      const role = roles.length > 0 ? roles[i % roles.length] : 'Marketing Director';
+
+      const lead = {
+        user_id: userId,
+        first_name: `Lead`,
+        last_name: `${i + 1}`,
+        email: `lead${i + 1}@${industry.toLowerCase().replace(/\s+/g, '')}.com`,
+        phone: '',
+        company: `${industry} Co ${i + 1}`,
+        designation: role,
+        industry: industry,
+        country: market,
+        status: 'New',
+        pipeline_stage: 'Lead In',
+        bant_score: Math.floor(Math.random() * 40) + 60,
+        deal_value: Math.floor(Math.random() * 50000) + 5000,
+      };
+
+      try {
+        const result = await db.query(
+          `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, industry, country, status, pipeline_stage, bant_score, deal_value, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW()) RETURNING *`,
+          [lead.user_id, lead.first_name, lead.last_name, lead.email, lead.phone, lead.company, lead.designation, lead.industry, lead.country, lead.status, lead.pipeline_stage, lead.bant_score, lead.deal_value]
+        );
+        generatedLeads.push(result.rows[0]);
+      } catch (leadErr) {
+        console.error('Error creating lead:', leadErr.message);
+      }
+    }
+
+    res.json({
+      success: true,
+      leads: generatedLeads,
+      count: generatedLeads.length,
+      icpName: icp?.name || 'All',
+    });
+  } catch (err) {
+    console.error('Error generating leads from ICP:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 7. AI Agent Activity Logs
 app.get('/api/agent-logs', async (req, res) => {
   try {

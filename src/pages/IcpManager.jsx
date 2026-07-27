@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { useListIcps, useCreateIcp, useDeleteIcp, useUpdateIcp, useGenerateIcpSuggestions, getListIcpsQueryKey, } from "@workspace/api-client-react";
+import { useListIcps, useCreateIcp, useDeleteIcp, useUpdateIcp, useGenerateIcpSuggestions, getListIcpsQueryKey, getListLeadsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Edit2, Users, Globe, Briefcase, DollarSign, Monitor, CheckSquare, X, Power, Sparkles, Loader2, } from "lucide-react";
+import { Plus, Trash2, Edit2, Users, Globe, Briefcase, DollarSign, Monitor, CheckSquare, X, Power, Sparkles, Loader2, Zap, } from "lucide-react";
 function TargetIcon(props) {
     return (<svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}>
       <circle cx="12" cy="12" r="10"/>
@@ -168,7 +168,8 @@ function SuggestionCard({ suggestion, index, selected, onToggle, }) {
 }
 export default function IcpManager() {
     const qc = useQueryClient();
-    const { data: icps = [], isLoading } = useListIcps({ query: { queryKey: getListIcpsQueryKey() } });
+    const userEmail = sessionStorage.getItem("aura_user_email") || "";
+    const { data: icps = [], isLoading } = useListIcps({ query: { queryKey: getListIcpsQueryKey(), staleTime: 0 } });
     const createIcp = useCreateIcp({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setShowCreate(false); resetForm(); } } });
     const deleteIcp = useDeleteIcp({ mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }) } });
     const updateIcp = useUpdateIcp({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListIcpsQueryKey() }); setEditingIcpId(null); } } });
@@ -188,6 +189,7 @@ export default function IcpManager() {
     const [selected, setSelected] = useState(new Set());
     const [importing, setImporting] = useState(false);
     const [importError, setImportError] = useState(null);
+    const [generatingLeads, setGeneratingLeads] = useState(null);
     const generateMutation = useGenerateIcpSuggestions();
     const importIcp = useCreateIcp();
     const editingIcp = icps.find((i) => i.id === editingIcpId) ?? null;
@@ -261,6 +263,28 @@ export default function IcpManager() {
                 setFindStep("results");
             },
         });
+    };
+    const handleGenerateLeads = async (icpId, icpName) => {
+        setGeneratingLeads(icpId);
+        try {
+            const email = sessionStorage.getItem("aura_user_email");
+            const res = await fetch("/api/leads/generate-from-icp", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ icpId, count: 10, email }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert(`Generated ${data.count} leads for "${icpName}"!`);
+                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+            } else {
+                alert(`Error: ${data.error || "Failed to generate leads"}`);
+            }
+        } catch (err) {
+            alert("Failed to generate leads. Please try again.");
+        } finally {
+            setGeneratingLeads(null);
+        }
     };
     const toggleSuggestion = (i) => {
         setSelected((prev) => {
@@ -388,6 +412,19 @@ export default function IcpManager() {
                 <span className="text-muted-foreground">Matched Leads</span>
                 <span className="font-bold" style={{ color: "#1A7A45" }}>{icp.leadCount}</span>
               </div>
+
+              <button
+                onClick={() => handleGenerateLeads(icp.id, icp.name)}
+                disabled={generatingLeads === icp.id || !icp.active}
+                className="mt-3 w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white transition-all disabled:opacity-50"
+                style={{ background: generatingLeads === icp.id ? "#9CA3AF" : "#1A3D2B" }}
+              >
+                {generatingLeads === icp.id ? (
+                  <><Loader2 className="w-3 h-3 animate-spin"/> Generating…</>
+                ) : (
+                  <><Zap className="w-3 h-3"/> Generate Leads</>
+                )}
+              </button>
             </div>))}
         </div>)}
 

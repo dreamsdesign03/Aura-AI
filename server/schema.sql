@@ -107,6 +107,17 @@ BEGIN
   END IF;
 END $$;
 
+-- Add filters column to icps if missing
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'icps' AND column_name = 'filters'
+  ) THEN
+    ALTER TABLE icps ADD COLUMN filters JSONB DEFAULT '{}';
+  END IF;
+END $$;
+
 -- 5. Campaigns Table
 CREATE TABLE IF NOT EXISTS campaigns (
   id SERIAL PRIMARY KEY,

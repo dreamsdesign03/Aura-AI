@@ -35,6 +35,7 @@ import OnboardingChecklist from "@/components/OnboardingChecklist";
 import MysaAssistant from "@/components/MysaAssistant";
 import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel, } from "@/components/ui/dropdown-menu";
+import auraLogo from "@/assets/logo.png";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const GRAD = "linear-gradient(135deg, #BE185D 0%, #DB2777 100%)";
 const PURPLE = "#DB2777";
@@ -636,7 +637,7 @@ export default function Layout({ children }) {
         }}>
           {/* Logo */}
           <div className="px-3 py-3" style={{ borderBottom: "1px solid hsl(220 13% 91%)" }}>
-            <img src={`${import.meta.env.BASE_URL}logo-sidebar.png`} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 68, width: "auto", maxWidth: 260, objectFit: "contain", marginLeft: -6 }}/>
+            <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 68, width: "auto", maxWidth: 260, objectFit: "contain", marginLeft: -6 }}/>
           </div>
 
           {/* Nav */}
@@ -693,7 +694,7 @@ export default function Layout({ children }) {
           {/* Mobile top header */}
           <header className="flex md:hidden flex-shrink-0 items-center justify-between px-4" style={{ height: 56, background: "#ffffff", borderBottom: "1px solid hsl(220 13% 91%)" }}>
             <div className="flex items-center">
-              <img src={`${import.meta.env.BASE_URL}logo-sidebar.png`} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 40, width: "auto", maxWidth: 160, objectFit: "contain", marginLeft: -4 }}/>
+              <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 40, width: "auto", maxWidth: 160, objectFit: "contain", marginLeft: -4 }}/>
             </div>
             <div className="flex items-center gap-2">
               <GlobalSearch iconOnly/>
