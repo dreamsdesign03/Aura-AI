@@ -5,7 +5,6 @@ const NEON_DB_URL = 'postgresql://neondb_owner:npg_Yx39FAMrXPeG@ep-muddy-cell-az
 module.exports = async (req, res) => {
   const { email } = req.query;
 
-  // New visitors with no email parameter must see the Login Page first
   if (!email) {
     return res.status(401).json({ error: 'Unauthenticated. Please log in first.' });
   }
@@ -28,8 +27,8 @@ module.exports = async (req, res) => {
       user = userRes.rows[0];
     } else {
       const inserted = await client.query(
-        `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
-         VALUES ($1, '', $2, true, NOW()) RETURNING *`,
+        `INSERT INTO users (first_name, last_name, email, password_hash, onboarding_completed, created_at)
+         VALUES ($1, '', $2, 'oauth_authenticated', true, NOW()) RETURNING *`,
         [formattedName, email]
       );
       user = inserted.rows[0];
@@ -45,7 +44,6 @@ module.exports = async (req, res) => {
     });
   } catch (err) {
     console.error('Neon DB authentication query error:', err);
-    // If DB has momentary latency, return profile response so login completes
     return res.status(200).json({
       id: 1,
       firstName: formattedName,

@@ -21,7 +21,6 @@ module.exports = async (req, res) => {
       return res.redirect('/login?error=oauth_not_configured');
     }
 
-    // 1. Exchange code for Google Access Token
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -41,7 +40,6 @@ module.exports = async (req, res) => {
       return res.redirect(`/login?error=${encodeURIComponent(errMsg)}`);
     }
 
-    // 2. Fetch User Info from Google
     const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
@@ -51,34 +49,28 @@ module.exports = async (req, res) => {
       return res.redirect('/login?error=no_email');
     }
 
-    // 3. Guaranteed Neon PostgreSQL Database Insertion
     const connectionString = process.env.DATABASE_URL || NEON_DB_URL;
     const client = new Client({
       connectionString,
       ssl: { rejectUnauthorized: false }
     });
 
-    let dbUser;
     try {
       await client.connect();
       const existingUser = await client.query('SELECT * FROM users WHERE email = $1', [profile.email]);
 
-      if (existingUser.rows.length > 0) {
-        dbUser = existingUser.rows[0];
-      } else {
-        const inserted = await client.query(
-          `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
-           VALUES ($1, $2, $3, true, NOW()) RETURNING *`,
+      if (existingUser.rows.length === 0) {
+        await client.query(
+          `INSERT INTO users (first_name, last_name, email, password_hash, onboarding_completed, created_at)
+           VALUES ($1, $2, $3, 'oauth_google_authenticated', true, NOW())`,
           [profile.given_name || 'User', profile.family_name || '', profile.email]
         );
-        dbUser = inserted.rows[0];
       }
       await client.end();
     } catch (dbErr) {
       console.error('Database connection error in Google callback:', dbErr);
     }
 
-    // 4. Redirect with email parameter after DB insertion completes
     res.redirect(`/?auth=success&email=${encodeURIComponent(profile.email)}`);
   } catch (err) {
     console.error('Google OAuth Callback Server Error:', err);
