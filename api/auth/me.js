@@ -13,32 +13,35 @@ module.exports = async (req, res) => {
         ssl: { rejectUnauthorized: false }
       });
       await client.connect();
-      const userRes = await client.query('SELECT * FROM users WHERE email = $1', [email]);
-      await client.end();
+
+      let userRes = await client.query('SELECT * FROM users WHERE email = $1', [email]);
+      let user;
 
       if (userRes.rows.length > 0) {
-        const u = userRes.rows[0];
-        return res.json({
-          id: u.id,
-          firstName: u.first_name || 'User',
-          lastName: u.last_name || '',
-          email: u.email,
-          onboardingCompleted: u.onboarding_completed ?? true
-        });
+        user = userRes.rows[0];
+      } else {
+        const namePart = email.split('@')[0];
+        const inserted = await client.query(
+          `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
+           VALUES ($1, '', $2, true, NOW()) RETURNING *`,
+          [namePart, email]
+        );
+        user = inserted.rows[0];
       }
+      await client.end();
 
-      // If user signed in via OAuth but not yet in DB, return profile fallback
       return res.json({
-        id: 1,
-        firstName: email.split('@')[0],
-        lastName: '',
-        email: email,
-        onboardingCompleted: true
+        id: user.id,
+        firstName: user.first_name || 'User',
+        lastName: user.last_name || '',
+        email: user.email,
+        onboardingCompleted: user.onboarding_completed ?? true
       });
     }
 
     return res.status(401).json({ error: 'Unauthenticated' });
   } catch (err) {
-    return res.status(401).json({ error: 'Unauthenticated' });
+    console.error('api/auth/me error:', err);
+    return res.status(500).json({ error: err.message });
   }
 };

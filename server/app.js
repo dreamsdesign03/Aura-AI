@@ -90,25 +90,17 @@ app.get('/api/auth/google/callback', async (req, res) => {
       return res.redirect('/login?error=no_email');
     }
 
-    const connectionString = process.env.DATABASE_URL;
-    if (connectionString) {
-      try {
-        const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [profile.email]);
-        let user;
-
-        if (existingUser.rows.length > 0) {
-          user = existingUser.rows[0];
-        } else {
-          const newUserRes = await db.query(
-            `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
-             VALUES ($1, $2, $3, false, NOW()) RETURNING *`,
-            [profile.given_name || '', profile.family_name || '', profile.email]
-          );
-          user = newUserRes.rows[0];
-        }
-      } catch (dbErr) {
-        console.error('Database connection warning in Google callback:', dbErr);
+    try {
+      const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [profile.email]);
+      if (existingUser.rows.length === 0) {
+        await db.query(
+          `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
+           VALUES ($1, $2, $3, true, NOW())`,
+          [profile.given_name || 'User', profile.family_name || '', profile.email]
+        );
       }
+    } catch (dbErr) {
+      console.error('Database connection warning in Google callback:', dbErr);
     }
 
     res.redirect(`/?auth=success&email=${encodeURIComponent(profile.email)}`);
@@ -123,14 +115,33 @@ app.get('/api/auth/me', async (req, res) => {
   try {
     const { email } = req.query;
     if (email) {
-      const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+      let userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+      let user;
+
       if (userRes.rows.length > 0) {
-        return res.json(userRes.rows[0]);
+        user = userRes.rows[0];
+      } else {
+        const namePart = email.split('@')[0];
+        const inserted = await db.query(
+          `INSERT INTO users (first_name, last_name, email, onboarding_completed, created_at)
+           VALUES ($1, '', $2, true, NOW()) RETURNING *`,
+          [namePart, email]
+        );
+        user = inserted.rows[0];
       }
+
+      return res.json({
+        id: user.id,
+        firstName: user.first_name || 'User',
+        lastName: user.last_name || '',
+        email: user.email,
+        onboardingCompleted: user.onboarding_completed ?? true
+      });
     }
-    return res.status(401).json({ error: 'Unauthenticated. Please sign in.' });
+
+    return res.status(401).json({ error: 'Unauthenticated' });
   } catch (err) {
-    res.status(401).json({ error: 'Unauthenticated' });
+    res.status(500).json({ error: err.message });
   }
 });
 
