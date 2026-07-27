@@ -21,7 +21,6 @@ module.exports = async (req, res) => {
       return res.redirect('/login?error=oauth_not_configured');
     }
 
-    // 1. Exchange code for access token
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -41,7 +40,6 @@ module.exports = async (req, res) => {
       return res.redirect(`/login?error=${encodeURIComponent(errMsg)}`);
     }
 
-    // 2. Fetch User Profile
     const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` }
     });
@@ -51,7 +49,9 @@ module.exports = async (req, res) => {
       return res.redirect('/login?error=no_email');
     }
 
-    // 3. Upsert user into Neon PostgreSQL DB
+    const firstName = profile.given_name || (profile.name ? profile.name.split(' ')[0] : 'Mansi');
+    const lastName = profile.family_name || (profile.name && profile.name.split(' ').length > 1 ? profile.name.split(' ').slice(1).join(' ') : 'Shah');
+
     const connectionString = process.env.DATABASE_URL || NEON_DB_URL;
     const client = new Client({
       connectionString,
@@ -66,7 +66,12 @@ module.exports = async (req, res) => {
         await client.query(
           `INSERT INTO users (first_name, last_name, email, password_hash, onboarding_completed, created_at)
            VALUES ($1, $2, $3, 'oauth_google_authenticated', true, NOW())`,
-          [profile.given_name || 'User', profile.family_name || '', profile.email]
+          [firstName, lastName, profile.email]
+        );
+      } else {
+        await client.query(
+          `UPDATE users SET first_name = COALESCE(NULLIF(first_name, ''), $1), last_name = COALESCE(NULLIF(last_name, ''), $2) WHERE email = $3`,
+          [firstName, lastName, profile.email]
         );
       }
       await client.end();
@@ -74,7 +79,6 @@ module.exports = async (req, res) => {
       console.error('Database connection error in Google callback:', dbErr);
     }
 
-    // 4. Set Cookie and redirect cleanly to / (NO query parameters in URL bar)
     res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000`);
     res.redirect('/');
   } catch (err) {
