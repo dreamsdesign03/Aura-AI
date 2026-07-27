@@ -354,10 +354,10 @@ function App() {
             const params = new URLSearchParams(window.location.search);
             const urlEmail = params.get("email");
             if (urlEmail) {
-                localStorage.setItem("aura_user_email", urlEmail);
+                sessionStorage.setItem("aura_user_email", urlEmail);
             }
-            const savedEmail = urlEmail || localStorage.getItem("aura_user_email");
-            const apiUrl = savedEmail ? `/api/auth/me?email=${encodeURIComponent(savedEmail)}` : `/api/auth/me`;
+            const activeEmail = urlEmail || sessionStorage.getItem("aura_user_email");
+            const apiUrl = activeEmail ? `/api/auth/me?email=${encodeURIComponent(activeEmail)}` : `/api/auth/me`;
 
             const res = await fetch(apiUrl, {
                 credentials: "include",
