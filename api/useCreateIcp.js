@@ -1,72 +1,47 @@
 const { Client } = require('pg');
 
-function parseCookies(req) {
-  const list = {};
-  const rc = req.headers.cookie;
-  if (rc) {
-    rc.split(';').forEach(cookie => {
-      const parts = cookie.split('=');
-      list[parts.shift().trim()] = decodeURIComponent(parts.join('='));
-    });
-  }
-  return list;
-}
-
 module.exports = async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Explicit body parsing
   if (typeof req.body === 'string') {
-    try { req.body = JSON.parse(req.body); } catch (e) {
-      console.error('useCreateIcp: body parse failed', e.message);
-      return res.status(400).json({ error: 'Invalid JSON body' });
-    }
+    try { req.body = JSON.parse(req.body); } catch { return res.status(400).json({ error: 'Invalid JSON' }); }
   }
 
-  const cookies = parseCookies(req);
-  const email = req.body?.email || cookies.aura_user_email;
   const connectionString = process.env.DATABASE_URL;
-
-  console.log('useCreateIcp: email=', email, 'body=', JSON.stringify(req.body));
-
-  if (!connectionString) {
-    console.error('useCreateIcp: DATABASE_URL is missing');
-    return res.status(500).json({ error: 'DB not configured - no DATABASE_URL' });
-  }
+  if (!connectionString) return res.status(500).json({ error: 'No DATABASE_URL' });
 
   const client = new Client({ connectionString, ssl: { rejectUnauthorized: false } });
 
   try {
     await client.connect();
-    console.log('useCreateIcp: connected to DB');
 
-    // Auto-migrate: ensure filters column exists
-    await client.query(`
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'icps' AND column_name = 'filters'
-        ) THEN
-          ALTER TABLE icps ADD COLUMN filters JSONB DEFAULT '{}';
-        END IF;
-      END $$;
-    `);
+    // Ensure filters column exists
+    const colCheck = await client.query(
+      "SELECT 1 FROM information_schema.columns WHERE table_name = 'icps' AND column_name = 'filters'"
+    );
+    if (colCheck.rows.length === 0) {
+      await client.query("ALTER TABLE icps ADD COLUMN filters JSONB DEFAULT '{}'::jsonb");
+    }
 
-    const data = req.body?.data || req.body;
-    const { name, markets = [], industries = [], roles = [], companySize = '', filters = {}, active = true } = data || {};
+    const data = req.body?.data || req.body || {};
+    const { name, markets = [], industries = [], roles = [], companySize = '', filters = {}, active = true } = data;
 
-    console.log('useCreateIcp: name=', name, 'data=', JSON.stringify(data));
+    if (!name) { await client.end(); return res.status(400).json({ error: 'ICP name is required' }); }
 
-    if (!name) {
-      await client.end();
-      return res.status(400).json({ error: 'ICP name is required' });
+    let email = req.body?.email;
+    if (!email && req.headers.cookie) {
+      const m = req.headers.cookie.match(/aura_user_email=([^;]+)/);
+      if (m) email = decodeURIComponent(m[1]);
     }
 
     let userId = null;
     if (email) {
-      const userRes = await client.query('SELECT id FROM users WHERE email = $1', [email]);
-      console.log('useCreateIcp: user found=', userRes.rows.length > 0);
-      if (userRes.rows.length > 0) userId = userRes.rows[0].id;
+      const r = await client.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (r.rows.length > 0) userId = r.rows[0].id;
     }
 
     const result = await client.query(
@@ -75,11 +50,10 @@ module.exports = async (req, res) => {
       [userId, name, companySize, roles, industries, markets, JSON.stringify(filters), active]
     );
 
-    console.log('useCreateIcp: created id=', result.rows[0].id);
     await client.end();
     return res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error('useCreateIcp FATAL:', err.message, err.stack);
+    console.error('useCreateIcp error:', err.message, err.stack);
     try { await client.end(); } catch {}
     return res.status(500).json({ error: err.message });
   }
