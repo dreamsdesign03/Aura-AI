@@ -104,9 +104,12 @@ export default function LeadDetail() {
     useEffect(() => {
         setRescoreError(null);
     }, [id]);
-    const { data: lead, isLoading } = useGetLead(id, {
+    const { data: fetchedLead, isLoading: isLeadLoading } = useGetLead(id, {
         query: { enabled: !!id, queryKey: getGetLeadQueryKey(id) },
     });
+    const leadFromList = (leadsResp?.leads ?? []).find(l => Number(l.id) === Number(id));
+    const lead = fetchedLead || leadFromList;
+    const isLoading = isLeadLoading && !lead;
     const updateLead = useUpdateLead({
         mutation: {
             onSuccess: () => {

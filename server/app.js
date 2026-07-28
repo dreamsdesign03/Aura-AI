@@ -359,6 +359,41 @@ app.get('/api/leads', async (req, res) => {
   }
 });
 
+// Get single lead by ID
+app.get('/api/leads/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [id]);
+    if (leadRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+    const r = leadRes.rows[0];
+    const fn = r.first_name || r.firstName || r.company || 'Lead';
+    const ln = r.last_name || r.lastName || '';
+    const lead = {
+      ...r,
+      firstName: fn,
+      lastName: ln,
+      first_name: fn,
+      last_name: ln,
+      phone: r.phone || r.phone_number || r.phoneNumber || null,
+      whatsapp: r.whatsapp || r.phone || r.phone_number || null,
+      website: r.website || r.website_url || r.websiteUrl || null,
+      company: r.company || r.company_name || r.companyName || fn,
+      designation: r.designation || r.title || 'Owner / Executive',
+      city: r.city || r.location || 'Vadodara',
+      country: r.country || 'India',
+      status: r.status || 'new_enquiry',
+      bantScore: r.bant_score ?? r.bantScore ?? null,
+      source: r.source || 'apify_maps',
+    };
+    res.json(lead);
+  } catch (err) {
+    console.error('Error fetching lead by id:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create new Lead
 app.post('/api/leads', async (req, res) => {
   try {
