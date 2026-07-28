@@ -413,6 +413,32 @@ app.put('/api/leads/:id', async (req, res) => {
   }
 });
 
+// Patch Lead (alias for PUT — used by Pipeline drag-and-drop)
+app.patch('/api/leads/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fields = req.body;
+    const sets = [];
+    const params = [];
+    Object.entries(fields).forEach(([key, val]) => {
+      if (val !== undefined && key !== 'id') {
+        params.push(val);
+        sets.push(`${key} = $${params.length}`);
+      }
+    });
+    if (sets.length === 0) return res.status(400).json({ error: 'No fields to update' });
+    params.push(id);
+    const result = await db.query(
+      `UPDATE leads SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $${params.length} RETURNING *`,
+      params
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Delete Lead
 app.delete('/api/leads/:id', async (req, res) => {
   try {
@@ -1543,5 +1569,19 @@ app.post('/api/useImportLeadsPaste', (req, res) => res.json({ imported: 0, skipp
 app.get('/api/useImportLeadsCsv', (req, res) => res.json([]));
 app.post('/api/useImportLeadsCsv', (req, res) => res.json({ imported: 0, skipped: 0, errors: [] }));
 app.get('/api/useLeadAssigneeCounts', (req, res) => res.json({}));
+
+// 12. Dashboard & search stubs
+app.get('/api/useGetPipelineFunnel', (req, res) => res.json({ stages: [] }));
+app.get('/api/useGetDashboardSummary', (req, res) => res.json({
+  totalLeadsThisMonth: 0,
+  qualifiedLeads: 0,
+  meetingsThisWeek: 0,
+  pipelineValue: 0,
+  proposalsSent: 0,
+  dealsClosedThisMonth: 0,
+}));
+app.get('/api/useGetDashboardActivity', (req, res) => res.json([]));
+app.get('/api/client-error', (req, res) => res.json({ received: true }));
+app.get('/api/search', (req, res) => res.json({ leads: [], proposals: [], meetings: [] }));
 
 module.exports = app;

@@ -370,7 +370,7 @@ function GlobalSearch({ iconOnly = false }) {
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
     }, []);
-    const hasResults = results && (results.leads.length + results.proposals.length + results.meetings.length) > 0;
+    const hasResults = results && ((results.leads?.length ?? 0) + (results.proposals?.length ?? 0) + (results.meetings?.length ?? 0)) > 0;
     return (<>
       {iconOnly ? (<button onClick={openSearch} className="w-9 h-9 flex items-center justify-center rounded-xl transition-colors" style={{ background: "hsl(220 13% 95%)", color: "#6B7280" }} aria-label="Search">
           <Search className="w-4 h-4"/>
@@ -399,7 +399,7 @@ function GlobalSearch({ iconOnly = false }) {
               {query.length >= 2 && !loading && !hasResults && (<div className="px-4 py-8 text-center text-[13px]" style={{ color: "#9CA3AF" }}>
                   No results for "{query}"
                 </div>)}
-              {results && results.leads.length > 0 && (<div>
+              {results && (results.leads?.length ?? 0) > 0 && (<div>
                   <div className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Leads</div>
                   {results.leads.map(l => (<button key={l.id} onClick={() => go(`/leads/${l.id}`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors" style={{ color: "#111827" }} onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "")}>
                       <div className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: GRAD }}>
@@ -411,7 +411,7 @@ function GlobalSearch({ iconOnly = false }) {
                       </div>
                     </button>))}
                 </div>)}
-              {results && results.proposals.length > 0 && (<div>
+              {results && (results.proposals?.length ?? 0) > 0 && (<div>
                   <div className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Proposals</div>
                   {results.proposals.map(p => (<button key={p.id} onClick={() => go(`/proposals`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors" style={{ color: "#111827" }} onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "")}>
                       <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "#6B7280" }}/>
@@ -421,7 +421,7 @@ function GlobalSearch({ iconOnly = false }) {
                       </div>
                     </button>))}
                 </div>)}
-              {results && results.meetings.length > 0 && (<div>
+              {results && (results.meetings?.length ?? 0) > 0 && (<div>
                   <div className="px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Meetings</div>
                   {results.meetings.map(m => (<button key={m.id} onClick={() => go(`/meetings`)} className="w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors" style={{ color: "#111827" }} onMouseEnter={e => (e.currentTarget.style.background = "#F3F4F6")} onMouseLeave={e => (e.currentTarget.style.background = "")}>
                       <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: "#6B7280" }}/>
