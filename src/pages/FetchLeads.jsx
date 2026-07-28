@@ -110,7 +110,7 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
         setSkipped(0);
         setStatusMsg("Starting fetch…");
         try {
-            const email = sessionStorage.getItem("aura_user_email");
+            const email = sessionStorage.getItem("aura_user_email") || localStorage.getItem("aura_user_email") || "";
             console.log("[FetchLeads] Starting fetch, email:", email);
             // Step 1: Start Apify runs
             const startRes = await fetch(`${base}/leads/fetch-now`, {
@@ -160,13 +160,13 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
                 // Update leads display
                 if (pollData.leads?.length > 0) {
                     setStreamedLeads(prev => {
-                        const existing = new Set(prev.map(l => l.email));
+                        const existing = new Set(prev.map(l => l.company || l.email));
                         const newLeads = pollData.leads
-                            .filter(l => !existing.has(l.email))
+                            .filter(l => !existing.has(l.company || l.email))
                             .map(l => ({
-                                name: `${l.firstName} ${l.lastName}`,
+                                name: l.name || `${l.firstName} ${l.lastName}`,
                                 company: l.company,
-                                email: l.email,
+                                email: l.email || "No email",
                                 industry: l.industry,
                                 country: l.country,
                             }));
@@ -182,7 +182,7 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
                     allDone = true;
                     setDone(true);
                     setStatusMsg(`Done — ${pollData.totalImported || 0} leads imported`);
-                    qc.invalidateQueries({ queryKey: ["useListLeads"] });
+                    qc.invalidateQueries();
                 } else {
                     setStatusMsg(`Scanning… ${pollData.totalImported || 0} found so far`);
                 }

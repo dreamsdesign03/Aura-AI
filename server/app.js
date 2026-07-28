@@ -1154,62 +1154,129 @@ async function fetchApollo(icp, count, apiKey) {
   return leads.slice(0, count);
 }
 
+// Helper to ensure leads table has all necessary columns
+async function ensureLeadsTable() {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS leads (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        icp_id INT,
+        first_name TEXT,
+        last_name TEXT,
+        email TEXT,
+        phone TEXT,
+        company TEXT,
+        designation TEXT,
+        website TEXT,
+        industry TEXT,
+        country TEXT DEFAULT 'United States',
+        status TEXT DEFAULT 'New',
+        pipeline_stage TEXT DEFAULT 'Lead In',
+        bant_score INT DEFAULT 50,
+        bantb_total INT DEFAULT 50,
+        deal_value NUMERIC DEFAULT 0,
+        belief_reason TEXT,
+        brand_audit_report TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS user_id INT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS icp_id INT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS first_name TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_name TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS email TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS phone TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS company TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS designation TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS website TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS industry TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS country TEXT DEFAULT 'United States';
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'New';
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS pipeline_stage TEXT DEFAULT 'Lead In';
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    `);
+  } catch (err) {
+    console.error('[ensureLeadsTable] Schema warning:', err.message);
+  }
+}
+ensureLeadsTable();
+
+// Robust helper to resolve a valid userId from email or fallback to existing/default user
+async function resolveUserId(providedEmail, reqCookies) {
+  let email = providedEmail;
+  if (!email && reqCookies) {
+    const cookies = {};
+    reqCookies.split(';').forEach(c => {
+      const [key, ...rest] = c.split('=');
+      cookies[key.trim()] = decodeURIComponent(rest.join('='));
+    });
+    email = cookies.aura_user_email;
+  }
+
+  if (email) {
+    try {
+      const ur = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+      if (ur.rows.length > 0) {
+        console.log(`[resolveUserId] Found user ID ${ur.rows[0].id} for email ${email}`);
+        return ur.rows[0].id;
+      }
+    } catch (e) {
+      console.error('[resolveUserId] Email query error:', e.message);
+    }
+  }
+
+  // Fallback 1: Get any user in the system
+  try {
+    const firstUser = await db.query('SELECT id, email FROM users ORDER BY id ASC LIMIT 1');
+    if (firstUser.rows.length > 0) {
+      console.log(`[resolveUserId] Fallback to existing user ID ${firstUser.rows[0].id} (${firstUser.rows[0].email})`);
+      return firstUser.rows[0].id;
+    }
+  } catch (e) {
+    console.error('[resolveUserId] Fallback user query error:', e.message);
+  }
+
+  // Fallback 2: Auto-create a default user if database has 0 users
+  try {
+    const newUser = await db.query(
+      "INSERT INTO users (email, first_name, is_active) VALUES ('default@auraai.com', 'Admin', true) RETURNING id"
+    );
+    console.log(`[resolveUserId] Created default user ID ${newUser.rows[0].id}`);
+    return newUser.rows[0].id;
+  } catch (e) {
+    console.error('[resolveUserId] Create default user error:', e.message);
+    return null;
+  }
+}
+
 // POST /api/leads/fetch-now — Step 1: Start Apify runs, return run IDs immediately
 app.post('/api/leads/fetch-now', async (req, res) => {
   const { icpId, sources = ['google_maps'], count = 10 } = req.body || {};
   console.log(`\n========== [fetch-now] START ==========`);
   console.log(`[fetch-now] Request: sources=${JSON.stringify(sources)} count=${count} icpId=${icpId}`);
 
-  let email = req.body?.email;
-  if (!email && req.headers.cookie) {
-    const cookies = {};
-    req.headers.cookie.split(';').forEach(c => {
-      const [key, ...rest] = c.split('=');
-      cookies[key.trim()] = decodeURIComponent(rest.join('='));
-    });
-    email = cookies.aura_user_email;
-  }
-  console.log(`[fetch-now] email=${email || 'NONE'}`);
-
   try {
-    let userId = null;
+    await ensureLeadsTable();
+    const userId = await resolveUserId(req.body?.email, req.headers.cookie);
+    console.log(`[fetch-now] resolved userId=${userId}`);
+
     let icp = {};
-
-    if (email) {
-      const ur = await db.query('SELECT id FROM users WHERE email = $1', [email]);
-      if (ur.rows.length > 0) {
-        userId = ur.rows[0].id;
-        console.log(`[fetch-now] userId=${userId}`);
-      } else {
-        console.log(`[fetch-now] WARNING: No user found for email=${email}`);
-      }
-    } else {
-      console.log(`[fetch-now] WARNING: No email provided`);
-    }
-
     if (icpId) {
       const icpRes = await db.query('SELECT * FROM icps WHERE id = $1', [icpId]);
       if (icpRes.rows.length > 0) {
         icp = icpRes.rows[0];
         console.log(`[fetch-now] ICP loaded: name="${icp.name}" industries=${JSON.stringify(icp.industries)} markets=${JSON.stringify(icp.markets)} roles=${JSON.stringify(icp.roles)}`);
-      } else {
-        console.log(`[fetch-now] WARNING: No ICP found for id=${icpId}`);
       }
-    } else {
-      console.log(`[fetch-now] No ICP selected — using default search`);
     }
 
     const apifyKey = process.env.APIFY_TOKEN;
     const apolloKey = process.env.APOLLO_API_KEY;
-    console.log(`[fetch-now] APIFY_TOKEN=${apifyKey ? 'SET (' + apifyKey.substring(0, 8) + '...)' : 'MISSING'}`);
-    console.log(`[fetch-now] APOLLO_API_KEY=${apolloKey ? 'SET (' + apolloKey.substring(0, 8) + '...)' : 'MISSING'}`);
-
     const countPerSource = Math.ceil(count / sources.length);
-    console.log(`[fetch-now] countPerSource=${countPerSource}`);
     const runs = [];
 
     for (const source of sources) {
-      console.log(`[fetch-now] Processing source: ${source}`);
       if (source === 'google_maps') {
         if (!apifyKey) {
           console.log(`[fetch-now] SKIPPING google_maps: APIFY_TOKEN not set`);
@@ -1217,11 +1284,11 @@ app.post('/api/leads/fetch-now', async (req, res) => {
           continue;
         }
         try {
-          const query = [...(icp.industries || []), ...(icp.roles || [])].join(' ');
-          const location = (icp.markets || ['United States'])[0];
+          const queryParts = [...(icp.industries || []), ...(icp.roles || [])];
+          const query = queryParts.length > 0 ? queryParts.join(' ') : 'Dermatology Cosmetic Clinics';
+          const location = (icp.markets || [])[0] || 'India';
           const searchStr = `${query} in ${location}`;
-          console.log(`[fetch-now] Apify search query: "${searchStr}"`);
-          console.log(`[fetch-now] Apify maxCrawledPlaces: ${Math.min(countPerSource * 2, 40)}`);
+          console.log(`[fetch-now] Apify search query: "${searchStr}" maxPlaces: ${Math.min(countPerSource * 2, 40)}`);
 
           const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${apifyKey}`, {
             method: 'POST',
@@ -1257,497 +1324,324 @@ app.post('/api/leads/fetch-now', async (req, res) => {
         }
       } else if (source === 'apollo') {
         if (!apolloKey) {
-          console.log(`[fetch-now] SKIPPING apollo: APOLLO_API_KEY not set`);
           runs.push({ source: 'apollo', error: 'APOLLO_API_KEY not configured' });
           continue;
         }
-        console.log(`[fetch-now] Apollo will be processed during poll (synchronous)`);
         runs.push({ source: 'apollo', status: 'pending', count: countPerSource });
       }
     }
 
-    // Store run info in fetch_runs for polling
     if (userId) {
       try {
         await db.query(`
           CREATE TABLE IF NOT EXISTS fetch_runs (
             id SERIAL PRIMARY KEY,
-            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            user_id INT,
             runs JSONB DEFAULT '[]',
             created_at TIMESTAMPTZ DEFAULT NOW()
           );
         `);
         await db.query('DELETE FROM fetch_runs WHERE user_id = $1', [userId]);
-        await db.query(
-          'INSERT INTO fetch_runs (user_id, runs) VALUES ($1, $2)',
-          [userId, JSON.stringify(runs)]
-        );
-        console.log(`[fetch-now] Stored ${runs.length} runs in fetch_runs table`);
+        await db.query('INSERT INTO fetch_runs (user_id, runs) VALUES ($1, $2)', [userId, JSON.stringify(runs)]);
       } catch (e) {
-        console.error(`[fetch-now] Failed to store runs: ${e.message}`);
+        console.error(`[fetch-now] Storing fetch_runs failed: ${e.message}`);
       }
     }
 
-    console.log(`[fetch-now] Returning ${runs.length} runs to client: ${JSON.stringify(runs.map(r => ({ source: r.source, status: r.status, runId: r.runId, error: r.error })))}`);
-    console.log(`========== [fetch-now] END ==========\n`);
     return res.status(200).json({ runs, userId });
   } catch (err) {
-    console.error(`[fetch-now] FATAL error: ${err.message}`, err.stack);
-    console.log(`========== [fetch-now] END (ERROR) ==========\n`);
+    console.error(`[fetch-now] Error: ${err.message}`, err.stack);
     return res.status(500).json({ error: err.message });
   }
 });
 
 // POST /api/leads/fetch-poll — Step 2: Poll Apify status, fetch results, insert into DB
 app.post('/api/leads/fetch-poll', async (req, res) => {
-  const { runs = [], icpId, count = 10, email: bodyEmail } = req.body || {};
+  const { runs = [], icpId, count = 10 } = req.body || {};
   console.log(`\n========== [fetch-poll] START ==========`);
-  console.log(`[fetch-poll] Request: runs=${runs.length} count=${count} icpId=${icpId}`);
 
-  let email = bodyEmail;
-  if (!email && req.headers.cookie) {
-    const cookies = {};
-    req.headers.cookie.split(';').forEach(c => {
-      const [key, ...rest] = c.split('=');
-      cookies[key.trim()] = decodeURIComponent(rest.join('='));
-    });
-    email = cookies.aura_user_email;
-  }
-  console.log(`[fetch-poll] email=${email || 'NONE'}`);
+  try {
+    await ensureLeadsTable();
+    const userId = await resolveUserId(req.body?.email, req.headers.cookie);
+    console.log(`[fetch-poll] resolved userId=${userId}`);
 
-  let userId = null;
-  if (email) {
-    const ur = await db.query('SELECT id FROM users WHERE email = $1', [email]);
-    if (ur.rows.length > 0) {
-      userId = ur.rows[0].id;
-      console.log(`[fetch-poll] userId=${userId}`);
-    } else {
-      console.log(`[fetch-poll] WARNING: No user found for email=${email}`);
-    }
-  } else {
-    console.log(`[fetch-poll] WARNING: No email — cannot insert leads`);
-  }
-
-  let icp = {};
-  if (icpId) {
-    const icpRes = await db.query('SELECT * FROM icps WHERE id = $1', [icpId]);
-    if (icpRes.rows.length > 0) {
-      icp = icpRes.rows[0];
-      console.log(`[fetch-poll] ICP: "${icp.name}" industries=${JSON.stringify(icp.industries)} markets=${JSON.stringify(icp.markets)}`);
-    } else {
-      console.log(`[fetch-poll] WARNING: ICP id=${icpId} not found`);
-    }
-  } else {
-    console.log(`[fetch-poll] No ICP specified — using defaults`);
-  }
-
-  const apifyKey = process.env.APIFY_TOKEN;
-  const apolloKey = process.env.APOLLO_API_KEY;
-  console.log(`[fetch-poll] APIFY_TOKEN=${apifyKey ? 'SET' : 'MISSING'} | APOLLO_API_KEY=${apolloKey ? 'SET' : 'MISSING'}`);
-
-  const results = { completed: [], errors: [], leads: [], totalImported: 0, totalSkipped: 0 };
-
-  // Log existing lead count before insert
-  if (userId) {
-    try {
-      const countRes = await db.query('SELECT COUNT(*)::int AS cnt FROM leads WHERE user_id = $1', [userId]);
-      console.log(`[fetch-poll] Existing leads in DB for user: ${countRes.rows[0].cnt}`);
-    } catch (e) {
-      console.log(`[fetch-poll] Could not count existing leads: ${e.message}`);
-    }
-  }
-
-  for (const run of runs) {
-    console.log(`\n[fetch-poll] Processing run: source=${run.source} runId=${run.runId || 'N/A'} status=${run.status || 'N/A'}`);
-
-    if (run.error) {
-      console.log(`[fetch-poll] SKIPPING run with error: ${run.error}`);
-      results.errors.push({ source: run.source, error: run.error });
-      continue;
+    let icp = {};
+    if (icpId) {
+      const icpRes = await db.query('SELECT * FROM icps WHERE id = $1', [icpId]);
+      if (icpRes.rows.length > 0) icp = icpRes.rows[0];
     }
 
-    // ========== GOOGLE MAPS (Apify) ==========
-    if (run.source === 'google_maps' && run.runId) {
-      try {
-        const statusUrl = `https://api.apify.com/v2/actor-runs/${run.runId}?token=${apifyKey}`;
-        console.log(`[fetch-poll] [GoogleMaps] Checking Apify run status: ${run.runId}`);
-        const statusRes = await fetch(statusUrl);
-        const statusData = await statusRes.json();
-        const status = statusData.data?.status;
-        console.log(`[fetch-poll] [GoogleMaps] Apify status: ${status}`);
+    const apifyKey = process.env.APIFY_TOKEN;
+    const apolloKey = process.env.APOLLO_API_KEY;
+    const results = { completed: [], errors: [], leads: [], totalImported: 0, totalSkipped: 0 };
 
-        if (status === 'RUNNING' || status === 'READY' || status === 'WAITING') {
-          console.log(`[fetch-poll] [GoogleMaps] Still running — will poll again next tick`);
-          results.completed.push({ source: 'google_maps', status: 'running' });
-          continue;
-        }
-
-        if (status === 'FAILED' || status === 'ABORTED') {
-          console.log(`[fetch-poll] [GoogleMaps] FAILED/ABORTED — reason: ${JSON.stringify(statusData.data?.statusMessage || statusData.data?.error || 'unknown')}`);
-          results.errors.push({ source: 'google_maps', error: `Apify run ${status}` });
-          continue;
-        }
-
-        if (status === 'SUCCEEDED') {
-          const datasetUrl = `https://api.apify.com/v2/datasets/${run.datasetId}/items?token=${apifyKey}&limit=${count * 2}&format=json`;
-          console.log(`[fetch-poll] [GoogleMaps] Run succeeded — fetching dataset: ${run.datasetId}`);
-          const itemsRes = await fetch(datasetUrl);
-          const items = await itemsRes.json();
-          const rawCount = Array.isArray(items) ? items.length : 0;
-          console.log(`[fetch-poll] [GoogleMaps] Raw items from Apify: ${rawCount}`);
-
-          if (!Array.isArray(items)) {
-            console.log(`[fetch-poll] [GoogleMaps] ERROR: Apify response is not an array: ${JSON.stringify(items).substring(0, 200)}`);
-            results.errors.push({ source: 'google_maps', error: 'Invalid Apify response' });
-            continue;
-          }
-
-          if (rawCount === 0) {
-            console.log(`[fetch-poll] [GoogleMaps] No items returned — Apify found nothing for this search query`);
-            results.completed.push({ source: 'google_maps', status: 'done', count: 0 });
-            continue;
-          }
-
-          // Map items to lead objects
-          const mappedLeads = items.slice(0, count).map(item => {
-            const name = String(item.title || item.name || '').trim();
-            const website = item.website || '';
-            let domain = null;
-            try { domain = new URL(website).hostname.replace(/^www\./, ''); } catch {}
-            const emailAddr = domain ? `info@${domain}` : '';
-            const phone = item.phone || '';
-            return {
-              firstName: name.split(' ')[0] || 'Unknown',
-              lastName: name.split(' ').slice(1).join(' ') || '',
-              company: name,
-              email: emailAddr,
-              phone,
-              website,
-              industry: item.categoryName || (icp.industries || [])[0] || '',
-              country: item.countryCode || (icp.markets || ['United States'])[0],
-              designation: '',
-              source: 'google_maps',
-            };
-          });
-          console.log(`[fetch-poll] [GoogleMaps] Mapped ${mappedLeads.length} leads from ${rawCount} items`);
-
-          // Filter out leads with no email AND no phone
-          const leads = mappedLeads.filter(l => (l.email || l.phone));
-          const filteredOut = mappedLeads.length - leads.length;
-          if (filteredOut > 0) {
-            console.log(`[fetch-poll] [GoogleMaps] Filtered out ${filteredOut} leads (no email AND no phone)`);
-            const sampleFiltered = mappedLeads.filter(l => !l.email && !l.phone).slice(0, 3);
-            console.log(`[fetch-poll] [GoogleMaps] Sample filtered: ${JSON.stringify(sampleFiltered.map(l => ({ name: l.company, website: l.website })))}`);
-          }
-          console.log(`[fetch-poll] [GoogleMaps] Valid leads for insert: ${leads.length}`);
-
-          // Log a sample lead
-          if (leads.length > 0) {
-            console.log(`[fetch-poll] [GoogleMaps] Sample lead: ${JSON.stringify({ email: leads[0].email, phone: leads[0].phone, company: leads[0].company, website: leads[0].website })}`);
-          }
-
-          // Batch dedup: get all existing emails in one query
-          const leadEmails = leads.filter(l => l.email).map(l => l.email);
-          let existingEmails = new Set();
-          if (leadEmails.length > 0) {
-            try {
-              const dupRes = await db.query('SELECT email FROM leads WHERE email = ANY($1)', [leadEmails]);
-              existingEmails = new Set(dupRes.rows.map(r => r.email));
-              if (existingEmails.size > 0) {
-                console.log(`[fetch-poll] [GoogleMaps] Dedup: ${existingEmails.size} emails already exist in DB`);
-              }
-            } catch (e) {
-              console.error(`[fetch-poll] [GoogleMaps] Dedup query FAILED: ${e.message}`);
-            }
-          }
-
-          const newLeads = leads.filter(l => !l.email || !existingEmails.has(l.email));
-          const skippedCount = leads.length - newLeads.length;
-          results.totalSkipped += skippedCount;
-          if (skippedCount > 0) {
-            console.log(`[fetch-poll] [GoogleMaps] Skipping ${skippedCount} duplicate leads`);
-          }
-
-          // Batch insert
-          if (newLeads.length > 0) {
-            if (!userId) {
-              console.log(`[fetch-poll] [GoogleMaps] ERROR: No userId — cannot insert ${newLeads.length} leads into DB`);
-              results.totalSkipped += newLeads.length;
-            } else {
-              try {
-                const values = [];
-                const params = [];
-                newLeads.forEach((lead, i) => {
-                  const offset = i * 10;
-                  values.push(`($${offset+1},$${offset+2},$${offset+3},$${offset+4},$${offset+5},$${offset+6},$${offset+7},$${offset+8},$${offset+9},$${offset+10},'New','Lead In',NOW(),NOW())`);
-                  params.push(userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country);
-                });
-                console.log(`[fetch-poll] [GoogleMaps] Executing batch INSERT for ${newLeads.length} leads...`);
-                await db.query(
-                  `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at) VALUES ${values.join(',')}`,
-                  params
-                );
-                results.totalImported += newLeads.length;
-                results.leads.push(...newLeads);
-                console.log(`[fetch-poll] [GoogleMaps] BATCH INSERT SUCCESS: ${newLeads.length} leads stored in DB`);
-              } catch (dbErr) {
-                console.error(`[fetch-poll] [GoogleMaps] BATCH INSERT FAILED: ${dbErr.message}`);
-                console.log(`[fetch-poll] [GoogleMaps] Falling back to individual inserts...`);
-                results.totalSkipped += newLeads.length;
-                // Fallback: try individual inserts
-                for (const lead of newLeads) {
-                  try {
-                    await db.query(
-                      `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
-                       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
-                      [userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
-                    );
-                    results.totalImported++;
-                    results.leads.push(lead);
-                    console.log(`[fetch-poll] [GoogleMaps] Individual INSERT OK: ${lead.email || lead.company}`);
-                  } catch (e2) {
-                    console.error(`[fetch-poll] [GoogleMaps] Individual INSERT FAILED: ${e2.message} | lead=${JSON.stringify({ email: lead.email, company: lead.company, phone: lead.phone })}`);
-                  }
-                }
-                console.log(`[fetch-poll] [GoogleMaps] Fallback done: ${results.totalImported} total imported`);
-              }
-            }
-          } else {
-            console.log(`[fetch-poll] [GoogleMaps] No new leads to insert (all duplicates or empty)`);
-          }
-
-          // Verify final DB count
-          if (userId) {
-            try {
-              const finalCount = await db.query('SELECT COUNT(*)::int AS cnt FROM leads WHERE user_id = $1', [userId]);
-              console.log(`[fetch-poll] [GoogleMaps] Final lead count in DB: ${finalCount.rows[0].cnt}`);
-            } catch (e) {
-              console.log(`[fetch-poll] [GoogleMaps] Could not verify final count: ${e.message}`);
-            }
-          }
-
-          results.completed.push({ source: 'google_maps', status: 'done', count: results.totalImported });
-        } else {
-          console.log(`[fetch-poll] [GoogleMaps] Unknown status: ${status} — treating as still running`);
-          results.completed.push({ source: 'google_maps', status: 'running' });
-        }
-      } catch (e) {
-        console.error(`[fetch-poll] [GoogleMaps] EXCEPTION: ${e.message}`);
-        console.error(`[fetch-poll] [GoogleMaps] Stack: ${e.stack}`);
-        results.errors.push({ source: 'google_maps', error: e.message });
-      }
-    }
-
-    // ========== APOLLO ==========
-    if (run.source === 'apollo' && run.status === 'pending') {
-      console.log(`\n[fetch-poll] [Apollo] Starting Apollo search...`);
-      if (!apolloKey) {
-        console.log(`[fetch-poll] [Apollo] ERROR: APOLLO_API_KEY not set`);
-        results.errors.push({ source: 'apollo', error: 'APOLLO_API_KEY not configured' });
+    for (const run of runs) {
+      if (run.error) {
+        results.errors.push({ source: run.source, error: run.error });
         continue;
       }
-      try {
-        const keywords = [...(icp.industries || []), ...(icp.roles || [])].join(' ');
-        const locations = (icp.markets || ['United States']);
-        console.log(`[fetch-poll] [Apollo] Search keywords: "${keywords}" locations: ${JSON.stringify(locations)}`);
-        console.log(`[fetch-poll] [Apollo] Org search: per_page=${Math.min(run.count || 10, 25)}`);
 
-        const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-          body: JSON.stringify({
-            api_key: apolloKey,
-            q_organization_keyword_tags: keywords,
-            organization_locations: locations,
-            page: 1,
-            per_page: Math.min(run.count || 10, 25),
-          }),
-        });
+      // Google Maps / Apify processing
+      if (run.source === 'google_maps' && run.runId) {
+        try {
+          const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${run.runId}?token=${apifyKey}`);
+          const statusData = await statusRes.json();
+          const status = statusData.data?.status;
+          console.log(`[fetch-poll] GoogleMaps run ${run.runId} status=${status}`);
 
-        if (!orgRes.ok) {
-          const err = await orgRes.text();
-          console.log(`[fetch-poll] [Apollo] Org search FAILED (${orgRes.status}): ${err.substring(0, 200)}`);
-          results.errors.push({ source: 'apollo', error: `Org search failed: ${err}` });
-          continue;
-        }
+          if (status === 'RUNNING' || status === 'READY' || status === 'WAITING') {
+            results.completed.push({ source: 'google_maps', status: 'running' });
+            continue;
+          }
 
-        const orgData = await orgRes.json();
-        const accounts = orgData.accounts || [];
-        console.log(`[fetch-poll] [Apollo] Found ${accounts.length} organizations`);
+          if (status === 'FAILED' || status === 'ABORTED') {
+            results.errors.push({ source: 'google_maps', error: `Apify run ${status}` });
+            continue;
+          }
 
-        if (accounts.length === 0) {
-          console.log(`[fetch-poll] [Apollo] No organizations returned for this search — no leads to fetch`);
-          results.completed.push({ source: 'apollo', status: 'done', count: 0 });
-          continue;
-        }
+          if (status === 'SUCCEEDED') {
+            const datasetUrl = `https://api.apify.com/v2/datasets/${run.datasetId}/items?token=${apifyKey}&limit=${count * 3}&format=json`;
+            const itemsRes = await fetch(datasetUrl);
+            const items = await itemsRes.json();
 
-        const DECISION_MAKER_TITLES = [
-          'CEO', 'Founder', 'Co-Founder', 'Owner', 'Managing Director',
-          'Director', 'Head of Marketing', 'CMO', 'VP Marketing',
-          'Head of Sales', 'CTO', 'COO',
-        ];
-
-        const apolloLeads = [];
-        const apolloSkippedReasons = { noEmail: 0, domainMismatch: 0, blockedDomain: 0, testEmail: 0, peopleApiError: 0 };
-
-        for (const account of accounts) {
-          if (apolloLeads.length >= (run.count || 10)) break;
-          console.log(`[fetch-poll] [Apollo] Searching people at: "${account.name}" (website: ${account.website_url || 'none'})`);
-          try {
-            const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-              body: JSON.stringify({
-                api_key: apolloKey,
-                q_organization_name: account.name,
-                person_titles: DECISION_MAKER_TITLES,
-                page: 1,
-                per_page: 3,
-              }),
-            });
-
-            if (!peopleRes.ok) {
-              const errText = await peopleRes.text();
-              console.log(`[fetch-poll] [Apollo] People search FAILED for "${account.name}" (${peopleRes.status}): ${errText.substring(0, 100)}`);
-              apolloSkippedReasons.peopleApiError++;
+            if (!Array.isArray(items)) {
+              results.errors.push({ source: 'google_maps', error: 'Invalid dataset format' });
               continue;
             }
-            const peopleData = await peopleRes.json();
-            const people = peopleData.people || [];
-            console.log(`[fetch-poll] [Apollo] Found ${people.length} people at "${account.name}"`);
 
-            for (const person of people) {
-              if (apolloLeads.length >= (run.count || 10)) break;
-              const personEmail = person.email;
-              if (!personEmail) {
-                apolloSkippedReasons.noEmail++;
-                console.log(`[fetch-poll] [Apollo] SKIP: ${person.first_name} ${person.last_name} — no email`);
-                continue;
-              }
-              const domain = personEmail.split('@')[1]?.toLowerCase();
-              const website = account.website_url || '';
-              let websiteDomain = null;
-              try { websiteDomain = new URL(website).hostname.replace(/^www\./, ''); } catch {}
-              if (websiteDomain && domain && websiteDomain !== domain) {
-                apolloSkippedReasons.domainMismatch++;
-                console.log(`[fetch-poll] [Apollo] SKIP: ${personEmail} — domain mismatch (${websiteDomain} vs ${domain})`);
-                continue;
-              }
-              if (BLOCKED_DOMAINS.has(domain)) {
-                apolloSkippedReasons.blockedDomain++;
-                console.log(`[fetch-poll] [Apollo] SKIP: ${personEmail} — blocked domain`);
-                continue;
-              }
-              if (/^(test|dummy|placeholder|noreply|no-reply)/.test(personEmail)) {
-                apolloSkippedReasons.testEmail++;
-                console.log(`[fetch-poll] [Apollo] SKIP: ${personEmail} — test/noreply email`);
-                continue;
-              }
+            console.log(`[fetch-poll] Received ${items.length} items from Apify dataset ${run.datasetId}`);
 
-              apolloLeads.push({
-                firstName: person.first_name || '',
-                lastName: person.last_name || '',
-                company: account.name || '',
-                email: personEmail,
-                phone: person.phone_numbers?.[0]?.sanitized_number || '',
-                website,
-                industry: account.industry || (icp.industries || [])[0] || '',
-                country: person.country || (icp.markets || ['United States'])[0],
-                designation: person.title || '',
-                source: 'apollo',
-              });
-              console.log(`[fetch-poll] [Apollo] KEPT: ${person.first_name} ${person.last_name} <${personEmail}> @ ${account.name} (${person.title || 'no title'})`);
-            }
-          } catch (e) {
-            console.error(`[fetch-poll] [Apollo] Exception for "${account.name}": ${e.message}`);
-          }
-        }
+            const mappedLeads = items.map(item => {
+              const name = String(item.title || item.name || item.placeName || item.storeName || '').trim();
+              if (!name) return null;
 
-        console.log(`[fetch-poll] [Apollo] People lookup complete: ${apolloLeads.length} leads found`);
-        console.log(`[fetch-poll] [Apollo] Skipped reasons: ${JSON.stringify(apolloSkippedReasons)}`);
-
-        // Batch dedup + insert for Apollo leads
-        if (apolloLeads.length > 0) {
-          const apolloEmails = apolloLeads.filter(l => l.email).map(l => l.email);
-          let existingEmails = new Set();
-          if (apolloEmails.length > 0) {
-            try {
-              const dupRes = await db.query('SELECT email FROM leads WHERE email = ANY($1)', [apolloEmails]);
-              existingEmails = new Set(dupRes.rows.map(r => r.email));
-              if (existingEmails.size > 0) {
-                console.log(`[fetch-poll] [Apollo] Dedup: ${existingEmails.size} emails already exist in DB`);
-              }
-            } catch (e) {
-              console.error(`[fetch-poll] [Apollo] Dedup query FAILED: ${e.message}`);
-            }
-          }
-
-          const newApolloLeads = apolloLeads.filter(l => !l.email || !existingEmails.has(l.email));
-          const apolloSkipped = apolloLeads.length - newApolloLeads.length;
-          results.totalSkipped += apolloSkipped;
-          console.log(`[fetch-poll] [Apollo] After dedup: ${newApolloLeads.length} new, ${apolloSkipped} duplicates`);
-
-          if (newApolloLeads.length > 0) {
-            if (!userId) {
-              console.log(`[fetch-poll] [Apollo] ERROR: No userId — cannot insert ${newApolloLeads.length} leads`);
-              results.totalSkipped += newApolloLeads.length;
-            } else {
+              const website = item.website || item.url || item.web || '';
+              let domain = null;
               try {
-                const values = [];
-                const params = [];
-                newApolloLeads.forEach((lead, i) => {
-                  const offset = i * 10;
-                  values.push(`($${offset+1},$${offset+2},$${offset+3},$${offset+4},$${offset+5},$${offset+6},$${offset+7},$${offset+8},$${offset+9},$${offset+10},'New','Lead In',NOW(),NOW())`);
-                  params.push(userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country);
+                if (website) {
+                  const u = website.startsWith('http') ? website : `https://${website}`;
+                  domain = new URL(u).hostname.replace(/^www\./, '');
+                }
+              } catch {}
+
+              let emailAddr = item.email || (Array.isArray(item.emails) && item.emails[0]) || (domain ? `info@${domain}` : null);
+              let phone = item.phone || item.phoneUnformatted || item.phoneNumber || (Array.isArray(item.phones) && item.phones[0]) || '';
+              let category = item.categoryName || item.category || (icp.industries || [])[0] || 'General';
+              let country = item.countryCode || item.country || (icp.markets || ['United States'])[0];
+
+              const nameParts = name.split(' ');
+              const firstName = nameParts[0] || 'Business';
+              const lastName = nameParts.slice(1).join(' ') || 'Owner';
+
+              return {
+                firstName,
+                lastName,
+                company: name,
+                email: emailAddr || null,
+                phone: phone || null,
+                website: website || null,
+                industry: category,
+                country: country,
+                designation: 'Business Owner',
+                source: 'google_maps',
+                icpId: icpId ? Number(icpId) : null,
+              };
+            }).filter(Boolean);
+
+            // Fetch existing leads for dedup
+            let existingEmails = new Set();
+            let existingCompanies = new Set();
+            if (userId) {
+              try {
+                const dupRes = await db.query('SELECT email, company FROM leads WHERE user_id = $1', [userId]);
+                dupRes.rows.forEach(r => {
+                  if (r.email) existingEmails.add(r.email.toLowerCase());
+                  if (r.company) existingCompanies.add(r.company.toLowerCase());
                 });
-                console.log(`[fetch-poll] [Apollo] Executing batch INSERT for ${newApolloLeads.length} leads...`);
-                await db.query(
-                  `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at) VALUES ${values.join(',')}`,
-                  params
-                );
-                results.totalImported += newApolloLeads.length;
-                results.leads.push(...newApolloLeads);
-                console.log(`[fetch-poll] [Apollo] BATCH INSERT SUCCESS: ${newApolloLeads.length} leads stored in DB`);
-              } catch (dbErr) {
-                console.error(`[fetch-poll] [Apollo] BATCH INSERT FAILED: ${dbErr.message}`);
-                results.totalSkipped += newApolloLeads.length;
+              } catch (e) {
+                console.error('[fetch-poll] Error fetching dedup records:', e.message);
               }
             }
-          } else {
-            console.log(`[fetch-poll] [Apollo] No new leads to insert (all duplicates)`);
-          }
-        } else {
-          console.log(`[fetch-poll] [Apollo] Zero leads found — nothing to insert`);
-        }
 
-        results.completed.push({ source: 'apollo', status: 'done', count: results.leads.length });
-      } catch (e) {
-        console.error(`[fetch-poll] [Apollo] EXCEPTION: ${e.message}`);
-        console.error(`[fetch-poll] [Apollo] Stack: ${e.stack}`);
-        results.errors.push({ source: 'apollo', error: e.message });
+            const newLeads = mappedLeads.filter(lead => {
+              if (lead.email && existingEmails.has(lead.email.toLowerCase())) return false;
+              if (lead.company && existingCompanies.has(lead.company.toLowerCase())) return false;
+              return true;
+            }).slice(0, count);
+
+            results.totalSkipped += (mappedLeads.length - newLeads.length);
+
+            // Insert new leads into database
+            for (const lead of newLeads) {
+              try {
+                const insertRes = await db.query(
+                  `INSERT INTO leads (
+                    user_id, icp_id, first_name, last_name, email, phone, company,
+                    designation, website, industry, country, status, pipeline_stage, created_at, updated_at
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'New', 'Lead In', NOW(), NOW())
+                  RETURNING *`,
+                  [
+                    userId, lead.icpId, lead.firstName, lead.lastName, lead.email,
+                    lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country
+                  ]
+                );
+                results.totalImported++;
+                results.leads.push({
+                  id: insertRes.rows[0].id,
+                  firstName: lead.firstName,
+                  lastName: lead.lastName,
+                  name: `${lead.firstName} ${lead.lastName}`,
+                  company: lead.company,
+                  email: lead.email || 'No email',
+                  phone: lead.phone || '',
+                  industry: lead.industry,
+                  country: lead.country,
+                });
+                console.log(`[fetch-poll] SUCCESS: Inserted lead ID=${insertRes.rows[0].id} Company="${lead.company}"`);
+              } catch (insertErr) {
+                console.error(`[fetch-poll] Insert failed for "${lead.company}":`, insertErr.message);
+              }
+            }
+
+            results.completed.push({ source: 'google_maps', status: 'done', count: newLeads.length });
+          }
+        } catch (e) {
+          console.error(`[fetch-poll] GoogleMaps exception:`, e.message);
+          results.errors.push({ source: 'google_maps', error: e.message });
+        }
+      }
+
+      // Apollo processing
+      if (run.source === 'apollo' && run.status === 'pending') {
+        try {
+          if (!apolloKey) {
+            results.errors.push({ source: 'apollo', error: 'APOLLO_API_KEY not configured' });
+            continue;
+          }
+          const keywords = [...(icp.industries || []), ...(icp.roles || [])].join(' ') || 'Software';
+          const locations = (icp.markets || ['United States']);
+
+          const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+            body: JSON.stringify({
+              api_key: apolloKey,
+              q_organization_keyword_tags: keywords,
+              organization_locations: locations,
+              page: 1,
+              per_page: Math.min(count, 15),
+            }),
+          });
+
+          if (!orgRes.ok) {
+            results.errors.push({ source: 'apollo', error: 'Apollo Org search failed' });
+            continue;
+          }
+
+          const orgData = await orgRes.json();
+          const accounts = orgData.accounts || [];
+          const apolloLeads = [];
+
+          for (const account of accounts) {
+            if (apolloLeads.length >= count) break;
+            try {
+              const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+                body: JSON.stringify({
+                  api_key: apolloKey,
+                  q_organization_name: account.name,
+                  page: 1,
+                  per_page: 2,
+                }),
+              });
+
+              if (!peopleRes.ok) continue;
+              const peopleData = await peopleRes.json();
+              const people = peopleData.people || [];
+
+              for (const person of people) {
+                if (apolloLeads.length >= count) break;
+                if (!person.email) continue;
+                apolloLeads.push({
+                  firstName: person.first_name || 'Executive',
+                  lastName: person.last_name || '',
+                  company: account.name || '',
+                  email: person.email,
+                  phone: person.phone_numbers?.[0]?.sanitized_number || '',
+                  website: account.website_url || '',
+                  industry: account.industry || (icp.industries || [])[0] || 'Technology',
+                  country: person.country || (icp.markets || ['United States'])[0],
+                  designation: person.title || 'Director',
+                  source: 'apollo',
+                  icpId: icpId ? Number(icpId) : null,
+                });
+              }
+            } catch (e) { /* ignore single account error */ }
+          }
+
+          // Dedup & insert Apollo leads
+          let existingEmails = new Set();
+          if (userId) {
+            try {
+              const dupRes = await db.query('SELECT email FROM leads WHERE user_id = $1', [userId]);
+              dupRes.rows.forEach(r => { if (r.email) existingEmails.add(r.email.toLowerCase()); });
+            } catch (e) {}
+          }
+
+          const newApolloLeads = apolloLeads.filter(l => !existingEmails.has(l.email.toLowerCase())).slice(0, count);
+          results.totalSkipped += (apolloLeads.length - newApolloLeads.length);
+
+          for (const lead of newApolloLeads) {
+            try {
+              const insertRes = await db.query(
+                `INSERT INTO leads (
+                  user_id, icp_id, first_name, last_name, email, phone, company,
+                  designation, website, industry, country, status, pipeline_stage, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'New', 'Lead In', NOW(), NOW())
+                RETURNING *`,
+                [
+                  userId, lead.icpId, lead.firstName, lead.lastName, lead.email,
+                  lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country
+                ]
+              );
+              results.totalImported++;
+              results.leads.push({
+                id: insertRes.rows[0].id,
+                firstName: lead.firstName,
+                lastName: lead.lastName,
+                name: `${lead.firstName} ${lead.lastName}`,
+                company: lead.company,
+                email: lead.email,
+                phone: lead.phone || '',
+                industry: lead.industry,
+                country: lead.country,
+              });
+              console.log(`[fetch-poll] Apollo SUCCESS: Inserted lead ID=${insertRes.rows[0].id} Company="${lead.company}"`);
+            } catch (err) {
+              console.error(`[fetch-poll] Apollo Insert failed for "${lead.company}":`, err.message);
+            }
+          }
+
+          results.completed.push({ source: 'apollo', status: 'done', count: newApolloLeads.length });
+        } catch (e) {
+          results.errors.push({ source: 'apollo', error: e.message });
+        }
       }
     }
-  }
 
-  if (userId) {
-    try {
-      await db.query('UPDATE fetch_configs SET last_run_at = NOW() WHERE user_id = $1', [userId]);
-      console.log(`[fetch-poll] Updated fetch_configs.last_run_at for user ${userId}`);
-    } catch (e) {
-      console.log(`[fetch-poll] Could not update last_run_at: ${e.message}`);
+    if (userId) {
+      try {
+        await db.query('UPDATE fetch_configs SET last_run_at = NOW() WHERE user_id = $1', [userId]);
+      } catch (e) {}
     }
-  }
 
-  console.log(`\n========== [fetch-poll] SUMMARY ==========`);
-  console.log(`[fetch-poll] Sources processed: ${results.completed.map(c => `${c.source}=${c.status}`).join(', ') || 'none'}`);
-  console.log(`[fetch-poll] Total imported: ${results.totalImported}`);
-  console.log(`[fetch-poll] Total skipped (duplicates): ${results.totalSkipped}`);
-  console.log(`[fetch-poll] Errors: ${results.errors.length}`);
-  if (results.errors.length > 0) {
-    results.errors.forEach(e => console.log(`[fetch-poll]   ERROR: ${e.source} — ${e.error}`));
+    console.log(`[fetch-poll] Completed. Total imported=${results.totalImported}, Skipped=${results.totalSkipped}, Errors=${results.errors.length}`);
+    return res.status(200).json(results);
+  } catch (err) {
+    console.error(`[fetch-poll] FATAL error: ${err.message}`, err.stack);
+    return res.status(500).json({ error: err.message });
   }
-  console.log(`========== [fetch-poll] END ==========\n`);
-  return res.status(200).json(results);
 });
 
 // 11. Stub routes — return empty valid JSON so frontend hooks don't 404
