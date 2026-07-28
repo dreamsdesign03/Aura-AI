@@ -337,7 +337,17 @@ app.get('/api/leads', async (req, res) => {
     );
 
     res.json({
-      leads: leadsRes.rows,
+      leads: leadsRes.rows.map(r => {
+        const fn = r.first_name || r.firstName || r.company || 'Lead';
+        const ln = r.last_name || r.lastName || '';
+        return {
+          ...r,
+          firstName: fn,
+          lastName: ln,
+          first_name: fn,
+          last_name: ln,
+        };
+      }),
       total: totalCount,
       page: parseInt(page),
       limit: parseInt(limit),
@@ -1251,6 +1261,51 @@ async function resolveUserId(providedEmail, reqCookies) {
   }
 }
 
+// Helper to construct targeted search queries for Apify Google Places crawler
+function buildApifySearchQueries(icp) {
+  let rawIndustries = icp?.industries || [];
+  if (typeof rawIndustries === 'string') {
+    try { rawIndustries = JSON.parse(rawIndustries); } catch { rawIndustries = rawIndustries.split(',').map(s => s.trim()); }
+  }
+
+  let rawMarkets = icp?.markets || [];
+  if (typeof rawMarkets === 'string') {
+    try { rawMarkets = JSON.parse(rawMarkets); } catch { rawMarkets = rawMarkets.split(',').map(s => s.trim()); }
+  }
+
+  const industries = (Array.isArray(rawIndustries) ? rawIndustries : []).filter(Boolean);
+  const markets = (Array.isArray(rawMarkets) ? rawMarkets : []).filter(Boolean);
+
+  console.log(`[buildApifySearchQueries] Industries: ${JSON.stringify(industries)} | Markets: ${JSON.stringify(markets)}`);
+
+  const cleanIndustries = industries.length > 0 ? industries.slice(0, 3) : ['Dermatology Clinic', 'Cosmetic Clinic'];
+  const searchQueries = [];
+
+  if (markets.length > 0) {
+    const country = markets.find(m => /india|usa|united states|uk|uae|canada|australia/i.test(m)) || 'India';
+    const cities = markets.filter(m => m.toLowerCase() !== country.toLowerCase());
+
+    if (cities.length > 0) {
+      cities.slice(0, 4).forEach(city => {
+        cleanIndustries.slice(0, 2).forEach(ind => {
+          searchQueries.push(`${ind} in ${city}, ${country}`);
+        });
+      });
+    } else {
+      cleanIndustries.forEach(ind => {
+        searchQueries.push(`${ind} in ${country}`);
+      });
+    }
+  } else {
+    const loc = icp?.name && /india/i.test(icp.name) ? 'India' : 'India';
+    cleanIndustries.forEach(ind => {
+      searchQueries.push(`${ind} in ${loc}`);
+    });
+  }
+
+  return [...new Set(searchQueries)].slice(0, 5);
+}
+
 // POST /api/leads/fetch-now — Step 1: Start Apify runs, return run IDs immediately
 app.post('/api/leads/fetch-now', async (req, res) => {
   const { icpId, sources = ['google_maps'], count = 10 } = req.body || {};
@@ -1267,7 +1322,7 @@ app.post('/api/leads/fetch-now', async (req, res) => {
       const icpRes = await db.query('SELECT * FROM icps WHERE id = $1', [icpId]);
       if (icpRes.rows.length > 0) {
         icp = icpRes.rows[0];
-        console.log(`[fetch-now] ICP loaded: name="${icp.name}" industries=${JSON.stringify(icp.industries)} markets=${JSON.stringify(icp.markets)} roles=${JSON.stringify(icp.roles)}`);
+        console.log(`[fetch-now] ICP loaded: name="${icp.name}" industries=${JSON.stringify(icp.industries)} markets=${JSON.stringify(icp.markets)}`);
       }
     }
 
@@ -1284,17 +1339,14 @@ app.post('/api/leads/fetch-now', async (req, res) => {
           continue;
         }
         try {
-          const queryParts = [...(icp.industries || []), ...(icp.roles || [])];
-          const query = queryParts.length > 0 ? queryParts.join(' ') : 'Dermatology Cosmetic Clinics';
-          const location = (icp.markets || [])[0] || 'India';
-          const searchStr = `${query} in ${location}`;
-          console.log(`[fetch-now] Apify search query: "${searchStr}" maxPlaces: ${Math.min(countPerSource * 2, 40)}`);
+          const searchStrings = buildApifySearchQueries(icp);
+          console.log(`[fetch-now] Apify search queries: ${JSON.stringify(searchStrings)} maxPlacesPerSearch: ${Math.min(countPerSource * 2, 40)}`);
 
           const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${apifyKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              searchStringsArray: [searchStr],
+              searchStringsArray: searchStrings,
               maxCrawledPlacesPerSearch: Math.min(countPerSource * 2, 40),
               language: 'en',
               exportPlaceUrls: false,
@@ -1426,23 +1478,22 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 
               let emailAddr = item.email || (Array.isArray(item.emails) && item.emails[0]) || (domain ? `info@${domain}` : null);
               let phone = item.phone || item.phoneUnformatted || item.phoneNumber || (Array.isArray(item.phones) && item.phones[0]) || '';
-              let category = item.categoryName || item.category || (icp.industries || [])[0] || 'General';
-              let country = item.countryCode || item.country || (icp.markets || ['United States'])[0];
-
-              const nameParts = name.split(' ');
-              const firstName = nameParts[0] || 'Business';
-              const lastName = nameParts.slice(1).join(' ') || 'Owner';
+              let category = item.categoryName || item.category || (icp.industries || [])[0] || 'Dermatology / Clinic';
+              
+              // Location formatting
+              const locParts = [item.city, item.state, item.countryCode || (icp.markets || [])[0] || 'India'].filter(Boolean);
+              let locationStr = locParts.length > 0 ? locParts.join(', ') : 'India';
 
               return {
-                firstName,
-                lastName,
+                firstName: name,
+                lastName: '',
                 company: name,
                 email: emailAddr || null,
                 phone: phone || null,
                 website: website || null,
                 industry: category,
-                country: country,
-                designation: 'Business Owner',
+                country: locationStr,
+                designation: 'Clinic Owner / Doctor',
                 source: 'google_maps',
                 icpId: icpId ? Number(icpId) : null,
               };

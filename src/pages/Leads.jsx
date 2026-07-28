@@ -1242,7 +1242,10 @@ export default function Leads() {
             const l = lead;
             const phoneNum = l.whatsapp || lead.phone || null;
             const waNum = (phoneNum ?? "").replace(/[^0-9]/g, "");
-            const initials = `${lead.firstName?.[0] ?? ""}${lead.lastName?.[0] ?? ""}`.toUpperCase();
+            const fnMobile = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
+            const lnMobile = (lead.lastName || lead.last_name || "").trim();
+            const leadNameStrMobile = lnMobile ? `${fnMobile} ${lnMobile}` : fnMobile;
+            const initials = leadNameStrMobile.substring(0, 2).toUpperCase();
             const avatarBg = MOBILE_AVATAR_COLORS[lead.id % MOBILE_AVATAR_COLORS.length];
             const statusDot = STATUS_DOT[lead.status] ?? "#9CA3AF";
             const createdDate = lead.createdAt
@@ -1262,7 +1265,7 @@ export default function Leads() {
                   <div className="flex-1 min-w-0">
                     {/* Row 1: Name + Date + Menu */}
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-[15px] font-semibold text-gray-900 leading-tight truncate">{lead.firstName} {lead.lastName}</p>
+                      <p className="text-[15px] font-semibold text-gray-900 leading-tight truncate">{leadNameStrMobile}</p>
                       <div className="flex items-center gap-1 flex-shrink-0 text-gray-400">
                         <span className="text-[11px] whitespace-nowrap">{createdDate}</span>
                         <MoreVertical className="w-3.5 h-3.5"/>
@@ -1374,6 +1377,10 @@ export default function Leads() {
             const phoneDisplay = [lead.phone, l.whatsapp].filter(Boolean).join(" / ") || null;
             const waNum = ((l.whatsapp || lead.phone) ?? "").replace(/[^0-9]/g, "");
             const rowNum = (page - 1) * PAGE_SIZE + idx + 1;
+            const fn = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
+            const ln = (lead.lastName || lead.last_name || "").trim();
+            const leadNameStr = ln ? `${fn} ${ln}` : fn;
+            const initials = leadNameStr.substring(0, 2).toUpperCase();
             const avatarColor = MOBILE_AVATAR_COLORS[lead.id % MOBILE_AVATAR_COLORS.length];
             return (<tr key={lead.id} className="border-b border-gray-100 hover:bg-violet-50/30 transition-colors cursor-pointer group bg-white" onClick={() => navigate(`/leads/${lead.id}`)}>
                     <td className="sticky left-0 z-10 w-8 px-2 py-2.5 bg-white group-hover:bg-violet-50/30" onClick={e => e.stopPropagation()}>
@@ -1383,9 +1390,9 @@ export default function Leads() {
                     <td className="sticky left-8 z-10 px-3 py-2.5 bg-white group-hover:bg-violet-50/30" style={{ minWidth: "160px" }}>
                       <div className="flex items-center gap-2">
                         {l.photoUrl ? <img src={l.photoUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0"/> : (<div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: avatarColor }}>
-                            {(lead.firstName?.[0] ?? "").toUpperCase()}{(lead.lastName?.[0] ?? "").toUpperCase()}
+                            {initials || "?"}
                           </div>)}
-                        <span className="font-medium text-violet-700 hover:text-violet-900 hover:underline truncate text-[12px]">{lead.firstName} {lead.lastName}</span>
+                        <span className="font-medium text-violet-700 hover:text-violet-900 hover:underline truncate text-[12px]">{leadNameStr}</span>
                       </div>
                     </td>
                     <td className="px-3 py-2 text-gray-500 truncate" style={{ maxWidth: "130px" }}>{lead.designation ?? <span className="text-gray-300">—</span>}</td>
