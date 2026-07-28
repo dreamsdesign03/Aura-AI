@@ -839,6 +839,17 @@ app.post('/api/db/query', async (req, res) => {
   }
 });
 
+// Quick debug: check if leads exist
+app.get('/api/debug/leads-count', async (req, res) => {
+  try {
+    const r = await db.query('SELECT COUNT(*) as total FROM leads');
+    const sample = await db.query('SELECT id, first_name, last_name, email, company, user_id FROM leads ORDER BY id DESC LIMIT 5');
+    res.json({ total: r.rows[0].total, sample: sample.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 10. Fetch Leads Config & SSE Streaming
 app.get('/api/leads/fetch-config', async (req, res) => {
   try {
@@ -1257,6 +1268,8 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
   const apolloKey = process.env.APOLLO_API_KEY;
   const results = { completed: [], errors: [], leads: [], totalImported: 0, totalSkipped: 0 };
 
+  console.log(`[fetch-poll] runs=${runs.length} email=${email} userId=${userId} apifyKey=${apifyKey ? 'set' : 'MISSING'}`);
+
   for (const run of runs) {
     if (run.error) {
       results.errors.push({ source: run.source, error: run.error });
@@ -1265,9 +1278,12 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 
     if (run.source === 'google_maps' && run.runId) {
       try {
-        const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${run.runId}?token=${apifyKey}`);
+        const statusUrl = `https://api.apify.com/v2/actor-runs/${run.runId}?token=${apifyKey}`;
+        console.log(`[fetch-poll] Checking Apify status: ${run.runId}`);
+        const statusRes = await fetch(statusUrl);
         const statusData = await statusRes.json();
         const status = statusData.data?.status;
+        console.log(`[fetch-poll] Apify status: ${status}`);
 
         if (status === 'RUNNING' || status === 'READY' || status === 'WAITING') {
           results.completed.push({ source: 'google_maps', status: 'running' });
@@ -1280,9 +1296,12 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
         }
 
         if (status === 'SUCCEEDED') {
-          // Fetch results from dataset
-          const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${run.datasetId}/items?token=${apifyKey}&limit=${count * 2}&format=json`);
+          const datasetUrl = `https://api.apify.com/v2/datasets/${run.datasetId}/items?token=${apifyKey}&limit=${count * 2}&format=json`;
+          console.log(`[fetch-poll] Fetching dataset: ${run.datasetId}`);
+          const itemsRes = await fetch(datasetUrl);
           const items = await itemsRes.json();
+          console.log(`[fetch-poll] Got ${Array.isArray(items) ? items.length : 0} items from Apify`);
+
           if (!Array.isArray(items)) {
             results.errors.push({ source: 'google_maps', error: 'Invalid Apify response' });
             continue;
@@ -1293,42 +1312,51 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
             const website = item.website || '';
             let domain = null;
             try { domain = new URL(website).hostname.replace(/^www\./, ''); } catch {}
+            const emailAddr = domain ? `info@${domain}` : '';
+            const phone = item.phone || '';
             return {
               firstName: name.split(' ')[0] || 'Unknown',
               lastName: name.split(' ').slice(1).join(' ') || '',
               company: name,
-              email: domain ? `info@${domain}` : '',
-              phone: item.phone || '',
+              email: emailAddr,
+              phone,
               website,
               industry: item.categoryName || (icp.industries || [])[0] || '',
-              country: (icp.markets || ['United States'])[0],
+              country: item.countryCode || (icp.markets || ['United States'])[0],
               designation: '',
               source: 'google_maps',
             };
-          }).filter(l => l.email && !BLOCKED_DOMAINS.has(l.email.split('@')[1]?.toLowerCase()));
+          }).filter(l => (l.email || l.phone));
 
-          // Insert into DB
+          console.log(`[fetch-poll] ${leads.length} valid leads after filtering`);
+
           for (const lead of leads) {
-            if (lead.email) {
-              const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [lead.email]);
-              if (dup.rows.length > 0) { results.totalSkipped++; continue; }
-            }
             try {
+              if (lead.email) {
+                const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [lead.email]);
+                if (dup.rows.length > 0) { results.totalSkipped++; continue; }
+              }
               await db.query(
                 `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
-                [userId, lead.firstName, lead.lastName, lead.email, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
+                [userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
               );
               results.totalImported++;
               results.leads.push(lead);
             } catch (dbErr) {
+              console.error(`[fetch-poll] DB insert error:`, dbErr.message);
               results.totalSkipped++;
             }
           }
 
-          results.completed.push({ source: 'google_maps', status: 'done', count: results.leads.length });
+          console.log(`[fetch-poll] Imported: ${results.totalImported}, Skipped: ${results.totalSkipped}`);
+          results.completed.push({ source: 'google_maps', status: 'done', count: results.totalImported });
+        } else {
+          console.log(`[fetch-poll] Unknown Apify status: ${status}, treating as running`);
+          results.completed.push({ source: 'google_maps', status: 'running' });
         }
       } catch (e) {
+        console.error(`[fetch-poll] google_maps error:`, e.message);
         results.errors.push({ source: 'google_maps', error: e.message });
       }
     }
@@ -1424,6 +1452,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 results.totalImported++;
                 results.leads.push(lead);
               } catch (dbErr) {
+                console.error(`[fetch-poll] Apollo DB insert error:`, dbErr.message);
                 results.totalSkipped++;
               }
             }
@@ -1439,11 +1468,11 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
     }
   }
 
-  // Update last_run_at
   if (userId) {
     try { await db.query('UPDATE fetch_configs SET last_run_at = NOW() WHERE user_id = $1', [userId]); } catch {}
   }
 
+  console.log(`[fetch-poll] Response: imported=${results.totalImported} skipped=${results.totalSkipped} errors=${results.errors.length}`);
   return res.status(200).json(results);
 });
 
