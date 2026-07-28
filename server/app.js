@@ -1595,7 +1595,7 @@ app.post('/api/leads/fetch-now', async (req, res) => {
     }
 
     const apifyKey = process.env.APIFY_TOKEN;
-    const apolloKey = process.env.APOLLO_API_KEY;
+    const apolloKey = process.env.APOLLO_API_KEY || '9WUx0Ce33w-tJEUMDVVGag';
     const countPerSource = Math.ceil(count / sources.length);
     const runs = [];
 
@@ -1694,7 +1694,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
     }
 
     const apifyKey = process.env.APIFY_TOKEN;
-    const apolloKey = process.env.APOLLO_API_KEY;
+    const apolloKey = process.env.APOLLO_API_KEY || '9WUx0Ce33w-tJEUMDVVGag';
     const results = { completed: [], errors: [], leads: [], totalImported: 0, totalSkipped: 0 };
 
     for (const run of runs) {
