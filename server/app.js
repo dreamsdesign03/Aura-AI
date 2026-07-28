@@ -1920,6 +1920,10 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 if (!email && domain && !['gmail.com', 'yahoo.com', 'hotmail.com'].includes(domain)) {
                   email = `info@${domain}`;
                 }
+                if (!email) {
+                  const slug = (companyName || 'clinic').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'clinic';
+                  email = `info@${slug}.com`;
+                }
 
                 const fn = person.first_name || person.name || companyName;
                 const ln = person.last_name || '';
@@ -1979,7 +1983,11 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                     }
                   } catch {}
 
-                  const email = domain ? `info@${domain}` : null;
+                  let email = domain ? `info@${domain}` : null;
+                  if (!email) {
+                    const slug = (companyName || 'clinic').toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'clinic';
+                    email = `info@${slug}.com`;
+                  }
                   const phone = org.phone_number || org.primary_phone?.number || '';
 
                   apolloLeads.push({
@@ -2009,11 +2017,14 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
           if (userId) {
             try {
               const dupRes = await db.query('SELECT email FROM leads WHERE user_id = $1', [userId]);
-              dupRes.rows.forEach(r => { if (r.email) existingEmails.add(r.email.toLowerCase()); });
+              dupRes.rows.forEach(r => { if (r.email) existingEmails.add(r.email.toLowerCase().trim()); });
             } catch (e) {}
           }
 
-          const newApolloLeads = apolloLeads.filter(l => !existingEmails.has(l.email.toLowerCase())).slice(0, count);
+          const newApolloLeads = apolloLeads.filter(l => {
+            if (!l.email) return true;
+            return !existingEmails.has(l.email.toLowerCase().trim());
+          }).slice(0, count);
           results.totalSkipped += (apolloLeads.length - newApolloLeads.length);
 
           for (const lead of newApolloLeads) {
