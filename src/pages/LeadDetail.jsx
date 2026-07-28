@@ -290,22 +290,6 @@ export default function LeadDetail() {
           </div>)}
       </div>
 
-      {/* ── Mysa AI Navigation Tabs ── */}
-      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
-        <button onClick={() => setActiveTab("overview")} className={cn("px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2", activeTab === "overview" ? "bg-violet-600 text-white shadow" : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200")}>
-          <UserCheck className="w-3.5 h-3.5"/> Lead Profile & BANT
-        </button>
-        <button onClick={() => setActiveTab("intel")} className={cn("px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2", activeTab === "intel" ? "bg-purple-700 text-white shadow" : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200")}>
-          <Sparkles className="w-3.5 h-3.5 text-amber-300"/> Mysa AI Audit Report
-        </button>
-      </div>
-
-      {activeTab === "intel" ? (
-        <div className="mt-2">
-          <IntelReport data={buildMysaIntelData(lead)} auditDate={formatDate(lead.createdAt)}/>
-        </div>
-      ) : (
-
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2 space-y-4">
           {/* Header */}
@@ -665,6 +649,5 @@ export default function LeadDetail() {
           </div>
         </div>
       </div>
-      )}
     </div>);
 }
