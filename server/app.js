@@ -522,7 +522,136 @@ app.put('/api/icps/:id', async (req, res) => {
   }
 });
 
-// Delete ICP
+// Delete ICP (POST endpoint for frontend compatibility)
+app.post('/api/icps/delete', async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'ICP id is required' });
+    await db.query('DELETE FROM icps WHERE id = $1', [id]);
+    res.json({ success: true, id });
+  } catch (err) {
+    console.error('Delete ICP error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update ICP (POST endpoint for frontend compatibility)
+app.post('/api/icps/update', async (req, res) => {
+  try {
+    const { id, data } = req.body;
+    if (!id) return res.status(400).json({ error: 'ICP id is required' });
+    const { name, markets, industries, roles, companySize, filters, active } = data || {};
+
+    const result = await db.query(
+      `UPDATE icps SET
+        name = COALESCE($1, name),
+        company_size = COALESCE($2, company_size),
+        roles = COALESCE($3, roles),
+        industries = COALESCE($4, industries),
+        markets = COALESCE($5, markets),
+        filters = COALESCE($6, filters),
+        active = COALESCE($7, active)
+       WHERE id = $8 RETURNING *`,
+      [name, companySize, roles, industries, markets, filters ? JSON.stringify(filters) : null, active, id]
+    );
+
+    if (result.rows.length === 0) return res.status(404).json({ error: 'ICP not found' });
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Update ICP error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ICP Suggestions
+app.post('/api/icps/suggestions', async (req, res) => {
+  const { website, description } = req.body?.data || {};
+  const suggestions = [
+    {
+      name: `${description || 'Healthcare'} SMBs`,
+      markets: ['United States', 'UAE'],
+      industries: [description || 'Healthcare', 'Medical', 'Wellness'],
+      roles: ['CMO', 'Marketing Director', 'Practice Manager'],
+      companySize: '11-200 employees',
+      filters: { hasWebsite: true, hasGMB: true, minBantScore: 50 },
+    },
+    {
+      name: `${description || 'Healthcare'} Enterprises`,
+      markets: ['United Kingdom', 'Canada', 'Australia'],
+      industries: [description || 'Healthcare', 'Pharmaceutical', 'Diagnostics'],
+      roles: ['VP Marketing', 'Head of Growth', 'CEO'],
+      companySize: '201-1000 employees',
+      filters: { hasWebsite: true, hasLinkedIn: true, minBantScore: 70 },
+    },
+    {
+      name: `Wellness & Beauty Clinics`,
+      markets: ['UAE', 'Saudi Arabia', 'Qatar'],
+      industries: ['Wellness', 'Beauty', 'Aesthetics', 'Cosmetics'],
+      roles: ['Clinic Manager', 'Marketing Head', 'Founder'],
+      companySize: '1-50 employees',
+      filters: { hasGMB: true, hasWebsite: true },
+    },
+    {
+      name: `Dental & Orthodontic Practices`,
+      markets: ['United States', 'UK', 'Australia'],
+      industries: ['Dental', 'Orthodontics', 'Oral Health'],
+      roles: ['Practice Owner', 'Marketing Director', 'Operations Manager'],
+      companySize: '1-20 employees',
+      filters: { hasWebsite: true, hasGMB: true, minBantScore: 60 },
+    },
+    {
+      name: `Fitness & Gym Chains`,
+      markets: ['United States', 'UAE', 'India'],
+      industries: ['Fitness', 'Gym', 'Health Club', 'Wellness'],
+      roles: ['Marketing Manager', 'Growth Lead', 'CEO'],
+      companySize: '50-500 employees',
+      filters: { hasWebsite: true, hasLinkedIn: true },
+    },
+    {
+      name: `Skin Care & Dermatology`,
+      markets: ['United States', 'UAE', 'South Korea'],
+      industries: ['Dermatology', 'Skin Care', 'Cosmetic Surgery'],
+      roles: ['Clinical Director', 'Marketing Head', 'Practice Manager'],
+      companySize: '5-100 employees',
+      filters: { hasWebsite: true, hasGMB: true, minBantScore: 55 },
+    },
+    {
+      name: `Mental Health & Therapy Clinics`,
+      markets: ['United States', 'Canada', 'UK'],
+      industries: ['Mental Health', 'Psychology', 'Therapy', 'Counseling'],
+      roles: ['Practice Owner', 'Clinical Director', 'Operations Lead'],
+      companySize: '1-30 employees',
+      filters: { hasWebsite: true, minBantScore: 50 },
+    },
+    {
+      name: `Veterinary Clinics`,
+      markets: ['United States', 'UK', 'Australia'],
+      industries: ['Veterinary', 'Pet Care', 'Animal Health'],
+      roles: ['Clinic Owner', 'Practice Manager', 'Marketing Lead'],
+      companySize: '5-50 employees',
+      filters: { hasWebsite: true, hasGMB: true },
+    },
+    {
+      name: `Ayurveda & Alternative Medicine`,
+      markets: ['India', 'UAE', 'Sri Lanka'],
+      industries: ['Ayurveda', 'Alternative Medicine', 'Wellness', 'Holistic Health'],
+      roles: ['Founder', 'Clinic Manager', 'Marketing Head'],
+      companySize: '1-25 employees',
+      filters: { hasWebsite: true },
+    },
+    {
+      name: `MedSpa & Cosmetic Surgery Centers`,
+      markets: ['United States', 'UAE', 'Brazil'],
+      industries: ['MedSpa', 'Cosmetic Surgery', 'Aesthetics', 'Plastic Surgery'],
+      roles: ['Medical Director', 'Practice Manager', 'Marketing Director'],
+      companySize: '10-100 employees',
+      filters: { hasWebsite: true, hasGMB: true, hasLinkedIn: true, minBantScore: 65 },
+    },
+  ];
+  return res.status(200).json(suggestions);
+});
+
+// Delete ICP (RESTful endpoint)
 app.delete('/api/icps/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -707,6 +836,385 @@ app.post('/api/db/query', async (req, res) => {
     });
   } catch (err) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// 10. Fetch Leads Config & SSE Streaming
+app.get('/api/leads/fetch-config', async (req, res) => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS fetch_configs (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        sources TEXT[] DEFAULT '{"google_maps"}',
+        icp_id INT,
+        daily_count INT DEFAULT 10,
+        enabled BOOLEAN DEFAULT FALSE,
+        last_run_at TIMESTAMPTZ,
+        next_run_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+  } catch (e) { /* table may already exist */ }
+
+  let email = req.query.email;
+  if (!email && req.headers.cookie) {
+    const cookies = {};
+    req.headers.cookie.split(';').forEach(c => {
+      const [key, ...rest] = c.split('=');
+      cookies[key.trim()] = decodeURIComponent(rest.join('='));
+    });
+    email = cookies.aura_user_email;
+  }
+
+  let userId = null;
+  if (email) {
+    const ur = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (ur.rows.length > 0) userId = ur.rows[0].id;
+  }
+
+  try {
+    if (!userId) return res.status(200).json(null);
+    const r = await db.query('SELECT * FROM fetch_configs WHERE user_id = $1 ORDER BY id DESC LIMIT 1', [userId]);
+    if (r.rows.length === 0) return res.status(200).json(null);
+    const c = r.rows[0];
+    return res.status(200).json({
+      sources: c.sources || ['google_maps'],
+      icpId: c.icp_id,
+      dailyCount: c.daily_count,
+      enabled: c.enabled,
+      lastRunAt: c.last_run_at,
+      nextRunAt: c.next_run_at,
+    });
+  } catch (err) {
+    console.error('fetch-config GET:', err.message);
+    return res.status(200).json(null);
+  }
+});
+
+app.post('/api/leads/fetch-config', async (req, res) => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS fetch_configs (
+        id SERIAL PRIMARY KEY,
+        user_id INT REFERENCES users(id) ON DELETE CASCADE,
+        sources TEXT[] DEFAULT '{"google_maps"}',
+        icp_id INT,
+        daily_count INT DEFAULT 10,
+        enabled BOOLEAN DEFAULT FALSE,
+        last_run_at TIMESTAMPTZ,
+        next_run_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+  } catch (e) { /* table may already exist */ }
+
+  let email = req.body?.email;
+  if (!email && req.headers.cookie) {
+    const cookies = {};
+    req.headers.cookie.split(';').forEach(c => {
+      const [key, ...rest] = c.split('=');
+      cookies[key.trim()] = decodeURIComponent(rest.join('='));
+    });
+    email = cookies.aura_user_email;
+  }
+
+  let userId = null;
+  if (email) {
+    const ur = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (ur.rows.length > 0) userId = ur.rows[0].id;
+  }
+
+  const { icpId, sources, dailyCount, enabled } = req.body || {};
+
+  try {
+    const existing = await db.query('SELECT id FROM fetch_configs WHERE user_id = $1 ORDER BY id DESC LIMIT 1', [userId]);
+
+    if (existing.rows.length > 0) {
+      const r = await db.query(
+        `UPDATE fetch_configs SET sources=$1, icp_id=$2, daily_count=$3, enabled=$4 WHERE id=$5 RETURNING *`,
+        [sources || ['google_maps'], icpId, dailyCount || 10, enabled || false, existing.rows[0].id]
+      );
+      const c = r.rows[0];
+      return res.status(200).json({ sources: c.sources, icpId: c.icp_id, dailyCount: c.daily_count, enabled: c.enabled, lastRunAt: c.last_run_at, nextRunAt: c.next_run_at });
+    } else {
+      const r = await db.query(
+        `INSERT INTO fetch_configs (user_id, sources, icp_id, daily_count, enabled) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+        [userId, sources || ['google_maps'], icpId, dailyCount || 10, enabled || false]
+      );
+      const c = r.rows[0];
+      return res.status(201).json({ sources: c.sources, icpId: c.icp_id, dailyCount: c.daily_count, enabled: c.enabled });
+    }
+  } catch (err) {
+    console.error('fetch-config POST:', err.message);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+const APOLLO_BASE = 'https://api.apollo.io/api/v1';
+const BLOCKED_DOMAINS = new Set([
+  'google.com','amazon.com','apple.com','microsoft.com','meta.com','facebook.com',
+  'twitter.com','x.com','tesla.com','netflix.com','uber.com','airbnb.com',
+  'spotify.com','salesforce.com','oracle.com','sap.com','ibm.com','intel.com',
+  'nvidia.com','adobe.com','example.com','test.com','dummy.com','placeholder.com',
+  'mailinator.com','guerrillamail.com','tempmail.com',
+]);
+
+function isValidLead(lead) {
+  if (!lead.email || !lead.firstName) return false;
+  const domain = lead.email.split('@')[1]?.toLowerCase();
+  if (!domain || BLOCKED_DOMAINS.has(domain)) return false;
+  if (/^(test|dummy|placeholder|noreply|no-reply)/.test(lead.email)) return false;
+  if (/^(test|sample|example|fake)/i.test(lead.firstName)) return false;
+  return true;
+}
+
+function getDomain(url) {
+  try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return null; }
+}
+
+async function fetchGoogleMaps(icp, count, apiKey) {
+  if (!apiKey) throw new Error('APIFY_TOKEN not configured. Add it to Vercel env vars.');
+  const query = [...(icp.industries || []), ...(icp.roles || [])].join(' ');
+  const location = (icp.markets || ['United States'])[0];
+  const searchStr = `${query} in ${location}`;
+
+  const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      searchStringsArray: [searchStr],
+      maxCrawledPlacesPerSearch: Math.min(count * 2, 40),
+      language: 'en',
+      exportPlaceUrls: false,
+    }),
+  });
+
+  if (!runRes.ok) {
+    const err = await runRes.text();
+    throw new Error(`Apify actor failed: ${err}`);
+  }
+
+  const runData = await runRes.json();
+  const runId = runData.data?.id;
+  const datasetId = runData.data?.defaultDatasetId;
+  if (!runId) throw new Error('No Apify run ID');
+
+  for (let i = 0; i < 60; i++) {
+    await new Promise(r => setTimeout(r, 3000));
+    const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runId}?token=${apiKey}`);
+    const statusData = await statusRes.json();
+    if (statusData.data?.status === 'SUCCEEDED') break;
+    if (statusData.data?.status === 'FAILED') throw new Error('Apify run failed');
+    if (statusData.data?.status === 'ABORTED') throw new Error('Apify run aborted');
+  }
+
+  const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${apiKey}&limit=${count * 2}&format=json`);
+  const items = await itemsRes.json();
+  if (!Array.isArray(items)) throw new Error('Invalid Apify response');
+
+  return items.slice(0, count).map(item => {
+    const name = String(item.title || item.name || '').trim();
+    const website = item.website || '';
+    const domain = getDomain(website);
+    return {
+      firstName: name.split(' ')[0] || 'Unknown',
+      lastName: name.split(' ').slice(1).join(' ') || '',
+      company: name,
+      email: domain ? `info@${domain}` : '',
+      phone: item.phone || '',
+      website,
+      industry: item.categoryName || (icp.industries || [])[0] || '',
+      country: (icp.markets || ['United States'])[0],
+      designation: '',
+      source: 'google_maps',
+    };
+  }).filter(isValidLead);
+}
+
+async function fetchApollo(icp, count, apiKey) {
+  if (!apiKey) throw new Error('APOLLO_API_KEY not configured. Add it to Vercel env vars.');
+  const keywords = [...(icp.industries || []), ...(icp.roles || [])].join(' ');
+  const locations = (icp.markets || ['United States']);
+
+  const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+    body: JSON.stringify({
+      api_key: apiKey,
+      q_organization_keyword_tags: keywords,
+      organization_locations: locations,
+      page: 1,
+      per_page: Math.min(count, 25),
+    }),
+  });
+
+  if (!orgRes.ok) {
+    const err = await orgRes.text();
+    throw new Error(`Apollo organizations/search failed: ${err}`);
+  }
+
+  const orgData = await orgRes.json();
+  const accounts = orgData.accounts || [];
+  if (accounts.length === 0) return [];
+
+  const DECISION_MAKER_TITLES = [
+    'CEO', 'Founder', 'Co-Founder', 'Owner', 'Managing Director',
+    'Director', 'Head of Marketing', 'CMO', 'VP Marketing',
+    'Head of Sales', 'CTO', 'COO',
+  ];
+
+  const leads = [];
+
+  for (const account of accounts) {
+    if (leads.length >= count) break;
+    try {
+      const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+        body: JSON.stringify({
+          api_key: apiKey,
+          q_organization_name: account.name,
+          person_titles: DECISION_MAKER_TITLES,
+          page: 1,
+          per_page: 3,
+        }),
+      });
+
+      if (!peopleRes.ok) continue;
+      const peopleData = await peopleRes.json();
+      const people = peopleData.people || [];
+
+      for (const person of people) {
+        if (leads.length >= count) break;
+        const email = person.email;
+        if (!email) continue;
+        const domain = email.split('@')[1]?.toLowerCase();
+        const website = account.website_url || '';
+        const websiteDomain = getDomain(website);
+        if (websiteDomain && domain && websiteDomain !== domain) continue;
+
+        const lead = {
+          firstName: person.first_name || '',
+          lastName: person.last_name || '',
+          company: account.name || '',
+          email,
+          phone: person.phone_numbers?.[0]?.sanitized_number || '',
+          website,
+          industry: account.industry || (icp.industries || [])[0] || '',
+          country: person.country || (icp.markets || ['United States'])[0],
+          designation: person.title || '',
+          source: 'apollo',
+        };
+
+        if (isValidLead(lead)) leads.push(lead);
+      }
+    } catch {
+      // Skip failed org
+    }
+  }
+
+  return leads.slice(0, count);
+}
+
+app.post('/api/leads/fetch-now', async (req, res) => {
+  const { icpId, sources = ['google_maps'], count = 10 } = req.body || {};
+
+  let email = req.body?.email;
+  if (!email && req.headers.cookie) {
+    const cookies = {};
+    req.headers.cookie.split(';').forEach(c => {
+      const [key, ...rest] = c.split('=');
+      cookies[key.trim()] = decodeURIComponent(rest.join('='));
+    });
+    email = cookies.aura_user_email;
+  }
+
+  // SSE headers
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('X-Accel-Buffering', 'no');
+
+  const send = (event, data) => {
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+
+  try {
+    let userId = null;
+    let icp = {};
+
+    if (email) {
+      const ur = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (ur.rows.length > 0) userId = ur.rows[0].id;
+    }
+
+    if (icpId) {
+      const icpRes = await db.query('SELECT * FROM icps WHERE id = $1', [icpId]);
+      if (icpRes.rows.length > 0) icp = icpRes.rows[0];
+    }
+
+    send('status', { message: `Fetching from ${sources.join(' + ')}...` });
+
+    const apifyKey = process.env.APIFY_TOKEN;
+    const apolloKey = process.env.APOLLO_API_KEY;
+
+    let totalImported = 0;
+    let totalSkipped = 0;
+    const countPerSource = Math.ceil(count / sources.length);
+
+    for (const source of sources) {
+      try {
+        send('status', { message: `Scanning ${source === 'google_maps' ? 'Google Maps' : 'Apollo'}...` });
+        let leads = [];
+
+        if (source === 'google_maps') {
+          leads = await fetchGoogleMaps(icp, countPerSource, apifyKey);
+        } else if (source === 'apollo') {
+          leads = await fetchApollo(icp, countPerSource, apolloKey);
+        }
+
+        for (const lead of leads) {
+          if (lead.email) {
+            const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [lead.email]);
+            if (dup.rows.length > 0) {
+              totalSkipped++;
+              send('skip', { email: lead.email, reason: 'duplicate' });
+              continue;
+            }
+          }
+
+          try {
+            await db.query(
+              `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
+               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
+              [userId, lead.firstName, lead.lastName, lead.email, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
+            );
+            totalImported++;
+            send('lead', { lead, total: totalImported });
+          } catch (dbErr) {
+            totalSkipped++;
+            send('skip', { email: lead.email, reason: dbErr.message });
+          }
+        }
+
+        send('status', { message: `${source === 'google_maps' ? 'Google Maps' : 'Apollo'}: ${leads.length} leads found` });
+      } catch (srcErr) {
+        send('error', { message: `${source} error: ${srcErr.message}` });
+      }
+    }
+
+    send('done', { imported: totalImported, skipped: totalSkipped, requested: count });
+
+    if (userId) {
+      try { await db.query('UPDATE fetch_configs SET last_run_at = NOW() WHERE user_id = $1', [userId]); } catch {}
+    }
+
+    res.end();
+  } catch (err) {
+    send('error', { message: err.message });
+    res.end();
   }
 });
 

@@ -6,7 +6,13 @@ function createQueryHook(key) {
       queryKey: [key, params],
       queryFn: async () => {
         try {
-          const res = await fetch(`/api/${key}`).then(r => r.json());
+          // Map hook keys to Express routes
+          const routeMap = {
+            "useListIcps": "/api/icps",
+            "useListLeads": "/api/leads",
+          };
+          const route = routeMap[key] || `/api/${key}`;
+          const res = await fetch(route).then(r => r.json());
           return res;
         } catch (e) {
           return [];
@@ -22,7 +28,15 @@ function createMutationHook(key) {
     return useMutation({
       mutationFn: async (data) => {
         try {
-          const res = await fetch(`/api/${key}`, {
+          // Map hook keys to Express routes
+          const routeMap = {
+            "useCreateIcp": "/api/icps",
+            "useDeleteIcp": "/api/icps/delete",
+            "useUpdateIcp": "/api/icps/update",
+            "useGenerateIcpSuggestions": "/api/icps/suggestions",
+          };
+          const route = routeMap[key] || `/api/${key}`;
+          const res = await fetch(route, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
