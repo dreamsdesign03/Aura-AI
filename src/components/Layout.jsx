@@ -850,11 +850,6 @@ export default function Layout({ children }) {
             </div>
           </header>
 
-          {/* Email verification banner — only shows for unverified users */}
-          <EmailVerificationBanner />
-
-          {/* Trial banner — only shows for trial users near expiry or expired */}
-          <TrialBanner />
 
           {/* Page content — padded bottom on mobile so content clears the fixed nav */}
           <main className="flex-1 overflow-y-auto pb-[60px] md:pb-0 relative">
