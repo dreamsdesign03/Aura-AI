@@ -18,10 +18,12 @@ const INPUT_CLS = "w-full text-xs rounded border border-gray-300 bg-white text-g
 const LABEL_CLS = "text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5";
 
 function buildMysaIntelData(lead) {
-    const fn = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
-    const ln = (lead.lastName || lead.last_name || "").trim();
+    if (!lead) return { companyName: "Lead", website: "example.com", healthScore: 70, criticalCount: 2, hero: { monthlyRisk: "₹1,85,000", annualRisk: "₹22,20,000", fixTimeline: "14 Days" }, why: { quote: "Digital conversion barriers route inquiries to competitors.", body: "<p>Lead data is being analyzed.</p>", negativeTags: [], positiveTags: [] }, compare: [], categoryScores: [], findings: [], roadmap: [] };
+    const fn = String(lead.firstName || lead.first_name || lead.company || "Lead").trim();
+    const ln = String(lead.lastName || lead.last_name || "").trim();
     const companyName = lead.company || (ln ? `${fn} ${ln}` : fn);
-    const domain = lead.website ? lead.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : `${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+    const websiteStr = typeof lead.website === 'string' ? lead.website : '';
+    const domain = websiteStr ? websiteStr.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : `${String(companyName).toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
     const location = [lead.city, lead.country].filter(Boolean).join(', ') || 'India';
     const industry = lead.industry || 'Healthcare / Clinic';
     const bant = lead.bantScore ?? 68;
@@ -439,7 +441,7 @@ export default function LeadDetail() {
                       <Phone className="w-3.5 h-3.5 flex-shrink-0"/>
                       <a href={`tel:${lead.phone}`} className="hover:text-gray-900">{lead.phone}</a>
                     </div>)}
-                  {lead.whatsapp && (<div className="flex items-center gap-2 text-xs text-gray-500">
+                  {lead.whatsapp && typeof lead.whatsapp === "string" && (<div className="flex items-center gap-2 text-xs text-gray-500">
                       <MessageCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#25D366" }}/>
                       <a href={`https://wa.me/${lead.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:text-gray-900">{lead.whatsapp}</a>
                     </div>)}
@@ -563,7 +565,7 @@ export default function LeadDetail() {
                       <div className="flex items-center gap-2 min-w-0">
                         <CalendarDays className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/>
                         <div className="min-w-0">
-                          <div className="font-medium text-gray-800 capitalize">{m.type.replace(/_/g, " ")}</div>
+                          <div className="font-medium text-gray-800 capitalize">{(m.type || "").replace(/_/g, " ")}</div>
                           <div className="text-gray-400 text-[10px]">{dateLabel} · {m.duration} min</div>
                         </div>
                       </div>
