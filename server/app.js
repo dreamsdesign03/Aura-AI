@@ -1278,7 +1278,10 @@ function buildApifySearchQueries(icp) {
 
   console.log(`[buildApifySearchQueries] Industries: ${JSON.stringify(industries)} | Markets: ${JSON.stringify(markets)}`);
 
-  const cleanIndustries = industries.length > 0 ? industries.slice(0, 3) : ['Dermatology Clinic', 'Cosmetic Clinic'];
+  const indTerms = industries.length > 0
+    ? industries
+    : ['Dermatology Clinic', 'Cosmetic Clinic', 'Skin Care Clinic', 'Aesthetic Medicine', 'Hair Restoration'];
+
   const searchQueries = [];
 
   if (markets.length > 0) {
@@ -1286,24 +1289,24 @@ function buildApifySearchQueries(icp) {
     const cities = markets.filter(m => m.toLowerCase() !== country.toLowerCase());
 
     if (cities.length > 0) {
-      cities.slice(0, 4).forEach(city => {
-        cleanIndustries.slice(0, 2).forEach(ind => {
-          searchQueries.push(`${ind} in ${city}, ${country}`);
-        });
+      cities.forEach((city, idx) => {
+        const term1 = indTerms[idx % indTerms.length];
+        const term2 = indTerms[(idx + 1) % indTerms.length];
+        searchQueries.push(`${term1} in ${city}, ${country}`);
+        searchQueries.push(`${term2} in ${city}, ${country}`);
       });
     } else {
-      cleanIndustries.forEach(ind => {
+      indTerms.slice(0, 4).forEach(ind => {
         searchQueries.push(`${ind} in ${country}`);
       });
     }
   } else {
-    const loc = icp?.name && /india/i.test(icp.name) ? 'India' : 'India';
-    cleanIndustries.forEach(ind => {
-      searchQueries.push(`${ind} in ${loc}`);
+    indTerms.slice(0, 4).forEach(ind => {
+      searchQueries.push(`${ind} in India`);
     });
   }
 
-  return [...new Set(searchQueries)].slice(0, 5);
+  return [...new Set(searchQueries)].slice(0, 6);
 }
 
 // POST /api/leads/fetch-now — Step 1: Start Apify runs, return run IDs immediately
@@ -1340,15 +1343,16 @@ app.post('/api/leads/fetch-now', async (req, res) => {
         }
         try {
           const searchStrings = buildApifySearchQueries(icp);
-          const maxPlaces = Math.max(countPerSource * 4, 50);
-          console.log(`[fetch-now] Apify search queries: ${JSON.stringify(searchStrings)} maxPlacesPerSearch: ${maxPlaces}`);
+          // Calculate maxPlaces per query to fetch sufficient candidates without over-scraping
+          const perQueryPlaces = Math.max(Math.ceil((countPerSource * 3) / searchStrings.length), 6);
+          console.log(`[fetch-now] Apify search queries (${searchStrings.length}): ${JSON.stringify(searchStrings)} maxPlacesPerSearch: ${perQueryPlaces}`);
 
           const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${apifyKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               searchStringsArray: searchStrings,
-              maxCrawledPlacesPerSearch: maxPlaces,
+              maxCrawledPlacesPerSearch: perQueryPlaces,
               language: 'en',
               exportPlaceUrls: false,
             }),
