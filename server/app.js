@@ -1785,4 +1785,80 @@ app.get('/api/useGetDashboardActivity', (req, res) => res.json([]));
 app.get('/api/client-error', (req, res) => res.json({ received: true }));
 app.get('/api/search', (req, res) => res.json({ leads: [], proposals: [], meetings: [] }));
 
+// Debug: ping server + DB + env check
+app.get('/api/debug/ping', async (req, res) => {
+  const log = [];
+  log.push(`[${new Date().toISOString()}] Ping hit!`);
+  console.log(`[debug/ping] Ping hit!`);
+
+  // Check env vars
+  log.push(`APIFY_TOKEN: ${process.env.APIFY_TOKEN ? 'SET' : 'MISSING'}`);
+  log.push(`APOLLO_API_KEY: ${process.env.APOLLO_API_KEY ? 'SET' : 'MISSING'}`);
+  log.push(`DATABASE_URL: ${process.env.DATABASE_URL ? 'SET' : 'MISSING'}`);
+  console.log(`[debug/ping] APIFY_TOKEN=${process.env.APIFY_TOKEN ? 'SET' : 'MISSING'}`);
+  console.log(`[debug/ping] APOLLO_API_KEY=${process.env.APOLLO_API_KEY ? 'SET' : 'MISSING'}`);
+
+  // Check DB
+  try {
+    const r = await db.query('SELECT COUNT(*)::int as cnt FROM users');
+    log.push(`DB OK: ${r.rows[0].cnt} users`);
+    console.log(`[debug/ping] DB OK: ${r.rows[0].cnt} users`);
+  } catch (e) {
+    log.push(`DB ERROR: ${e.message}`);
+    console.error(`[debug/ping] DB ERROR: ${e.message}`);
+  }
+
+  // Check leads count
+  try {
+    const r = await db.query('SELECT COUNT(*)::int as cnt FROM leads');
+    log.push(`Leads in DB: ${r.rows[0].cnt}`);
+    console.log(`[debug/ping] Leads in DB: ${r.rows[0].cnt}`);
+  } catch (e) {
+    log.push(`Leads table error: ${e.message}`);
+    console.error(`[debug/ping] Leads table error: ${e.message}`);
+  }
+
+  // Check users
+  try {
+    const r = await db.query('SELECT id, email, first_name, is_active FROM users ORDER BY id DESC LIMIT 5');
+    log.push(`Recent users: ${JSON.stringify(r.rows)}`);
+  } catch (e) {
+    log.push(`Users query error: ${e.message}`);
+  }
+
+  console.log(`[debug/ping] Response: ${JSON.stringify(log)}`);
+  res.json({ ok: true, log });
+});
+
+// Debug: test DB insert
+app.get('/api/debug/test-insert', async (req, res) => {
+  console.log(`[debug/test-insert] Hit!`);
+  try {
+    const ur = await db.query('SELECT id FROM users LIMIT 1');
+    if (ur.rows.length === 0) {
+      console.log(`[debug/test-insert] No users in DB!`);
+      return res.json({ ok: false, error: 'No users in DB' });
+    }
+    const userId = ur.rows[0].id;
+    console.log(`[debug/test-insert] Using userId=${userId}`);
+
+    const r = await db.query(
+      `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
+       VALUES ($1, 'Test', 'Debug', 'test-debug@example.com', '+1234567890', 'Debug Corp', 'Tester', 'https://debug.com', 'Tech', 'US', 'New', 'Lead In', NOW(), NOW())
+       ON CONFLICT (email) DO UPDATE SET updated_at = NOW()
+       RETURNING id, first_name, email`,
+      [userId]
+    );
+    console.log(`[debug/test-insert] INSERT SUCCESS: ${JSON.stringify(r.rows[0])}`);
+
+    const count = await db.query('SELECT COUNT(*)::int as cnt FROM leads');
+    console.log(`[debug/test-insert] Total leads now: ${count.rows[0].cnt}`);
+
+    res.json({ ok: true, inserted: r.rows[0], totalLeads: count.rows[0].cnt });
+  } catch (e) {
+    console.error(`[debug/test-insert] FAILED: ${e.message}`);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
 module.exports = app;

@@ -111,14 +111,17 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
         setStatusMsg("Starting fetch…");
         try {
             const email = sessionStorage.getItem("aura_user_email");
+            console.log("[FetchLeads] Starting fetch, email:", email);
             // Step 1: Start Apify runs
             const startRes = await fetch(`${base}/leads/fetch-now`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ icpId, sources: selectedSources, count: dailyCount, email }),
             });
+            console.log("[FetchLeads] fetch-now response status:", startRes.status);
             if (!startRes.ok) throw new Error("Failed to start fetch");
             const { runs } = await startRes.json();
+            console.log("[FetchLeads] fetch-now runs:", JSON.stringify(runs));
             if (!runs || runs.length === 0) throw new Error("No fetch runs started");
 
             // Check for immediate errors
@@ -139,13 +142,20 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
                 await new Promise(r => setTimeout(r, 3000));
                 pollCount++;
 
+                console.log(`[FetchLeads] Poll #${pollCount}...`);
                 const pollRes = await fetch(`${base}/leads/fetch-poll`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ runs, icpId, count: dailyCount, email }),
                 });
-                if (!pollRes.ok) throw new Error("Poll failed");
+                console.log("[FetchLeads] fetch-poll status:", pollRes.status);
+                if (!pollRes.ok) {
+                    const errText = await pollRes.text();
+                    console.error("[FetchLeads] fetch-poll error:", errText);
+                    throw new Error("Poll failed: " + errText);
+                }
                 const pollData = await pollRes.json();
+                console.log("[FetchLeads] pollData:", JSON.stringify({ totalImported: pollData.totalImported, totalSkipped: pollData.totalSkipped, completed: pollData.completed, errors: pollData.errors, leadsCount: pollData.leads?.length }));
 
                 // Update leads display
                 if (pollData.leads?.length > 0) {
