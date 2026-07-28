@@ -1888,34 +1888,31 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 
           const apolloLeads = [];
 
-          // Helper to reject non-matching IT, Banking, Conglomerate, Audit, University leads
-          const isIrrelevantBusiness = (compName, indStr) => {
+          // Strict positive relevance matcher: guarantees lead belongs to ICP industries or beauty/clinic category
+          const isTargetBusiness = (compName, indStr, icpInds = []) => {
             const cName = (compName || '').toLowerCase().trim();
             const iStr = (indStr || '').toLowerCase().trim();
             const fullStr = `${cName} ${iStr}`;
 
-            // Priority Keep: If company name or industry explicitly contains beauty/derma/clinic/skincare terms, KEEP IT!
-            if (/dermatology|derma|skincare|skin care|cosmetic|cosmeceutical|clinic|aesthetic|hair restoration|plastic surgery|wellness|beauty|personal care|health & beauty|medspa|d2c beauty/i.test(fullStr)) {
+            // Absolute Exclusions: Block Banks, Audit/Consulting, Media/Newspapers, IT, Job sites, Conglomerates
+            const absoluteBadPattern = /bank|banking|finance|financial|insurance|kpmg|pwc|deloitte|ey\s|accounting|audit|tata|mahindra|larsen|toubro|l&t|reliance|birla|motors|automobile|careers|freshers|jobs|way2freshers|confidential|newspaper|economic times|geeksforgeeks|edtech|software|infotech|university|college|school|engineering|construction|steel|metals|utilities/i;
+            if (absoluteBadPattern.test(fullStr) && !/dermatology|derma|skincare|skin care|cosmetic|cosmeceutical|clinic/i.test(cName)) {
               return false;
             }
 
-            // Strict Exclusions: Banks, Accounting, Conglomerates, Automotive, Job portals, IT, Education, Construction
-            const badKeywords = [
-              // Banks & Finance
-              'bank', 'banking', 'finance', 'financial', 'insurance', 'wealth', 'capital', 'investment', 'icici', 'hdfc', 'sbi', 'state bank', 'axis bank',
-              // Audit & Consultancy
-              'kpmg', 'pwc', 'deloitte', 'ey ', 'ernst', 'accounting', 'taxation', 'audit', 'advisory',
-              // Conglomerates & Automotive
-              'tata', 'mahindra', 'larsen', 'toubro', 'l&t', 'reliance', 'birla', 'motors', 'automobile', 'auto ', 'vehicles',
-              // Job Portals & HR
-              'careers', 'freshers', 'jobs', 'recruitment', 'staffing', 'manpower', 'way2freshers', 'confidential careers',
-              // IT & Software
-              'software', 'technology', 'technologies', 'infotech', 'it services', 'solutions ltd', 'systems', 'digital solutions',
-              // Education & Heavy Industry
-              'university', 'college', 'school', 'academy', 'institute of technology', 'engineering', 'energy', 'construction', 'infrastructure', 'steel', 'metals', 'logistics'
-            ];
+            // Target Pattern: Must contain at least one beauty/clinic/derma keyword
+            const targetPattern = /dermatology|derma|skincare|skin care|cosmetic|cosmeceutical|clinic|aesthetic|hair restoration|trichology|plastic surgery|wellness|beauty|personal care|health & beauty|medspa|d2c beauty|hair care|haircare|body care|laser clinic|spa/i;
+            if (targetPattern.test(fullStr)) return true;
 
-            return badKeywords.some(bk => fullStr.includes(bk));
+            // Check against ICP industries list
+            for (const ind of icpInds) {
+              const cleaned = String(ind).toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+              if (cleaned.length > 3 && fullStr.replace(/[^a-z0-9]/g, '').includes(cleaned)) {
+                return true;
+              }
+            }
+
+            return false;
           };
 
           // Strategy 1: Direct mixed_people search
@@ -1931,7 +1928,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 q_keywords: `${primaryKeyword} ${locationQuery}`,
                 person_titles: personTitles,
                 page: 1,
-                per_page: Math.max(count * 4, 30),
+                per_page: Math.max(count * 5, 40),
               }),
             });
 
@@ -1945,8 +1942,8 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 const companyName = person.organization?.name || person.company || primaryKeyword;
                 const industryStr = person.organization?.industry || cleanIndustries[0] || 'Dermatology / Clinic';
 
-                if (isIrrelevantBusiness(companyName, industryStr)) {
-                  console.log(`[fetch-poll] REJECTED irrelevant company: "${companyName}"`);
+                if (!isTargetBusiness(companyName, industryStr, cleanIndustries)) {
+                  console.log(`[fetch-poll] REJECTED non-target company: "${companyName}" (${industryStr})`);
                   continue;
                 }
 
@@ -2004,7 +2001,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                   q_keywords: primaryKeyword,
                   organization_locations: [country],
                   page: 1,
-                  per_page: Math.max(count * 3, 20),
+                  per_page: Math.max(count * 4, 30),
                 }),
               });
 
@@ -2018,7 +2015,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                   if (!companyName) continue;
                   const industryStr = org.industry || cleanIndustries[0] || 'Dermatology / Clinic';
 
-                  if (isIrrelevantBusiness(companyName, industryStr)) continue;
+                  if (!isTargetBusiness(companyName, industryStr, cleanIndustries)) continue;
 
                   const website = org.website_url || org.url || '';
                   let domain = null;
