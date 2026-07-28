@@ -1340,14 +1340,15 @@ app.post('/api/leads/fetch-now', async (req, res) => {
         }
         try {
           const searchStrings = buildApifySearchQueries(icp);
-          console.log(`[fetch-now] Apify search queries: ${JSON.stringify(searchStrings)} maxPlacesPerSearch: ${Math.min(countPerSource * 2, 40)}`);
+          const maxPlaces = Math.max(countPerSource * 4, 50);
+          console.log(`[fetch-now] Apify search queries: ${JSON.stringify(searchStrings)} maxPlacesPerSearch: ${maxPlaces}`);
 
           const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${apifyKey}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               searchStringsArray: searchStrings,
-              maxCrawledPlacesPerSearch: Math.min(countPerSource * 2, 40),
+              maxCrawledPlacesPerSearch: maxPlaces,
               language: 'en',
               exportPlaceUrls: false,
             }),
@@ -1452,7 +1453,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
           }
 
           if (status === 'SUCCEEDED') {
-            const datasetUrl = `https://api.apify.com/v2/datasets/${run.datasetId}/items?token=${apifyKey}&limit=${count * 3}&format=json`;
+            const datasetUrl = `https://api.apify.com/v2/datasets/${run.datasetId}/items?token=${apifyKey}&limit=${Math.max(count * 5, 100)}&format=json`;
             const itemsRes = await fetch(datasetUrl);
             const items = await itemsRes.json();
 
