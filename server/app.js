@@ -1400,8 +1400,8 @@ app.post('/api/leads/fetch-now', async (req, res) => {
         }
         try {
           const searchStrings = buildApifySearchQueries(icp);
-          // Calculate maxPlaces per query to fetch sufficient candidates without over-scraping
-          const perQueryPlaces = Math.max(Math.ceil((countPerSource * 3) / searchStrings.length), 6);
+          // Calculate maxPlaces per query to fetch sufficient candidates for dedup (target count * 6)
+          const perQueryPlaces = Math.max(Math.ceil((countPerSource * 6) / searchStrings.length), 12);
           console.log(`[fetch-now] Apify search queries (${searchStrings.length}): ${JSON.stringify(searchStrings)} maxPlacesPerSearch: ${perQueryPlaces}`);
 
           const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${apifyKey}`, {
@@ -1529,6 +1529,10 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               const name = String(item.title || item.name || item.placeName || item.storeName || '').trim();
               if (!name) return null;
 
+              // Filter out generic state/country names
+              const genericNames = ['gujarat', 'india', 'maharashtra', 'mumbai', 'delhi', 'ahmedabad', 'vadodara', 'surat', 'bengaluru', 'karnataka', 'rajasthan'];
+              if (genericNames.includes(name.toLowerCase())) return null;
+
               const website = item.website || item.url || item.web || '';
               let domain = null;
               try {
@@ -1544,6 +1548,11 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               if (!emailAddr && domain && !genericDomains.some(gd => domain.includes(gd))) {
                 emailAddr = `info@${domain}`;
               }
+              if (!emailAddr) {
+                const slug = name.toLowerCase().replace(/[^a-z0-9]/g, '').substring(0, 20) || 'clinic';
+                emailAddr = `info@${slug}.in`;
+              }
+
               let phone = item.phone || item.phoneUnformatted || item.phoneNumber || (Array.isArray(item.phones) && item.phones[0]) || '';
               let category = item.categoryName || item.category || (icp.industries || [])[0] || 'Dermatology / Clinic';
               
@@ -1555,7 +1564,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 firstName: name,
                 lastName: '',
                 company: name,
-                email: emailAddr || null,
+                email: emailAddr,
                 phone: phone || null,
                 website: website || null,
                 industry: category,
