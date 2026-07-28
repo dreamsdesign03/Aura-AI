@@ -333,7 +333,7 @@ export default function LeadDetail() {
                   </div>) : (<div className="flex items-start gap-4 flex-1 min-w-0">
                     {/* Photo */}
                     <div className="flex-shrink-0">
-                      {lead.photoUrl ? (<img src={lead.photoUrl} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-gray-100"/>) : (<div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-sm" style={{ background: "linear-gradient(135deg,#6C22D4,#8B45E8)" }}>
+                      {lead.photoUrl ? (<img src={lead.photoUrl} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-gray-100 shadow-sm"/>) : (<div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-sm" style={{ background: "#103E2B" }}>
                           {initials}
                         </div>)}
                     </div>
@@ -343,7 +343,7 @@ export default function LeadDetail() {
                         {/* Company logo */}
                         {lead.companyLogo && (<img src={lead.companyLogo} alt={lead.company} className="h-6 object-contain"/>)}
                       </div>
-                      <div className="text-sm text-gray-500 mt-0.5">{lead.designation} · {lead.company}</div>
+                      <div className="text-sm text-gray-500 mt-0.5 font-medium">{lead.designation || "Owner"} {lead.company ? `· ${lead.company}` : ""}</div>
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <StatusBadge status={lead.status}/>
                         {lead.bantScore != null && (() => {
@@ -361,24 +361,24 @@ export default function LeadDetail() {
 
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isEditing ? (<>
-                    <button onClick={saveEditing} disabled={updateLead.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-50" style={{ background: "#1A7A45" }}>
+                    <button onClick={saveEditing} disabled={updateLead.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#103E2B" }}>
                       <Check className="w-3.5 h-3.5"/>
                       {updateLead.isPending ? "Saving..." : "Save"}
                     </button>
-                    <button onClick={cancelEditing} disabled={updateLead.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">
+                    <button onClick={cancelEditing} disabled={updateLead.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50">
                       <X className="w-3.5 h-3.5"/>
                       Cancel
                     </button>
                   </>) : (<>
-                    <button onClick={() => setShowScheduleModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ background: "#1A3D2B" }}>
+                    <button onClick={() => setShowScheduleModal(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-95 shadow-xs" style={{ background: "#103E2B" }}>
                       <CalendarPlus className="w-3.5 h-3.5"/>
                       Schedule Meeting
                     </button>
-                    <button onClick={startEditing} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50">
-                      <Pencil className="w-3.5 h-3.5"/>
+                    <button onClick={startEditing} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-all">
+                      <Pencil className="w-3.5 h-3.5 text-gray-500"/>
                       Edit
                     </button>
-                    <select value={lead.status} onChange={(e) => updateLead.mutate({ id, data: { status: e.target.value } })} className="text-xs rounded border border-gray-200 bg-white text-gray-900 px-2 py-1 focus:outline-none">
+                    <select value={lead.status || "new_enquiry"} onChange={(e) => updateLead.mutate({ id, data: { status: e.target.value } })} className="text-xs font-medium rounded-lg border border-gray-300 bg-white text-gray-800 px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-emerald-500">
                       {[["new_enquiry", "New Enquiry"], ["enquiry_qualified", "Enquiry Qualified"], ["discovery_call", "Discovery Call"], ["quote_sent", "Quote / Estimation Sent"], ["follow_up", "Follow Up / Negotiation"], ["project_won", "Project Won"], ["project_lost", "Project Lost"]].map(([v, l]) => (<option key={v} value={v}>{l}</option>))}
                     </select>
                   </>)}
@@ -547,32 +547,32 @@ export default function LeadDetail() {
             </div>)}
 
           {/* CRM Meetings */}
-          <div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-xs font-semibold text-foreground uppercase tracking-wider">CRM Meetings</div>
-              <button onClick={() => setShowScheduleModal(true)} className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded text-white" style={{ background: "#1A3D2B" }}>
-                <CalendarPlus className="w-3 h-3"/> Schedule
+          <div className="rounded-xl border border-gray-200 p-5 bg-white shadow-xs">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-xs font-bold text-gray-900 uppercase tracking-wider">CRM MEETINGS</div>
+              <button onClick={() => setShowScheduleModal(true)} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-white transition-all hover:opacity-95 shadow-xs" style={{ background: "#103E2B" }}>
+                <CalendarPlus className="w-3.5 h-3.5"/> Schedule
               </button>
             </div>
-            {leadMeetings.length === 0 ? (<div className="flex flex-col items-center gap-2 py-4 text-center">
-                <CalendarDays className="w-6 h-6 text-gray-200"/>
-                <div className="text-xs text-gray-400">No meetings scheduled yet</div>
+            {leadMeetings.length === 0 ? (<div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+                <CalendarDays className="w-7 h-7 text-gray-300"/>
+                <div className="text-xs text-gray-400 font-medium">No meetings scheduled yet</div>
               </div>) : (<div className="space-y-2">
                 {leadMeetings.map((m) => {
                 const d = new Date(m.scheduledAt);
                 const dateLabel = d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
-                return (<div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2 text-xs">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <CalendarDays className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/>
+                return (<div key={m.id} className="flex items-center justify-between gap-3 rounded-lg border border-gray-100 px-3 py-2.5 text-xs bg-gray-50/50">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <CalendarDays className="w-4 h-4 text-emerald-700 flex-shrink-0"/>
                         <div className="min-w-0">
-                          <div className="font-medium text-gray-800 capitalize">{(m.type || "").replace(/_/g, " ")}</div>
-                          <div className="text-gray-400 text-[10px]">{dateLabel} · {m.duration} min</div>
+                          <div className="font-semibold text-gray-800 capitalize">{(m.type || "").replace(/_/g, " ")}</div>
+                          <div className="text-gray-500 text-[11px]">{dateLabel} · {m.duration} min</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 capitalize">{m.status}</span>
-                        <button onClick={() => downloadICS(m)} title="Download .ics" className="p-1 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors">
-                          <Download className="w-3 h-3"/>
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">{m.status}</span>
+                        <button onClick={() => downloadICS(m)} title="Download .ics" className="p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
+                          <Download className="w-3.5 h-3.5"/>
                         </button>
                       </div>
                     </div>);
