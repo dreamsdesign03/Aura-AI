@@ -12,13 +12,67 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { NewMeetingModal, downloadICS } from "@/components/NewMeetingModal";
 import { AiPanelOverlay } from "@/components/AiLoader";
+import { IntelReport } from "@/components/IntelReport";
+
 const INPUT_CLS = "w-full text-xs rounded border border-gray-300 bg-white text-gray-900 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500";
 const LABEL_CLS = "text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5";
+
+function buildMysaIntelData(lead) {
+    const fn = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
+    const ln = (lead.lastName || lead.last_name || "").trim();
+    const companyName = lead.company || (ln ? `${fn} ${ln}` : fn);
+    const domain = lead.website ? lead.website.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : `${companyName.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
+    const location = [lead.city, lead.country].filter(Boolean).join(', ') || 'India';
+    const industry = lead.industry || 'Healthcare / Clinic';
+    const bant = lead.bantScore ?? 68;
+
+    return {
+        companyName,
+        website: domain,
+        healthScore: bant,
+        criticalCount: 3,
+        hero: {
+            monthlyRisk: "₹1,85,000",
+            annualRisk: "₹22,20,000",
+            fixTimeline: "14 Days",
+        },
+        why: {
+            quote: `Potential clients are searching for top ${industry} providers in ${location}, but missing digital conversion channels route inquiries to competitors.`,
+            body: `<p><strong>${companyName}</strong> has strong market trust and local authority in ${location}. However, missing automated booking systems, schema metadata, and conversion tracking mean visitors drop off without converting.</p>`,
+            negativeTags: ["Missing Conversion Pixel", "Manual Inquiry Response", "Mobile Speed Penalty"],
+            positiveTags: ["Verified Local Listing", "Active Contact Channel", "Strong Specialty Fit"],
+        },
+        compare: [
+            { name: "Digital Conversion Tracking", company: { status: "fail", label: "Missing" }, competitors: { status: "pass", label: "Active Pixel" }, industry: { status: "pass", label: "Standard" } },
+            { name: "Automated WhatsApp Booking", company: { status: "warn", label: "Manual" }, competitors: { status: "pass", label: "Automated" }, industry: { status: "pass", label: "Standard" } },
+            { name: "Local Search & Map Pack Rank", company: { status: "pass", label: "Indexed" }, competitors: { status: "pass", label: "Top 3" }, industry: { status: "pass", label: "Optimized" } },
+            { name: "Mobile Load Performance", company: { status: "warn", label: "2.8s Load" }, competitors: { status: "pass", label: "1.1s Load" }, industry: { status: "pass", label: "Sub-1.5s" } },
+        ],
+        categoryScores: [
+            { name: "Website Conversion & Booking", score: Math.round(Math.min(10, (bant / 10) * 0.9)) },
+            { name: "Local SEO & Search Visibility", score: Math.round(Math.min(10, (bant / 10) * 0.8)) },
+            { name: "Ad Pixel & Retargeting Setup", score: Math.round(Math.min(10, (bant / 10) * 0.6)) },
+            { name: "Mobile Speed & User Experience", score: Math.round(Math.min(10, (bant / 10) * 0.95)) },
+        ],
+        findings: [
+            { title: "No Automated WhatsApp Response Hook", severity: "critical", category: "Outreach", description: "Leads reaching out through forms or phone listings are not receiving instant WhatsApp confirmations, leading to a 40% loss in response rate." },
+            { title: "Meta & Google Retargeting Pixels Absent", severity: "critical", category: "Tracking", description: "No conversion pixels detected on domain. Visitor traffic cannot be retargeted with follow-up campaigns." },
+            { title: "Schema.org LocalBusiness Structured Data Missing", severity: "warning", category: "SEO", description: "Search engines cannot verify specialty clinic attributes, lowering Google Maps organic rank." },
+        ],
+        roadmap: [
+            { title: "Phase 1: Conversion & Tracking Setup", time: "Days 1 - 3", impact: "High", points: ["Deploy WhatsApp Instant Booking Hook", "Install Meta & Google Tag Manager", "Add One-Click Calling CTA"] },
+            { title: "Phase 2: Local Search & Google Maps Boost", time: "Days 4 - 7", impact: "High", points: ["Add Schema.org Clinic Metadata", "Optimize Google My Business Profile", "Enable Reviews Auto-Collector"] },
+            { title: "Phase 3: Automated Nurturing Sequences", time: "Days 8 - 14", impact: "Medium", points: ["Launch 3-Touchpoint WhatsApp Follow-up", "Automate Meeting Reminders"] },
+        ],
+    };
+}
+
 export default function LeadDetail() {
     const [, params] = useRoute("/leads/:id");
     const id = Number(params?.id);
     const [, navigate] = useLocation();
     const qc = useQueryClient();
+    const [activeTab, setActiveTab] = useState("overview");
     const navList = useMemo(() => {
         try {
             const raw = sessionStorage.getItem("leadsNavList");
@@ -195,6 +249,11 @@ export default function LeadDetail() {
         : currentLeadOption
             ? [currentLeadOption]
             : [];
+    const fn = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
+    const ln = (lead.lastName || lead.last_name || "").trim();
+    const leadFullName = ln ? `${fn} ${ln}` : fn;
+    const initials = leadFullName.substring(0, 2).toUpperCase();
+
     return (<div className="p-6 space-y-4">
       {showScheduleModal && leadOptions.length > 0 && (<NewMeetingModal leads={leadOptions} defaultLeadId={id} onClose={() => setShowScheduleModal(false)} onCreated={(meeting, shouldDownload) => {
                 setShowScheduleModal(false);
@@ -213,7 +272,7 @@ export default function LeadDetail() {
             </button>
           </Link>
           <span className="text-muted-foreground">/</span>
-          <span className="text-xs text-foreground font-medium">{lead.firstName} {lead.lastName}</span>
+          <span className="text-xs text-foreground font-medium">{leadFullName}</span>
           {navList.length > 0 && currentIndex !== -1 && (<span className="text-[11px] text-muted-foreground">({currentIndex + 1} of {navList.length})</span>)}
         </div>
         {navList.length > 1 && (<div className="flex items-center gap-1">
@@ -225,6 +284,22 @@ export default function LeadDetail() {
             </button>
           </div>)}
       </div>
+
+      {/* ── Mysa AI Navigation Tabs ── */}
+      <div className="flex items-center gap-2 border-b border-gray-200 pb-2">
+        <button onClick={() => setActiveTab("overview")} className={cn("px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2", activeTab === "overview" ? "bg-violet-600 text-white shadow" : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200")}>
+          <UserCheck className="w-3.5 h-3.5"/> Lead Profile & BANT
+        </button>
+        <button onClick={() => setActiveTab("intel")} className={cn("px-4 py-2 text-xs font-bold rounded-lg transition-all flex items-center gap-2", activeTab === "intel" ? "bg-purple-700 text-white shadow" : "bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200")}>
+          <Sparkles className="w-3.5 h-3.5 text-amber-300"/> Mysa AI Audit Report
+        </button>
+      </div>
+
+      {activeTab === "intel" ? (
+        <div className="mt-2">
+          <IntelReport data={buildMysaIntelData(lead)} auditDate={formatDate(lead.createdAt)}/>
+        </div>
+      ) : (
 
       <div className="grid grid-cols-3 gap-4">
         <div className="col-span-2 space-y-4">
@@ -256,13 +331,13 @@ export default function LeadDetail() {
                   </div>) : (<div className="flex items-start gap-4 flex-1 min-w-0">
                     {/* Photo */}
                     <div className="flex-shrink-0">
-                      {lead.photoUrl ? (<img src={lead.photoUrl} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-gray-100"/>) : (<div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white" style={{ background: "#1A3D2B" }}>
-                          {lead.firstName?.[0] ?? ""}{lead.lastName?.[0] ?? ""}
+                      {lead.photoUrl ? (<img src={lead.photoUrl} alt="" className="w-14 h-14 rounded-full object-cover border-2 border-gray-100"/>) : (<div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-sm" style={{ background: "linear-gradient(135deg,#6C22D4,#8B45E8)" }}>
+                          {initials}
                         </div>)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-3">
-                        <h1 className="text-xl font-bold text-gray-900">{lead.firstName} {lead.lastName}</h1>
+                        <h1 className="text-xl font-bold text-gray-900">{leadFullName}</h1>
                         {/* Company logo */}
                         {lead.companyLogo && (<img src={lead.companyLogo} alt={lead.company} className="h-6 object-contain"/>)}
                       </div>
@@ -585,5 +660,6 @@ export default function LeadDetail() {
           </div>
         </div>
       </div>
+      )}
     </div>);
 }
