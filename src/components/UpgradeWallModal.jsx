@@ -14,7 +14,7 @@ function resourceLabel(detail) {
     if (detail.resource)
         return RESOURCE_LABELS[detail.resource] ?? detail.resource;
     if (detail.feature)
-        return detail.feature.replace(/_/g, " ");
+        return (detail.feature || "").replace(/_/g, " ");
     return "this feature";
 }
 function resourceIcon(detail) {
