@@ -6,13 +6,18 @@ function createQueryHook(key) {
       queryKey: [key, params],
       queryFn: async () => {
         try {
-          // Map hook keys to Express routes
           const routeMap = {
             "useListIcps": "/api/icps",
             "useListLeads": "/api/leads",
           };
           const route = routeMap[key] || `/api/${key}`;
-          const res = await fetch(route).then(r => r.json());
+          // Build query string from params
+          const qs = new URLSearchParams();
+          Object.entries(params).forEach(([k, v]) => {
+            if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+          });
+          const url = qs.toString() ? `${route}?${qs}` : route;
+          const res = await fetch(url).then(r => r.json());
           return res;
         } catch (e) {
           return [];

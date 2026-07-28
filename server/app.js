@@ -1117,6 +1117,7 @@ async function fetchApollo(icp, count, apiKey) {
   return leads.slice(0, count);
 }
 
+// POST /api/leads/fetch-now — Step 1: Start Apify runs, return run IDs immediately
 app.post('/api/leads/fetch-now', async (req, res) => {
   const { icpId, sources = ['google_maps'], count = 10 } = req.body || {};
 
@@ -1129,17 +1130,6 @@ app.post('/api/leads/fetch-now', async (req, res) => {
     });
     email = cookies.aura_user_email;
   }
-
-  // SSE headers
-  res.setHeader('Content-Type', 'text/event-stream');
-  res.setHeader('Cache-Control', 'no-cache');
-  res.setHeader('Connection', 'keep-alive');
-  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-  res.setHeader('X-Accel-Buffering', 'no');
-
-  const send = (event, data) => {
-    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
-  };
 
   try {
     let userId = null;
@@ -1155,67 +1145,306 @@ app.post('/api/leads/fetch-now', async (req, res) => {
       if (icpRes.rows.length > 0) icp = icpRes.rows[0];
     }
 
-    send('status', { message: `Fetching from ${sources.join(' + ')}...` });
-
     const apifyKey = process.env.APIFY_TOKEN;
     const apolloKey = process.env.APOLLO_API_KEY;
-
-    let totalImported = 0;
-    let totalSkipped = 0;
     const countPerSource = Math.ceil(count / sources.length);
+    const runs = [];
 
     for (const source of sources) {
-      try {
-        send('status', { message: `Scanning ${source === 'google_maps' ? 'Google Maps' : 'Apollo'}...` });
-        let leads = [];
-
-        if (source === 'google_maps') {
-          leads = await fetchGoogleMaps(icp, countPerSource, apifyKey);
-        } else if (source === 'apollo') {
-          leads = await fetchApollo(icp, countPerSource, apolloKey);
+      if (source === 'google_maps') {
+        if (!apifyKey) {
+          runs.push({ source: 'google_maps', error: 'APIFY_TOKEN not configured' });
+          continue;
         }
+        try {
+          const query = [...(icp.industries || []), ...(icp.roles || [])].join(' ');
+          const location = (icp.markets || ['United States'])[0];
+          const searchStr = `${query} in ${location}`;
 
-        for (const lead of leads) {
-          if (lead.email) {
-            const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [lead.email]);
-            if (dup.rows.length > 0) {
-              totalSkipped++;
-              send('skip', { email: lead.email, reason: 'duplicate' });
-              continue;
-            }
+          const runRes = await fetch(`https://api.apify.com/v2/acts/compass~crawler-google-places/runs?token=${apifyKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              searchStringsArray: [searchStr],
+              maxCrawledPlacesPerSearch: Math.min(countPerSource * 2, 40),
+              language: 'en',
+              exportPlaceUrls: false,
+            }),
+          });
+
+          if (!runRes.ok) {
+            const err = await runRes.text();
+            runs.push({ source: 'google_maps', error: `Apify failed: ${err}` });
+            continue;
           }
 
-          try {
-            await db.query(
-              `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
-               VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
-              [userId, lead.firstName, lead.lastName, lead.email, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
-            );
-            totalImported++;
-            send('lead', { lead, total: totalImported });
-          } catch (dbErr) {
-            totalSkipped++;
-            send('skip', { email: lead.email, reason: dbErr.message });
-          }
+          const runData = await runRes.json();
+          runs.push({
+            source: 'google_maps',
+            runId: runData.data?.id,
+            datasetId: runData.data?.defaultDatasetId,
+            status: 'running',
+          });
+        } catch (e) {
+          runs.push({ source: 'google_maps', error: e.message });
         }
-
-        send('status', { message: `${source === 'google_maps' ? 'Google Maps' : 'Apollo'}: ${leads.length} leads found` });
-      } catch (srcErr) {
-        send('error', { message: `${source} error: ${srcErr.message}` });
+      } else if (source === 'apollo') {
+        if (!apolloKey) {
+          runs.push({ source: 'apollo', error: 'APOLLO_API_KEY not configured' });
+          continue;
+        }
+        // Apollo is synchronous — search orgs then people, return partial results later
+        runs.push({ source: 'apollo', status: 'pending', count: countPerSource });
       }
     }
 
-    send('done', { imported: totalImported, skipped: totalSkipped, requested: count });
-
+    // Store run info in fetch_configs for polling
     if (userId) {
-      try { await db.query('UPDATE fetch_configs SET last_run_at = NOW() WHERE user_id = $1', [userId]); } catch {}
+      try {
+        await db.query(`
+          CREATE TABLE IF NOT EXISTS fetch_runs (
+            id SERIAL PRIMARY KEY,
+            user_id INT REFERENCES users(id) ON DELETE CASCADE,
+            runs JSONB DEFAULT '[]',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+          );
+        `);
+        // Clean old runs for this user
+        await db.query('DELETE FROM fetch_runs WHERE user_id = $1', [userId]);
+        await db.query(
+          'INSERT INTO fetch_runs (user_id, runs) VALUES ($1, $2)',
+          [userId, JSON.stringify(runs)]
+        );
+      } catch (e) {
+        console.error('fetch-now: store runs error:', e.message);
+      }
     }
 
-    res.end();
+    return res.status(200).json({ runs, userId });
   } catch (err) {
-    send('error', { message: err.message });
-    res.end();
+    console.error('fetch-now error:', err.message);
+    return res.status(500).json({ error: err.message });
   }
+});
+
+// POST /api/leads/fetch-poll — Step 2: Poll Apify status, fetch results, insert into DB
+app.post('/api/leads/fetch-poll', async (req, res) => {
+  const { runs = [], icpId, count = 10, email: bodyEmail } = req.body || {};
+
+  let email = bodyEmail;
+  if (!email && req.headers.cookie) {
+    const cookies = {};
+    req.headers.cookie.split(';').forEach(c => {
+      const [key, ...rest] = c.split('=');
+      cookies[key.trim()] = decodeURIComponent(rest.join('='));
+    });
+    email = cookies.aura_user_email;
+  }
+
+  let userId = null;
+  if (email) {
+    const ur = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (ur.rows.length > 0) userId = ur.rows[0].id;
+  }
+
+  let icp = {};
+  if (icpId) {
+    const icpRes = await db.query('SELECT * FROM icps WHERE id = $1', [icpId]);
+    if (icpRes.rows.length > 0) icp = icpRes.rows[0];
+  }
+
+  const apifyKey = process.env.APIFY_TOKEN;
+  const apolloKey = process.env.APOLLO_API_KEY;
+  const results = { completed: [], errors: [], leads: [], totalImported: 0, totalSkipped: 0 };
+
+  for (const run of runs) {
+    if (run.error) {
+      results.errors.push({ source: run.source, error: run.error });
+      continue;
+    }
+
+    if (run.source === 'google_maps' && run.runId) {
+      try {
+        const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${run.runId}?token=${apifyKey}`);
+        const statusData = await statusRes.json();
+        const status = statusData.data?.status;
+
+        if (status === 'RUNNING' || status === 'READY' || status === 'WAITING') {
+          results.completed.push({ source: 'google_maps', status: 'running' });
+          continue;
+        }
+
+        if (status === 'FAILED' || status === 'ABORTED') {
+          results.errors.push({ source: 'google_maps', error: `Apify run ${status}` });
+          continue;
+        }
+
+        if (status === 'SUCCEEDED') {
+          // Fetch results from dataset
+          const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${run.datasetId}/items?token=${apifyKey}&limit=${count * 2}&format=json`);
+          const items = await itemsRes.json();
+          if (!Array.isArray(items)) {
+            results.errors.push({ source: 'google_maps', error: 'Invalid Apify response' });
+            continue;
+          }
+
+          const leads = items.slice(0, count).map(item => {
+            const name = String(item.title || item.name || '').trim();
+            const website = item.website || '';
+            let domain = null;
+            try { domain = new URL(website).hostname.replace(/^www\./, ''); } catch {}
+            return {
+              firstName: name.split(' ')[0] || 'Unknown',
+              lastName: name.split(' ').slice(1).join(' ') || '',
+              company: name,
+              email: domain ? `info@${domain}` : '',
+              phone: item.phone || '',
+              website,
+              industry: item.categoryName || (icp.industries || [])[0] || '',
+              country: (icp.markets || ['United States'])[0],
+              designation: '',
+              source: 'google_maps',
+            };
+          }).filter(l => l.email && !BLOCKED_DOMAINS.has(l.email.split('@')[1]?.toLowerCase()));
+
+          // Insert into DB
+          for (const lead of leads) {
+            if (lead.email) {
+              const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [lead.email]);
+              if (dup.rows.length > 0) { results.totalSkipped++; continue; }
+            }
+            try {
+              await db.query(
+                `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
+                [userId, lead.firstName, lead.lastName, lead.email, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
+              );
+              results.totalImported++;
+              results.leads.push(lead);
+            } catch (dbErr) {
+              results.totalSkipped++;
+            }
+          }
+
+          results.completed.push({ source: 'google_maps', status: 'done', count: results.leads.length });
+        }
+      } catch (e) {
+        results.errors.push({ source: 'google_maps', error: e.message });
+      }
+    }
+
+    if (run.source === 'apollo' && run.status === 'pending') {
+      if (!apolloKey) {
+        results.errors.push({ source: 'apollo', error: 'APOLLO_API_KEY not configured' });
+        continue;
+      }
+      try {
+        const keywords = [...(icp.industries || []), ...(icp.roles || [])].join(' ');
+        const locations = (icp.markets || ['United States']);
+        const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+          body: JSON.stringify({
+            api_key: apolloKey,
+            q_organization_keyword_tags: keywords,
+            organization_locations: locations,
+            page: 1,
+            per_page: Math.min(run.count || 10, 25),
+          }),
+        });
+
+        if (!orgRes.ok) {
+          const err = await orgRes.text();
+          results.errors.push({ source: 'apollo', error: `Org search failed: ${err}` });
+          continue;
+        }
+
+        const orgData = await orgRes.json();
+        const accounts = orgData.accounts || [];
+
+        const DECISION_MAKER_TITLES = [
+          'CEO', 'Founder', 'Co-Founder', 'Owner', 'Managing Director',
+          'Director', 'Head of Marketing', 'CMO', 'VP Marketing',
+          'Head of Sales', 'CTO', 'COO',
+        ];
+
+        for (const account of accounts) {
+          if (results.leads.length >= (run.count || 10)) break;
+          try {
+            const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+              body: JSON.stringify({
+                api_key: apolloKey,
+                q_organization_name: account.name,
+                person_titles: DECISION_MAKER_TITLES,
+                page: 1,
+                per_page: 3,
+              }),
+            });
+
+            if (!peopleRes.ok) continue;
+            const peopleData = await peopleRes.json();
+            const people = peopleData.people || [];
+
+            for (const person of people) {
+              if (results.leads.length >= (run.count || 10)) break;
+              const personEmail = person.email;
+              if (!personEmail) continue;
+              const domain = personEmail.split('@')[1]?.toLowerCase();
+              const website = account.website_url || '';
+              let websiteDomain = null;
+              try { websiteDomain = new URL(website).hostname.replace(/^www\./, ''); } catch {}
+              if (websiteDomain && domain && websiteDomain !== domain) continue;
+              if (BLOCKED_DOMAINS.has(domain)) continue;
+              if (/^(test|dummy|placeholder|noreply|no-reply)/.test(personEmail)) continue;
+
+              const lead = {
+                firstName: person.first_name || '',
+                lastName: person.last_name || '',
+                company: account.name || '',
+                email: personEmail,
+                phone: person.phone_numbers?.[0]?.sanitized_number || '',
+                website,
+                industry: account.industry || (icp.industries || [])[0] || '',
+                country: person.country || (icp.markets || ['United States'])[0],
+                designation: person.title || '',
+                source: 'apollo',
+              };
+
+              try {
+                const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [personEmail]);
+                if (dup.rows.length > 0) { results.totalSkipped++; continue; }
+
+                await db.query(
+                  `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
+                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
+                  [userId, lead.firstName, lead.lastName, lead.email, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
+                );
+                results.totalImported++;
+                results.leads.push(lead);
+              } catch (dbErr) {
+                results.totalSkipped++;
+              }
+            }
+          } catch {
+            // Skip failed org
+          }
+        }
+
+        results.completed.push({ source: 'apollo', status: 'done', count: results.leads.length });
+      } catch (e) {
+        results.errors.push({ source: 'apollo', error: e.message });
+      }
+    }
+  }
+
+  // Update last_run_at
+  if (userId) {
+    try { await db.query('UPDATE fetch_configs SET last_run_at = NOW() WHERE user_id = $1', [userId]); } catch {}
+  }
+
+  return res.status(200).json(results);
 });
 
 module.exports = app;

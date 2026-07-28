@@ -102,90 +102,93 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
         }
     };
     const fetchNow = async () => {
-        if (streaming) {
-            abortRef.current?.abort();
-            return;
-        }
+        if (streaming) return;
         setStreaming(true);
         setStreamedLeads([]);
         setErrorMsg("");
         setDone(false);
         setSkipped(0);
-        setStatusMsg("Connecting…");
-        const abort = new AbortController();
-        abortRef.current = abort;
+        setStatusMsg("Starting fetch…");
         try {
-            const endpoint = isMysaLeadsMode
-                ? `${base}/lead-bank/fetch-to-leads`
-                : `${base}/leads/fetch-now`;
-            const body = isMysaLeadsMode
-                ? JSON.stringify({ icpId, count: dailyCount, onlyFresh: true })
-                : JSON.stringify({ icpId, sources: selectedSources, count: dailyCount });
-            const r = await fetch(endpoint, {
+            const email = sessionStorage.getItem("aura_user_email");
+            // Step 1: Start Apify runs
+            const startRes = await fetch(`${base}/leads/fetch-now`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body,
-                signal: abort.signal,
+                body: JSON.stringify({ icpId, sources: selectedSources, count: dailyCount, email }),
             });
-            if (!r.ok || !r.body)
-                throw new Error("Failed to connect");
-            const reader = r.body.getReader();
-            const decoder = new TextDecoder();
-            let buffer = "";
-            let currentEvent = "";
-            while (true) {
-                const { done: rDone, value } = await reader.read();
-                if (rDone)
-                    break;
-                buffer += decoder.decode(value, { stream: true });
-                const lines = buffer.split("\n");
-                buffer = lines.pop() ?? "";
-                for (const line of lines) {
-                    if (line.startsWith("event: ")) {
-                        currentEvent = line.slice(7).trim();
-                    }
-                    else if (line.startsWith("data: ")) {
-                        try {
-                            const payload = JSON.parse(line.slice(6));
-                            if (currentEvent === "status") {
-                                setStatusMsg(payload.message ?? "");
-                            }
-                            else if (currentEvent === "lead") {
-                                const l = payload.lead;
-                                setStreamedLeads((prev) => [...prev, {
-                                        name: `${l.firstName} ${l.lastName}`,
-                                        company: l.company,
-                                        email: l.email,
-                                        industry: l.industry,
-                                        country: l.country,
-                                    }]);
-                            }
-                            else if (currentEvent === "skip") {
-                                setSkipped((p) => p + 1);
-                            }
-                            else if (currentEvent === "error") {
-                                setErrorMsg(payload.message ?? "Unknown error");
-                            }
-                            else if (currentEvent === "done") {
-                                setDone(true);
-                                setStatusMsg(`Done — ${payload.imported} leads added`);
-                                qc.invalidateQueries({ queryKey: ["useListLeads"] });
-                            }
-                        }
-                        catch { }
-                        currentEvent = "";
-                    }
-                    else if (line === "") {
-                        currentEvent = "";
-                    }
+            if (!startRes.ok) throw new Error("Failed to start fetch");
+            const { runs } = await startRes.json();
+            if (!runs || runs.length === 0) throw new Error("No fetch runs started");
+
+            // Check for immediate errors
+            const errors = runs.filter(r => r.error);
+            if (errors.length > 0 && runs.length === errors.length) {
+                throw new Error(errors.map(e => e.error).join("; "));
+            }
+            if (errors.length > 0) {
+                setErrorMsg(errors.map(e => `${e.source}: ${e.error}`).join("; "));
+            }
+
+            // Step 2: Poll until all runs complete
+            let allDone = false;
+            let pollCount = 0;
+            const maxPolls = 60; // max 60 polls × 3s = 180s
+
+            while (!allDone && pollCount < maxPolls) {
+                await new Promise(r => setTimeout(r, 3000));
+                pollCount++;
+
+                const pollRes = await fetch(`${base}/leads/fetch-poll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ runs, icpId, count: dailyCount, email }),
+                });
+                if (!pollRes.ok) throw new Error("Poll failed");
+                const pollData = await pollRes.json();
+
+                // Update leads display
+                if (pollData.leads?.length > 0) {
+                    setStreamedLeads(prev => {
+                        const existing = new Set(prev.map(l => l.email));
+                        const newLeads = pollData.leads
+                            .filter(l => !existing.has(l.email))
+                            .map(l => ({
+                                name: `${l.firstName} ${l.lastName}`,
+                                company: l.company,
+                                email: l.email,
+                                industry: l.industry,
+                                country: l.country,
+                            }));
+                        return [...prev, ...newLeads];
+                    });
+                }
+
+                setSkipped(pollData.totalSkipped || 0);
+
+                // Check if all runs are done
+                const running = (pollData.completed || []).filter(c => c.status === 'running');
+                if (running.length === 0) {
+                    allDone = true;
+                    setDone(true);
+                    setStatusMsg(`Done — ${pollData.totalImported || 0} leads imported`);
+                    qc.invalidateQueries({ queryKey: ["useListLeads"] });
+                } else {
+                    setStatusMsg(`Scanning… ${pollData.totalImported || 0} found so far`);
+                }
+
+                // Report errors
+                if (pollData.errors?.length > 0) {
+                    setErrorMsg(pollData.errors.map(e => `${e.source}: ${e.error}`).join("; "));
                 }
             }
-        }
-        catch (err) {
-            if (err?.name !== "AbortError")
-                setErrorMsg(String(err));
-        }
-        finally {
+
+            if (!allDone) {
+                setStatusMsg(`Timeout — ${streamedLeads.length} leads imported so far`);
+            }
+        } catch (err) {
+            setErrorMsg(String(err));
+        } finally {
             setStreaming(false);
         }
     };
