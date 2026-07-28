@@ -27,9 +27,10 @@ function StatusIcon({ status, opened }) {
 }
 export default function Outreach() {
     const qc = useQueryClient();
-    const { data: emails = [], isLoading, refetch } = useListOutreachEmails({
+    const { data: emailsRaw = [], isLoading, refetch } = useListOutreachEmails({
         query: { queryKey: getListOutreachEmailsQueryKey() },
     });
+    const emails = Array.isArray(emailsRaw) ? emailsRaw : [];
     const updateEmail = useUpdateOutreachEmail({
         mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListOutreachEmailsQueryKey() }) },
     });

@@ -110,7 +110,7 @@ function KanbanColumn({ col, proposals }) {
 export default function Proposals() {
     const qc = useQueryClient();
     const { data: proposalsRaw = [], isLoading } = useListProposals({ query: { queryKey: getListProposalsQueryKey() } });
-    const proposals = proposalsRaw;
+    const proposals = Array.isArray(proposalsRaw) ? proposalsRaw : [];
     const { data: leadsPage } = useListLeads({}, { query: { queryKey: getListLeadsQueryKey() } });
     const leads = leadsPage?.leads ?? [];
     const createProposal = useCreateProposal({
