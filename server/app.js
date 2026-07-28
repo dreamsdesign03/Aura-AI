@@ -495,6 +495,214 @@ app.delete('/api/leads/:id', async (req, res) => {
   }
 });
 
+// ── Outreach & Proposal AI Endpoints ──────────────────
+async function ensureOutreachAndProposalsTables() {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS outreach_emails (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        lead_id INT,
+        recipient_email TEXT,
+        subject TEXT,
+        body TEXT,
+        status TEXT DEFAULT 'draft',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS proposals (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        lead_id INT,
+        title TEXT,
+        services JSONB DEFAULT '[]',
+        investment NUMERIC DEFAULT 0,
+        status TEXT DEFAULT 'draft',
+        content JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+  } catch (e) {
+    console.error('[ensureOutreachAndProposalsTables] Schema:', e.message);
+  }
+}
+ensureOutreachAndProposalsTables();
+
+// GET /api/outreach/emails
+app.get('/api/outreach/emails', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.query.email, req.headers.cookie);
+    const emailsRes = await db.query(
+      `SELECT o.*, l.first_name, l.last_name, l.company, l.email as lead_email 
+       FROM outreach_emails o 
+       LEFT JOIN leads l ON o.lead_id = l.id 
+       WHERE o.user_id = $1 
+       ORDER BY o.id DESC`,
+      [userId]
+    );
+    res.json(emailsRes.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/outreach/generate — Understand lead client & products, create outreach email
+app.post('/api/outreach/generate', async (req, res) => {
+  try {
+    const { leadId } = req.body;
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
+    let lead = null;
+    if (leadId) {
+      const lr = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+      if (lr.rows.length > 0) lead = lr.rows[0];
+    }
+
+    const company = lead?.company || lead?.first_name || 'Clinic / Healthcare Brand';
+    const contactName = lead?.first_name ? `${lead.first_name} ${lead.last_name || ''}`.trim() : 'Clinic Director';
+    const industry = lead?.industry || 'Dermatology & Cosmetic Surgery';
+    const country = lead?.country || 'India';
+    const recipientEmail = lead?.email || 'contact@clinic.com';
+
+    const subject = `Scaling Patient Appointments & High-Margin Treatments for ${company}`;
+    const body = `Hi ${contactName},
+
+I noticed ${company}'s premium presence in ${industry} across ${country}. Your reputation for delivering outstanding patient outcomes in treatments like Laser Hair Removal, Skin Rejuvenation, and Body Contouring is impressive.
+
+At Aura AI, we specialize in helping leading clinics convert website visitors and social leads into booked consultation appointments 24/7.
+
+Here is what we can implement for ${company}:
+1. 24/7 AI Receptionist & Booking Bot (Handles patient inquiries & schedules consultations directly)
+2. Automated WhatsApp Appointment Reminders (Reduces no-shows by up to 65%)
+3. High-Ticket Treatment Campaign Funnels (Targeting high-intent patients for premium packages)
+
+Would you be open to a brief 10-minute discovery call next Tuesday at 11:00 AM to explore how this can add 20-30 new monthly patient bookings for ${company}?
+
+Best regards,
+Aura AI Growth Team`;
+
+    const insertRes = await db.query(
+      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, subject, body, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'draft', NOW())
+       RETURNING *`,
+      [userId, leadId ? Number(leadId) : null, recipientEmail, subject, body]
+    );
+
+    res.status(201).json(insertRes.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/outreach/send
+app.post('/api/outreach/send', async (req, res) => {
+  try {
+    const { id } = req.body;
+    await db.query(`UPDATE outreach_emails SET status = 'sent' WHERE id = $1`, [id]);
+    res.json({ success: true, message: 'Outreach email sent successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/outreach/update
+app.post('/api/outreach/update', async (req, res) => {
+  try {
+    const { id, subject, body } = req.body;
+    const updateRes = await db.query(
+      `UPDATE outreach_emails SET subject = COALESCE($1, subject), body = COALESCE($2, body) WHERE id = $3 RETURNING *`,
+      [subject, body, id]
+    );
+    res.json(updateRes.rows[0] || { success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/outreach/delete
+app.post('/api/outreach/delete', async (req, res) => {
+  try {
+    const { id } = req.body;
+    await db.query(`DELETE FROM outreach_emails WHERE id = $1`, [id]);
+    res.json({ success: true, id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/proposals
+app.get('/api/proposals', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.query.email, req.headers.cookie);
+    const propRes = await db.query(
+      `SELECT p.*, l.first_name, l.last_name, l.company, l.email as lead_email 
+       FROM proposals p 
+       LEFT JOIN leads l ON p.lead_id = l.id 
+       WHERE p.user_id = $1 
+       ORDER BY p.id DESC`,
+      [userId]
+    );
+    res.json(propRes.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/proposals/generate — Understand lead client & products, create formal proposal
+app.post('/api/proposals/generate', async (req, res) => {
+  try {
+    const { leadId } = req.body;
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
+    let lead = null;
+    if (leadId) {
+      const lr = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+      if (lr.rows.length > 0) lead = lr.rows[0];
+    }
+
+    const company = lead?.company || lead?.first_name || 'Clinic / Healthcare Practice';
+    const contactName = lead?.first_name ? `${lead.first_name} ${lead.last_name || ''}`.trim() : 'Clinic Owner';
+    const industry = lead?.industry || 'Dermatology & Aesthetic Clinic';
+
+    const title = `AI Patient Acquisition & Sales Automation Proposal for ${company}`;
+    const services = ['AI Sales Agent', 'WhatsApp Booking Automation', 'High-Ticket Treatment Campaigns', 'Brand Audit Optimization'];
+    const investment = 150000;
+
+    const content = {
+      executiveSummary: `Aura AI proposes an end-to-end AI Patient Acquisition Engine designed exclusively for ${company}. By automating patient engagement across web, Instagram, and WhatsApp, ${company} will capture high-intent patients for premium treatments (Dermatology, Laser, Aesthetics) 24/7.`,
+      understandingAndChallenges: `${company} operates in the highly competitive ${industry} market. Current challenges include after-hours lead drop-off, manual phone booking delays, and no-shows for consultation appointments.`,
+      proposedSolution: `1. 24/7 AI Medical Receptionist: Instantly answers patient questions regarding packages, pricing, and prep instructions.
+2. Direct EMR / Calendar Booking: Patients book consultations automatically.
+3. WhatsApp Follow-Up Sequence: Automated appointment reminders & post-treatment care instructions.`,
+      scopeAndDeliverables: `- Custom AI Chatbot trained on ${company}'s specific treatment menu & pricing.
+- WhatsApp Business API Integration with multi-agent inbox.
+- Meta & Google Ad Campaign Funnels for High-Margin Procedures.
+- Monthly Performance Dashboard & ROI Reporting.`,
+      investmentPackage: `Complete Implementation: ₹1,50,000 (Includes setup, AI model training, WhatsApp API integration, and 30 days of managed growth optimization).`,
+      expectedROI: `Projected 35% increase in month-1 appointment volume and 50% reduction in patient no-show rates.`
+    };
+
+    const insertRes = await db.query(
+      `INSERT INTO proposals (user_id, lead_id, title, services, investment, status, content, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'draft', $6, NOW())
+       RETURNING *`,
+      [userId, leadId ? Number(leadId) : null, title, JSON.stringify(services), investment, JSON.stringify(content)]
+    );
+
+    res.status(201).json(insertRes.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/proposals/send
+app.post('/api/proposals/send', async (req, res) => {
+  try {
+    const { id } = req.body;
+    await db.query(`UPDATE proposals SET status = 'sent' WHERE id = $1`, [id]);
+    res.json({ success: true, message: 'Proposal sent to client successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // 6. Campaigns & ICPs
 app.get('/api/campaigns', async (req, res) => {
   try {

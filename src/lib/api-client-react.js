@@ -44,6 +44,14 @@ function createMutationHook(key) {
             "useDeleteIcp": "/api/icps/delete",
             "useUpdateIcp": "/api/icps/update",
             "useGenerateIcpSuggestions": "/api/icps/suggestions",
+            "useUpdateOutreachEmail": "/api/outreach/update",
+            "useSendOutreachEmail": "/api/outreach/send",
+            "useDeleteOutreachEmail": "/api/outreach/delete",
+            "useCreateProposal": "/api/proposals",
+            "useUpdateProposal": "/api/proposals/update",
+            "useUpdateProposalStatus": "/api/proposals/status",
+            "useGenerateProposal": "/api/proposals/generate",
+            "useSendProposalEmail": "/api/proposals/send",
           };
           const route = routeMap[key] || `/api/${key}`;
           const res = await fetch(route, {

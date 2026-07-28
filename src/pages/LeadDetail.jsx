@@ -7,7 +7,7 @@ import { useAuthUser } from "@/contexts/AuthContext";
 import { StatusBadge, Tag } from "@/components/Badge";
 import { bandColorFromKey, bandLabelFromKey, scoreToBandKey, formatDate, formatRelative } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Globe as Linkedin, Phone, Mail, Building2, MapPin, MessageCircle, Pencil, X, Check, Loader2, Sparkles, CalendarPlus, CalendarDays, Download, UserCheck } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Globe as Linkedin, Phone, Mail, Building2, MapPin, MessageCircle, Pencil, X, Check, Loader2, Sparkles, CalendarPlus, CalendarDays, Download, UserCheck, Send, FileText, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { NewMeetingModal, downloadICS } from "@/components/NewMeetingModal";
@@ -94,6 +94,51 @@ export default function LeadDetail() {
     const [rescoreError, setRescoreError] = useState(null);
     const ALREADY_SCORED_MSG = "This lead has already been scored. Refresh or use Re-score to update.";
     const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [aiModalOpen, setAiModalOpen] = useState(false);
+    const [aiModalType, setAiModalType] = useState("outreach");
+    const [genLoading, setGenLoading] = useState(false);
+    const [genResult, setGenResult] = useState(null);
+    const [sendSuccess, setSendSuccess] = useState(false);
+
+    const handleGenerateAiOutreach = async () => {
+        setAiModalType("outreach");
+        setAiModalOpen(true);
+        setGenLoading(true);
+        setGenResult(null);
+        setSendSuccess(false);
+        try {
+            const res = await fetch("/api/outreach/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ leadId: id }),
+            }).then(r => r.json());
+            setGenResult(res);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setGenLoading(false);
+        }
+    };
+
+    const handleGenerateAiProposal = async () => {
+        setAiModalType("proposal");
+        setAiModalOpen(true);
+        setGenLoading(true);
+        setGenResult(null);
+        setSendSuccess(false);
+        try {
+            const res = await fetch("/api/proposals/generate", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ leadId: id }),
+            }).then(r => r.json());
+            setGenResult(res);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setGenLoading(false);
+        }
+    };
     const { toast } = useToast();
     const { data: allMeetings = [] } = useListMeetings();
     const { data: leadsResp } = useListLeads();
@@ -642,12 +687,120 @@ export default function LeadDetail() {
               <Link href={`/qualify?leadId=${lead.id}`}>
                 <button className="w-full text-xs py-1.5 px-3 rounded border border-gray-200 text-muted-foreground hover:text-gray-900 hover:bg-gray-50 text-left">BANT Score</button>
               </Link>
-              <Link href="/outreach">
-                <button className="w-full text-xs py-1.5 px-3 rounded border border-gray-200 text-muted-foreground hover:text-gray-900 hover:bg-gray-50 text-left">Generate Outreach</button>
-              </Link>
+              <button onClick={handleGenerateAiOutreach} className="w-full text-xs py-2 px-3 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 text-left flex items-center justify-between transition-all">
+                <span>⚡ Generate AI Outreach Email</span>
+                <Sparkles className="w-3.5 h-3.5 text-purple-600"/>
+              </button>
+              <button onClick={handleGenerateAiProposal} className="w-full text-xs py-2 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 text-left flex items-center justify-between transition-all">
+                <span>📄 Create AI Sales Proposal</span>
+                <FileText className="w-3.5 h-3.5 text-emerald-600"/>
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── AI Outreach & Proposal Generator Modal ── */}
+      {aiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 border border-gray-100 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b pb-3">
+              <div className="flex items-center gap-2">
+                {aiModalType === "outreach" ? (
+                  <Sparkles className="w-5 h-5 text-purple-600" />
+                ) : (
+                  <FileText className="w-5 h-5 text-emerald-600" />
+                )}
+                <div>
+                  <h3 className="font-bold text-gray-900 text-base">
+                    {aiModalType === "outreach" ? "AI Tailored Outreach Email" : "AI Custom Sales Proposal"}
+                  </h3>
+                  <p className="text-xs text-gray-500">
+                    Targeted to {leadFullName} · {lead.company || "Clinic"}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setAiModalOpen(false)} className="p-1 rounded-lg text-gray-400 hover:bg-gray-100">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {genLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center text-center space-y-3">
+                <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+                <p className="text-sm font-semibold text-gray-800">
+                  Analyzing client products, services & target market...
+                </p>
+                <p className="text-xs text-gray-500">
+                  Building custom {aiModalType === "outreach" ? "outreach email" : "sales proposal"} for {lead.company || leadFullName}
+                </p>
+              </div>
+            ) : genResult ? (
+              <div className="space-y-4 text-xs">
+                {sendSuccess && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg font-medium flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>{aiModalType === "outreach" ? "Outreach email sent successfully!" : "Proposal sent to client!"}</span>
+                  </div>
+                )}
+
+                {aiModalType === "outreach" ? (
+                  <div className="space-y-3">
+                    <div>
+                      <label className="font-semibold text-gray-700 block mb-1">Recipient Email</label>
+                      <input type="text" readOnly value={genResult.recipient_email || lead.email || ""} className="w-full p-2 border rounded-lg bg-gray-50 text-gray-800" />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-gray-700 block mb-1">Subject</label>
+                      <input type="text" value={genResult.subject || ""} onChange={e => setGenResult({...genResult, subject: e.target.value})} className="w-full p-2 border rounded-lg font-semibold text-gray-900" />
+                    </div>
+                    <div>
+                      <label className="font-semibold text-gray-700 block mb-1">Personalized Email Body</label>
+                      <textarea rows={10} value={genResult.body || ""} onChange={e => setGenResult({...genResult, body: e.target.value})} className="w-full p-3 border rounded-lg text-gray-800 font-sans leading-relaxed" />
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                      <button onClick={() => setAiModalOpen(false)} className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">Cancel</button>
+                      <button onClick={async () => {
+                        await fetch("/api/outreach/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: genResult.id }) });
+                        setSendSuccess(true);
+                      }} className="px-5 py-2 rounded-lg bg-purple-600 text-white font-bold hover:bg-purple-700 flex items-center gap-1.5 shadow">
+                        <Send className="w-3.5 h-3.5" /> Send Outreach Email
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl space-y-2">
+                      <h4 className="font-bold text-emerald-900 text-sm">{genResult.title}</h4>
+                      <p className="text-gray-700 text-xs">{genResult.content?.executiveSummary}</p>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-800 mb-1">Understanding & Client Challenges</h5>
+                      <p className="text-gray-600 bg-gray-50 p-3 rounded-lg border">{genResult.content?.understandingAndChallenges}</p>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-800 mb-1">Proposed Growth Solution</h5>
+                      <p className="text-gray-600 bg-gray-50 p-3 rounded-lg border whitespace-pre-line">{genResult.content?.proposedSolution}</p>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-gray-800 mb-1">Investment & ROI</h5>
+                      <p className="text-emerald-800 bg-emerald-50 p-3 rounded-lg border font-semibold">{genResult.content?.investmentPackage}</p>
+                    </div>
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t">
+                      <button onClick={() => setAiModalOpen(false)} className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50">Close</button>
+                      <button onClick={async () => {
+                        await fetch("/api/proposals/send", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: genResult.id }) });
+                        setSendSuccess(true);
+                      }} className="px-5 py-2 rounded-lg bg-emerald-600 text-white font-bold hover:bg-emerald-700 flex items-center gap-1.5 shadow">
+                        <Send className="w-3.5 h-3.5" /> Send Proposal to Client
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      )}
     </div>);
 }
