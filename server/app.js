@@ -1563,7 +1563,16 @@ app.get('/api/useListTeamMembers', (req, res) => res.json([]));
 app.get('/api/useListSequences', (req, res) => res.json([]));
 app.get('/api/useInitiateWhatsApp', (req, res) => res.json({ success: false, error: 'Not configured' }));
 app.get('/api/useInitiateWhatsAppBulk', (req, res) => res.json({ success: false, error: 'Not configured' }));
-app.get('/api/billing/current-plan', (req, res) => res.json({ plan: 'free', leadsUsed: 0, leadsLimit: 100 }));
+app.get('/api/billing/current-plan', (req, res) => res.json({
+  plan: 'trial',
+  trialExpired: false,
+  trialDaysLeft: 30,
+  usage: {
+    leads: { used: 0, max: 50 },
+    audits: { used: 0, max: 10 },
+    emails: { used: 0, max: 100 },
+  },
+}));
 app.get('/api/useImportLeadsPaste', (req, res) => res.json([]));
 app.post('/api/useImportLeadsPaste', (req, res) => res.json({ imported: 0, skipped: 0, errors: [] }));
 app.get('/api/useImportLeadsCsv', (req, res) => res.json([]));
