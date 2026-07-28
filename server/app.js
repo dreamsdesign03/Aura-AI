@@ -1477,7 +1477,12 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 }
               } catch {}
 
-              let emailAddr = item.email || (Array.isArray(item.emails) && item.emails[0]) || (domain ? `info@${domain}` : null);
+              const genericDomains = ['instagram.com', 'facebook.com', 'google.com', 'justdial.com', 'practo.com', 'youtube.com', 'linkedin.com', 'twitter.com', 'wa.me', 'whatsapp.com', 't.me', 'maps.google.com', 'site.google.com', 'sites.google.com'];
+
+              let emailAddr = item.email || (Array.isArray(item.emails) && item.emails[0]) || null;
+              if (!emailAddr && domain && !genericDomains.some(gd => domain.includes(gd))) {
+                emailAddr = `info@${domain}`;
+              }
               let phone = item.phone || item.phoneUnformatted || item.phoneNumber || (Array.isArray(item.phones) && item.phones[0]) || '';
               let category = item.categoryName || item.category || (icp.industries || [])[0] || 'Dermatology / Clinic';
               
@@ -1507,19 +1512,37 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               try {
                 const dupRes = await db.query('SELECT email, company FROM leads WHERE user_id = $1', [userId]);
                 dupRes.rows.forEach(r => {
-                  if (r.email) existingEmails.add(r.email.toLowerCase());
-                  if (r.company) existingCompanies.add(r.company.toLowerCase());
+                  if (r.email) existingEmails.add(r.email.toLowerCase().trim());
+                  if (r.company) existingCompanies.add(r.company.toLowerCase().trim());
                 });
               } catch (e) {
                 console.error('[fetch-poll] Error fetching dedup records:', e.message);
               }
             }
 
-            const newLeads = mappedLeads.filter(lead => {
-              if (lead.email && existingEmails.has(lead.email.toLowerCase())) return false;
-              if (lead.company && existingCompanies.has(lead.company.toLowerCase())) return false;
-              return true;
-            }).slice(0, count);
+            const targetCount = Number(count) || 10;
+            const newLeads = [];
+            const seenBatchCompanies = new Set();
+            const seenBatchEmails = new Set();
+
+            for (const lead of mappedLeads) {
+              if (newLeads.length >= targetCount) break;
+
+              const compKey = lead.company.toLowerCase().trim();
+              const emailKey = lead.email ? lead.email.toLowerCase().trim() : null;
+
+              // Skip if exists in DB
+              if (existingCompanies.has(compKey)) continue;
+              if (emailKey && existingEmails.has(emailKey)) continue;
+
+              // Skip if already selected in this batch
+              if (seenBatchCompanies.has(compKey)) continue;
+              if (emailKey && seenBatchEmails.has(emailKey)) continue;
+
+              seenBatchCompanies.add(compKey);
+              if (emailKey) seenBatchEmails.add(emailKey);
+              newLeads.push(lead);
+            }
 
             results.totalSkipped += (mappedLeads.length - newLeads.length);
 
