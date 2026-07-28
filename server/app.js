@@ -1888,25 +1888,34 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 
           const apolloLeads = [];
 
-          // Helper to reject non-matching IT, Software, Engineering, University leads
+          // Helper to reject non-matching IT, Banking, Conglomerate, Audit, University leads
           const isIrrelevantBusiness = (compName, indStr) => {
-            const cName = (compName || '').toLowerCase();
-            const iStr = (indStr || '').toLowerCase();
+            const cName = (compName || '').toLowerCase().trim();
+            const iStr = (indStr || '').toLowerCase().trim();
+            const fullStr = `${cName} ${iStr}`;
 
-            // Override: If company explicitly contains beauty/derma/clinic terms, keep it
-            if (/dermatology|derma|skincare|skin care|cosmetic|cosmeceutical|clinic|aesthetic|hair restoration|plastic surgery|wellness|beauty|personal care/i.test(cName + ' ' + iStr)) {
+            // Priority Keep: If company name or industry explicitly contains beauty/derma/clinic/skincare terms, KEEP IT!
+            if (/dermatology|derma|skincare|skin care|cosmetic|cosmeceutical|clinic|aesthetic|hair restoration|plastic surgery|wellness|beauty|personal care|health & beauty|medspa|d2c beauty/i.test(fullStr)) {
               return false;
             }
 
-            // Exclude IT, software, university, heavy engineering, oil & gas
+            // Strict Exclusions: Banks, Accounting, Conglomerates, Automotive, Job portals, IT, Education, Construction
             const badKeywords = [
-              'software', 'technology', 'technologies', 'infotech', 'it services', 'solutions ltd',
-              'university', 'college', 'school', 'academy', 'baroda',
-              'engineering', 'energy', 'construction', 'infrastructure', 'heavy industry',
-              'logistics', 'group co', 'safety toolbox', 'carbonlite', 'steel', 'metals'
+              // Banks & Finance
+              'bank', 'banking', 'finance', 'financial', 'insurance', 'wealth', 'capital', 'investment', 'icici', 'hdfc', 'sbi', 'state bank', 'axis bank',
+              // Audit & Consultancy
+              'kpmg', 'pwc', 'deloitte', 'ey ', 'ernst', 'accounting', 'taxation', 'audit', 'advisory',
+              // Conglomerates & Automotive
+              'tata', 'mahindra', 'larsen', 'toubro', 'l&t', 'reliance', 'birla', 'motors', 'automobile', 'auto ', 'vehicles',
+              // Job Portals & HR
+              'careers', 'freshers', 'jobs', 'recruitment', 'staffing', 'manpower', 'way2freshers', 'confidential careers',
+              // IT & Software
+              'software', 'technology', 'technologies', 'infotech', 'it services', 'solutions ltd', 'systems', 'digital solutions',
+              // Education & Heavy Industry
+              'university', 'college', 'school', 'academy', 'institute of technology', 'engineering', 'energy', 'construction', 'infrastructure', 'steel', 'metals', 'logistics'
             ];
 
-            return badKeywords.some(bk => cName.includes(bk) || iStr.includes(bk));
+            return badKeywords.some(bk => fullStr.includes(bk));
           };
 
           // Strategy 1: Direct mixed_people search
