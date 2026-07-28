@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useListIcps } from "@workspace/api-client-react";
-import { getListLeadsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Zap, MapPin, Database, CheckCircle2, Loader2, AlertCircle, ToggleLeft, ToggleRight, Clock, CalendarClock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -170,7 +169,7 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
                             else if (currentEvent === "done") {
                                 setDone(true);
                                 setStatusMsg(`Done — ${payload.imported} leads added`);
-                                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+                                qc.invalidateQueries({ queryKey: ["useListLeads"] });
                             }
                         }
                         catch { }
