@@ -1330,26 +1330,58 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 
           console.log(`[fetch-poll] ${leads.length} valid leads after filtering`);
 
-          for (const lead of leads) {
+          // Batch dedup: get all existing emails in one query
+          const leadEmails = leads.filter(l => l.email).map(l => l.email);
+          let existingEmails = new Set();
+          if (leadEmails.length > 0) {
             try {
-              if (lead.email) {
-                const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [lead.email]);
-                if (dup.rows.length > 0) { results.totalSkipped++; continue; }
-              }
-              await db.query(
-                `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
-                [userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
-              );
-              results.totalImported++;
-              results.leads.push(lead);
-            } catch (dbErr) {
-              console.error(`[fetch-poll] DB insert error:`, dbErr.message);
-              results.totalSkipped++;
+              const dupRes = await db.query('SELECT email FROM leads WHERE email = ANY($1)', [leadEmails]);
+              existingEmails = new Set(dupRes.rows.map(r => r.email));
+            } catch (e) {
+              console.error('[fetch-poll] Dedup query error:', e.message);
             }
           }
 
-          console.log(`[fetch-poll] Imported: ${results.totalImported}, Skipped: ${results.totalSkipped}`);
+          const newLeads = leads.filter(l => !l.email || !existingEmails.has(l.email));
+          const skippedCount = leads.length - newLeads.length;
+          results.totalSkipped += skippedCount;
+
+          // Batch insert: single INSERT for all new leads
+          if (newLeads.length > 0) {
+            try {
+              const values = [];
+              const params = [];
+              newLeads.forEach((lead, i) => {
+                const offset = i * 10;
+                values.push(`($${offset+1},$${offset+2},$${offset+3},$${offset+4},$${offset+5},$${offset+6},$${offset+7},$${offset+8},$${offset+9},$${offset+10},'New','Lead In',NOW(),NOW())`);
+                params.push(userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country);
+              });
+              await db.query(
+                `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at) VALUES ${values.join(',')}`,
+                params
+              );
+              results.totalImported += newLeads.length;
+              results.leads.push(...newLeads);
+              console.log(`[fetch-poll] Batch inserted ${newLeads.length} leads, skipped ${skippedCount}`);
+            } catch (dbErr) {
+              console.error('[fetch-poll] Batch insert error:', dbErr.message);
+              results.totalSkipped += newLeads.length;
+              // Fallback: try individual inserts
+              for (const lead of newLeads) {
+                try {
+                  await db.query(
+                    `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
+                     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
+                    [userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
+                  );
+                  results.totalImported++;
+                  results.leads.push(lead);
+                } catch (e2) {
+                  console.error('[fetch-poll] Individual insert error:', e2.message);
+                }
+              }
+            }
+          }
           results.completed.push({ source: 'google_maps', status: 'done', count: results.totalImported });
         } else {
           console.log(`[fetch-poll] Unknown Apify status: ${status}, treating as running`);
@@ -1396,8 +1428,9 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
           'Head of Sales', 'CTO', 'COO',
         ];
 
+        const apolloLeads = [];
         for (const account of accounts) {
-          if (results.leads.length >= (run.count || 10)) break;
+          if (apolloLeads.length >= (run.count || 10)) break;
           try {
             const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
               method: 'POST',
@@ -1416,7 +1449,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
             const people = peopleData.people || [];
 
             for (const person of people) {
-              if (results.leads.length >= (run.count || 10)) break;
+              if (apolloLeads.length >= (run.count || 10)) break;
               const personEmail = person.email;
               if (!personEmail) continue;
               const domain = personEmail.split('@')[1]?.toLowerCase();
@@ -1427,7 +1460,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               if (BLOCKED_DOMAINS.has(domain)) continue;
               if (/^(test|dummy|placeholder|noreply|no-reply)/.test(personEmail)) continue;
 
-              const lead = {
+              apolloLeads.push({
                 firstName: person.first_name || '',
                 lastName: person.last_name || '',
                 company: account.name || '',
@@ -1438,26 +1471,49 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 country: person.country || (icp.markets || ['United States'])[0],
                 designation: person.title || '',
                 source: 'apollo',
-              };
-
-              try {
-                const dup = await db.query('SELECT id FROM leads WHERE email = $1 LIMIT 1', [personEmail]);
-                if (dup.rows.length > 0) { results.totalSkipped++; continue; }
-
-                await db.query(
-                  `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at)
-                   VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'New','Lead In',NOW(),NOW())`,
-                  [userId, lead.firstName, lead.lastName, lead.email, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country]
-                );
-                results.totalImported++;
-                results.leads.push(lead);
-              } catch (dbErr) {
-                console.error(`[fetch-poll] Apollo DB insert error:`, dbErr.message);
-                results.totalSkipped++;
-              }
+              });
             }
           } catch {
             // Skip failed org
+          }
+        }
+
+        // Batch dedup + insert for Apollo leads
+        if (apolloLeads.length > 0) {
+          const apolloEmails = apolloLeads.filter(l => l.email).map(l => l.email);
+          let existingEmails = new Set();
+          if (apolloEmails.length > 0) {
+            try {
+              const dupRes = await db.query('SELECT email FROM leads WHERE email = ANY($1)', [apolloEmails]);
+              existingEmails = new Set(dupRes.rows.map(r => r.email));
+            } catch (e) {
+              console.error('[fetch-poll] Apollo dedup error:', e.message);
+            }
+          }
+
+          const newApolloLeads = apolloLeads.filter(l => !l.email || !existingEmails.has(l.email));
+          results.totalSkipped += (apolloLeads.length - newApolloLeads.length);
+
+          if (newApolloLeads.length > 0) {
+            try {
+              const values = [];
+              const params = [];
+              newApolloLeads.forEach((lead, i) => {
+                const offset = i * 10;
+                values.push(`($${offset+1},$${offset+2},$${offset+3},$${offset+4},$${offset+5},$${offset+6},$${offset+7},$${offset+8},$${offset+9},$${offset+10},'New','Lead In',NOW(),NOW())`);
+                params.push(userId, lead.firstName, lead.lastName, lead.email || null, lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country);
+              });
+              await db.query(
+                `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, website, industry, country, status, pipeline_stage, created_at, updated_at) VALUES ${values.join(',')}`,
+                params
+              );
+              results.totalImported += newApolloLeads.length;
+              results.leads.push(...newApolloLeads);
+              console.log(`[fetch-poll] Apollo batch inserted ${newApolloLeads.length} leads`);
+            } catch (dbErr) {
+              console.error('[fetch-poll] Apollo batch insert error:', dbErr.message);
+              results.totalSkipped += newApolloLeads.length;
+            }
           }
         }
 
@@ -1475,5 +1531,17 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
   console.log(`[fetch-poll] Response: imported=${results.totalImported} skipped=${results.totalSkipped} errors=${results.errors.length}`);
   return res.status(200).json(results);
 });
+
+// 11. Stub routes — return empty valid JSON so frontend hooks don't 404
+app.get('/api/useListTeamMembers', (req, res) => res.json([]));
+app.get('/api/useListSequences', (req, res) => res.json([]));
+app.get('/api/useInitiateWhatsApp', (req, res) => res.json({ success: false, error: 'Not configured' }));
+app.get('/api/useInitiateWhatsAppBulk', (req, res) => res.json({ success: false, error: 'Not configured' }));
+app.get('/api/billing/current-plan', (req, res) => res.json({ plan: 'free', leadsUsed: 0, leadsLimit: 100 }));
+app.get('/api/useImportLeadsPaste', (req, res) => res.json([]));
+app.post('/api/useImportLeadsPaste', (req, res) => res.json({ imported: 0, skipped: 0, errors: [] }));
+app.get('/api/useImportLeadsCsv', (req, res) => res.json([]));
+app.post('/api/useImportLeadsCsv', (req, res) => res.json({ imported: 0, skipped: 0, errors: [] }));
+app.get('/api/useLeadAssigneeCounts', (req, res) => res.json({}));
 
 module.exports = app;
