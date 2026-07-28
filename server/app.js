@@ -1654,19 +1654,6 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
             results.errors.push({ source: 'apollo', error: 'APOLLO_API_KEY not configured' });
             continue;
           }
-          let rawTags = [];
-          if (Array.isArray(icp.industries)) rawTags.push(...icp.industries);
-          else if (icp.industries) rawTags.push(icp.industries);
-          if (Array.isArray(icp.roles)) rawTags.push(...icp.roles);
-          else if (icp.roles) rawTags.push(icp.roles);
-          if (!rawTags.length && (icp.name || icp.title)) rawTags.push(icp.name || icp.title);
-
-          const tagList = rawTags
-            .flatMap(t => String(t).split(/[,/&\s]+/))
-            .map(t => t.trim().toLowerCase())
-            .filter(t => t.length > 2);
-          const keywordTags = Array.from(new Set(tagList)).slice(0, 6);
-          const locations = Array.isArray(icp.markets) ? icp.markets : (icp.markets ? [icp.markets] : ['India']);
 
           const apolloHeaders = {
             'Content-Type': 'application/json',
@@ -1675,69 +1662,130 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
             'api-key': apolloKey,
           };
 
-          const reqBody = {
-            api_key: apolloKey,
-            page: 1,
-            per_page: Math.max(Math.min(count * 2, 25), 10),
-          };
-          if (keywordTags.length > 0) reqBody.q_organization_keyword_tags = keywordTags;
-          else reqBody.q_keywords = 'clinic dermatology cosmetic';
-          if (locations.length > 0) reqBody.organization_locations = locations;
-
-          const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
-            method: 'POST',
-            headers: apolloHeaders,
-            body: JSON.stringify(reqBody),
-          });
-
-          if (!orgRes.ok) {
-            const errText = await orgRes.text();
-            console.error(`[fetch-poll] Apollo Org search failed (${orgRes.status}):`, errText);
-            results.errors.push({ source: 'apollo', error: `Apollo Org search failed (${orgRes.status})` });
-            continue;
-          }
-
-          const orgData = await orgRes.json();
-          const accounts = orgData.accounts || [];
+          const targetSearch = (icp.name || icp.title || (icp.industries || []).join(' ') || 'Dermatology Clinic').trim();
+          const targetMarket = (icp.markets || ['India'])[0] || 'India';
           const apolloLeads = [];
 
-          for (const account of accounts) {
-            if (apolloLeads.length >= count) break;
-            try {
-              const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
-                method: 'POST',
-                headers: apolloHeaders,
-                body: JSON.stringify({
-                  api_key: apolloKey,
-                  q_organization_name: account.name,
-                  page: 1,
-                  per_page: 2,
-                }),
-              });
+          // Strategy 1: Direct mixed_people search
+          try {
+            console.log(`[fetch-poll] Trying Apollo Strategy 1: mixed_people/search for "${targetSearch} ${targetMarket}"`);
+            const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
+              method: 'POST',
+              headers: apolloHeaders,
+              body: JSON.stringify({
+                api_key: apolloKey,
+                q_keywords: `${targetSearch} ${targetMarket}`,
+                person_titles: ['Owner', 'Doctor', 'Founder', 'Director', 'Manager', 'CEO', 'Consultant'],
+                page: 1,
+                per_page: Math.max(count * 3, 20),
+              }),
+            });
 
-              if (!peopleRes.ok) continue;
+            if (peopleRes.ok) {
               const peopleData = await peopleRes.json();
               const people = peopleData.people || [];
+              console.log(`[fetch-poll] Strategy 1 returned ${people.length} people`);
 
               for (const person of people) {
                 if (apolloLeads.length >= count) break;
-                if (!person.email) continue;
+                const companyName = person.organization?.name || person.company || targetSearch;
+                const website = person.organization?.website_url || person.website_url || '';
+                
+                let domain = null;
+                try {
+                  if (website) {
+                    const u = website.startsWith('http') ? website : `https://${website}`;
+                    domain = new URL(u).hostname.replace(/^www\./, '');
+                  }
+                } catch {}
+
+                let email = person.email;
+                if (!email && domain && !['gmail.com', 'yahoo.com', 'hotmail.com'].includes(domain)) {
+                  email = `info@${domain}`;
+                }
+
+                const fn = person.first_name || person.name || companyName;
+                const ln = person.last_name || '';
+                const phone = person.phone_numbers?.[0]?.sanitized_number || person.organization?.primary_phone?.number || '';
+
                 apolloLeads.push({
-                  firstName: person.first_name || 'Executive',
-                  lastName: person.last_name || '',
-                  company: account.name || '',
-                  email: person.email,
-                  phone: person.phone_numbers?.[0]?.sanitized_number || '',
-                  website: account.website_url || '',
-                  industry: account.industry || (icp.industries || [])[0] || 'Technology',
-                  country: person.country || (icp.markets || ['United States'])[0],
-                  designation: person.title || 'Director',
+                  firstName: fn,
+                  lastName: ln,
+                  company: companyName,
+                  email: email || null,
+                  phone: phone || null,
+                  website: website || null,
+                  industry: (icp.industries || [])[0] || 'Dermatology / Clinic',
+                  country: person.country || targetMarket,
+                  designation: person.title || 'Clinic Owner / Doctor',
                   source: 'apollo',
                   icpId: icpId ? Number(icpId) : null,
                 });
               }
-            } catch (e) { /* ignore single account error */ }
+            }
+          } catch (e1) {
+            console.error(`[fetch-poll] Apollo Strategy 1 error:`, e1.message);
           }
+
+          // Strategy 2: Organizations search fallback if Strategy 1 returned fewer leads than requested count
+          if (apolloLeads.length < count) {
+            try {
+              console.log(`[fetch-poll] Trying Apollo Strategy 2: organizations/search for "${targetSearch}"`);
+              const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
+                method: 'POST',
+                headers: apolloHeaders,
+                body: JSON.stringify({
+                  api_key: apolloKey,
+                  q_keywords: targetSearch,
+                  organization_locations: [targetMarket],
+                  page: 1,
+                  per_page: Math.max(count * 2, 15),
+                }),
+              });
+
+              if (orgRes.ok) {
+                const orgData = await orgRes.json();
+                const orgs = orgData.accounts || orgData.organizations || [];
+                console.log(`[fetch-poll] Strategy 2 returned ${orgs.length} orgs`);
+
+                for (const org of orgs) {
+                  if (apolloLeads.length >= count) break;
+                  const companyName = org.name || org.title;
+                  if (!companyName) continue;
+
+                  const website = org.website_url || org.url || '';
+                  let domain = null;
+                  try {
+                    if (website) {
+                      const u = website.startsWith('http') ? website : `https://${website}`;
+                      domain = new URL(u).hostname.replace(/^www\./, '');
+                    }
+                  } catch {}
+
+                  const email = domain ? `info@${domain}` : null;
+                  const phone = org.phone_number || org.primary_phone?.number || '';
+
+                  apolloLeads.push({
+                    firstName: companyName,
+                    lastName: '',
+                    company: companyName,
+                    email: email,
+                    phone: phone || null,
+                    website: website || null,
+                    industry: org.industry || (icp.industries || [])[0] || 'Dermatology / Clinic',
+                    country: org.country || targetMarket,
+                    designation: 'Clinic Owner / Doctor',
+                    source: 'apollo',
+                    icpId: icpId ? Number(icpId) : null,
+                  });
+                }
+              }
+            } catch (e2) {
+              console.error(`[fetch-poll] Apollo Strategy 2 error:`, e2.message);
+            }
+          }
+
+          console.log(`[fetch-poll] Total Apollo leads compiled: ${apolloLeads.length}`);
 
           // Dedup & insert Apollo leads
           let existingEmails = new Set();
