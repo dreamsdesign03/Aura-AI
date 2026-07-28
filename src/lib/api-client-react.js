@@ -9,6 +9,11 @@ function createQueryHook(key) {
           const routeMap = {
             "useListIcps": "/api/icps",
             "useListLeads": "/api/leads",
+            "useListMeetings": "/api/meetings",
+            "useListTeamMembers": "/api/team",
+            "useListSequences": "/api/sequences",
+            "useListOutreachEmails": "/api/outreach/emails",
+            "useListProposals": "/api/proposals",
           };
           const route = routeMap[key] || `/api/${key}`;
           // Build query string from params
@@ -88,11 +93,37 @@ export const useDeleteIcp = createMutationHook("useDeleteIcp");
 export const useUpdateIcp = createMutationHook("useUpdateIcp");
 export const useGenerateIcpSuggestions = createMutationHook("useGenerateIcpSuggestions");
 export const getListIcpsQueryKey = () => ["getListIcpsQueryKey"];
-export const useGetLead = createQueryHook("useGetLead");
-export const useUpdateLead = createMutationHook("useUpdateLead");
+export function useGetLead(id, options = {}) {
+  const leadId = typeof id === "number" || typeof id === "string" ? id : id?.id;
+  return useQuery({
+    queryKey: ["useGetLead", leadId],
+    queryFn: async () => {
+      if (!leadId) return null;
+      const res = await fetch(`/api/leads/${leadId}`).then((r) => r.json());
+      if (res && res.error) return null;
+      return res;
+    },
+    enabled: !!leadId,
+    ...options,
+  });
+}
+
+export function useUpdateLead(options = {}) {
+  return useMutation({
+    mutationFn: async ({ id, data }) => {
+      const res = await fetch(`/api/leads/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      }).then((r) => r.json());
+      return res;
+    },
+    ...options,
+  });
+}
 export const useListMeetings = createQueryHook("useListMeetings");
 export const useListTeamMembers = createQueryHook("useListTeamMembers");
-export const getGetLeadQueryKey = () => ["getGetLeadQueryKey"];
+export const getGetLeadQueryKey = (id) => ["useGetLead", id];
 export const useCreateLead = createMutationHook("useCreateLead");
 export const useDeleteLead = createMutationHook("useDeleteLead");
 export const useBulkUpdateLeads = createMutationHook("useBulkUpdateLeads");
