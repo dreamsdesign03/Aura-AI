@@ -98,12 +98,12 @@ export default function Dashboard() {
       {showProfileBanner && (<ProfileCompletionBanner onDismiss={() => setBannerDismissed(true)}/>)}
 
       {/* Plan + Usage card */}
-      {planData && (() => {
+      {planData?.usage && (() => {
             const badge = planBadgeStyle(planData.plan);
             const usageItems = [
-                { label: "Leads", used: planData.usage.leads.used, max: planData.usage.leads.max, color: "#0D9488" },
-                { label: "Audits", used: planData.usage.audits.used, max: planData.usage.audits.max, color: "#7C3AED" },
-                { label: "Emails", used: planData.usage.emails.used, max: planData.usage.emails.max, color: "#2563EB" },
+                { label: "Leads", used: planData.usage.leads?.used ?? 0, max: planData.usage.leads?.max ?? 0, color: "#0D9488" },
+                { label: "Audits", used: planData.usage.audits?.used ?? 0, max: planData.usage.audits?.max ?? 0, color: "#7C3AED" },
+                { label: "Emails", used: planData.usage.emails?.used ?? 0, max: planData.usage.emails?.max ?? 0, color: "#2563EB" },
             ];
             return (<div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
             <div className="flex items-center justify-between mb-3">

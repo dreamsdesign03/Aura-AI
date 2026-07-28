@@ -248,14 +248,14 @@ function FeedbackButton() {
 }
 function SidebarUsageMeter() {
     const { data, isLoading } = usePlan();
-    if (isLoading || !data)
+    if (isLoading || !data?.usage)
         return null;
     const { usage } = data;
     const metrics = [
-        { label: "Leads", used: usage.leads.used, max: usage.leads.max },
-        { label: "Audits", used: usage.audits.used, max: usage.audits.max },
-        { label: "Emails", used: usage.emails.used, max: usage.emails.max },
-    ].filter(m => m.max !== -1);
+        { label: "Leads", used: usage.leads?.used ?? 0, max: usage.leads?.max ?? 0 },
+        { label: "Audits", used: usage.audits?.used ?? 0, max: usage.audits?.max ?? 0 },
+        { label: "Emails", used: usage.emails?.used ?? 0, max: usage.emails?.max ?? 0 },
+    ].filter(m => m.max > 0 && m.max !== -1);
     if (!metrics.length)
         return null;
     function barColor(pct) {
@@ -468,8 +468,8 @@ function TrialBanner() {
     const bgColor = trialDaysLeft <= 1 ? "#FEE2E2" : trialDaysLeft <= 2 ? "#FFF7ED" : trialDaysLeft <= 3 ? "#FEF3C7" : "#EDE9FE";
     const border = trialDaysLeft <= 1 ? "#FECACA" : trialDaysLeft <= 2 ? "#FED7AA" : trialDaysLeft <= 3 ? "#FDE68A" : "#C4B5FD";
     const dayStr = trialDaysLeft === 0 ? "ends today" : trialDaysLeft === 1 ? "1 day left" : `${trialDaysLeft} days left`;
-    const leadsRem = data.usage.leads.max === -1 ? null : Math.max(0, data.usage.leads.max - data.usage.leads.used);
-    const auditsRem = data.usage.audits.max === -1 ? null : Math.max(0, data.usage.audits.max - data.usage.audits.used);
+    const leadsRem = (data.usage?.leads?.max === -1 || !data.usage?.leads) ? null : Math.max(0, data.usage.leads.max - (data.usage.leads.used ?? 0));
+    const auditsRem = (data.usage?.audits?.max === -1 || !data.usage?.audits) ? null : Math.max(0, data.usage.audits.max - (data.usage.audits.used ?? 0));
     return (<div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 text-sm flex-wrap" style={{ background: `linear-gradient(90deg,${bgColor} 0%,${bgColor}99 100%)`, borderBottom: `1px solid ${border}` }}>
       <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
         <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color }}/>
