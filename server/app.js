@@ -1116,24 +1116,46 @@ async function fetchGoogleMaps(icp, count, apiKey) {
 
 async function fetchApollo(icp, count, apiKey) {
   if (!apiKey) throw new Error('APOLLO_API_KEY not configured. Add it to Vercel env vars.');
-  const keywords = [...(icp.industries || []), ...(icp.roles || [])].join(' ');
-  const locations = (icp.markets || ['United States']);
+  
+  let rawTags = [];
+  if (Array.isArray(icp.industries)) rawTags.push(...icp.industries);
+  else if (icp.industries) rawTags.push(icp.industries);
+  if (Array.isArray(icp.roles)) rawTags.push(...icp.roles);
+  else if (icp.roles) rawTags.push(icp.roles);
+  if (!rawTags.length && (icp.name || icp.title)) rawTags.push(icp.name || icp.title);
+
+  const tagList = rawTags
+    .flatMap(t => String(t).split(/[,/&\s]+/))
+    .map(t => t.trim().toLowerCase())
+    .filter(t => t.length > 2);
+  const keywordTags = Array.from(new Set(tagList)).slice(0, 6);
+  const locations = Array.isArray(icp.markets) ? icp.markets : (icp.markets ? [icp.markets] : ['India']);
+
+  const apolloHeaders = {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-cache',
+    'x-api-key': apiKey,
+    'api-key': apiKey,
+  };
+
+  const reqBody = {
+    api_key: apiKey,
+    page: 1,
+    per_page: Math.max(Math.min(count * 2, 25), 10),
+  };
+  if (keywordTags.length > 0) reqBody.q_organization_keyword_tags = keywordTags;
+  else reqBody.q_keywords = 'clinic dermatology cosmetic';
+  if (locations.length > 0) reqBody.organization_locations = locations;
 
   const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-    body: JSON.stringify({
-      api_key: apiKey,
-      q_organization_keyword_tags: keywords,
-      organization_locations: locations,
-      page: 1,
-      per_page: Math.min(count, 25),
-    }),
+    headers: apolloHeaders,
+    body: JSON.stringify(reqBody),
   });
 
   if (!orgRes.ok) {
     const err = await orgRes.text();
-    throw new Error(`Apollo organizations/search failed: ${err}`);
+    throw new Error(`Apollo organizations/search failed (${orgRes.status}): ${err}`);
   }
 
   const orgData = await orgRes.json();
@@ -1153,7 +1175,7 @@ async function fetchApollo(icp, count, apiKey) {
     try {
       const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+        headers: apolloHeaders,
         body: JSON.stringify({
           api_key: apiKey,
           q_organization_name: account.name,
@@ -1632,23 +1654,46 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
             results.errors.push({ source: 'apollo', error: 'APOLLO_API_KEY not configured' });
             continue;
           }
-          const keywords = [...(icp.industries || []), ...(icp.roles || [])].join(' ') || 'Software';
-          const locations = (icp.markets || ['United States']);
+          let rawTags = [];
+          if (Array.isArray(icp.industries)) rawTags.push(...icp.industries);
+          else if (icp.industries) rawTags.push(icp.industries);
+          if (Array.isArray(icp.roles)) rawTags.push(...icp.roles);
+          else if (icp.roles) rawTags.push(icp.roles);
+          if (!rawTags.length && (icp.name || icp.title)) rawTags.push(icp.name || icp.title);
+
+          const tagList = rawTags
+            .flatMap(t => String(t).split(/[,/&\s]+/))
+            .map(t => t.trim().toLowerCase())
+            .filter(t => t.length > 2);
+          const keywordTags = Array.from(new Set(tagList)).slice(0, 6);
+          const locations = Array.isArray(icp.markets) ? icp.markets : (icp.markets ? [icp.markets] : ['India']);
+
+          const apolloHeaders = {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache',
+            'x-api-key': apolloKey,
+            'api-key': apolloKey,
+          };
+
+          const reqBody = {
+            api_key: apolloKey,
+            page: 1,
+            per_page: Math.max(Math.min(count * 2, 25), 10),
+          };
+          if (keywordTags.length > 0) reqBody.q_organization_keyword_tags = keywordTags;
+          else reqBody.q_keywords = 'clinic dermatology cosmetic';
+          if (locations.length > 0) reqBody.organization_locations = locations;
 
           const orgRes = await fetch(`${APOLLO_BASE}/organizations/search`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
-            body: JSON.stringify({
-              api_key: apolloKey,
-              q_organization_keyword_tags: keywords,
-              organization_locations: locations,
-              page: 1,
-              per_page: Math.min(count, 15),
-            }),
+            headers: apolloHeaders,
+            body: JSON.stringify(reqBody),
           });
 
           if (!orgRes.ok) {
-            results.errors.push({ source: 'apollo', error: 'Apollo Org search failed' });
+            const errText = await orgRes.text();
+            console.error(`[fetch-poll] Apollo Org search failed (${orgRes.status}):`, errText);
+            results.errors.push({ source: 'apollo', error: `Apollo Org search failed (${orgRes.status})` });
             continue;
           }
 
@@ -1661,7 +1706,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
             try {
               const peopleRes = await fetch(`${APOLLO_BASE}/mixed_people/search`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache' },
+                headers: apolloHeaders,
                 body: JSON.stringify({
                   api_key: apolloKey,
                   q_organization_name: account.name,
