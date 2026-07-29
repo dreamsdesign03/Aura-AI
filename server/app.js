@@ -1580,27 +1580,60 @@ async function fetchGeminiLeads(icp, count = 10, geminiKey) {
   const roleStr = roles.join(', ');
   const marketStr = markets.filter(m => !/tier|cities|all/i.test(m)).slice(0, 3).join(', ') || 'Vadodara, Gujarat';
 
-  const prompt = `You are a B2B Lead Generation & Market Intelligence Expert.
-Find EXACTLY ${count} REAL, active businesses matching this Ideal Customer Profile (ICP):
+  // Differentiate D2C Brand ICP vs Clinic ICP
+  const isD2CBrandICP = /d2c|brand|cosmeceutical|skincare brand|personal care|e-commerce|consumer goods/i.test(name + ' ' + indStr) 
+    && !/multi-branch|clinic owner|aesthetic medicine|laser center/i.test(name + ' ' + roleStr);
+
+  const prompt = isD2CBrandICP
+    ? `You are a B2B Lead Generation & Market Intelligence Expert.
+Find EXACTLY ${count} REAL, active D2C Skincare & Cosmeceutical Brands matching this ICP:
 - Target ICP Name: "${name}"
 - Target Industries: "${indStr}"
 - Target Decision Maker Roles: "${roleStr}"
 - Target Markets/Locations: "${marketStr}"
 
+EXAMPLES OF RELEVANT TARGET BRANDS: Minimalist Cosmeceuticals (beminimalist.co), The Derma Co (thedermaco.com), Dr. Sheth's Skincare (drsheths.com), Dot & Key (dotandkey.com), Fixderma (fixderma.com), Foxtale (foxtale.in), Re'equil (reequil.com), Chemist at Play (chemistatplay.com), Plum Goodness (plumgoodness.com).
+
 CRITICAL RULES:
-1. ONLY return REAL, active, real-world businesses operating in the target industries (e.g. actual Dermatology clinics, Skin Clinics, Cosmetic Surgery Centers, Aesthetic Practices, or Skincare D2C brands).
-2. DO NOT return banks, universities, IT software companies, conglomerates, or media newspapers.
+1. ONLY return REAL D2C Skincare, Personal Care, and Cosmeceutical Brands.
+2. DO NOT return banks, universities, IT companies, conglomerates, or clinics.
 3. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
 [
   {
-    "company": "Company / Clinic Name",
-    "firstName": "First Name of Owner/Doctor",
+    "company": "Brand Name (e.g. Minimalist Cosmeceuticals)",
+    "firstName": "First Name of Founder/Brand Manager",
     "lastName": "Last Name",
-    "designation": "Job Title (e.g. Clinic Owner, Medical Director, Founder)",
+    "designation": "Job Title (e.g. Co-Founder & CEO, Brand Manager, E-commerce Head)",
+    "email": "contact email (e.g. care@branddomain.com)",
+    "phone": "+91 XXXXXXXXXX",
+    "website": "https://www.branddomain.com",
+    "industry": "Skincare / Cosmeceuticals",
+    "country": "Location (City, Country)"
+  }
+]`
+    : `You are a B2B Lead Generation & Market Intelligence Expert.
+Find EXACTLY ${count} REAL, active Multi-Branch Dermatology & Cosmetic Clinics matching this ICP:
+- Target ICP Name: "${name}"
+- Target Industries: "${indStr}"
+- Target Decision Maker Roles: "${roleStr}"
+- Target Markets/Locations: "${marketStr}"
+
+EXAMPLES OF RELEVANT TARGET CLINICS: Cutis Skin & Laser Clinic (cutisskinclinic.com), Kaya Skin Clinic (kayaskinclinic.com), Sakhiya Skin Clinic (sakhiyaskinclinic.com), Radiance Aesthetics Center, Twacha Skin Clinic.
+
+CRITICAL RULES:
+1. ONLY return REAL Dermatology, Cosmetic, Aesthetic, or Hair Restoration Clinics.
+2. DO NOT return banks, universities, IT companies, conglomerates, or media.
+3. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
+[
+  {
+    "company": "Clinic Name (e.g. Cutis Skin & Laser Clinic)",
+    "firstName": "First Name of Doctor/Owner",
+    "lastName": "Last Name",
+    "designation": "Job Title (e.g. Clinic Owner, Medical Director, Chief Dermatologist)",
     "email": "contact email (e.g. info@clinicdomain.com)",
     "phone": "+91 XXXXXXXXXX",
     "website": "https://www.clinicdomain.com",
-    "industry": "Specific Industry",
+    "industry": "Dermatology & Cosmetic Clinics",
     "country": "Location (City, Country)"
   }
 ]`;
@@ -1643,8 +1676,8 @@ CRITICAL RULES:
   }
 
   // Smart ICP Discovery Engine: Real working websites & exact target market locations
-  console.log(`[fetchGeminiLeads] Using Aura AI ICP Discovery Engine fallback for "${name}"`);
-  const isClinicICP = /clinic|dermatolog|doctor|aesthetic|skin care|medspa/i.test(name + ' ' + indStr);
+  console.log(`[fetchGeminiLeads] Using Aura AI ICP Discovery Engine fallback for "${name}" (isD2CBrandICP=${isD2CBrandICP})`);
+  const isClinicICP = !isD2CBrandICP && /clinic|dermatolog|doctor|aesthetic|medspa|surgery/i.test(name + ' ' + indStr + ' ' + roleStr);
 
   const targetCities = markets.filter(m => !/tier|cities|all|india|usa|uk/i.test(m));
   const validCities = targetCities.length > 0 ? targetCities : ['Vadodara', 'Surat', 'Ahmedabad'];
