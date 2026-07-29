@@ -1601,31 +1601,49 @@ CRITICAL RULES:
   }
 ]`;
 
-  try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
-      })
-    });
+  const candidateModels = [
+    'gemini-1.5-flash-latest',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro',
+    'gemini-pro'
+  ];
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error(`[fetchGeminiLeads] Gemini API error (${res.status}):`, errText);
-      throw new Error(`Gemini API error (${res.status}): ${errText}`);
+  let lastError = null;
+
+  for (const model of candidateModels) {
+    try {
+      console.log(`[fetchGeminiLeads] Calling Gemini API model "${model}"...`);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+        const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        const leads = JSON.parse(cleaned);
+        if (Array.isArray(leads) && leads.length > 0) {
+          console.log(`[fetchGeminiLeads] SUCCESS with model "${model}": ${leads.length} leads generated`);
+          return leads;
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`[fetchGeminiLeads] Model "${model}" failed HTTP ${res.status}:`, errText);
+        lastError = `Gemini API (${model}) error (${res.status}): ${errText}`;
+      }
+    } catch (e) {
+      console.warn(`[fetchGeminiLeads] Model "${model}" exception:`, e.message);
+      lastError = e.message;
     }
-
-    const data = await res.json();
-    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
-    const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-    const leads = JSON.parse(cleaned);
-    return Array.isArray(leads) ? leads : [];
-  } catch (err) {
-    console.error('[fetchGeminiLeads] Exception:', err.message);
-    throw err;
   }
+
+  throw new Error(lastError || 'All Gemini models failed');
 }
 
 // POST /api/leads/fetch-now — Step 1: Start Apify runs, return run IDs immediately
