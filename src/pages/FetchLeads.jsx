@@ -1,9 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { useListIcps } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X, Zap, MapPin, Database, CheckCircle2, Loader2, AlertCircle, ToggleLeft, ToggleRight, Clock, CalendarClock } from "lucide-react";
+import { X, Zap, MapPin, Database, CheckCircle2, Loader2, AlertCircle, ToggleLeft, ToggleRight, Clock, CalendarClock, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 const SOURCES = [
+    {
+        id: "gemini_ai",
+        label: "Gemini AI (Recommended)",
+        desc: "Google Gemini AI Lead Discovery & Perfect ICP Matcher",
+        badge: "AI Powered",
+        color: "text-blue-700 border-blue-200 bg-blue-50",
+        icon: <Sparkles className="w-4 h-4 text-blue-600"/>,
+    },
     {
         id: "google_maps",
         label: "Google Maps",
@@ -25,7 +33,7 @@ const COUNTS = [10, 50, 100];
 export default function FetchLeads({ onClose = () => window.history.back() }) {
     const qc = useQueryClient();
     const { data: icps = [] } = useListIcps();
-    const [selectedSources, setSelectedSources] = useState(["google_maps"]);
+    const [selectedSources, setSelectedSources] = useState(["gemini_ai"]);
     const [icpId, setIcpId] = useState(null);
     const [dailyCount, setDailyCount] = useState(10);
     const [autopilot, setAutopilot] = useState(false);

@@ -1568,6 +1568,66 @@ function buildApifySearchQueries(icp) {
   return [...new Set(searchQueries)].slice(0, 6);
 }
 
+// ── Gemini AI Lead Generation Helper ──────────────────
+async function fetchGeminiLeads(icp, count = 10, geminiKey) {
+  const apiKey = geminiKey || process.env.GEMINI_API_KEY;
+  const name = icp?.name || 'Dermatology & Cosmetic Clinics';
+  const industries = Array.isArray(icp?.industries) ? icp.industries.join(', ') : (icp?.industries || 'Dermatology, Cosmetic Clinics, Skincare');
+  const roles = Array.isArray(icp?.roles) ? icp.roles.join(', ') : (icp?.roles || 'Clinic Owner, Medical Director, Dermatologist');
+  const markets = Array.isArray(icp?.markets) ? icp.markets.join(', ') : (icp?.markets || 'Vadodara, Surat, Ahmedabad, Gujarat, India');
+
+  const prompt = `You are a B2B Lead Generation & Market Intelligence Expert.
+Find EXACTLY ${count} REAL, active businesses matching this Ideal Customer Profile (ICP):
+- Target ICP Name: "${name}"
+- Target Industries: "${industries}"
+- Target Decision Maker Roles: "${roles}"
+- Target Markets/Locations: "${markets}"
+
+CRITICAL RULES:
+1. ONLY return REAL, active, real-world businesses operating in the target industries (e.g. actual Dermatology clinics, Skin Clinics, Cosmetic Surgery Centers, Aesthetic Practices, or Skincare D2C brands).
+2. DO NOT return banks, universities, IT software companies, conglomerates, or media newspapers.
+3. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
+[
+  {
+    "company": "Company / Clinic Name",
+    "firstName": "First Name of Owner/Doctor",
+    "lastName": "Last Name",
+    "designation": "Job Title (e.g. Clinic Owner, Medical Director, Founder)",
+    "email": "contact email (e.g. info@clinicdomain.com)",
+    "phone": "+91 XXXXXXXXXX",
+    "website": "https://www.clinicdomain.com",
+    "industry": "Specific Industry",
+    "country": "Location (City, Country)"
+  }
+]`;
+
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json' }
+      })
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error(`[fetchGeminiLeads] Gemini API error (${res.status}):`, errText);
+      throw new Error(`Gemini API error (${res.status}): ${errText}`);
+    }
+
+    const data = await res.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '[]';
+    const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const leads = JSON.parse(cleaned);
+    return Array.isArray(leads) ? leads : [];
+  } catch (err) {
+    console.error('[fetchGeminiLeads] Exception:', err.message);
+    throw err;
+  }
+}
+
 // POST /api/leads/fetch-now — Step 1: Start Apify runs, return run IDs immediately
 app.post('/api/leads/fetch-now', async (req, res) => {
   const { icpId, sources = ['google_maps'], count = 10 } = req.body || {};
@@ -1644,6 +1704,8 @@ app.post('/api/leads/fetch-now', async (req, res) => {
           continue;
         }
         runs.push({ source: 'apollo', status: 'pending', count: countPerSource });
+      } else if (source === 'gemini_ai') {
+        runs.push({ source: 'gemini_ai', status: 'pending', count: countPerSource });
       }
     }
 
@@ -2105,6 +2167,69 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
           results.completed.push({ source: 'apollo', status: 'done', count: newApolloLeads.length });
         } catch (e) {
           results.errors.push({ source: 'apollo', error: e.message });
+        }
+      }
+
+      // Gemini AI Lead Processing
+      if (run.source === 'gemini_ai' && run.status === 'pending') {
+        try {
+          const geminiKey = process.env.GEMINI_API_KEY;
+          console.log(`[fetch-poll] Running Gemini AI Lead Discovery for ICP "${icp.name}"`);
+          const geminiLeads = await fetchGeminiLeads(icp, count, geminiKey);
+          console.log(`[fetch-poll] Gemini AI returned ${geminiLeads.length} leads`);
+
+          // Dedup & insert Gemini leads into DB
+          let existingEmails = new Set();
+          if (userId) {
+            try {
+              const dupRes = await db.query('SELECT email FROM leads WHERE user_id = $1', [userId]);
+              dupRes.rows.forEach(r => { if (r.email) existingEmails.add(r.email.toLowerCase().trim()); });
+            } catch (e) {}
+          }
+
+          const newGeminiLeads = geminiLeads.filter(l => {
+            if (!l.email) return true;
+            return !existingEmails.has(l.email.toLowerCase().trim());
+          }).slice(0, count);
+
+          results.totalSkipped += (geminiLeads.length - newGeminiLeads.length);
+
+          for (const lead of newGeminiLeads) {
+            try {
+              const insertRes = await db.query(
+                `INSERT INTO leads (
+                  user_id, icp_id, first_name, last_name, email, phone, company,
+                  designation, website, industry, country, status, pipeline_stage, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'New', 'Lead In', NOW(), NOW())
+                RETURNING *`,
+                [
+                  userId, icpId ? Number(icpId) : null, lead.firstName || lead.company, lead.lastName || '', lead.email,
+                  lead.phone || null, lead.company, lead.designation || 'Owner / Director', lead.website || null,
+                  lead.industry || (icp.industries || [])[0] || 'Dermatology / Clinic', lead.country || 'India'
+                ]
+              );
+              results.totalImported++;
+              results.leads.push({
+                id: insertRes.rows[0].id,
+                firstName: lead.firstName || lead.company,
+                lastName: lead.lastName || '',
+                name: `${lead.firstName || lead.company} ${lead.lastName || ''}`.trim(),
+                company: lead.company,
+                email: lead.email,
+                phone: lead.phone || '',
+                industry: lead.industry || 'Dermatology / Clinic',
+                country: lead.country || 'India',
+              });
+              console.log(`[fetch-poll] Gemini SUCCESS: Inserted lead ID=${insertRes.rows[0].id} Company="${lead.company}"`);
+            } catch (insertErr) {
+              console.error(`[fetch-poll] Gemini Insert failed for "${lead.company}":`, insertErr.message);
+            }
+          }
+
+          results.completed.push({ source: 'gemini_ai', status: 'done', count: newGeminiLeads.length });
+        } catch (e) {
+          console.error(`[fetch-poll] Gemini AI exception:`, e.message);
+          results.errors.push({ source: 'gemini_ai', error: e.message });
         }
       }
     }
