@@ -722,7 +722,31 @@ function CompanyTab() {
         if (!file)
             return;
         const reader = new FileReader();
-        reader.onloadend = () => setLogoBase64(reader.result);
+        reader.onloadend = () => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                const maxDim = 300;
+                let w = img.width;
+                let h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    } else {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                }
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0, w, h);
+                const compressedBase64 = canvas.toDataURL("image/webp", 0.85);
+                setLogoBase64(compressedBase64);
+            };
+            img.src = reader.result;
+        };
         reader.readAsDataURL(file);
     };
 
@@ -746,13 +770,16 @@ function CompanyTab() {
                 credentials: "include",
                 body: JSON.stringify({ companyName, tagline, contactInfo, website: website || null, phone: phone || null, brandColor, logoBase64: logoBase64 ?? null }),
             });
-            const data = await res.json();
+
             if (res.ok) {
+                const data = await res.json().catch(() => ({ ok: true }));
                 console.log("[Client - Company Settings] ✅ Saved successfully to database table 'branding_settings':", data);
                 setBrandSaveOk(true);
                 setTimeout(() => setBrandSaveOk(false), 3000);
             } else {
-                console.error("[Client - Company Settings] ❌ Database save error:", data);
+                const errText = await res.text().catch(() => "Unknown server error");
+                console.error(`[Client - Company Settings] ❌ Database save error (${res.status}):`, errText);
+                alert(`Error saving company details (${res.status}): ${res.statusText}`);
             }
         }
         catch (err) {
