@@ -3234,19 +3234,36 @@ async function resolveUserId(emailInput, cookieHeader) {
       if (res.rows.length > 0) {
         return res.rows[0].id;
       }
+      // Create user by email if not found
+      try {
+        const created = await db.query(
+          `INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id`,
+          [email]
+        );
+        return created.rows[0].id;
+      } catch (e) {
+        console.error('[resolveUserId] INSERT by email failed:', e.message);
+      }
     }
 
+    // Fallback: get first user
     const first = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
     if (first.rows.length > 0) {
       return first.rows[0].id;
     }
 
-    const newUser = await db.query(
-      `INSERT INTO users (first_name, last_name, email, is_active, onboarding_completed)
-       VALUES ('User', 'Admin', 'admin@auralaser.co.in', true, true)
-       RETURNING id`
-    );
-    return newUser.rows[0].id;
+    // Last resort: insert default user
+    try {
+      const newUser = await db.query(
+        `INSERT INTO users (email) VALUES ('admin@auralaser.co.in')
+         ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email
+         RETURNING id`
+      );
+      return newUser.rows[0].id;
+    } catch (e) {
+      console.error('[resolveUserId] fallback INSERT failed:', e.message);
+      return 1;
+    }
   } catch (err) {
     console.error('Error resolving user ID:', err.message);
     return 1;
@@ -3342,9 +3359,10 @@ app.patch('/api/users/me', async (req, res) => {
   const body = req.body || {};
   const { firstName, lastName, phone, companyName, businessWhy } = body;
   let userId = 1;
+  let userEmail = body.email || 'admin@auralaser.co.in';
 
   try {
-    // Step 1: Ensure all columns exist (run inline, not as a separate function)
+    // Step 1: Ensure all columns exist inline
     const columnMigrations = [
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT`,
       `ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT`,
@@ -3356,28 +3374,45 @@ app.patch('/api/users/me', async (req, res) => {
       try { await db.query(sql); } catch (e) { console.warn('[Migration skip]', e.message); }
     }
 
-    // Step 2: Resolve user ID
+    // Step 2: Resolve user email from cookie if not in body
     try {
-      userId = await resolveUserId(body.email, req.headers.cookie);
+      if (!body.email && req.headers.cookie) {
+        const cookies = {};
+        req.headers.cookie.split(';').forEach(c => {
+          const [k, ...v] = c.split('=');
+          cookies[k.trim()] = decodeURIComponent(v.join('='));
+        });
+        if (cookies.aura_user_email) userEmail = cookies.aura_user_email;
+      }
+      // UPSERT user by email — guarantees row always exists
+      const upsertRes = await db.query(
+        `INSERT INTO users (email) VALUES ($1) ON CONFLICT (email) DO UPDATE SET email = EXCLUDED.email RETURNING id`,
+        [userEmail]
+      );
+      userId = upsertRes.rows[0].id;
+      console.log(`[users/me] Resolved userId=${userId} for email=${userEmail}`);
     } catch (e) {
-      console.error('[resolveUserId] Error:', e.message);
+      console.error('[users/me] resolveUser error:', e.message);
+      try {
+        const first = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
+        if (first.rows.length > 0) userId = first.rows[0].id;
+      } catch {}
     }
 
-    // Step 3: Save each field individually so one column issue never blocks others
+    // Step 3: Save each field individually using UPDATE (row guaranteed to exist now)
     const saved = {};
     if (businessWhy !== undefined && businessWhy !== null) {
       try {
         await db.query(`UPDATE users SET business_why = $1 WHERE id = $2`, [businessWhy, userId]);
         saved.businessWhy = businessWhy;
-        console.log(`[users/me] ✅ Saved business_why for user ${userId}`);
-      } catch (e) {
-        console.error('[users/me] ❌ business_why save error:', e.message);
-      }
+        console.log(`[users/me] ✅ Saved business_why="${businessWhy.substring(0,50)}..." for userId=${userId}`);
+      } catch (e) { console.error('[users/me] ❌ business_why error:', e.message); }
     }
     if (firstName !== undefined && firstName !== null) {
       try {
         await db.query(`UPDATE users SET first_name = $1 WHERE id = $2`, [firstName, userId]);
         saved.firstName = firstName;
+        console.log(`[users/me] ✅ Saved first_name for userId=${userId}`);
       } catch (e) { console.error('[users/me] first_name error:', e.message); }
     }
     if (lastName !== undefined && lastName !== null) {
@@ -3396,7 +3431,7 @@ app.patch('/api/users/me', async (req, res) => {
       try {
         await db.query(`UPDATE users SET company_name = $1 WHERE id = $2`, [companyName, userId]);
         saved.companyName = companyName;
-        console.log(`[users/me] ✅ Saved company_name for user ${userId}`);
+        console.log(`[users/me] ✅ Saved company_name for userId=${userId}`);
       } catch (e) { console.error('[users/me] company_name error:', e.message); }
     }
 
@@ -3410,11 +3445,12 @@ app.patch('/api/users/me', async (req, res) => {
     res.json({
       success: true,
       saved,
+      userId,
       user: {
         id: user.id || userId,
         firstName: user.first_name || firstName || 'Mansi',
         lastName: user.last_name || lastName || 'Shah',
-        email: user.email || 'admin@auralaser.co.in',
+        email: user.email || userEmail,
         phone: user.phone || phone,
         companyName: user.company_name || companyName,
         businessWhy: user.business_why || businessWhy
