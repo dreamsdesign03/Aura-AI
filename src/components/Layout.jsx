@@ -635,8 +635,8 @@ export default function Layout({ children }) {
             borderRight: "1px solid hsl(220 13% 91%)",
         }}>
           {/* Logo */}
-          <div className="px-3 py-3" style={{ borderBottom: "1px solid hsl(220 13% 91%)" }}>
-            <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 68, width: "auto", maxWidth: 260, objectFit: "contain", marginLeft: -6 }}/>
+          <div className="px-4 py-3 flex items-center justify-start overflow-hidden" style={{ borderBottom: "1px solid hsl(220 13% 91%)", background: "#ffffff" }}>
+            <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 48, width: "auto", maxWidth: "100%", objectFit: "contain", mixBlendMode: "multiply" }}/>
           </div>
 
           {/* Nav */}
@@ -683,7 +683,7 @@ export default function Layout({ children }) {
           {/* Mobile top header */}
           <header className="flex md:hidden flex-shrink-0 items-center justify-between px-4" style={{ height: 56, background: "#ffffff", borderBottom: "1px solid hsl(220 13% 91%)" }}>
             <div className="flex items-center">
-              <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 40, width: "auto", maxWidth: 160, objectFit: "contain", marginLeft: -4 }}/>
+              <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 38, width: "auto", maxWidth: 160, objectFit: "contain", mixBlendMode: "multiply" }}/>
             </div>
             <div className="flex items-center gap-2">
               <GlobalSearch iconOnly/>
