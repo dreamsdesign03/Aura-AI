@@ -701,7 +701,9 @@ function CompanyTab() {
     const [brandColor, setBrandColor] = useState("#D42370");
     const [logoBase64, setLogoBase64] = useState(null);
     const [brandSaveOk, setBrandSaveOk] = useState(false);
+    const [brandSavePend, setBrandSavePend] = useState(false);
     const logoInputRef = useRef(null);
+
     useEffect(() => {
         if (brandingData) {
             setCompanyName(brandingData.companyName ?? "");
@@ -713,6 +715,7 @@ function CompanyTab() {
             setLogoBase64(brandingData.logoBase64 ?? null);
         }
     }, [brandingData]);
+
     const handleLogoUpload = (e) => {
         const file = e.target.files?.[0];
         if (!file)
@@ -721,7 +724,7 @@ function CompanyTab() {
         reader.onloadend = () => setLogoBase64(reader.result);
         reader.readAsDataURL(file);
     };
-    const [brandSavePend, setBrandSavePend] = useState(false);
+
     async function handleBrandSave(e) {
         e.preventDefault();
         setBrandSaveOk(false);
@@ -743,39 +746,41 @@ function CompanyTab() {
             setBrandSavePend(false);
         }
     }
+
     if (isLoading) {
         return <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-gray-400"/></div>;
     }
+
     return (<div className="space-y-6">
-      <SectionCard title="Company Branding" subtitle="Company info, logo, and PDF report styling — all in one place" icon={Palette} iconBg="#F5F3FF" iconColor="#5C1A8C">
+      <SectionCard title="Company & Brand Details" subtitle="Company info, website, address, and logo used by Google Gemini AI" icon={Building2} iconBg="#FBE9F1" iconColor="#D42370">
         <form onSubmit={handleBrandSave} className="space-y-4">
-          <div className="rounded-lg border border-blue-100 bg-blue-50 px-3 py-2.5 text-[11px] text-blue-800">
-            These settings appear in the header and footer of exported audit PDF reports.
+          <div className="rounded-lg border border-pink-100 bg-[#FBE9F1]/60 px-3 py-2.5 text-[11px] text-[#D42370] font-medium">
+            These details train Aura AI to generate personalized leads, proposals, outreach emails, and BANT qualification scores tailored specifically to your company or clinic.
           </div>
 
           {/* Core company info */}
           <div>
             <label className={labelClass}>Company / Brand Name</label>
-            <input type="text" className={inputClass} value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Acme Corp"/>
+            <input type="text" className={inputClass} value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Aura Laser & Cosmetic Clinic | Skinnonest"/>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={labelClass}><Globe className="w-3 h-3 inline mr-1"/>Website</label>
-              <input type="url" className={inputClass} value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://yourcompany.com"/>
+              <input type="url" className={inputClass} value={website} onChange={e => setWebsite(e.target.value)} placeholder="https://auralaser.co.in"/>
             </div>
             <div>
               <label className={labelClass}><Phone className="w-3 h-3 inline mr-1"/>Phone</label>
-              <input type="tel" className={inputClass} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+1 555 123 4567"/>
+              <input type="tel" className={inputClass} value={phone} onChange={e => setPhone(e.target.value)} placeholder="+91 98250 12345"/>
             </div>
           </div>
           <div>
             <label className={labelClass}>Tagline</label>
-            <input type="text" className={inputClass} value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Your Trusted Growth Partner"/>
+            <input type="text" className={inputClass} value={tagline} onChange={e => setTagline(e.target.value)} placeholder="Laser & Cosmetic Dermatology Excellence"/>
           </div>
           <div>
-            <label className={labelClass}>Footer Contact Info (PDF)</label>
-            <input type="text" className={inputClass} value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="hello@yourcompany.com  ·  +1 555 123 4567"/>
-            <p className="mt-1 text-[10px] text-gray-400">Shown at the bottom of every exported PDF page</p>
+            <label className={labelClass}>Contact Address & Locations</label>
+            <input type="text" className={inputClass} value={contactInfo} onChange={e => setContactInfo(e.target.value)} placeholder="Alkapuri, Vadodara, Gujarat, India"/>
+            <p className="mt-1 text-[10px] text-gray-400">Clinic / office address and locations used by AI in proposals and communications</p>
           </div>
 
           {/* Logo */}
@@ -793,11 +798,11 @@ function CompanyTab() {
                 </div>)}
               <div>
                 <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} className="hidden" id="logo-upload"/>
-                <label htmlFor="logo-upload" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors">
+                <label htmlFor="logo-upload" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-[#FBE9F1] hover:text-[#D42370] transition-colors">
                   <Upload className="w-3.5 h-3.5"/>
                   {logoBase64 ? "Replace Logo" : "Upload Logo"}
                 </label>
-                <p className="mt-1 text-[10px] text-gray-400">PNG, JPG, or WebP. Shown in PDF header.</p>
+                <p className="mt-1 text-[10px] text-gray-400">PNG, JPG, or WebP. Appears in your company profile and generated proposals.</p>
               </div>
             </div>
           </div>
@@ -807,57 +812,16 @@ function CompanyTab() {
             <label className={labelClass}>Brand Color</label>
             <div className="flex items-center gap-3">
               <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} className="w-10 h-8 rounded border border-gray-200 cursor-pointer p-0.5 bg-white"/>
-              <input type="text" className={inputClass + " w-32 font-mono"} value={brandColor} onChange={e => setBrandColor(e.target.value)} placeholder="#5C1A8C" maxLength={7}/>
+              <input type="text" className={inputClass + " w-32 font-mono"} value={brandColor} onChange={e => setBrandColor(e.target.value)} placeholder="#D42370" maxLength={7}/>
               <div className="w-8 h-8 rounded-lg border border-gray-200 flex-shrink-0" style={{ background: brandColor }}/>
             </div>
           </div>
 
           {brandSaveOk && (<div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2.5 flex items-center gap-2 text-xs text-green-700">
-              <CheckCircle className="w-4 h-4 flex-shrink-0"/> Branding saved successfully.
+              <CheckCircle className="w-4 h-4 flex-shrink-0"/> Company details saved successfully.
             </div>)}
-          <SaveButton pending={brandSavePend} success={brandSaveOk} label="Save Company Branding"/>
+          <SaveButton pending={brandSavePend} success={brandSaveOk} label="Save Company Details"/>
         </form>
-      </SectionCard>
-
-      {/* PDF Preview */}
-      <SectionCard title="PDF Preview" subtitle="Updates live as you edit — no export needed" icon={Eye} iconBg="#F5F3FF" iconColor="#5C1A8C">
-        <div className="rounded-lg border border-gray-200 overflow-hidden bg-white" style={{ boxShadow: "inset 0 1px 4px rgba(0,0,0,0.06)" }}>
-          <div style={{ background: brandColor, padding: "10px 16px 0 16px", position: "relative" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, paddingBottom: 9 }}>
-              {logoBase64 ? (<img src={logoBase64} alt="Logo" style={{ height: 30, maxWidth: 90, objectFit: "contain", flexShrink: 0 }}/>) : (<div style={{ width: 64, height: 30, background: "rgba(255,255,255,0.18)", borderRadius: 4, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                  <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 9, fontWeight: 600 }}>LOGO</span>
-                </div>)}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ color: "#fff", fontWeight: 700, fontSize: 13, lineHeight: 1.2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {companyName || <span style={{ opacity: 0.45 }}>Company Name</span>}
-                </div>
-                {tagline && <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 9, marginTop: 2 }}>{tagline}</div>}
-              </div>
-              <div style={{ position: "absolute", right: 12, top: 6, width: 44, height: 30, borderRadius: "50%", background: "#E91E8C", opacity: 0.28, filter: "blur(7px)", pointerEvents: "none" }}/>
-            </div>
-            <div style={{ height: 3, background: "#E91E8C", margin: "0 -16px" }}/>
-          </div>
-          <div style={{ background: "#F9FAFB", padding: "5px 16px", display: "flex", alignItems: "center", gap: 6, borderBottom: "1px solid #E5E7EB" }}>
-            <span style={{ fontSize: 9, color: "#6B7280" }}>Brand Audit Report</span>
-            <span style={{ marginLeft: "auto", fontSize: 9, color: "#E91E8C", fontWeight: 600 }}>{website || "example.com"}</span>
-            <span style={{ fontSize: 9, color: "#9CA3AF" }}>· {new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-          </div>
-          <div style={{ padding: "14px 16px", background: "#FAFAFA" }}>
-            {[65, 90, 82, 74, 55].map((w, i) => (<div key={i} style={{ height: i === 0 ? 9 : 6, background: i === 0 ? "#E5E7EB" : "#F3F4F6", borderRadius: i === 0 ? 4 : 3, marginBottom: 5, width: `${w}%` }}/>))}
-          </div>
-          <div style={{ background: brandColor, position: "relative" }}>
-            <div style={{ height: 2, background: "#E91E8C" }}/>
-            <div style={{ padding: "6px 16px 7px", display: "flex", alignItems: "center" }}>
-              <div style={{ flex: 1, textAlign: "center" }}>
-                <span style={{ color: "rgba(255,255,255,0.78)", fontSize: 8 }}>
-                  {[companyName, tagline, contactInfo || phone || website].filter(Boolean).join(" · ") || "Generated by Sales War Machine"}
-                </span>
-              </div>
-              <span style={{ color: "rgba(255,255,255,0.55)", fontSize: 8, flexShrink: 0 }}>Page 1</span>
-            </div>
-          </div>
-        </div>
-        <p className="mt-2.5 text-[10px] text-gray-400 text-center">Scaled preview — save to apply to all PDF exports.</p>
       </SectionCard>
     </div>);
 }
