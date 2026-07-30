@@ -149,7 +149,10 @@ app.get('/api/auth/me', async (req, res) => {
         firstName: dbUser.first_name || formattedName,
         lastName: dbUser.last_name || '',
         email: dbUser.email,
-        isActive: dbUser.is_active ?? false,
+        phone: dbUser.phone || '',
+        companyName: dbUser.company_name || 'Aura Laser & Cosmetic Clinic | Skinnonest',
+        businessWhy: dbUser.business_why || 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.',
+        isActive: dbUser.is_active ?? true,
         onboardingCompleted: dbUser.onboarding_completed ?? true
       });
     }
@@ -3123,8 +3126,44 @@ app.post('/api/gemini/chat/stream', handleGeminiChatStream);
 app.post('/api/anthropic/chat/stream', handleGeminiChatStream);
 
 // ──────────────────────────────────────────────────────
-// CLINIC & COMPANY BRANDING SETTINGS API ROUTES
+// USER PROFILE & CLINIC BRANDING SETTINGS API ROUTES
 // ──────────────────────────────────────────────────────
+
+async function resolveUserId(emailInput, cookieHeader) {
+  try {
+    let email = emailInput;
+    if (!email && cookieHeader) {
+      const cookies = {};
+      cookieHeader.split(';').forEach(c => {
+        const [key, ...rest] = c.split('=');
+        cookies[key.trim()] = decodeURIComponent(rest.join('='));
+      });
+      email = cookies.aura_user_email;
+    }
+
+    if (email) {
+      const res = await db.query('SELECT id FROM users WHERE email = $1', [email]);
+      if (res.rows.length > 0) {
+        return res.rows[0].id;
+      }
+    }
+
+    const first = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
+    if (first.rows.length > 0) {
+      return first.rows[0].id;
+    }
+
+    const newUser = await db.query(
+      `INSERT INTO users (first_name, last_name, email, is_active, onboarding_completed)
+       VALUES ('User', 'Admin', 'admin@auralaser.co.in', true, true)
+       RETURNING id`
+    );
+    return newUser.rows[0].id;
+  } catch (err) {
+    console.error('Error resolving user ID:', err.message);
+    return 1;
+  }
+}
 
 async function ensureBrandingTable() {
   await db.query(`
@@ -3145,16 +3184,72 @@ async function ensureBrandingTable() {
   `);
 }
 
+async function ensureUserBusinessWhyColumn() {
+  try {
+    await db.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'business_why'
+        ) THEN
+          ALTER TABLE users ADD COLUMN business_why TEXT;
+        END IF;
+      END $$;
+    `);
+  } catch (e) {
+    console.error('Error adding business_why column:', e.message);
+  }
+}
+
+// PATCH /api/users/me — Update user profile & Business WHY in PostgreSQL
+app.patch('/api/users/me', async (req, res) => {
+  try {
+    await ensureUserBusinessWhyColumn();
+    const userId = await resolveUserId(req.body?.email, req.headers.cookie);
+    const { firstName, lastName, phone, companyName, businessWhy } = req.body || {};
+
+    const updateRes = await db.query(
+      `UPDATE users SET 
+        first_name = COALESCE($1, first_name),
+        last_name = COALESCE($2, last_name),
+        phone = COALESCE($3, phone),
+        company_name = COALESCE($4, company_name),
+        business_why = COALESCE($5, business_why)
+       WHERE id = $6
+       RETURNING *`,
+      [firstName || null, lastName || null, phone || null, companyName || null, businessWhy || null, userId]
+    );
+
+    const updatedUser = updateRes.rows[0] || {};
+    res.json({
+      success: true,
+      user: {
+        id: updatedUser.id,
+        firstName: updatedUser.first_name,
+        lastName: updatedUser.last_name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        companyName: updatedUser.company_name,
+        businessWhy: updatedUser.business_why
+      }
+    });
+  } catch (err) {
+    console.error('[users/me] PATCH Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/settings/branding & /api/branding/settings
 app.get(['/api/settings/branding', '/api/branding/settings'], async (req, res) => {
   try {
     await ensureBrandingTable();
     const userId = await resolveUserId(req.query?.email, req.headers.cookie);
     let branding = {
-      companyName: 'Sakhiya Skin Clinic',
-      tagline: 'Laser & Cosmetic Dermatology Excellence',
-      contactInfo: 'Vadodara, Surat, Ahmedabad, Gujarat, India',
-      website: 'https://sakhiyaskinclinic.com',
+      companyName: 'Aura Laser & Cosmetic Clinic | Skinnonest',
+      tagline: 'Laser & Cosmetic Dermatology Excellence | Dermatologist-Backed Skincare',
+      contactInfo: 'Alkapuri, Vadodara, Gujarat, India · info@auralaser.co.in · +91 98250 12345',
+      website: 'https://auralaser.co.in',
       phone: '+91 98250 12345',
       brandColor: '#5C1A8C',
       logoBase64: null
