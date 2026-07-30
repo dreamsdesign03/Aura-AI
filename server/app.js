@@ -3176,12 +3176,42 @@ async function ensureBrandingTable() {
       contact_info TEXT,
       website VARCHAR(255),
       phone VARCHAR(100),
-      brand_color VARCHAR(50) DEFAULT '#5C1A8C',
+      brand_color VARCHAR(50) DEFAULT '#D42370',
       logo_base64 TEXT,
       created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW(),
-      CONSTRAINT unique_user_branding UNIQUE (user_id)
+      updated_at TIMESTAMP DEFAULT NOW()
     );
+
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'user_id') THEN
+        ALTER TABLE branding_settings ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'company_name') THEN
+        ALTER TABLE branding_settings ADD COLUMN company_name VARCHAR(255);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'tagline') THEN
+        ALTER TABLE branding_settings ADD COLUMN tagline TEXT;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'contact_info') THEN
+        ALTER TABLE branding_settings ADD COLUMN contact_info TEXT;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'website') THEN
+        ALTER TABLE branding_settings ADD COLUMN website VARCHAR(255);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'phone') THEN
+        ALTER TABLE branding_settings ADD COLUMN phone VARCHAR(100);
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'brand_color') THEN
+        ALTER TABLE branding_settings ADD COLUMN brand_color VARCHAR(50) DEFAULT '#D42370';
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'logo_base64') THEN
+        ALTER TABLE branding_settings ADD COLUMN logo_base64 TEXT;
+      END IF;
+      IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'branding_settings' AND constraint_name = 'unique_user_branding') THEN
+        ALTER TABLE branding_settings ADD CONSTRAINT unique_user_branding UNIQUE (user_id);
+      END IF;
+    END $$;
   `);
 }
 
