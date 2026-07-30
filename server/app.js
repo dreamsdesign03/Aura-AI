@@ -9,6 +9,62 @@ app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
+// ── STARTUP MIGRATIONS — Run once on cold start ────────────────────────────────
+(async () => {
+  try {
+    console.log('[Startup Migration] Running database migrations...');
+    // Ensure users table exists with all required columns
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        first_name VARCHAR(255),
+        last_name VARCHAR(255),
+        email VARCHAR(255) UNIQUE,
+        phone VARCHAR(100),
+        company_name TEXT,
+        business_why TEXT,
+        is_active BOOLEAN DEFAULT true,
+        onboarding_completed BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
+
+    // Ensure branding_settings table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS branding_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER,
+        company_name VARCHAR(255),
+        tagline TEXT,
+        contact_info TEXT,
+        website VARCHAR(255),
+        phone VARCHAR(100),
+        brand_color VARCHAR(50) DEFAULT '#D42370',
+        logo_base64 TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS tagline TEXT;`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS contact_info TEXT;`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS website VARCHAR(255);`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS brand_color VARCHAR(50) DEFAULT '#D42370';`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS logo_base64 TEXT;`);
+    console.log('[Startup Migration] ✅ All migrations complete.');
+  } catch (err) {
+    console.error('[Startup Migration] ❌ Error:', err.message);
+  }
+})();
+
 // 1. Health check & DB connection test
 app.get('/api/health', async (req, res) => {
   try {
@@ -22,6 +78,37 @@ app.get('/api/health', async (req, res) => {
   } catch (err) {
     res.status(500).json({ status: 'error', error: err.message });
   }
+});
+
+// Manual migration trigger endpoint
+app.get('/api/run-migrations', async (req, res) => {
+  const results = [];
+  const runQuery = async (sql) => {
+    try {
+      await db.query(sql);
+      results.push({ sql: sql.trim().substring(0, 80), status: 'ok' });
+    } catch (e) {
+      results.push({ sql: sql.trim().substring(0, 80), status: 'error', error: e.message });
+    }
+  };
+
+  await runQuery(`CREATE TABLE IF NOT EXISTS users (id SERIAL PRIMARY KEY, first_name VARCHAR(255), last_name VARCHAR(255), email VARCHAR(255) UNIQUE, phone VARCHAR(100), company_name TEXT, business_why TEXT, is_active BOOLEAN DEFAULT true, onboarding_completed BOOLEAN DEFAULT true, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());`);
+  await runQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
+  await runQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT;`);
+  await runQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
+  await runQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
+  await runQuery(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
+  await runQuery(`CREATE TABLE IF NOT EXISTS branding_settings (id SERIAL PRIMARY KEY, user_id INTEGER, company_name VARCHAR(255), tagline TEXT, contact_info TEXT, website VARCHAR(255), phone VARCHAR(100), brand_color VARCHAR(50) DEFAULT '#D42370', logo_base64 TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW());`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS tagline TEXT;`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS contact_info TEXT;`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS website VARCHAR(255);`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS brand_color VARCHAR(50) DEFAULT '#D42370';`);
+  await runQuery(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS logo_base64 TEXT;`);
+
+  res.json({ message: '✅ Migrations complete', results });
 });
 
 // 2. Google OAuth Integration Endpoints
