@@ -162,6 +162,7 @@ function ProfileNameForm() {
         const body = { firstName: trimmedFirst, lastName: trimmedLast };
         if (isPhoneUser && trimmedEmail)
             body.email = trimmedEmail;
+        console.log("[Client - User Profile Settings] 💾 Saving profile details to PostgreSQL table 'users':", body);
         try {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
@@ -169,12 +170,13 @@ function ProfileNameForm() {
                 credentials: "include",
                 body: JSON.stringify(body),
             });
+            const d = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const d = await res.json().catch(() => ({}));
+                console.error("[Client - User Profile Settings] ❌ Error updating PostgreSQL table 'users':", d);
                 setProfileErr(d.error || "Failed to save");
             }
             else {
-                const d = await res.json().catch(() => ({}));
+                console.log("[Client - User Profile Settings] ✅ Successfully updated user details in PostgreSQL table 'users':", d);
                 committedFirst.current = trimmedFirst;
                 committedLast.current = trimmedLast;
                 if (d.verificationEmailSent) {
@@ -189,7 +191,8 @@ function ProfileNameForm() {
                 }
             }
         }
-        catch {
+        catch (err) {
+            console.error("[Client - User Profile Settings] ❌ Network Error while updating table 'users':", err);
             setProfileErr("Network error");
         }
         finally {
@@ -630,11 +633,19 @@ function BusinessWhyForm() {
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
     const [err, setErr] = useState("");
+    useEffect(() => {
+        if (authUser?.businessWhy) {
+            console.log("[Client - Business WHY] Loaded Business WHY from PostgreSQL table 'users':", authUser.businessWhy);
+            setWhy(authUser.businessWhy);
+        }
+    }, [authUser?.businessWhy]);
+
     async function handleSave(e) {
         e.preventDefault();
         setErr("");
         setSaved(false);
         setSaving(true);
+        console.log("[Client - Business WHY] 💾 Saving Business WHY to PostgreSQL table 'users':", { businessWhy: why });
         try {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
@@ -642,17 +653,20 @@ function BusinessWhyForm() {
                 credentials: "include",
                 body: JSON.stringify({ businessWhy: why }),
             });
+            const d = await res.json().catch(() => ({}));
             if (!res.ok) {
-                const d = await res.json().catch(() => ({}));
+                console.error("[Client - Business WHY] ❌ Error saving Business WHY to PostgreSQL table 'users':", d);
                 setErr(d.error || "Failed to save");
             }
             else {
+                console.log("[Client - Business WHY] ✅ Saved Business WHY successfully to PostgreSQL table 'users':", d);
                 updateUser({ businessWhy: why });
                 setSaved(true);
                 setTimeout(() => setSaved(false), 3000);
             }
         }
-        catch {
+        catch (err) {
+            console.error("[Client - Business WHY] ❌ Network Error while saving to 'users':", err);
             setErr("Network error");
         }
         finally {
