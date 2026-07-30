@@ -260,39 +260,12 @@ export default function AgentHub() {
             setRunning(r => ({ ...r, [key]: false }));
         }
     }
-    const { data: planInfo, isLoading: planLoading } = usePlan();
-    const isPaidPlan = ["growth", "agency"].includes(planInfo?.plan ?? "");
+    const { data: planInfo } = usePlan();
     const status = hub?.orchestrator ?? null;
     const lhStatus = hub?.leadHunter ?? null;
     const today = hub?.today;
     const emailHealth = hub?.emailHealth ?? null;
     const errCount = status?.errors.length ?? 0;
-    if (!planLoading && !isPaidPlan) {
-        return (<div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "72px 24px", textAlign: "center" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 16, background: "linear-gradient(135deg,#7C3AED,#4F35A8)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 20 }}>
-          <Lock size={28} style={{ color: "#fff" }}/>
-        </div>
-        <h2 style={{ fontSize: 22, fontWeight: 900, color: "#111827", margin: "0 0 10px 0" }}>Automation — Growth &amp; Agency only</h2>
-        <p style={{ color: "#6B7280", fontSize: 14, maxWidth: 360, lineHeight: 1.6, margin: "0 0 28px 0" }}>
-          24/7 AI agents (scout, sales, follow-up, automation email) require a Growth or Agency plan.
-          Upgrade to unlock autonomous lead hunting, email follow-up, and the full Sales Brain.
-        </p>
-        <div style={{ display: "flex", gap: 12, justifyContent: "center", marginBottom: 28, flexWrap: "wrap" }}>
-          {[
-                { name: "Solo", price: "₹2,499/mo", desc: "Sales Brain only", border: "#E5E7EB", bg: "#fff", text: "#374151" },
-                { name: "Growth", price: "₹6,999/mo", desc: "Full Automation", border: "#7C3AED", bg: "#F5F3FF", text: "#7C3AED" },
-                { name: "Agency", price: "₹14,999/mo", desc: "Unlimited + White-label", border: "#E5E7EB", bg: "#fff", text: "#374151" },
-            ].map(p => (<a key={p.name} href="/billing" style={{ padding: "16px 20px", borderRadius: 12, border: `2px solid ${p.border}`, background: p.bg, textDecoration: "none", textAlign: "left", minWidth: 130 }}>
-              <div style={{ fontWeight: 800, fontSize: 13, color: p.text }}>{p.name}</div>
-              <div style={{ fontWeight: 900, fontSize: 16, color: p.name === "Growth" ? "#7C3AED" : "#111827", margin: "4px 0 2px" }}>{p.price}</div>
-              <div style={{ fontSize: 11, color: "#6B7280" }}>{p.desc}</div>
-            </a>))}
-        </div>
-        <a href="/billing" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "12px 28px", background: "linear-gradient(135deg,#4F35A8,#7C3AED)", color: "#fff", borderRadius: 10, textDecoration: "none", fontWeight: 700, fontSize: 14 }}>
-          ⚡ Upgrade Now →
-        </a>
-      </div>);
-    }
     return (<div style={{ maxWidth: 1080, margin: "0 auto", padding: "24px 16px 80px" }}>
 
       {/* ── Page Header ─────────────────────────────────────────────── */}

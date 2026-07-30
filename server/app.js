@@ -3636,24 +3636,11 @@ app.get('/api/brain/leads', async (req, res) => {
       ORDER BY l.created_at DESC LIMIT 500
     `);
 
-    if (result.rows.length > 0) {
-      return res.json(result.rows);
-    }
-
-    // Fallback default leads if table is empty
-    res.json([
-      { id: 1, firstName: "Dhananjay", lastName: "Rawal", company: "Draw Creative", designation: "Creative Director", email: "dhananjay@drawcreative.com", status: "new", hasBrain: true, bantScore: 85 },
-      { id: 2, firstName: "Dr. Priya", lastName: "Sathya", company: "Priya Biztech", designation: "Clinical Director", email: "priya@priyabiztech.com", status: "qualifying", hasBrain: true, bantScore: 92 },
-      { id: 3, firstName: "Ashish", lastName: "Ashish", company: "Sunrise Polymers", designation: "Operations Lead", email: "ashish@sunrisepolymers.com", status: "contacted", hasBrain: false, bantScore: 78 },
-      { id: 4, firstName: "Mr. Maheda", lastName: "Maheda", company: "PT Herba Agro Industries", designation: "VP Procurement", email: "maheda@herbaagro.co.id", status: "proposal", hasBrain: true, bantScore: 88 },
-      { id: 5, firstName: "Divya", lastName: "Krishnan", company: "Elegance Hair & Beauty Group", designation: "Founder & MD", email: "divya@elegancebeauty.in", status: "won", hasBrain: true, bantScore: 95 }
-    ]);
+    return res.json(result.rows || []);
   } catch (err) {
     console.error('Error in GET /api/brain/leads:', err.message);
-    res.json([
-      { id: 1, firstName: "Dhananjay", lastName: "Rawal", company: "Draw Creative", designation: "Creative Director", email: "dhananjay@drawcreative.com", status: "new", hasBrain: true, bantScore: 85 },
-      { id: 2, firstName: "Dr. Priya", lastName: "Sathya", company: "Priya Biztech", designation: "Clinical Director", email: "priya@priyabiztech.com", status: "qualifying", hasBrain: true, bantScore: 92 }
-    ]);
+    res.json([]);
+  }
   }
 });
 
