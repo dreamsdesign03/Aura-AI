@@ -3641,7 +3641,6 @@ app.get('/api/brain/leads', async (req, res) => {
     console.error('Error in GET /api/brain/leads:', err.message);
     res.json([]);
   }
-  }
 });
 
 // GET /api/brain/leads/:id/context — Lead memory context
