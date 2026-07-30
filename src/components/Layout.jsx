@@ -674,17 +674,7 @@ export default function Layout({ children }) {
 
           {/* Footer */}
           <div className="px-3 py-3 space-y-2" style={{ borderTop: "1px solid hsl(220 13% 91%)" }}>
-            <OnboardingChecklist />
-            <SidebarUsageMeter />
-            <FeedbackButton />
             <BookingLinkButton />
-            {planInfo && (<div className="flex items-center gap-1.5 px-1">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: planBadgeStyle(planInfo.plan).bg, color: planBadgeStyle(planInfo.plan).text, border: `1px solid ${planBadgeStyle(planInfo.plan).border}` }}>
-                  {planLabel(planInfo.plan)}
-                </span>
-                <Link href="/billing"><span className="text-[10px] text-violet-500 font-medium hover:underline cursor-pointer">Upgrade</span></Link>
-              </div>)}
-            <div className="text-[11px] px-1" style={{ color: "#9CA3AF" }}>v1.0 — Apr 2026</div>
           </div>
         </aside>
 
