@@ -108,7 +108,11 @@ export default function Leads() {
     const [deleteDeadConfirm, setDeleteDeadConfirm] = useState(null);
     const [whcDeleting, setWhcDeleting] = useState(false);
     const [showAssignSeq, setShowAssignSeq] = useState(false);
-    const [showFetch, setShowFetch] = useState(false);
+    const [showFetch, setShowFetch] = useState(() => !!new URLSearchParams(window.location.search).get("fetchIcp"));
+    const [fetchIcpId, setFetchIcpId] = useState(() => {
+        const v = new URLSearchParams(window.location.search).get("fetchIcp");
+        return v ? Number(v) : null;
+    });
     const [waInitiating, setWaInitiating] = useState(false);
     const [waMsg, setWaMsg] = useState(null);
     const [showExportModal, setShowExportModal] = useState(false);
@@ -118,6 +122,14 @@ export default function Leads() {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
     }, [search]);
+    // Clear URL fetchIcp param after modal opens so refresh doesn't re-trigger
+    useEffect(() => {
+        if (showFetch && new URLSearchParams(window.location.search).get("fetchIcp")) {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("fetchIcp");
+            window.history.replaceState({}, "", url);
+        }
+    }, [showFetch]);
     const resolvedAssignedToId = filterAssignedTo === "me" ? (currentUser?.id ? String(currentUser.id) : undefined) : (filterAssignedTo || undefined);
     const params = {
         search: debouncedSearch || undefined,
@@ -2021,7 +2033,7 @@ export default function Leads() {
       {drawerLeadId != null && (<LeadDrawer leadId={drawerLeadId} onClose={() => setDrawerLeadId(null)}/>)}
 
       {/* AI Fetch Leads panel */}
-      {showFetch && <FetchLeads onClose={() => setShowFetch(false)}/>}
+      {showFetch && <FetchLeads initialIcpId={fetchIcpId} onClose={() => { setShowFetch(false); setFetchIcpId(null); }}/>}
 
       {/* ── AI processing banners (fixed floating) ─────────────── */}
       {bantBatchPoller.isPolling && (<AiBanner icon="zap" message={`AI scoring ${bantBatchPoller.batchState.leadsCount} leads…`} subMessages={[

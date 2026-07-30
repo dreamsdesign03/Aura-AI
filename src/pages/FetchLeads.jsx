@@ -30,11 +30,11 @@ const SOURCES = [
     },
 ];
 const COUNTS = [10, 50, 100];
-export default function FetchLeads({ onClose = () => window.history.back() }) {
+export default function FetchLeads({ onClose = () => window.history.back(), initialIcpId = null }) {
     const qc = useQueryClient();
     const { data: icps = [] } = useListIcps();
     const [selectedSources, setSelectedSources] = useState(["gemini_ai"]);
-    const [icpId, setIcpId] = useState(null);
+    const [icpId, setIcpId] = useState(initialIcpId);
     const [dailyCount, setDailyCount] = useState(10);
     const [autopilot, setAutopilot] = useState(false);
     const [config, setConfig] = useState(null);
