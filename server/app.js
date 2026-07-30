@@ -3339,65 +3339,85 @@ app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
 
 // PATCH /api/users/me — Update user profile & Business WHY in PostgreSQL
 app.patch('/api/users/me', async (req, res) => {
+  const body = req.body || {};
+  const { firstName, lastName, phone, companyName, businessWhy } = body;
+  let userId = 1;
+
   try {
-    await ensureUserColumns();
-    const userId = await resolveUserId(req.body?.email, req.headers.cookie);
-    const { firstName, lastName, phone, companyName, businessWhy } = req.body || {};
+    // Step 1: Ensure all columns exist (run inline, not as a separate function)
+    const columnMigrations = [
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT`,
+      `ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT`,
+    ];
+    for (const sql of columnMigrations) {
+      try { await db.query(sql); } catch (e) { console.warn('[Migration skip]', e.message); }
+    }
 
-    const fields = [];
-    const values = [];
-    let idx = 1;
+    // Step 2: Resolve user ID
+    try {
+      userId = await resolveUserId(body.email, req.headers.cookie);
+    } catch (e) {
+      console.error('[resolveUserId] Error:', e.message);
+    }
 
-    if (firstName !== undefined && firstName !== null) {
-      fields.push(`first_name = $${idx++}`);
-      values.push(firstName);
-    }
-    if (lastName !== undefined && lastName !== null) {
-      fields.push(`last_name = $${idx++}`);
-      values.push(lastName);
-    }
-    if (phone !== undefined && phone !== null) {
-      fields.push(`phone = $${idx++}`);
-      values.push(phone);
-    }
-    if (companyName !== undefined && companyName !== null) {
-      fields.push(`company_name = $${idx++}`);
-      values.push(companyName);
-    }
+    // Step 3: Save each field individually so one column issue never blocks others
+    const saved = {};
     if (businessWhy !== undefined && businessWhy !== null) {
-      fields.push(`business_why = $${idx++}`);
-      values.push(businessWhy);
-    }
-
-    let updatedUser = {};
-    if (fields.length > 0) {
-      values.push(userId);
       try {
-        const updateRes = await db.query(
-          `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
-          values
-        );
-        updatedUser = updateRes.rows[0] || {};
-      } catch (dbErr) {
-        console.error('[users/me] DB Update Error:', dbErr.message);
-        if (businessWhy !== undefined && businessWhy !== null) {
-          try {
-            await db.query(`UPDATE users SET business_why = $1 WHERE id = $2`, [businessWhy, userId]);
-          } catch {}
-        }
+        await db.query(`UPDATE users SET business_why = $1 WHERE id = $2`, [businessWhy, userId]);
+        saved.businessWhy = businessWhy;
+        console.log(`[users/me] ✅ Saved business_why for user ${userId}`);
+      } catch (e) {
+        console.error('[users/me] ❌ business_why save error:', e.message);
       }
     }
+    if (firstName !== undefined && firstName !== null) {
+      try {
+        await db.query(`UPDATE users SET first_name = $1 WHERE id = $2`, [firstName, userId]);
+        saved.firstName = firstName;
+      } catch (e) { console.error('[users/me] first_name error:', e.message); }
+    }
+    if (lastName !== undefined && lastName !== null) {
+      try {
+        await db.query(`UPDATE users SET last_name = $1 WHERE id = $2`, [lastName, userId]);
+        saved.lastName = lastName;
+      } catch (e) { console.error('[users/me] last_name error:', e.message); }
+    }
+    if (phone !== undefined && phone !== null) {
+      try {
+        await db.query(`UPDATE users SET phone = $1 WHERE id = $2`, [phone, userId]);
+        saved.phone = phone;
+      } catch (e) { console.error('[users/me] phone error:', e.message); }
+    }
+    if (companyName !== undefined && companyName !== null) {
+      try {
+        await db.query(`UPDATE users SET company_name = $1 WHERE id = $2`, [companyName, userId]);
+        saved.companyName = companyName;
+        console.log(`[users/me] ✅ Saved company_name for user ${userId}`);
+      } catch (e) { console.error('[users/me] company_name error:', e.message); }
+    }
+
+    // Step 4: Read back the updated user
+    let user = {};
+    try {
+      const userRes = await db.query(`SELECT * FROM users WHERE id = $1`, [userId]);
+      user = userRes.rows[0] || {};
+    } catch (e) { console.error('[users/me] SELECT error:', e.message); }
 
     res.json({
       success: true,
+      saved,
       user: {
-        id: updatedUser.id || userId,
-        firstName: updatedUser.first_name || firstName || 'Mansi',
-        lastName: updatedUser.last_name || lastName || 'Shah',
-        email: updatedUser.email || 'admin@auralaser.co.in',
-        phone: updatedUser.phone || phone,
-        companyName: updatedUser.company_name || companyName,
-        businessWhy: updatedUser.business_why || businessWhy
+        id: user.id || userId,
+        firstName: user.first_name || firstName || 'Mansi',
+        lastName: user.last_name || lastName || 'Shah',
+        email: user.email || 'admin@auralaser.co.in',
+        phone: user.phone || phone,
+        companyName: user.company_name || companyName,
+        businessWhy: user.business_why || businessWhy
       }
     });
   } catch (err) {
