@@ -706,6 +706,7 @@ function CompanyTab() {
 
     useEffect(() => {
         if (brandingData) {
+            console.log("[Client - Company Settings] Loaded company details from PostgreSQL table 'branding_settings':", brandingData);
             setCompanyName(brandingData.companyName ?? "");
             setWebsite(brandingData.website ?? "");
             setPhone(brandingData.phone ?? "");
@@ -729,6 +730,15 @@ function CompanyTab() {
         e.preventDefault();
         setBrandSaveOk(false);
         setBrandSavePend(true);
+        console.log("[Client - Company Settings] Saving company details to database table 'branding_settings':", {
+            companyName,
+            website,
+            phone,
+            tagline,
+            contactInfo,
+            brandColor,
+            logoUploaded: !!logoBase64
+        });
         try {
             const res = await fetch("/api/settings/branding", {
                 method: "PUT",
@@ -736,12 +746,18 @@ function CompanyTab() {
                 credentials: "include",
                 body: JSON.stringify({ companyName, tagline, contactInfo, website: website || null, phone: phone || null, brandColor, logoBase64: logoBase64 ?? null }),
             });
+            const data = await res.json();
             if (res.ok) {
+                console.log("[Client - Company Settings] ✅ Saved successfully to database table 'branding_settings':", data);
                 setBrandSaveOk(true);
                 setTimeout(() => setBrandSaveOk(false), 3000);
+            } else {
+                console.error("[Client - Company Settings] ❌ Database save error:", data);
             }
         }
-        catch { /* silently ignore */ }
+        catch (err) {
+            console.error("[Client - Company Settings] Network/Save error:", err);
+        }
         finally {
             setBrandSavePend(false);
         }

@@ -3245,13 +3245,14 @@ app.get(['/api/settings/branding', '/api/branding/settings'], async (req, res) =
   try {
     await ensureBrandingTable();
     const userId = await resolveUserId(req.query?.email, req.headers.cookie);
+    console.log(`[DB - branding_settings] Fetching company details from PostgreSQL table "branding_settings" for User ID: ${userId || 'guest/default'}`);
     let branding = {
       companyName: 'Aura Laser & Cosmetic Clinic | Skinnonest',
       tagline: 'Laser & Cosmetic Dermatology Excellence | Dermatologist-Backed Skincare',
       contactInfo: 'Alkapuri, Vadodara, Gujarat, India · info@auralaser.co.in · +91 98250 12345',
       website: 'https://auralaser.co.in',
       phone: '+91 98250 12345',
-      brandColor: '#5C1A8C',
+      brandColor: '#D42370',
       logoBase64: null
     };
 
@@ -3268,12 +3269,13 @@ app.get(['/api/settings/branding', '/api/branding/settings'], async (req, res) =
           brandColor: row.brand_color || branding.brandColor,
           logoBase64: row.logo_base64 || null
         };
+        console.log(`[DB - branding_settings] Loaded saved company settings from PostgreSQL for User ID: ${userId}`, branding.companyName);
       }
     }
 
     res.json(branding);
   } catch (err) {
-    console.error('[branding/settings] GET Error:', err.message);
+    console.error('[DB - branding_settings] GET Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -3284,6 +3286,9 @@ const saveBrandingHandler = async (req, res) => {
     await ensureBrandingTable();
     const userId = await resolveUserId(req.body?.email, req.headers.cookie);
     const { companyName, tagline, contactInfo, website, phone, brandColor, logoBase64 } = req.body || {};
+
+    console.log(`[DB - branding_settings] Saving company details into PostgreSQL table "branding_settings" for User ID: ${userId || 'unknown'}`);
+    console.log(`[DB - branding_settings] Payload:`, { companyName, tagline, contactInfo, website, phone, brandColor });
 
     if (userId) {
       await db.query(
@@ -3299,13 +3304,16 @@ const saveBrandingHandler = async (req, res) => {
            brand_color = EXCLUDED.brand_color,
            logo_base64 = EXCLUDED.logo_base64,
            updated_at = NOW()`,
-        [userId, companyName, tagline, contactInfo, website, phone, brandColor || '#5C1A8C', logoBase64]
+        [userId, companyName, tagline, contactInfo, website, phone, brandColor || '#D42370', logoBase64]
       );
+      console.log(`[DB - branding_settings] ✅ Successfully upserted row into table "branding_settings" for User ID: ${userId}`);
+    } else {
+      console.warn(`[DB - branding_settings] ⚠️ Warning: Save attempted without resolved User ID`);
     }
 
-    res.json({ ok: true, message: 'Clinic details saved successfully to database' });
+    res.json({ ok: true, message: 'Company details saved successfully to database table branding_settings', table: 'branding_settings' });
   } catch (err) {
-    console.error('[branding/settings] SAVE Error:', err.message);
+    console.error('[DB - branding_settings] SAVE Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 };
