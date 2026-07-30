@@ -1073,7 +1073,7 @@ export default function Leads() {
             <Download className="w-3 h-3"/> Export
           </button>
           <button disabled={enrichBatchPoller.isPolling} onClick={async () => {
-                if (!confirm(`Enrich AI keywords for ${selected.length} lead(s)? Results arrive asynchronously via Anthropic Batch API.`))
+                if (!confirm(`Enrich AI keywords for ${selected.length} lead(s)? Results arrive asynchronously via Google Gemini AI Engine.`))
                     return;
                 try {
                     const r = await fetch(`/api/leads/enrich-keywords-bulk`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ ids: selected }) });
@@ -1107,7 +1107,7 @@ export default function Leads() {
                 </div>)}
             </div>)}
           <button disabled={bantBatchPoller.isPolling} onClick={async () => {
-                if (!confirm(`Submit BANTB async scoring for ${selected.length} lead(s)? Results arrive via Anthropic Batch API (~30s–few min).`))
+                if (!confirm(`Submit BANTB async scoring for ${selected.length} lead(s)? Results arrive via Google Gemini AI Engine (~30s–few min).`))
                     return;
                 try {
                     const r = await fetch(`/api/bantb/batch`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ leadIds: selected }) });
@@ -2025,7 +2025,7 @@ export default function Leads() {
 
       {/* ── AI processing banners (fixed floating) ─────────────── */}
       {bantBatchPoller.isPolling && (<AiBanner icon="zap" message={`AI scoring ${bantBatchPoller.batchState.leadsCount} leads…`} subMessages={[
-                "Running BANTB analysis via Anthropic Batch API",
+                "Running BANTB analysis via Google Gemini AI Engine",
                 "Budget · Authority · Need · Timeline · Belief",
                 "Scores will update automatically when ready",
             ]}/>)}

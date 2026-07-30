@@ -38,7 +38,7 @@ const AGENT_META = [
     { key: "sales", label: "Sales Agent", icon: Brain, color: "#7C3AED",
         desc: "Runs real 61-signal brand audits and sends personalized cold emails." },
     { key: "followup", label: "Follow-Up Agent", icon: RefreshCw, color: "#10B981",
-        desc: "AI-written D3/D6/D9/D14 follow-ups via Claude Haiku." },
+        desc: "AI-written D3/D6/D9/D14 follow-ups via Google Gemini AI." },
     { key: "brain", label: "Orchestrator", icon: Zap, color: "#C9A84C",
         desc: "Coordinates all agents every 30 minutes automatically." },
 ];

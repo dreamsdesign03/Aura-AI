@@ -41,7 +41,7 @@ const AUTONOMOUS_AGENTS = [
         icon: Brain,
         color: "#7C3AED",
         bg: "#F5F3FF",
-        skills: ["Claude AI brand audit", "Brevo email delivery", "HubSpot CRM sync", "Booking link injection"],
+        skills: ["Google Gemini AI brand audit", "Brevo email delivery", "HubSpot CRM sync", "Booking link injection"],
         href: "/agents/control",
         activeKey: "salesActive",
         lastRunKey: "lastSalesRun",

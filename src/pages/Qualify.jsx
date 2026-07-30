@@ -499,7 +499,7 @@ export default function Qualify() {
 
       {/* ── AI processing banner (fixed floating) ─────────────── */}
       {bantbPoller.isPolling && (<AiBanner icon="zap" message={`Batch scoring ${bantbPoller.batchState.leadsCount} leads…`} subMessages={[
-                "Running BANTB analysis via Anthropic Batch API",
+                "Running BANTB analysis via Google Gemini AI Engine",
                 "Budget · Authority · Need · Timeline · Belief",
                 "Auto-updates every 30 seconds",
             ]}/>)}

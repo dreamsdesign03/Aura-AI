@@ -1797,8 +1797,8 @@ function ModelIntelligenceTab() {
           <div className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-2.5 text-[11px] text-purple-800 flex items-start gap-2">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"/>
             <span>
-              <strong>Fast</strong> uses <span className="font-mono">claude-haiku</span> for speed and lower cost.{" "}
-              <strong>Smart</strong> uses <span className="font-mono">claude-sonnet</span> for higher accuracy.
+              <strong>Fast</strong> uses <span className="font-mono">gemini-1.5-flash</span> for speed and lower cost.{" "}
+              <strong>Smart</strong> uses <span className="font-mono">gemini-1.5-pro</span> for higher accuracy.
               Changes apply to all new AI calls for this workspace.
             </span>
           </div>

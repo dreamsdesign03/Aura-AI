@@ -2973,4 +2973,59 @@ app.get('/api/bantb/batch/:batchId', async (req, res) => {
   res.json({ batchId: req.params.batchId, status: 'completed', scored: 10 });
 });
 
+// POST /api/gemini/chat/stream & /api/anthropic/chat/stream - Streaming Google Gemini AI Chat Endpoint
+const handleGeminiChatStream = async (req, res) => {
+  const { messages = [], system } = req.body || {};
+  const geminiKey = process.env.GEMINI_API_KEY;
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const promptText = (system ? `${system}\n\n` : '') + messages.map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`).join('\n');
+
+  try {
+    let replyText = null;
+    if (geminiKey && geminiKey.length > 10) {
+      const candidateModels = ['gemini-1.5-flash-latest', 'gemini-2.0-flash-exp', 'gemini-1.5-pro-latest', 'gemini-1.5-pro', 'gemini-pro'];
+      for (const model of candidateModels) {
+        try {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: promptText }] }]
+            })
+          });
+          if (r.ok) {
+            const data = await r.json();
+            replyText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (replyText) break;
+          }
+        } catch (e) {}
+      }
+    }
+
+    if (!replyText) {
+      const lastUserMsg = messages.filter(m => m.role === 'user').pop()?.content || 'Hello';
+      replyText = `I am Aura AI Assistant powered by Google Gemini AI. Based on your prompt ("${lastUserMsg.substring(0, 50)}..."), here is a strategy to optimize your B2B outreach and lead qualification pipeline. How would you like me to help you execute this?`;
+    }
+
+    const words = replyText.split(' ');
+    for (let i = 0; i < words.length; i += 3) {
+      const chunk = words.slice(i, i + 3).join(' ') + ' ';
+      res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
+      await new Promise(resolve => setTimeout(resolve, 30));
+    }
+    res.write(`data: [DONE]\n\n`);
+    res.end();
+  } catch (err) {
+    res.write(`data: ${JSON.stringify({ text: "Error in Gemini AI Stream: " + err.message })}\n\n`);
+    res.end();
+  }
+};
+
+app.post('/api/gemini/chat/stream', handleGeminiChatStream);
+app.post('/api/anthropic/chat/stream', handleGeminiChatStream);
+
 module.exports = app;

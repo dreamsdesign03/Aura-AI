@@ -58,7 +58,7 @@ Status: ${selectedLead.status}`;
         abortRef.current = new AbortController();
         try {
             const apiMessages = [...activeConversation.messages, userMsg].map((m) => ({ role: m.role, content: m.content }));
-            const response = await fetch(`/api/anthropic/chat/stream`, {
+            const response = await fetch(`/api/gemini/chat/stream`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -146,7 +146,7 @@ Status: ${selectedLead.status}`;
         <div className="px-4 py-2.5 border-b border-gray-200 flex items-center gap-3">
           <div className="flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-amber-600"/>
-            <span className="text-xs text-muted-foreground">Claude Sonnet</span>
+            <span className="text-xs text-muted-foreground">Google Gemini AI</span>
           </div>
           <div className="flex items-center gap-1.5">
             <User className="w-3.5 h-3.5 text-muted-foreground"/>
