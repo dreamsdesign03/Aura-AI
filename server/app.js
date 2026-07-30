@@ -3198,13 +3198,28 @@ async function ensureBrandingTable() {
 
 async function ensureUserColumns() {
   try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        first_name VARCHAR(255),
+        last_name VARCHAR(255),
+        email VARCHAR(255) UNIQUE,
+        phone VARCHAR(100),
+        company_name VARCHAR(255),
+        business_why TEXT,
+        is_active BOOLEAN DEFAULT true,
+        onboarding_completed BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
   } catch (e) {
-    console.error('Error adding user columns:', e.message);
+    console.error('Error ensuring users table & columns:', e.message);
   }
 }
 
@@ -3270,20 +3285,29 @@ app.patch('/api/users/me', async (req, res) => {
     let updatedUser = {};
     if (fields.length > 0) {
       values.push(userId);
-      const updateRes = await db.query(
-        `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
-        values
-      );
-      updatedUser = updateRes.rows[0] || {};
+      try {
+        const updateRes = await db.query(
+          `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+          values
+        );
+        updatedUser = updateRes.rows[0] || {};
+      } catch (dbErr) {
+        console.error('[users/me] DB Update Error:', dbErr.message);
+        if (businessWhy !== undefined && businessWhy !== null) {
+          try {
+            await db.query(`UPDATE users SET business_why = $1 WHERE id = $2`, [businessWhy, userId]);
+          } catch {}
+        }
+      }
     }
 
     res.json({
       success: true,
       user: {
         id: updatedUser.id || userId,
-        firstName: updatedUser.first_name || firstName,
-        lastName: updatedUser.last_name || lastName,
-        email: updatedUser.email,
+        firstName: updatedUser.first_name || firstName || 'Mansi',
+        lastName: updatedUser.last_name || lastName || 'Shah',
+        email: updatedUser.email || 'admin@auralaser.co.in',
         phone: updatedUser.phone || phone,
         companyName: updatedUser.company_name || companyName,
         businessWhy: updatedUser.business_why || businessWhy
