@@ -14,6 +14,7 @@ function createQueryHook(key) {
             "useListSequences": "/api/sequences",
             "useListOutreachEmails": "/api/outreach/emails",
             "useListProposals": "/api/proposals",
+            "useGetQualifyQueue": "/api/qualify/queue",
           };
           const route = routeMap[key] || `/api/${key}`;
           // Build query string from params
@@ -52,6 +53,9 @@ function createMutationHook(key) {
             "useUpdateProposalStatus": "/api/proposals/status",
             "useGenerateProposal": "/api/proposals/generate",
             "useSendProposalEmail": "/api/proposals/send",
+            "useSaveBantScore": "/api/qualify/save-bant",
+            "useAiScoreLead": "/api/qualify/score-ai",
+            "useExplainBantScores": "/api/qualify/explain",
           };
           const route = routeMap[key] || `/api/${key}`;
           const res = await fetch(route, {
