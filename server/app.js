@@ -3490,4 +3490,130 @@ app.post('/api/settings/branding', saveBrandingHandler);
 app.put('/api/branding/settings', saveBrandingHandler);
 app.post('/api/branding/settings', saveBrandingHandler);
 
+// POST /api/useComposeOutreachEmail — Generate AI Outreach Email using Google Gemini API
+app.post(['/api/useComposeOutreachEmail', '/api/outreach/compose', '/api/outreach-ai/compose'], async (req, res) => {
+  try {
+    const payload = req.body?.data || req.body || {};
+    const { leadId, ctaTypes = ['consultation'], tone = 'professional' } = payload;
+
+    console.log('[AI Outreach Engine] Composing email with Gemini for payload:', { leadId, ctaTypes, tone });
+
+    // 1. Fetch Lead Details from database if leadId provided
+    let lead = {};
+    if (leadId) {
+      try {
+        const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+        lead = leadRes.rows[0] || {};
+      } catch (e) {
+        console.warn('Error fetching lead for compose:', e.message);
+      }
+    }
+
+    const leadName = (lead.first_name || lead.firstName ? `${lead.first_name || lead.firstName} ${lead.last_name || lead.lastName || ''}` : 'Valued Client').trim();
+    const leadCompany = lead.company || lead.company_name || 'your organization';
+    const leadDesignation = lead.designation || 'Decision Maker';
+    const leadIndustry = lead.industry || 'Healthcare / Aesthetics / Wellness';
+
+    // 2. Fetch Company Branding & Business WHY from PostgreSQL
+    let companyName = 'Aura Laser & Cosmetic Clinic | Skinnonest';
+    let tagline = 'Dermatologist-Backed Skincare & Laser Cosmetology';
+    let businessWhy = 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.';
+    let doctorName = 'Dr. Aditya Shah';
+
+    try {
+      const brandRes = await db.query('SELECT * FROM branding_settings ORDER BY id DESC LIMIT 1');
+      if (brandRes.rows.length > 0) {
+        companyName = brandRes.rows[0].company_name || companyName;
+        tagline = brandRes.rows[0].tagline || tagline;
+      }
+      const userRes = await db.query("SELECT business_why FROM users WHERE email = 'dreamsdesign.in03@gmail.com' OR business_why IS NOT NULL ORDER BY id DESC LIMIT 1");
+      if (userRes.rows.length > 0 && userRes.rows[0].business_why) {
+        businessWhy = userRes.rows[0].business_why;
+      }
+    } catch (e) {
+      console.warn('Error reading branding/why for email compose:', e.message);
+    }
+
+    // 3. Format Call To Action Label
+    const ctaLabels = {
+      consultation: 'Book a Personal Dermatological Consultation with Dr. Aditya Shah',
+      proposal: 'Review a Tailored Clinical & Skincare Proposal',
+      pitch_deck: 'Explore Our Product & Treatment Pitch Deck'
+    };
+    const activeCtas = (Array.isArray(ctaTypes) ? ctaTypes : [ctaTypes]).map(k => ctaLabels[k] || ctaLabels.consultation).join(' & ');
+
+    // 4. Formulate Prompt for Gemini AI
+    const systemPrompt = `You are the lead AI Communications Strategist for ${companyName} (${tagline}), led by ${doctorName}.
+Our Core Business WHY: "${businessWhy}"
+
+Write a highly personalized, high-converting outreach email to a prospective client/partner.
+
+PROSPECT DETAILS:
+- Name: ${leadName}
+- Title: ${leadDesignation}
+- Company: ${leadCompany}
+- Industry: ${leadIndustry}
+
+EMAIL CONFIGURATION:
+- Tone of Voice: ${tone.toUpperCase()} (Match this tone exactly: Professional, Warm & Friendly, Direct & Impactful, or Consultative)
+- Primary Call to Action: ${activeCtas}
+
+REQUIREMENTS:
+1. Subject Line: Create an engaging, high-open-rate subject line.
+2. Body: Personalize the hook to ${leadCompany}. Connect their needs with ${companyName}'s dermatologist-backed expertise and clinical precision.
+3. Integrate our Business WHY naturally without forcing it.
+4. End with a clear, frictionless Call To Action requesting them to ${activeCtas}.
+5. Signature: From ${doctorName} & The ${companyName} Team.
+
+OUTPUT FORMAT (JSON strictly):
+{
+  "subject": "Subject line text here",
+  "body": "Complete email body formatted nicely with line breaks."
+}`;
+
+    // 5. Call Gemini API
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (apiKey) {
+      try {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: systemPrompt }] }],
+            generationConfig: { responseMimeType: "application/json" }
+          })
+        });
+
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json();
+          const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const parsed = JSON.parse(rawText);
+            console.log('[AI Outreach Engine] ✅ Gemini successfully generated email:', parsed.subject);
+            return res.json({
+              subject: parsed.subject,
+              body: parsed.body
+            });
+          }
+        }
+      } catch (geminiErr) {
+        console.error('Gemini API call error in email compose:', geminiErr.message);
+      }
+    }
+
+    // 6. Smart Fallback if API key rate limited or unavailable
+    const fallbackSubject = `${leadCompany} x ${companyName}: Elevating Patient & Skin Outcomes`;
+    const fallbackBody = `Dear ${leadName},\n\nI hope this email finds you well at ${leadCompany}.\n\nAt ${companyName}, led by Dr. Aditya Shah, we operate on a core belief:\n"${businessWhy}"\n\nGiven your focus in ${leadIndustry}, I would love to connect and share how our dermatologist-backed laser cosmetology and specialized formulations can deliver transformative results for your clients.\n\nWould you be open to ${activeCtas.toLowerCase()} this week?\n\nWarm regards,\n\nDr. Aditya Shah\n${companyName}\n${tagline}`;
+
+    res.json({
+      subject: fallbackSubject,
+      body: fallbackBody
+    });
+  } catch (err) {
+    console.error('Error composing AI email:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = app;
+

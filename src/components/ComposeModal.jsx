@@ -5,9 +5,8 @@ import { X, Minus, Maximize2, Minimize2, Bold, Italic, Underline, List, Link, Pa
 import { cn, auditScoreColors } from "@/lib/utils";
 const CTA_OPTIONS = [
     { key: "consultation", label: "Book Consultation", icon: <Calendar className="w-3.5 h-3.5"/> },
-    { key: "call", label: "20-min Call", icon: <Phone className="w-3.5 h-3.5"/> },
-    { key: "demo", label: "Live Demo", icon: <Monitor className="w-3.5 h-3.5"/> },
-    { key: "report", label: "Send Report", icon: <FileText className="w-3.5 h-3.5"/> },
+    { key: "proposal", label: "Send Proposal", icon: <FileText className="w-3.5 h-3.5"/> },
+    { key: "pitch_deck", label: "Send Pitch Deck", icon: <Monitor className="w-3.5 h-3.5"/> },
 ];
 const TONE_OPTIONS = [
     { key: "professional", label: "Professional", emoji: "🎯" },
@@ -16,10 +15,10 @@ const TONE_OPTIONS = [
     { key: "consultative", label: "Consultative", emoji: "🧠" },
 ];
 const AI_STAGES = [
-    "Reading brand audit…",
-    "Identifying pain signals…",
-    "Calculating revenue impact…",
-    "Writing personalised email…",
+    "Analyzing client profile…",
+    "Identifying pain points…",
+    "Applying brand voice & Business WHY…",
+    "Writing personalized email…",
     "Formatting for delivery…",
 ];
 function initials(first, last) {
@@ -413,7 +412,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
                   </div>
 
                   <div className="ml-auto flex flex-col items-end gap-1 flex-shrink-0">
-                    <button onClick={handleGenerate} disabled={!selectedLead || !selectedLead.isAudited || aiRunning} className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all", !selectedLead || !selectedLead.isAudited || aiRunning ? "opacity-50 cursor-not-allowed" : "hover:opacity-90")} style={{ background: aiRunning ? "#7C3AED" : "#5C1A8C" }}>
+                    <button onClick={handleGenerate} disabled={!selectedLead || aiRunning} className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-sm", !selectedLead || aiRunning ? "opacity-50 cursor-not-allowed" : "hover:opacity-90")} style={{ background: "#D42370" }}>
                       {aiRunning ? (<>
                           <Loader2 className="w-4 h-4 animate-spin"/>
                           {aiStage >= 0 && aiStage < AI_STAGES.length ? AI_STAGES[aiStage] : "Generating…"}
@@ -422,7 +421,6 @@ export default function ComposeModal({ onClose, initialEmail }) {
                           Generate Email
                         </>)}
                     </button>
-                    {selectedLead && !selectedLead.isAudited && (<span className="text-[10px] text-amber-600">Run Brand Audit first to use AI</span>)}
                   </div>
                 </div>
 
