@@ -3215,7 +3215,7 @@ async function ensureBrandingTable() {
   `);
 }
 
-async function ensureUserBusinessWhyColumn() {
+async function ensureUserColumns() {
   try {
     await db.query(`
       DO $$
@@ -3226,17 +3226,53 @@ async function ensureUserBusinessWhyColumn() {
         ) THEN
           ALTER TABLE users ADD COLUMN business_why TEXT;
         END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'company_name'
+        ) THEN
+          ALTER TABLE users ADD COLUMN company_name VARCHAR(255);
+        END IF;
+
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'users' AND column_name = 'phone'
+        ) THEN
+          ALTER TABLE users ADD COLUMN phone VARCHAR(100);
+        END IF;
       END $$;
     `);
   } catch (e) {
-    console.error('Error adding business_why column:', e.message);
+    console.error('Error adding user columns:', e.message);
   }
 }
+
+// GET /api/users/me & /api/auth/me — Fetch current user profile & Business WHY
+app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
+  try {
+    await ensureUserColumns();
+    const userId = await resolveUserId(req.query?.email, req.headers.cookie);
+    const userRes = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+    const user = userRes.rows[0] || {};
+    res.json({
+      id: user.id || 1,
+      firstName: user.first_name || 'Mansi',
+      lastName: user.last_name || 'Shah',
+      email: user.email || 'admin@auralaser.co.in',
+      phone: user.phone || '+91 98250 12345',
+      companyName: user.company_name || 'Aura Laser & Cosmetic Clinic | Skinnonest',
+      businessWhy: user.business_why || 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.'
+    });
+  } catch (err) {
+    console.error('[users/me] GET Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // PATCH /api/users/me — Update user profile & Business WHY in PostgreSQL
 app.patch('/api/users/me', async (req, res) => {
   try {
-    await ensureUserBusinessWhyColumn();
+    await ensureUserColumns();
     const userId = await resolveUserId(req.body?.email, req.headers.cookie);
     const { firstName, lastName, phone, companyName, businessWhy } = req.body || {};
 
