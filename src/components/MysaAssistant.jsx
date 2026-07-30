@@ -543,7 +543,7 @@ export default function MysaAssistant({ open, onClose, }) {
               <Sparkles className="w-4 h-4 text-white"/>
             </div>
             <div>
-              <div className="text-[13px] font-bold" style={{ color: "#E2E8F0" }}>Mysa</div>
+              <div className="text-[13px] font-bold" style={{ color: "#E2E8F0" }}>Aura</div>
               <div className="text-[9px]" style={{ color: "#6B7280" }}>AI Sales Assistant</div>
             </div>
           </div>
@@ -567,7 +567,7 @@ export default function MysaAssistant({ open, onClose, }) {
                   <Sparkles className="w-7 h-7 text-white"/>
                 </div>
                 <h2 className="text-[17px] font-black leading-snug mb-1" style={{ color: "#E2E8F0" }}>
-                  I'm Mysa, your AI<br />Sales Assistant
+                  I'm Aura, your AI<br />Sales Assistant
                 </h2>
                 <p className="text-[12px] leading-relaxed max-w-xs" style={{ color: "#9CA3AF" }}>
                   Ask me to find leads, run audits, check website health, or manage your outreach automation.
@@ -616,7 +616,7 @@ export default function MysaAssistant({ open, onClose, }) {
             </button>
           </div>
           <p className="text-[9px] text-center mt-2" style={{ color: "#374151" }}>
-            Mysa only uses tools it was given — no hallucinations, no rogue actions.
+            Aura only uses tools it was given — no hallucinations, no rogue actions.
           </p>
         </div>
       </div>

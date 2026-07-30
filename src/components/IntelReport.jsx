@@ -76,8 +76,8 @@ export const IntelReport = ({ data, auditDate }) => {
       {/* ─ Sticky header ─ */}
       <div style={{ background: "rgba(255,255,255,.96)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.n2}`, padding: "0 18px", height: 50, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg,${C.p},${C.p2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.wh }}>M</div>
-          <span style={{ fontSize: 15, fontWeight: 800, color: C.n9, letterSpacing: "-0.3px" }}>Mysa<span style={{ color: C.p }}>AI</span> Intelligence Report</span>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg,${C.p},${C.p2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.wh }}>A</div>
+          <span style={{ fontSize: 15, fontWeight: 800, color: C.n9, letterSpacing: "-0.3px" }}>Aura<span style={{ color: C.p }}>AI</span> Intelligence Report</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Pill color="purple">Intelligence Report</Pill>
@@ -351,7 +351,7 @@ export const IntelReport = ({ data, auditDate }) => {
       <div style={{ background: C.n1, borderTop: `1px solid ${C.n2}`, padding: "32px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg,${C.p},${C.p2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: C.wh }}>M</div>
-          <span style={{ fontSize: 18, fontWeight: 800, color: C.n9, letterSpacing: "-0.3px" }}>Mysa<span style={{ color: C.p }}>AI</span></span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: C.n9, letterSpacing: "-0.3px" }}>Aura<span style={{ color: C.p }}>AI</span></span>
         </div>
         <div style={{ fontSize: 13, fontStyle: "italic", color: C.n7, lineHeight: 1.7, paddingLeft: 13, borderLeft: `2px solid ${C.p}`, marginBottom: 14 }}>
           "We believe every business built with genuine purpose deserves to be seen, found, and chosen — not just by algorithm, but by the right people."
