@@ -467,11 +467,23 @@ app.get('/api/leads/:id', async (req, res) => {
 // Create new Lead
 app.post('/api/leads', async (req, res) => {
   try {
-    const {
-      first_name, last_name, email, phone, company, designation,
-      website, industry, country, status = 'New', bant_score = 50, deal_value = 0,
-      userEmail
-    } = req.body;
+    const { data, email: userEmail } = req.body;
+    const body = data || req.body;
+
+    const first_name = body.firstName || body.first_name || '';
+    const last_name = body.lastName || body.last_name || '';
+    const email = body.email || '';
+    const phone = body.phone || '';
+    const company = body.company || '';
+    const designation = body.designation || '';
+    const website = body.website || '';
+    const industry = body.industry || '';
+    const country = body.country || '';
+    const city = body.city || '';
+    const source = body.source || 'manual';
+    const status = body.status || 'New';
+    const bant_score = body.bant_score ?? 50;
+    const deal_value = body.deal_value ?? 0;
 
     let userId = null;
     if (userEmail) {
@@ -484,10 +496,10 @@ app.post('/api/leads', async (req, res) => {
     const insertRes = await db.query(
       `INSERT INTO leads (
         user_id, first_name, last_name, email, phone, company, designation, 
-        website, industry, country, status, bant_score, deal_value, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW())
+        website, industry, country, city, source, status, bant_score, deal_value, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
       RETURNING *`,
-      [userId, first_name, last_name, email, phone, company, designation, website, industry, country, status, bant_score, deal_value]
+      [userId, first_name, last_name, email, phone, company, designation, website, industry, country, city, source, status, bant_score, deal_value]
     );
 
     res.status(201).json(insertRes.rows[0]);
@@ -561,6 +573,48 @@ app.delete('/api/leads/:id', async (req, res) => {
     await db.query('DELETE FROM leads WHERE id = $1', [id]);
     res.json({ message: 'Lead deleted successfully', id });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/leads/delete — Delete lead via POST body (for frontend mutation hooks)
+app.post('/api/leads/delete', async (req, res) => {
+  try {
+    const { id } = req.body;
+    if (!id) return res.status(400).json({ error: 'Lead ID is required' });
+    await db.query('DELETE FROM leads WHERE id = $1', [id]);
+    res.json({ message: 'Lead deleted successfully', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/leads/bulk-update — Bulk update leads
+app.post('/api/leads/bulk-update', async (req, res) => {
+  try {
+    const { data } = req.body;
+    const { ids = [], ...updates } = data || {};
+    if (!ids.length) return res.status(400).json({ error: 'No lead IDs provided' });
+
+    const setClauses = [];
+    const params = [];
+    let idx = 1;
+    for (const [key, value] of Object.entries(updates)) {
+      const col = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+      if (['id', 'ids', 'created_at', 'updated_at'].includes(col)) continue;
+      setClauses.push(`${col} = $${idx}`);
+      params.push(value);
+      idx++;
+    }
+    if (!setClauses.length) return res.status(400).json({ error: 'No fields to update' });
+    setClauses.push(`updated_at = NOW()`);
+
+    params.push(ids);
+    const sql = `UPDATE leads SET ${setClauses.join(', ')} WHERE id = ANY($${idx}) RETURNING *`;
+    const result = await db.query(sql, params);
+    res.json({ updated: result.rowCount, leads: result.rows });
+  } catch (err) {
+    console.error('Bulk update error:', err);
     res.status(500).json({ error: err.message });
   }
 });

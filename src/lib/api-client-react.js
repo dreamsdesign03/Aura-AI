@@ -57,6 +57,9 @@ function createMutationHook(key) {
             "useAiScoreLead": "/api/qualify/score-ai",
             "useExplainBantScores": "/api/qualify/explain",
             "useComposeOutreachEmail": "/api/useComposeOutreachEmail",
+            "useCreateLead": "/api/leads",
+            "useDeleteLead": "/api/leads/delete",
+            "useBulkUpdateLeads": "/api/leads/bulk-update",
           };
           const route = routeMap[key] || `/api/${key}`;
           const res = await fetch(route, {
