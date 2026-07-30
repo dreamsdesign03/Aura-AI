@@ -163,13 +163,24 @@ export default function ComposeModal({ onClose, initialEmail }) {
                 clearStageTimer();
         }, 900);
         try {
-            const result = await composeMutation.mutateAsync({
-                data: { leadId: selectedLead.id, ctaTypes, tone },
-            });
+            let result;
+            if (typeof composeMutation?.mutateAsync === "function") {
+                result = await composeMutation.mutateAsync({
+                    data: { leadId: selectedLead.id, ctaTypes, tone },
+                });
+            }
+            else {
+                const res = await fetch("/api/useComposeOutreachEmail", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ data: { leadId: selectedLead.id, ctaTypes, tone } })
+                });
+                result = await res.json();
+            }
             clearStageTimer();
             setAiStage(-1);
-            setSubject(result.subject);
-            if (bodyRef.current) {
+            if (result.subject) setSubject(result.subject);
+            if (result.body && bodyRef.current) {
                 bodyRef.current.innerHTML = result.body.replace(/\n/g, "<br>");
                 setBodyEmpty(result.body.trim().length === 0);
             }

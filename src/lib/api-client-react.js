@@ -56,6 +56,7 @@ function createMutationHook(key) {
             "useSaveBantScore": "/api/qualify/save-bant",
             "useAiScoreLead": "/api/qualify/score-ai",
             "useExplainBantScores": "/api/qualify/explain",
+            "useComposeOutreachEmail": "/api/useComposeOutreachEmail",
           };
           const route = routeMap[key] || `/api/${key}`;
           const res = await fetch(route, {
@@ -75,7 +76,7 @@ function createMutationHook(key) {
 
 export const useListAuditedLeads = createQueryHook("useListAuditedLeads");
 export const useListLeads = createQueryHook("useListLeads");
-export const useComposeOutreachEmail = createQueryHook("useComposeOutreachEmail");
+export const useComposeOutreachEmail = createMutationHook("useComposeOutreachEmail");
 export const useQuickSendEmail = createMutationHook("useQuickSendEmail");
 export const getListOutreachEmailsQueryKey = () => ["getListOutreachEmailsQueryKey"];
 export const useCreateMeeting = createMutationHook("useCreateMeeting");
