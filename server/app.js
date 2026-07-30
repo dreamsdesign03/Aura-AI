@@ -3810,17 +3810,17 @@ app.get('/api/auth/google', (req, res) => {
     const scope = encodeURIComponent('openid profile email');
 
     if (!clientId) {
-      console.error('[Google Auth] GOOGLE_CLIENT_ID environment variable is missing');
-      return res.status(500).json({ error: 'GOOGLE_CLIENT_ID not configured on server' });
+      console.warn('[Google Auth] GOOGLE_CLIENT_ID not set');
+      return res.redirect('/login?error=google_not_configured');
     }
 
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
 
-    console.log('[Google Auth] Redirecting user to Google OAuth URL');
+    console.log('[Google Auth] Redirecting user to Google OAuth consent screen');
     res.redirect(authUrl);
   } catch (err) {
     console.error('[Google Auth] Redirect Error:', err.message);
-    res.status(500).json({ error: err.message });
+    res.redirect('/login?error=oauth_init_failed');
   }
 });
 
@@ -3876,24 +3876,28 @@ app.get('/api/auth/google/callback', async (req, res) => {
     const lastName = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ') || '';
 
     // 3. Upsert user in PostgreSQL users table
-    try {
-      await db.query(`
-        INSERT INTO users (email, first_name, last_name, updated_at)
-        VALUES ($1, $2, $3, NOW())
-        ON CONFLICT (email)
-        DO UPDATE SET
-          first_name = COALESCE(EXCLUDED.first_name, users.first_name),
-          last_name = COALESCE(EXCLUDED.last_name, users.last_name),
-          updated_at = NOW()
-      `, [email, firstName, lastName]);
-      console.log(`[Google Auth Callback] ✅ Successfully upserted user in PostgreSQL: ${email}`);
-    } catch (dbErr) {
-      console.error('[Google Auth Callback] Database upsert error:', dbErr.message);
+    if (email) {
+      try {
+        await db.query(`
+          INSERT INTO users (email, first_name, last_name, updated_at)
+          VALUES ($1, $2, $3, NOW())
+          ON CONFLICT (email)
+          DO UPDATE SET
+            first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+            last_name = COALESCE(EXCLUDED.last_name, users.last_name),
+            updated_at = NOW()
+        `, [email, firstName, lastName]);
+        console.log(`[Google Auth Callback] ✅ Successfully upserted user in PostgreSQL: ${email}`);
+      } catch (dbErr) {
+        console.error('[Google Auth Callback] Database upsert error:', dbErr.message);
+      }
     }
 
-    // 4. Set session cookies and redirect to home
-    res.cookie('aura_user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
-    res.cookie('user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
+    // 4. Set session cookies via native HTTP Header (to avoid res.cookie function error)
+    res.setHeader('Set-Cookie', [
+      `aura_user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`,
+      `user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`
+    ]);
 
     res.redirect(`/?google_success=true&email=${encodeURIComponent(email)}`);
   } catch (err) {
@@ -3939,8 +3943,10 @@ app.post('/api/auth/google/token', async (req, res) => {
       console.warn('[Google Token Auth] DB upsert warning:', dbErr.message);
     }
 
-    res.cookie('aura_user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
-    res.cookie('user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
+    res.setHeader('Set-Cookie', [
+      `aura_user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`,
+      `user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`
+    ]);
 
     res.json({
       success: true,
