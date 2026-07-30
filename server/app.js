@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const db = require('./db');
+const nodemailer = require('nodemailer');
 
 const app = express();
 
@@ -59,6 +60,23 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS brand_color VARCHAR(50) DEFAULT '#D42370';`);
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS logo_base64 TEXT;`);
+
+    // Ensure smtp_settings table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS smtp_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER UNIQUE,
+        host VARCHAR(255),
+        port INTEGER DEFAULT 587,
+        smtp_user VARCHAR(255),
+        pass TEXT,
+        from_email VARCHAR(255),
+        from_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ;`);
     console.log('[Startup Migration] ✅ All migrations complete.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
@@ -631,6 +649,7 @@ async function ensureOutreachAndProposalsTables() {
         subject TEXT,
         body TEXT,
         status TEXT DEFAULT 'draft',
+        sent_at TIMESTAMPTZ,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
       CREATE TABLE IF NOT EXISTS proposals (
@@ -716,13 +735,80 @@ Aura AI Growth Team`;
   }
 });
 
+// ── SMTP Helper ───────────────────────────────────────────
+async function getTransporter(userId) {
+  let config = {};
+  if (userId) {
+    try {
+      const sRes = await db.query('SELECT * FROM smtp_settings WHERE user_id = $1', [userId]);
+      if (sRes.rows.length > 0) {
+        const s = sRes.rows[0];
+        config = { host: s.host, port: s.port, user: s.smtp_user, pass: s.pass, fromEmail: s.from_email, fromName: s.from_name };
+      }
+    } catch {}
+  }
+  const host = config.host || process.env.SMTP_HOST || 'smtp-relay.brevo.com';
+  const port = config.port || Number(process.env.SMTP_PORT) || 587;
+  const user = config.user || process.env.SMTP_USER || '';
+  const pass = config.pass || process.env.SMTP_PASS || '';
+  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'info@dreamsdesign.ca';
+  const fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura AI';
+
+  const transporter = nodemailer.createTransport({
+    host, port,
+    secure: port === 465,
+    auth: user && pass ? { user, pass } : undefined,
+  });
+  return { transporter, fromEmail, fromName };
+}
+
 // POST /api/outreach/send
 app.post('/api/outreach/send', async (req, res) => {
   try {
     const { id } = req.body;
-    await db.query(`UPDATE outreach_emails SET status = 'sent' WHERE id = $1`, [id]);
-    res.json({ success: true, message: 'Outreach email sent successfully' });
+    if (!id) return res.status(400).json({ error: 'Email ID is required' });
+
+    const emailRes = await db.query(
+      `SELECT o.*, l.first_name, l.last_name, l.company 
+       FROM outreach_emails o 
+       LEFT JOIN leads l ON o.lead_id = l.id 
+       WHERE o.id = $1`,
+      [id]
+    );
+    if (emailRes.rows.length === 0) return res.status(404).json({ error: 'Email not found' });
+
+    const email = emailRes.rows[0];
+    const userId = email.user_id;
+    const recipientEmail = email.recipient_email;
+    const subject = email.subject;
+    const body = email.body;
+    const contactName = [email.first_name, email.last_name].filter(Boolean).join(' ') || 'there';
+
+    if (!recipientEmail) return res.status(400).json({ error: 'No recipient email' });
+
+    // Build HTML body from plain text (convert newlines to <br>)
+    const htmlBody = body
+      ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${body.replace(/\n/g, '<br>')}</div>`
+      : '';
+
+    const { transporter, fromEmail, fromName } = await getTransporter(userId);
+
+    const mailOptions = {
+      from: `"${fromName}" <${fromEmail}>`,
+      to: recipientEmail,
+      subject: subject || 'No subject',
+      text: body || '',
+      html: htmlBody,
+    };
+
+    await transporter.sendMail(mailOptions);
+    await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW() WHERE id = $1`, [id]);
+
+    console.log(`[outreach] Email sent to ${recipientEmail} (id=${id})`);
+    res.json({ success: true, message: 'Email sent successfully' });
   } catch (err) {
+    console.error('[outreach] Send error:', err.message);
+    await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [req.body.id]).catch(() => {});
     res.status(500).json({ error: err.message });
   }
 });
@@ -748,6 +834,45 @@ app.post('/api/outreach/delete', async (req, res) => {
     await db.query(`DELETE FROM outreach_emails WHERE id = $1`, [id]);
     res.json({ success: true, id });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/useQuickSendEmail — Quick send from ComposeModal
+app.post('/api/useQuickSendEmail', async (req, res) => {
+  try {
+    const { leadId, toEmail, toName, subject, body, bodyHtml, cc, bcc, userEmail } = req.body.data || req.body;
+    const userId = await resolveUserId(userEmail || req.body.email, req.headers.cookie);
+
+    if (!toEmail) return res.status(400).json({ error: 'Recipient email is required' });
+
+    const { transporter, fromEmail, fromName } = await getTransporter(userId);
+
+    const mailOptions = {
+      from: `"${fromName}" <${fromEmail}>`,
+      to: toEmail,
+      cc: cc || undefined,
+      bcc: bcc || undefined,
+      subject: subject || 'No subject',
+      text: body || '',
+      html: bodyHtml || (body ? body.replace(/\n/g, '<br>') : ''),
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    // Save to outreach_emails if we have a lead
+    if (leadId && userId) {
+      await db.query(
+        `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, subject, body, status, sent_at, created_at)
+         VALUES ($1, $2, $3, $4, $5, 'sent', NOW(), NOW())`,
+        [userId, leadId, toEmail, subject || '', body || '']
+      );
+    }
+
+    console.log(`[outreach] Quick email sent to ${toEmail}`);
+    res.json({ success: true, message: 'Email sent successfully' });
+  } catch (err) {
+    console.error('[outreach] Quick send error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -3476,6 +3601,66 @@ app.get(['/api/settings/branding', '/api/branding/settings', '/api/useGetBrandin
 // GET /api/settings/whatsapp
 app.get('/api/settings/whatsapp', (req, res) => {
   res.json({ phoneNumber: '+91 98250 12345', status: 'connected', instanceId: 'aura_wa_prod_01' });
+});
+
+// GET /api/settings/smtp
+app.get('/api/settings/smtp', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.query.email, req.headers.cookie);
+    if (!userId) return res.json({ host: '', port: 587, user: '', fromEmail: '', fromName: '' });
+    const sRes = await db.query('SELECT host, port, user, from_email, from_name FROM smtp_settings WHERE user_id = $1', [userId]);
+    if (sRes.rows.length > 0) {
+      const s = sRes.rows[0];
+      res.json({ host: s.host || '', port: s.port || 587, user: s.smtp_user || '', fromEmail: s.from_email || '', fromName: s.from_name || '' });
+    } else {
+      res.json({ host: '', port: 587, user: '', fromEmail: '', fromName: '' });
+    }
+  } catch (err) {
+    console.error('[smtp] GET error:', err.message);
+    res.json({ host: '', port: 587, user: '', fromEmail: '', fromName: '' });
+  }
+});
+
+// PUT /api/settings/smtp
+app.put('/api/settings/smtp', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const { host, port, user, pass, fromEmail, fromName } = req.body.data || req.body;
+    await db.query(`
+      INSERT INTO smtp_settings (user_id, host, port, smtp_user, pass, from_email, from_name, updated_at)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT (user_id)
+      DO UPDATE SET host = $2, port = $3, smtp_user = $4, pass = $5, from_email = $6, from_name = $7, updated_at = NOW()
+    `, [userId, host, port || 587, user, pass, fromEmail, fromName]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[smtp] PUT error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/settings/smtp/test — Send test email
+app.post('/api/settings/smtp/test', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
+    const { host, port, user, pass, fromEmail } = req.body.data || req.body;
+    const transporter = nodemailer.createTransport({
+      host: host || process.env.SMTP_HOST || 'smtp-relay.brevo.com',
+      port: port || 587,
+      secure: (port || 587) === 465,
+      auth: user && pass ? { user, pass } : undefined,
+    });
+    await transporter.sendMail({
+      from: `"Test" <${fromEmail || 'test@auraai.com'}>`,
+      to: fromEmail || 'test@auraai.com',
+      subject: 'Aura AI — SMTP Test',
+      text: 'If you receive this, your SMTP settings are working correctly.',
+    });
+    res.json({ success: true, message: 'Test email sent successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/team/members & /api/team/pending-invites
