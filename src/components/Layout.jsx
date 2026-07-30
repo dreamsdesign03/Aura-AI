@@ -37,9 +37,9 @@ import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel, } from "@/components/ui/dropdown-menu";
 import auraLogo from "@/assets/logo.png";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const GRAD = "linear-gradient(135deg, #BE185D 0%, #DB2777 100%)";
-const PURPLE = "#DB2777";
-const PURPLE_A = "rgba(219, 39, 119, 0.10)";
+const GRAD = "linear-gradient(135deg, #D42370 0%, #E63980 100%)";
+const PURPLE = "#D42370";
+const PURPLE_A = "#FBE9F1";
 const navGroups = [
     {
         group: "Core",

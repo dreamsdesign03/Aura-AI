@@ -64,54 +64,54 @@
 }
 
 :root {
-  /* Page background: very light rose-pink tint */
-  --background: 340 40% 97%;
+  /* Page background: soft light rose tint */
+  --background: 334 75% 98%;
   --foreground: 222 39% 10%;
 
   /* Cards: pure white */
   --card: 0 0% 100%;
   --card-foreground: 222 39% 10%;
-  --card-border: 340 20% 92%;
+  --card-border: 334 50% 93%;
 
   --popover: 0 0% 100%;
   --popover-foreground: 222 39% 10%;
-  --popover-border: 340 20% 92%;
+  --popover-border: 334 50% 93%;
 
-  /* Primary: hot pink #EC4899 */
-  --primary: 330 81% 60%;
+  /* Primary: #D42370 */
+  --primary: 334 72% 48%;
   --primary-foreground: 0 0% 100%;
-  --primary-border: #DB2777;
+  --primary-border: #D42370;
 
-  --secondary: 340 30% 96%;
-  --secondary-foreground: 222 39% 20%;
-  --secondary-border: 340 20% 90%;
+  --secondary: 334 75% 95%;
+  --secondary-foreground: 334 72% 35%;
+  --secondary-border: 334 50% 90%;
 
-  /* Muted: very light */
-  --muted: 340 20% 96%;
-  --muted-foreground: 220 9% 46%;
-  --muted-border: 340 20% 92%;
+  /* Muted / Soft Hover: #FBE9F1 */
+  --muted: 334 75% 95%;
+  --muted-foreground: 334 30% 45%;
+  --muted-border: 334 50% 92%;
 
-  --accent: 330 81% 60%;
+  --accent: 334 72% 48%;
   --accent-foreground: 0 0% 100%;
-  --accent-border: #DB2777;
+  --accent-border: #D42370;
 
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
   --destructive-border: #ef4444;
 
-  --border: 340 20% 92%;
-  --input: 340 20% 96%;
-  --ring: 330 81% 60%;
+  --border: 334 50% 92%;
+  --input: 334 75% 96%;
+  --ring: 334 72% 48%;
 
   /* Sidebar: pure white */
   --sidebar: 0 0% 100%;
   --sidebar-foreground: 220 9% 35%;
-  --sidebar-border: 340 20% 92%;
-  --sidebar-primary: 330 81% 60%;
+  --sidebar-border: 334 50% 92%;
+  --sidebar-primary: 334 72% 48%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-primary-border: #DB2777;
-  --sidebar-accent: 340 30% 97%;
-  --sidebar-accent-foreground: 222 39% 10%;
+  --sidebar-primary-border: #D42370;
+  --sidebar-accent: 334 75% 95%;
+  --sidebar-accent-foreground: 334 72% 35%;
 }
 
 * {

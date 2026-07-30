@@ -342,7 +342,7 @@ function LeadBrainTab() {
                             <BookOpen className="w-4 h-4 text-gray-500"/>
                             <span className="text-xs font-bold text-gray-700">Your Notes</span>
                           </div>
-                          <button onClick={saveNotes} disabled={savingNotes} className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white rounded-lg transition-colors disabled:opacity-60" style={{ background: "#1A3D2B" }}>
+                          <button onClick={saveNotes} disabled={savingNotes} className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-white rounded-lg transition-all hover:bg-[#b01c5b] disabled:opacity-60" style={{ background: "#D42370" }}>
                             {savingNotes ? <Loader2 className="w-3 h-3 animate-spin"/> : <Save className="w-3 h-3"/>}
                             Save
                           </button>
@@ -544,7 +544,7 @@ function ConversationsTab() {
             const isSelected = selectedId === conv.id;
             const cfg = STATE_CONFIG[conv.state] ?? { label: conv.state, bg: "#F3F4F6", color: "#6B7280" };
             return (<button key={conv.id} onClick={() => setSelectedId(conv.id)} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 flex gap-2.5 transition-colors", isSelected ? "bg-green-50" : "hover:bg-gray-50")}>
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#1A3D2B" }}>
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#D42370" }}>
                     {initials(conv.lead)}
                   </div>
                   <div className="flex-1 min-w-0">
@@ -569,15 +569,15 @@ function ConversationsTab() {
             <ArrowLeft className="w-3.5 h-3.5"/> Back
           </button>)}
         {!selectedConv ? (<div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#1A3D2B15" }}>
-              <MessageCircle className="w-8 h-8" style={{ color: "#1A3D2B" }}/>
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#FBE9F1" }}>
+              <MessageCircle className="w-8 h-8" style={{ color: "#D42370" }}/>
             </div>
             <p className="text-sm font-semibold text-gray-700 mb-1">Select a conversation</p>
             <p className="text-xs text-gray-400 max-w-xs">View the full WhatsApp thread — the AI bot handles all replies automatically</p>
           </div>) : (<>
             <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#1A3D2B" }}>{initials(selectedConv.lead)}</div>
+                <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#D42370" }}>{initials(selectedConv.lead)}</div>
                 <div>
                   <div className="text-sm font-semibold text-gray-900">{leadName(selectedConv.lead)}</div>
                   <div className="flex items-center gap-2 text-[11px] text-gray-500">
@@ -611,7 +611,7 @@ function ConversationsTab() {
               {msgLoading ? (<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400"/></div>) : !msgData || msgData.messages.length === 0 ? (<div className="text-center text-xs text-gray-400 py-12">No messages yet</div>) : (msgData.messages.map(msg => {
                 const isOut = msg.direction === "outbound";
                 return (<div key={msg.id} className={cn("flex", isOut ? "justify-end" : "justify-start")}>
-                      <div className="max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm" style={{ background: isOut ? "#1A3D2B" : "#ffffff", color: isOut ? "#ffffff" : "#111827", borderBottomRightRadius: isOut ? 4 : 16, borderBottomLeftRadius: isOut ? 16 : 4 }}>
+                      <div className="max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm" style={{ background: isOut ? "#D42370" : "#ffffff", color: isOut ? "#ffffff" : "#111827", borderBottomRightRadius: isOut ? 4 : 16, borderBottomLeftRadius: isOut ? 16 : 4 }}>
                         <p className="text-[13px] leading-snug whitespace-pre-wrap">{msg.content}</p>
                         <div className={cn("mt-1 text-[10px]", isOut ? "text-right" : "text-left")} style={{ color: isOut ? "rgba(255,255,255,0.55)" : "#9CA3AF" }}>{timeAgo(msg.sentAt)}</div>
                       </div>

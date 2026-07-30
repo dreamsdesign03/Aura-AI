@@ -216,7 +216,7 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#1A3D2B" }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#D42370" }}>
               <Zap className="w-3.5 h-3.5 text-white"/>
             </div>
             <div>
@@ -284,7 +284,7 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
             <div className="flex gap-2">
               {COUNTS.map((c) => (<button key={c} type="button" onClick={() => setDailyCount(c)} className={cn("flex-1 py-3 rounded-xl text-sm font-bold border transition-all", dailyCount === c
                 ? "text-white border-transparent shadow-sm"
-                : "border-gray-200 text-gray-500 bg-white hover:border-gray-300")} style={dailyCount === c ? { background: "#1A3D2B" } : {}}>
+                : "border-gray-200 text-gray-500 bg-white hover:border-[#D42370] hover:bg-[#FBE9F1] hover:text-[#D42370]")} style={dailyCount === c ? { background: "#D42370" } : {}}>
                   {c}
                   <span className="block text-[10px] font-normal opacity-70">leads</span>
                 </button>))}
@@ -347,7 +347,7 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
               </div>
               <div ref={feedRef} className="max-h-52 overflow-y-auto divide-y divide-gray-50" style={{ scrollbarWidth: "thin" }}>
                 {streamedLeads.map((l, i) => (<div key={i} className="flex items-center gap-3 px-4 py-2">
-                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: "#1A3D2B" }}>
+                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0" style={{ background: "#D42370" }}>
                       {l.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -379,7 +379,7 @@ export default function FetchLeads({ onClose = () => window.history.back() }) {
                     : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-50 disabled:cursor-not-allowed`}>
               {saving ? "Saving…" : saveMsg === "saved" ? "✓ Saved!" : saveMsg === "error" ? "✕ Save failed" : autopilot ? "Save & Schedule" : "Save Settings"}
             </button>)}
-          <button type="button" onClick={fetchNow} disabled={selectedSources.length === 0} className="flex-1 py-2 text-xs font-bold rounded-lg text-white flex items-center justify-center gap-2 transition-colors disabled:opacity-40" style={{ background: streaming ? "#B91C1C" : isMysaLeadsMode ? "#0F766E" : "#1A3D2B" }}>
+          <button type="button" onClick={fetchNow} disabled={selectedSources.length === 0} className="flex-1 py-2 text-xs font-bold rounded-lg text-white flex items-center justify-center gap-2 transition-all hover:bg-[#b01c5b] disabled:opacity-40" style={{ background: streaming ? "#B91C1C" : "#D42370" }}>
             {streaming ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> Stop</>) : isMysaLeadsMode ? (<><Database className="w-3.5 h-3.5"/> Import from Bank</>) : (<><Zap className="w-3.5 h-3.5"/> Fetch Now</>)}
           </button>
         </div>

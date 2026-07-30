@@ -58,7 +58,7 @@ function SectionCard({ title, subtitle, icon: Icon, iconBg, iconColor, children 
     </div>);
 }
 function SaveButton({ pending, success, label = "Save changes" }) {
-    return (<button type="submit" disabled={pending} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: success ? "#16a34a" : "#1A3D2B" }}>
+    return (<button type="submit" disabled={pending} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#b01c5b]" style={{ background: success ? "#16a34a" : "#D42370" }}>
       {pending
             ? <Loader2 className="w-3.5 h-3.5 animate-spin"/>
             : success
@@ -200,7 +200,7 @@ function ProfileNameForm() {
     return (<SectionCard title="Personal Information" subtitle="Update your name and profile details" icon={User} iconBg="#F0FDF4" iconColor="#1A7A45">
       <form onSubmit={handleProfileSave} className="space-y-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #1A3D2B, #5C1A8C)" }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #D42370, #E63980)" }}>
             {avatarInitials}
           </div>
           <div>
@@ -567,7 +567,7 @@ function PhoneNumberForm() {
           <CheckCircle className="w-3.5 h-3.5 flex-shrink-0"/> {success}
         </div>)}
 
-      {step === "idle" && (<button type="button" onClick={() => { setStep("phone"); setError(""); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-colors" style={{ background: "#1A3D2B" }}>
+      {step === "idle" && (<button type="button" onClick={() => { setStep("phone"); setError(""); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#b01c5b]" style={{ background: "#D42370" }}>
           <Phone className="w-3.5 h-3.5"/>
           {currentPhone ? "Change phone number" : "Add phone number"}
         </button>)}
@@ -586,11 +586,11 @@ function PhoneNumberForm() {
               <XCircle className="w-3.5 h-3.5 flex-shrink-0"/> {error}
             </div>)}
           <div className="flex gap-2">
-            <button type="submit" disabled={loading} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#1A3D2B" }}>
+            <button type="submit" disabled={loading} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#b01c5b]" style={{ background: "#D42370" }}>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Send className="w-3.5 h-3.5"/>}
               Send code
             </button>
-            <button type="button" onClick={resetFlow} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 transition-colors">
+            <button type="button" onClick={resetFlow} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-[#FBE9F1] hover:text-[#D42370] transition-colors">
               <ChevronLeft className="w-3.5 h-3.5"/> Cancel
             </button>
           </div>
@@ -608,7 +608,7 @@ function PhoneNumberForm() {
               <XCircle className="w-3.5 h-3.5 flex-shrink-0"/> {error}
             </div>)}
           <div className="flex gap-2 items-center flex-wrap">
-            <button type="submit" disabled={loading || otpCode.length < 6} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#1A3D2B" }}>
+            <button type="submit" disabled={loading || otpCode.length < 6} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#b01c5b]" style={{ background: "#D42370" }}>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <CheckCircle className="w-3.5 h-3.5"/>}
               Verify
             </button>
@@ -698,7 +698,7 @@ function CompanyTab() {
     const [phone, setPhone] = useState("");
     const [tagline, setTagline] = useState("");
     const [contactInfo, setContactInfo] = useState("");
-    const [brandColor, setBrandColor] = useState("#5C1A8C");
+    const [brandColor, setBrandColor] = useState("#D42370");
     const [logoBase64, setLogoBase64] = useState(null);
     const [brandSaveOk, setBrandSaveOk] = useState(false);
     const logoInputRef = useRef(null);
@@ -709,7 +709,7 @@ function CompanyTab() {
             setPhone(brandingData.phone ?? "");
             setTagline(brandingData.tagline ?? "");
             setContactInfo(brandingData.contactInfo ?? "");
-            setBrandColor(brandingData.brandColor ?? "#5C1A8C");
+            setBrandColor(brandingData.brandColor ?? "#D42370");
             setLogoBase64(brandingData.logoBase64 ?? null);
         }
     }, [brandingData]);
@@ -1690,7 +1690,7 @@ function AiSpendThresholdSection() {
             <CheckCircle className="w-3.5 h-3.5 flex-shrink-0"/> Threshold saved
           </div>)}
 
-        <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-60" style={{ background: "#1A3D2B" }}>
+        <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#b01c5b] disabled:opacity-60" style={{ background: "#D42370" }}>
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Save className="w-3.5 h-3.5"/>}
           {saving ? "Saving…" : "Save Threshold"}
         </button>
