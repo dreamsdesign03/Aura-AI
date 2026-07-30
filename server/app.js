@@ -3122,4 +3122,102 @@ const handleGeminiChatStream = async (req, res) => {
 app.post('/api/gemini/chat/stream', handleGeminiChatStream);
 app.post('/api/anthropic/chat/stream', handleGeminiChatStream);
 
+// ──────────────────────────────────────────────────────
+// CLINIC & COMPANY BRANDING SETTINGS API ROUTES
+// ──────────────────────────────────────────────────────
+
+async function ensureBrandingTable() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS branding_settings (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      company_name VARCHAR(255),
+      tagline TEXT,
+      contact_info TEXT,
+      website VARCHAR(255),
+      phone VARCHAR(100),
+      brand_color VARCHAR(50) DEFAULT '#5C1A8C',
+      logo_base64 TEXT,
+      created_at TIMESTAMP DEFAULT NOW(),
+      updated_at TIMESTAMP DEFAULT NOW(),
+      CONSTRAINT unique_user_branding UNIQUE (user_id)
+    );
+  `);
+}
+
+// GET /api/settings/branding & /api/branding/settings
+app.get(['/api/settings/branding', '/api/branding/settings'], async (req, res) => {
+  try {
+    await ensureBrandingTable();
+    const userId = await resolveUserId(req.query?.email, req.headers.cookie);
+    let branding = {
+      companyName: 'Sakhiya Skin Clinic',
+      tagline: 'Laser & Cosmetic Dermatology Excellence',
+      contactInfo: 'Vadodara, Surat, Ahmedabad, Gujarat, India',
+      website: 'https://sakhiyaskinclinic.com',
+      phone: '+91 98250 12345',
+      brandColor: '#5C1A8C',
+      logoBase64: null
+    };
+
+    if (userId) {
+      const dbRes = await db.query('SELECT * FROM branding_settings WHERE user_id = $1', [userId]);
+      if (dbRes.rows.length > 0) {
+        const row = dbRes.rows[0];
+        branding = {
+          companyName: row.company_name || branding.companyName,
+          tagline: row.tagline || branding.tagline,
+          contactInfo: row.contact_info || branding.contactInfo,
+          website: row.website || branding.website,
+          phone: row.phone || branding.phone,
+          brandColor: row.brand_color || branding.brandColor,
+          logoBase64: row.logo_base64 || null
+        };
+      }
+    }
+
+    res.json(branding);
+  } catch (err) {
+    console.error('[branding/settings] GET Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT & POST /api/settings/branding & /api/branding/settings
+const saveBrandingHandler = async (req, res) => {
+  try {
+    await ensureBrandingTable();
+    const userId = await resolveUserId(req.body?.email, req.headers.cookie);
+    const { companyName, tagline, contactInfo, website, phone, brandColor, logoBase64 } = req.body || {};
+
+    if (userId) {
+      await db.query(
+        `INSERT INTO branding_settings (user_id, company_name, tagline, contact_info, website, phone, brand_color, logo_base64, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+         ON CONFLICT (user_id) 
+         DO UPDATE SET 
+           company_name = EXCLUDED.company_name,
+           tagline = EXCLUDED.tagline,
+           contact_info = EXCLUDED.contact_info,
+           website = EXCLUDED.website,
+           phone = EXCLUDED.phone,
+           brand_color = EXCLUDED.brand_color,
+           logo_base64 = EXCLUDED.logo_base64,
+           updated_at = NOW()`,
+        [userId, companyName, tagline, contactInfo, website, phone, brandColor || '#5C1A8C', logoBase64]
+      );
+    }
+
+    res.json({ ok: true, message: 'Clinic details saved successfully to database' });
+  } catch (err) {
+    console.error('[branding/settings] SAVE Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+app.put('/api/settings/branding', saveBrandingHandler);
+app.post('/api/settings/branding', saveBrandingHandler);
+app.put('/api/branding/settings', saveBrandingHandler);
+app.post('/api/branding/settings', saveBrandingHandler);
+
 module.exports = app;
