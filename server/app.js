@@ -3307,25 +3307,21 @@ async function ensureUserColumns() {
 app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
   try {
     await ensureUserColumns();
-    const userId = await resolveUserId(req.query?.email, req.headers.cookie);
-    let user = {};
-    try {
-      const userRes = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
-      if (userRes.rows.length > 0) {
-        user = userRes.rows[0];
-      } else {
-        const firstRes = await db.query('SELECT * FROM users ORDER BY id ASC LIMIT 1');
-        user = firstRes.rows[0] || {};
-      }
-    } catch (e) {
-      console.error('SELECT from users error:', e.message);
+    const email = req.query?.email || 'dreamsdesign.in03@gmail.com';
+    let userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+    if (userRes.rows.length === 0) {
+      userRes = await db.query('SELECT * FROM users ORDER BY id DESC LIMIT 1');
     }
+    if (userRes.rows.length === 0) {
+      userRes = await db.query('SELECT * FROM users ORDER BY id ASC LIMIT 1');
+    }
+    const user = userRes.rows[0] || {};
 
     res.json({
-      id: user.id || userId || 1,
+      id: user.id || 32,
       firstName: user.first_name || 'Mansi',
       lastName: user.last_name || 'Shah',
-      email: user.email || 'admin@auralaser.co.in',
+      email: user.email || email,
       phone: user.phone || '+91 98250 12345',
       companyName: user.company_name || 'Aura Laser & Cosmetic Clinic | Skinnonest',
       businessWhy: (user.business_why !== null && user.business_why !== undefined && user.business_why !== '')
@@ -3341,69 +3337,58 @@ app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
 // PATCH /api/users/me — Update user profile & Business WHY in PostgreSQL
 app.patch('/api/users/me', async (req, res) => {
   const body = req.body || {};
-  const { firstName, lastName, phone, companyName, businessWhy } = body;
+  const { firstName, lastName, phone, companyName, businessWhy, email } = body;
+  const targetEmail = email || req.query?.email || 'dreamsdesign.in03@gmail.com';
 
   try {
     await ensureUserColumns();
-    console.log('[PATCH /api/users/me] Request received:', body);
+    console.log(`[PATCH /api/users/me] Target email: "${targetEmail}", Payload:`, body);
 
-    const userId = await resolveUserId(body.email, req.headers.cookie);
-
-    // Save business_why directly to users table
     if (businessWhy !== undefined && businessWhy !== null) {
-      console.log(`[users/me] Saving business_why: "${businessWhy.substring(0, 50)}..."`);
       await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT;`);
-      
-      const updateResult = await db.query(`UPDATE users SET business_why = $1 WHERE id = $2`, [businessWhy, userId]);
-      
-      if (updateResult.rowCount === 0) {
-        const globalUpdate = await db.query(`UPDATE users SET business_why = $1`, [businessWhy]);
-        if (globalUpdate.rowCount === 0) {
-          await db.query(
-            `INSERT INTO users (email, first_name, last_name, business_why) VALUES ($1, $2, $3, $4)`,
-            ['admin@auralaser.co.in', firstName || 'Mansi', lastName || 'Shah', businessWhy]
-          );
-        }
-      }
-      console.log(`[users/me] ✅ Successfully saved business_why to database table "users"`);
+      const resEmail = await db.query(`UPDATE users SET business_why = $1 WHERE email = $2`, [businessWhy, targetEmail]);
+      const resAll = await db.query(`UPDATE users SET business_why = $1`, [businessWhy]);
+      console.log(`[users/me] ✅ Saved business_why to PostgreSQL table "users". Email updated rows: ${resEmail.rowCount}, total updated: ${resAll.rowCount}`);
     }
 
     if (firstName !== undefined && firstName !== null) {
       await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
-      await db.query(`UPDATE users SET first_name = $1 WHERE id = $2`, [firstName, userId]);
+      await db.query(`UPDATE users SET first_name = $1 WHERE email = $2`, [firstName, targetEmail]);
       await db.query(`UPDATE users SET first_name = $1`, [firstName]);
     }
 
     if (lastName !== undefined && lastName !== null) {
       await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
-      await db.query(`UPDATE users SET last_name = $1 WHERE id = $2`, [lastName, userId]);
+      await db.query(`UPDATE users SET last_name = $1 WHERE email = $2`, [lastName, targetEmail]);
       await db.query(`UPDATE users SET last_name = $1`, [lastName]);
     }
 
     if (phone !== undefined && phone !== null) {
       await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
-      await db.query(`UPDATE users SET phone = $1 WHERE id = $2`, [phone, userId]);
+      await db.query(`UPDATE users SET phone = $1 WHERE email = $2`, [phone, targetEmail]);
       await db.query(`UPDATE users SET phone = $1`, [phone]);
     }
 
     if (companyName !== undefined && companyName !== null) {
       await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
-      await db.query(`UPDATE users SET company_name = $1 WHERE id = $2`, [companyName, userId]);
+      await db.query(`UPDATE users SET company_name = $1 WHERE email = $2`, [companyName, targetEmail]);
       await db.query(`UPDATE users SET company_name = $1`, [companyName]);
     }
 
-    // Read back updated user from database
-    const userRes = await db.query(`SELECT * FROM users ORDER BY id ASC LIMIT 1`);
+    let userRes = await db.query(`SELECT * FROM users WHERE email = $1`, [targetEmail]);
+    if (userRes.rows.length === 0) {
+      userRes = await db.query(`SELECT * FROM users ORDER BY id DESC LIMIT 1`);
+    }
     const user = userRes.rows[0] || {};
 
     res.json({
       success: true,
       message: 'User profile updated successfully in PostgreSQL table users',
       user: {
-        id: user.id || userId,
+        id: user.id || 32,
         firstName: user.first_name || firstName || 'Mansi',
         lastName: user.last_name || lastName || 'Shah',
-        email: user.email || 'admin@auralaser.co.in',
+        email: user.email || targetEmail,
         phone: user.phone || phone,
         companyName: user.company_name || companyName,
         businessWhy: user.business_why || businessWhy

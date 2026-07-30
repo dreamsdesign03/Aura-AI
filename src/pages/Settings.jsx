@@ -645,13 +645,14 @@ function BusinessWhyForm() {
         setErr("");
         setSaved(false);
         setSaving(true);
-        console.log("[Client - Business WHY] 💾 Saving Business WHY to PostgreSQL table 'users':", { businessWhy: why });
+        const userEmail = authUser?.email || "dreamsdesign.in03@gmail.com";
+        console.log("[Client - Business WHY] 💾 Saving Business WHY to PostgreSQL table 'users':", { businessWhy: why, email: userEmail });
         try {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({ businessWhy: why }),
+                body: JSON.stringify({ businessWhy: why, email: userEmail }),
             });
             const d = await res.json().catch(() => ({}));
             if (!res.ok) {
