@@ -40,11 +40,8 @@ const AiComposer = lazy(() => import("@/pages/AiComposer"));
 const SalesAgentControl = lazy(() => import("@/pages/SalesAgentControl"));
 const Integrations = lazy(() => import("@/pages/Integrations"));
 const SuperAdmin = lazy(() => import("@/pages/SuperAdmin"));
-const ChatbotLeads = lazy(() => import("@/pages/ChatbotLeads"));
-const FormLeads = lazy(() => import("@/pages/FormLeads"));
 const GrowthQuestForm = lazy(() => import("@/pages/GrowthQuestForm"));
 const NotFound = lazy(() => import("@/pages/not-found"));
-const WebsiteHealthChecker = lazy(() => import("@/pages/WebsiteHealthChecker"));
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
@@ -318,11 +315,8 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/sales-agent" component={() => <Layout><SalesAgentControl /></Layout>}/>
         <Route path="/integrations" component={() => <Layout><Integrations /></Layout>}/>
         <Route path="/super-admin" component={() => <Layout><SuperAdmin /></Layout>}/>
-        <Route path="/chatbot-leads" component={() => <Layout><ChatbotLeads /></Layout>}/>
-        <Route path="/form-leads" component={() => <Layout><FormLeads /></Layout>}/>
         <Route path="/chatbot-preview" component={() => <ChatbotPreview />}/>
         <Route path="/form-quest" component={() => <GrowthQuestForm />}/>
-        <Route path="/website-health" component={() => <Layout><WebsiteHealthChecker /></Layout>}/>
         <Route component={NotFound}/>
       </Switch>
     </Suspense>);

@@ -56,7 +56,7 @@ const navGroups = [
             { href: "/outreach", label: "Outreach Engine", icon: Mail },
             { href: "/pipeline", label: "Sales Pipeline", icon: KanbanSquare },
             { href: "/meetings", label: "Meetings", icon: Calendar },
-            { href: "/hubspot", label: "HubSpot Sync", icon: Building2, accent: "#FF7A59" },
+            { href: "/hubspot", label: "HubSpot Sync", icon: Building2, accent: "#FF7A59", comingSoon: true },
         ],
     },
     {
@@ -64,9 +64,6 @@ const navGroups = [
         items: [
             { href: "/sales-brain", label: "Sales Brain", icon: MessageCircle, accent: "#25D366" },
             { href: "/agent-hub", label: "Automation 🤖", icon: Bot, accent: "#7C3AED" },
-            { href: "/website-health", label: "Website Health", icon: Globe, accent: "#3B82F6" },
-            { href: "/chatbot-leads", label: "Chatbot Leads", icon: Globe, accent: "#4F35A8" },
-            { href: "/form-leads", label: "Form Leads", icon: FileText, accent: "#FF6B35" },
         ],
     },
     {
@@ -649,10 +646,17 @@ export default function Layout({ children }) {
                 <div className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: "#C4C9D4" }}>
                   {group}
                 </div>
-                {visibleItems.map(({ href, label, icon: Icon, accent }) => {
+                {visibleItems.map(({ href, label, icon: Icon, accent, comingSoon }) => {
                     const active = navIsActive(href);
                     const activeBg = accent ?? GRAD;
                     const isPaidLocked = LOCKED_PAID_HREFS.has(href) && !["growth", "agency"].includes(planInfo?.plan ?? "trial");
+                    if (comingSoon) {
+                      return (<div key={href} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 opacity-40 cursor-not-allowed" style={{ color: "#6B7280" }}>
+                        <Icon className="w-4 h-4 flex-shrink-0"/>
+                        <span className="truncate flex-1">{label}</span>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: "#F3F4F6", color: "#9CA3AF" }}>Soon</span>
+                      </div>);
+                    }
                     return (<Link key={href} href={isPaidLocked ? "/billing" : href}>
                       <div className={cn("flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium cursor-pointer transition-all duration-150 mb-0.5")} style={active ? { background: activeBg, color: "#ffffff" } : { color: "#6B7280" }} onMouseEnter={e => { if (!active) {
                         e.currentTarget.style.background = accent ? `${accent}18` : PURPLE_A;
@@ -883,7 +887,7 @@ export default function Layout({ children }) {
             </div>
             {/* Nav grid */}
             <div className="grid grid-cols-4 gap-1 px-3 pb-2">
-              {nav.filter(item => item.href === "/lead-bank" ? isAdmin : true).map(({ href, label, icon: Icon, accent }) => {
+              {nav.filter(item => item.href === "/lead-bank" ? isAdmin : true).filter(item => !item.comingSoon).map(({ href, label, icon: Icon, accent }) => {
                 const active = navIsActive(href);
                 return (<Link key={href} href={href} onClick={() => setMoreOpen(false)}>
                     <div className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl cursor-pointer transition-all active:scale-95" style={{
