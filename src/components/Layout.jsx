@@ -78,7 +78,7 @@ const navGroups = [
     },
 ];
 const nav = navGroups.flatMap(g => g.items);
-const LOCKED_PAID_HREFS = new Set(["/hubspot", "/sales-brain", "/agent-hub", "/fetch-leads"]);
+const LOCKED_PAID_HREFS = new Set([]);
 function LockedFeatureNavBadge({ href }) {
     const { data } = usePlan();
     if (!LOCKED_PAID_HREFS.has(href))
