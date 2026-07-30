@@ -3167,81 +3167,42 @@ async function resolveUserId(emailInput, cookieHeader) {
 }
 
 async function ensureBrandingTable() {
-  await db.query(`
-    CREATE TABLE IF NOT EXISTS branding_settings (
-      id SERIAL PRIMARY KEY,
-      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-      company_name VARCHAR(255),
-      tagline TEXT,
-      contact_info TEXT,
-      website VARCHAR(255),
-      phone VARCHAR(100),
-      brand_color VARCHAR(50) DEFAULT '#D42370',
-      logo_base64 TEXT,
-      created_at TIMESTAMP DEFAULT NOW(),
-      updated_at TIMESTAMP DEFAULT NOW()
-    );
-
-    DO $$
-    BEGIN
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'user_id') THEN
-        ALTER TABLE branding_settings ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'company_name') THEN
-        ALTER TABLE branding_settings ADD COLUMN company_name VARCHAR(255);
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'tagline') THEN
-        ALTER TABLE branding_settings ADD COLUMN tagline TEXT;
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'contact_info') THEN
-        ALTER TABLE branding_settings ADD COLUMN contact_info TEXT;
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'website') THEN
-        ALTER TABLE branding_settings ADD COLUMN website VARCHAR(255);
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'phone') THEN
-        ALTER TABLE branding_settings ADD COLUMN phone VARCHAR(100);
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'brand_color') THEN
-        ALTER TABLE branding_settings ADD COLUMN brand_color VARCHAR(50) DEFAULT '#D42370';
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'branding_settings' AND column_name = 'logo_base64') THEN
-        ALTER TABLE branding_settings ADD COLUMN logo_base64 TEXT;
-      END IF;
-      IF NOT EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE table_name = 'branding_settings' AND constraint_name = 'unique_user_branding') THEN
-        ALTER TABLE branding_settings ADD CONSTRAINT unique_user_branding UNIQUE (user_id);
-      END IF;
-    END $$;
-  `);
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS branding_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        company_name VARCHAR(255),
+        tagline TEXT,
+        contact_info TEXT,
+        website VARCHAR(255),
+        phone VARCHAR(100),
+        brand_color VARCHAR(50) DEFAULT '#D42370',
+        logo_base64 TEXT,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+    `);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS tagline TEXT;`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS contact_info TEXT;`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS website VARCHAR(255);`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS brand_color VARCHAR(50) DEFAULT '#D42370';`);
+    await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS logo_base64 TEXT;`);
+  } catch (e) {
+    console.error('Error ensuring branding_settings columns:', e.message);
+  }
 }
 
 async function ensureUserColumns() {
   try {
-    await db.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'users' AND column_name = 'business_why'
-        ) THEN
-          ALTER TABLE users ADD COLUMN business_why TEXT;
-        END IF;
-
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'users' AND column_name = 'company_name'
-        ) THEN
-          ALTER TABLE users ADD COLUMN company_name VARCHAR(255);
-        END IF;
-
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'users' AND column_name = 'phone'
-        ) THEN
-          ALTER TABLE users ADD COLUMN phone VARCHAR(100);
-        END IF;
-      END $$;
-    `);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);`);
   } catch (e) {
     console.error('Error adding user columns:', e.message);
   }
