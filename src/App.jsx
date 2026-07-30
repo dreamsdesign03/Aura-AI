@@ -17,7 +17,6 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Leads = lazy(() => import("@/pages/Leads"));
 const LeadDetail = lazy(() => import("@/pages/LeadDetail"));
 const IcpManager = lazy(() => import("@/pages/IcpManager"));
-const BrandAudit = lazy(() => import("@/pages/BrandAudit"));
 const Qualify = lazy(() => import("@/pages/Qualify"));
 const Outreach = lazy(() => import("@/pages/Outreach"));
 const Pipeline = lazy(() => import("@/pages/Pipeline"));
@@ -295,7 +294,7 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/leads" component={() => <Layout><Leads /></Layout>}/>
         <Route path="/leads/:id" component={() => <Layout><LeadDetail /></Layout>}/>
         <Route path="/icp" component={() => <Layout><IcpManager /></Layout>}/>
-        <Route path="/audit" component={() => <Layout><BrandAudit /></Layout>}/>
+        <Route path="/audit" component={() => <RedirectTo to="/leads"/>}/>
         <Route path="/qualify" component={() => <Layout><Qualify /></Layout>}/>
         <Route path="/outreach" component={() => <Layout><Outreach /></Layout>}/>
         <Route path="/pipeline" component={() => <Layout><Pipeline /></Layout>}/>

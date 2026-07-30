@@ -47,7 +47,6 @@ const navGroups = [
             { href: "/", label: "Command Center", icon: LayoutDashboard },
             { href: "/icp", label: "ICP Manager", icon: Target },
             { href: "/leads", label: "Leads", icon: Users },
-            { href: "/audit", label: "Brand Audit", icon: Search },
             { href: "/qualify", label: "BANT Qualifier", icon: CheckSquare },
         ],
     },
@@ -93,7 +92,7 @@ const mobileBottomNav = [
     { href: "/", label: "Home", icon: LayoutDashboard },
     { href: "/icp", label: "ICP", icon: Target },
     { href: "/leads", label: "Leads", icon: Users },
-    { href: "/audit", label: "Audit", icon: Search },
+    { href: "/qualify", label: "BANT", icon: CheckSquare },
 ];
 async function doLogout() {
     sessionStorage.setItem("aura_logged_out", "true");
