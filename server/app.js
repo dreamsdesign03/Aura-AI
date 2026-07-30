@@ -3198,11 +3198,11 @@ async function ensureBrandingTable() {
 
 async function ensureUserColumns() {
   try {
-    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT;`);
-    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
-    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);`);
-    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
   } catch (e) {
     console.error('Error adding user columns:', e.message);
   }
@@ -3213,10 +3213,15 @@ app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
   try {
     await ensureUserColumns();
     const userId = await resolveUserId(req.query?.email, req.headers.cookie);
-    const userRes = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
-    const user = userRes.rows[0] || {};
+    let user = {};
+    try {
+      const userRes = await db.query('SELECT * FROM users WHERE id = $1', [userId]);
+      user = userRes.rows[0] || {};
+    } catch (e) {
+      console.error('SELECT from users error:', e.message);
+    }
     res.json({
-      id: user.id || 1,
+      id: user.id || userId || 1,
       firstName: user.first_name || 'Mansi',
       lastName: user.last_name || 'Shah',
       email: user.email || 'admin@auralaser.co.in',
@@ -3237,29 +3242,51 @@ app.patch('/api/users/me', async (req, res) => {
     const userId = await resolveUserId(req.body?.email, req.headers.cookie);
     const { firstName, lastName, phone, companyName, businessWhy } = req.body || {};
 
-    const updateRes = await db.query(
-      `UPDATE users SET 
-        first_name = COALESCE($1, first_name),
-        last_name = COALESCE($2, last_name),
-        phone = COALESCE($3, phone),
-        company_name = COALESCE($4, company_name),
-        business_why = COALESCE($5, business_why)
-       WHERE id = $6
-       RETURNING *`,
-      [firstName || null, lastName || null, phone || null, companyName || null, businessWhy || null, userId]
-    );
+    const fields = [];
+    const values = [];
+    let idx = 1;
 
-    const updatedUser = updateRes.rows[0] || {};
+    if (firstName !== undefined && firstName !== null) {
+      fields.push(`first_name = $${idx++}`);
+      values.push(firstName);
+    }
+    if (lastName !== undefined && lastName !== null) {
+      fields.push(`last_name = $${idx++}`);
+      values.push(lastName);
+    }
+    if (phone !== undefined && phone !== null) {
+      fields.push(`phone = $${idx++}`);
+      values.push(phone);
+    }
+    if (companyName !== undefined && companyName !== null) {
+      fields.push(`company_name = $${idx++}`);
+      values.push(companyName);
+    }
+    if (businessWhy !== undefined && businessWhy !== null) {
+      fields.push(`business_why = $${idx++}`);
+      values.push(businessWhy);
+    }
+
+    let updatedUser = {};
+    if (fields.length > 0) {
+      values.push(userId);
+      const updateRes = await db.query(
+        `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
+        values
+      );
+      updatedUser = updateRes.rows[0] || {};
+    }
+
     res.json({
       success: true,
       user: {
-        id: updatedUser.id,
-        firstName: updatedUser.first_name,
-        lastName: updatedUser.last_name,
+        id: updatedUser.id || userId,
+        firstName: updatedUser.first_name || firstName,
+        lastName: updatedUser.last_name || lastName,
         email: updatedUser.email,
-        phone: updatedUser.phone,
-        companyName: updatedUser.company_name,
-        businessWhy: updatedUser.business_why
+        phone: updatedUser.phone || phone,
+        companyName: updatedUser.company_name || companyName,
+        businessWhy: updatedUser.business_why || businessWhy
       }
     });
   } catch (err) {
