@@ -3345,64 +3345,60 @@ app.patch('/api/users/me', async (req, res) => {
 
   try {
     await ensureUserColumns();
+    console.log('[PATCH /api/users/me] Request received:', body);
+
     const userId = await resolveUserId(body.email, req.headers.cookie);
 
-    console.log(`[users/me] Saving profile for userId=${userId}:`, { firstName, lastName, phone, companyName, businessWhy: businessWhy ? businessWhy.substring(0, 30) + '...' : undefined });
-
-    const saved = {};
-
+    // Save business_why directly to users table
     if (businessWhy !== undefined && businessWhy !== null) {
-      try {
-        await db.query(`UPDATE users SET business_why = $1 WHERE id = $2`, [businessWhy, userId]);
-        await db.query(`UPDATE users SET business_why = $1`, [businessWhy]); // Backup sync for single-tenant setup
-        saved.businessWhy = businessWhy;
-        console.log(`[users/me] ✅ Saved business_why to database table "users"`);
-      } catch (e) {
-        console.error('[users/me] ❌ business_why UPDATE error:', e.message);
+      console.log(`[users/me] Saving business_why: "${businessWhy.substring(0, 50)}..."`);
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS business_why TEXT;`);
+      
+      const updateResult = await db.query(`UPDATE users SET business_why = $1 WHERE id = $2`, [businessWhy, userId]);
+      
+      if (updateResult.rowCount === 0) {
+        const globalUpdate = await db.query(`UPDATE users SET business_why = $1`, [businessWhy]);
+        if (globalUpdate.rowCount === 0) {
+          await db.query(
+            `INSERT INTO users (email, first_name, last_name, business_why) VALUES ($1, $2, $3, $4)`,
+            ['admin@auralaser.co.in', firstName || 'Mansi', lastName || 'Shah', businessWhy]
+          );
+        }
       }
+      console.log(`[users/me] ✅ Successfully saved business_why to database table "users"`);
     }
 
     if (firstName !== undefined && firstName !== null) {
-      try {
-        await db.query(`UPDATE users SET first_name = $1 WHERE id = $2`, [firstName, userId]);
-        saved.firstName = firstName;
-      } catch (e) { console.error('[users/me] first_name error:', e.message); }
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
+      await db.query(`UPDATE users SET first_name = $1 WHERE id = $2`, [firstName, userId]);
+      await db.query(`UPDATE users SET first_name = $1`, [firstName]);
     }
 
     if (lastName !== undefined && lastName !== null) {
-      try {
-        await db.query(`UPDATE users SET last_name = $1 WHERE id = $2`, [lastName, userId]);
-        saved.lastName = lastName;
-      } catch (e) { console.error('[users/me] last_name error:', e.message); }
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
+      await db.query(`UPDATE users SET last_name = $1 WHERE id = $2`, [lastName, userId]);
+      await db.query(`UPDATE users SET last_name = $1`, [lastName]);
     }
 
     if (phone !== undefined && phone !== null) {
-      try {
-        await db.query(`UPDATE users SET phone = $1 WHERE id = $2`, [phone, userId]);
-        saved.phone = phone;
-      } catch (e) { console.error('[users/me] phone error:', e.message); }
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
+      await db.query(`UPDATE users SET phone = $1 WHERE id = $2`, [phone, userId]);
+      await db.query(`UPDATE users SET phone = $1`, [phone]);
     }
 
     if (companyName !== undefined && companyName !== null) {
-      try {
-        await db.query(`UPDATE users SET company_name = $1 WHERE id = $2`, [companyName, userId]);
-        saved.companyName = companyName;
-      } catch (e) { console.error('[users/me] company_name error:', e.message); }
+      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`);
+      await db.query(`UPDATE users SET company_name = $1 WHERE id = $2`, [companyName, userId]);
+      await db.query(`UPDATE users SET company_name = $1`, [companyName]);
     }
 
-    // Read updated user from database
-    let user = {};
-    try {
-      const userRes = await db.query(`SELECT * FROM users WHERE id = $1`, [userId]);
-      user = userRes.rows[0] || {};
-    } catch (e) {
-      console.error('[users/me] SELECT back error:', e.message);
-    }
+    // Read back updated user from database
+    const userRes = await db.query(`SELECT * FROM users ORDER BY id ASC LIMIT 1`);
+    const user = userRes.rows[0] || {};
 
     res.json({
       success: true,
       message: 'User profile updated successfully in PostgreSQL table users',
-      saved,
       user: {
         id: user.id || userId,
         firstName: user.first_name || firstName || 'Mansi',
@@ -3414,7 +3410,7 @@ app.patch('/api/users/me', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('[users/me] PATCH Error:', err.message);
+    console.error('[users/me] PATCH Fatal Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
