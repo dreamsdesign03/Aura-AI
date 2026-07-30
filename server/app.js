@@ -3800,5 +3800,158 @@ User Question: "${message}"`;
   }
 });
 
+// ─── GOOGLE OAUTH ROUTES ───────────────────────────────────────────────────
+
+// GET /api/auth/google — Redirect to Google OAuth consent screen
+app.get('/api/auth/google', (req, res) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://aura-ai-six-beta.vercel.app/api/auth/google/callback';
+    const scope = encodeURIComponent('openid profile email');
+
+    if (!clientId) {
+      console.error('[Google Auth] GOOGLE_CLIENT_ID environment variable is missing');
+      return res.status(500).json({ error: 'GOOGLE_CLIENT_ID not configured on server' });
+    }
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope}&access_type=offline&prompt=consent`;
+
+    console.log('[Google Auth] Redirecting user to Google OAuth URL');
+    res.redirect(authUrl);
+  } catch (err) {
+    console.error('[Google Auth] Redirect Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/auth/google/callback — Google OAuth Callback
+app.get('/api/auth/google/callback', async (req, res) => {
+  try {
+    const { code } = req.query;
+    if (!code) {
+      console.warn('[Google Auth Callback] Missing authorization code');
+      return res.redirect('/login?error=missing_code');
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'https://aura-ai-six-beta.vercel.app/api/auth/google/callback';
+
+    // 1. Exchange code for tokens
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code'
+      })
+    });
+
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      console.error('[Google Auth Callback] Token exchange failed:', errText);
+      return res.redirect('/login?error=token_exchange_failed');
+    }
+
+    const tokens = await tokenRes.json();
+
+    // 2. Fetch user profile from Google
+    const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: { Authorization: `Bearer ${tokens.access_token}` }
+    });
+
+    if (!userRes.ok) {
+      console.error('[Google Auth Callback] Failed to fetch Google user profile');
+      return res.redirect('/login?error=profile_fetch_failed');
+    }
+
+    const googleUser = await userRes.json();
+    console.log('[Google Auth Callback] Google user profile fetched:', googleUser.email);
+
+    const email = googleUser.email;
+    const firstName = googleUser.given_name || googleUser.name?.split(' ')[0] || '';
+    const lastName = googleUser.family_name || googleUser.name?.split(' ').slice(1).join(' ') || '';
+
+    // 3. Upsert user in PostgreSQL users table
+    try {
+      await db.query(`
+        INSERT INTO users (email, first_name, last_name, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (email)
+        DO UPDATE SET
+          first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+          last_name = COALESCE(EXCLUDED.last_name, users.last_name),
+          updated_at = NOW()
+      `, [email, firstName, lastName]);
+      console.log(`[Google Auth Callback] ✅ Successfully upserted user in PostgreSQL: ${email}`);
+    } catch (dbErr) {
+      console.error('[Google Auth Callback] Database upsert error:', dbErr.message);
+    }
+
+    // 4. Set session cookies and redirect to home
+    res.cookie('aura_user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
+    res.cookie('user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
+
+    res.redirect(`/?google_success=true&email=${encodeURIComponent(email)}`);
+  } catch (err) {
+    console.error('[Google Auth Callback] Fatal Error:', err.message);
+    res.redirect('/login?error=auth_failed');
+  }
+});
+
+// POST /api/auth/google/token — Handle Google One Tap / Credential Token
+app.post('/api/auth/google/token', async (req, res) => {
+  try {
+    const { credential } = req.body || {};
+    if (!credential) {
+      return res.status(400).json({ error: 'Missing credential token' });
+    }
+
+    // Verify token with Google
+    const verifyRes = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${credential}`);
+    if (!verifyRes.ok) {
+      return res.status(400).json({ error: 'Invalid Google credential token' });
+    }
+
+    const payload = await verifyRes.json();
+    const email = payload.email;
+    const firstName = payload.given_name || payload.name?.split(' ')[0] || '';
+    const lastName = payload.family_name || payload.name?.split(' ').slice(1).join(' ') || '';
+
+    if (!email) {
+      return res.status(400).json({ error: 'No email found in Google token' });
+    }
+
+    try {
+      await db.query(`
+        INSERT INTO users (email, first_name, last_name, updated_at)
+        VALUES ($1, $2, $3, NOW())
+        ON CONFLICT (email)
+        DO UPDATE SET
+          first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+          last_name = COALESCE(EXCLUDED.last_name, users.last_name),
+          updated_at = NOW()
+      `, [email, firstName, lastName]);
+    } catch (dbErr) {
+      console.warn('[Google Token Auth] DB upsert warning:', dbErr.message);
+    }
+
+    res.cookie('aura_user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
+    res.cookie('user_email', email, { path: '/', maxAge: 30 * 86400 * 1000, httpOnly: false });
+
+    res.json({
+      success: true,
+      user: { email, firstName, lastName }
+    });
+  } catch (err) {
+    console.error('[Google Token Auth] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = app;
+
 
