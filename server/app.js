@@ -297,28 +297,7 @@ app.post('/api/auth/logout', async (req, res) => {
   }
 });
 
-// Update Profile API
-app.patch('/api/users/me', async (req, res) => {
-  try {
-    const { firstName, lastName, email, companyName, designation, city, teamSize } = req.body;
-    const updateRes = await db.query(
-      `UPDATE users SET
-        first_name = COALESCE($1, first_name),
-        last_name = COALESCE($2, last_name),
-        company_name = COALESCE($3, company_name),
-        designation = COALESCE($4, designation),
-        city = COALESCE($5, city),
-        team_size = COALESCE($6, team_size),
-        onboarding_completed = true
-       WHERE email = $7 RETURNING *`,
-      [firstName, lastName, companyName, designation, city, teamSize, email]
-    );
 
-    res.json(updateRes.rows[0] || { success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // 4. Executive Stats & Dashboard Analytics
 app.get('/api/stats', async (req, res) => {
