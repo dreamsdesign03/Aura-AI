@@ -9,6 +9,40 @@ import { formatDistanceToNow } from "date-fns";
 function initials(first, last) {
     return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
 }
+function formatSafeDistance(value) {
+    if (!value)
+        return "";
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? "" : formatDistanceToNow(d, { addSuffix: true });
+}
+function normalizeEmail(r) {
+    return {
+        ...r,
+        id: r.id,
+        userId: r.user_id,
+        leadId: r.lead_id,
+        recipientEmail: r.recipient_email,
+        toEmail: r.to_email,
+        toName: r.to_name,
+        company: r.company,
+        subject: r.subject,
+        body: r.body,
+        status: r.status,
+        createdAt: r.created_at,
+        sentAt: r.sent_at,
+        openedAt: r.opened_at,
+        errorMsg: r.error_msg,
+        auditRunId: r.audit_run_id,
+        leadFirstName: r.lead_first_name ?? r.first_name,
+        leadLastName: r.lead_last_name ?? r.last_name,
+        leadDesignation: r.lead_designation ?? r.designation,
+        leadPhoto: r.lead_photo ?? r.lead_photo_url,
+        leadCompanyLogo: r.lead_company_logo,
+        leadWebsite: r.lead_website ?? r.website,
+        currency: r.currency,
+        country: r.country,
+    };
+}
 function CurrencyFlag({ currency }) {
     const map = {
         INR: "🇮🇳", AED: "🇦🇪", SAR: "🇸🇦", GBP: "🇬🇧",
@@ -30,7 +64,7 @@ export default function Outreach() {
     const { data: emailsRaw = [], isLoading, refetch } = useListOutreachEmails({}, {
         queryKey: getListOutreachEmailsQueryKey(),
     });
-    const emails = Array.isArray(emailsRaw) ? emailsRaw : [];
+    const emails = Array.isArray(emailsRaw) ? emailsRaw.map(normalizeEmail) : [];
     const updateEmail = useUpdateOutreachEmail({
         mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListOutreachEmailsQueryKey() }) },
     });
@@ -334,7 +368,7 @@ export default function Outreach() {
                       </span>
                       {selected.openedAt && (<span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#EFF6FF", color: "#3B82F6" }}>
                           <Eye className="w-3 h-3"/>
-                          Opened {formatDistanceToNow(new Date(selected.openedAt), { addSuffix: true })}
+                          Opened {formatSafeDistance(selected.openedAt)}
                         </span>)}
                     </div>
                   </div>
@@ -383,7 +417,7 @@ export default function Outreach() {
                   {selected.status === "sent" && (<div className="flex items-center gap-2">
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
                         <CheckCircle2 className="w-3.5 h-3.5"/>
-                        Sent {selected.sentAt ? formatDistanceToNow(new Date(selected.sentAt), { addSuffix: true }) : ""}
+                        Sent {formatSafeDistance(selected.sentAt)}
                       </div>
                       <button onClick={() => sendEmail.mutate({ id: selected.id })} disabled={sendEmail.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-60">
                         <RefreshCw className={cn("w-3.5 h-3.5", sendEmail.isPending && "animate-spin")}/>
@@ -416,7 +450,7 @@ export default function Outreach() {
 
                   {/* Created time */}
                   <div className="text-[11px] text-gray-400 mb-4">
-                    Created {formatDistanceToNow(new Date(selected.createdAt), { addSuffix: true })}
+                    Created {formatSafeDistance(selected.createdAt)}
                     {selected.auditRunId && (<span className="ml-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
                         AI Audited
                       </span>)}
