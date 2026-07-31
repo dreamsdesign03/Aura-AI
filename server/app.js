@@ -139,6 +139,8 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
     acc[q.question || ''] = q.answer || '';
     return acc;
   }, {});
+  const isPast = startIso && new Date(startIso).getTime() < Date.now();
+  const status = scheduledEvent.status === 'canceled' ? 'cancelled' : (isPast ? 'completed' : 'confirmed');
   await db.query(
     `INSERT INTO calendly_events (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, location, meeting_link, questions, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
@@ -153,7 +155,7 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
        location = EXCLUDED.location,
        meeting_link = EXCLUDED.meeting_link,
        questions = EXCLUDED.questions`,
-    [userId, scheduledEvent.uri, invitee?.uri || null, invitee?.name || 'Invitee', invitee?.email || '', scheduledEvent.name || 'Meeting', startIso, endIso, scheduledEvent.status === 'canceled' ? 'cancelled' : 'confirmed', location, meetingLink, JSON.stringify(qs)]
+    [userId, scheduledEvent.uri, invitee?.uri || null, invitee?.name || 'Invitee', invitee?.email || '', scheduledEvent.name || 'Meeting', startIso, endIso, status, location, meetingLink, JSON.stringify(qs)]
   );
 }
 
@@ -200,8 +202,8 @@ app.get('/api/calendly/sync', async (req, res) => {
     const me = await meRes.json();
     const userUri = me.resource?.uri;
 
-    // Sync last 90 days
-    const min = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    // Sync last 365 days
+    const min = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
     const max = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
     const evRes = await fetch(`https://api.calendly.com/scheduled_events?user=${encodeURIComponent(userUri)}&status=active&count=100&min_start_time=${encodeURIComponent(min)}&max_start_time=${encodeURIComponent(max)}`, {
       headers: { Authorization: `Bearer ${token}` },
