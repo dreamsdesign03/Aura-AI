@@ -77,6 +77,8 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
       );
     `);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ;`);
+    await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS user_id INT;`);
+    await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS recipient_email TEXT;`);
     console.log('[Startup Migration] ✅ All migrations complete.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
@@ -747,11 +749,11 @@ async function getTransporter(userId) {
       }
     } catch {}
   }
-  const host = config.host || process.env.SMTP_HOST || 'smtp-relay.brevo.com';
+  const host = config.host || process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = config.port || Number(process.env.SMTP_PORT) || 587;
-  const user = config.user || process.env.SMTP_USER || '';
+  const user = config.user || process.env.SMTP_USER || 'dreamsdesign.in03@gmail.com';
   const pass = config.pass || process.env.SMTP_PASS || '';
-  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'info@dreamsdesign.ca';
+  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'dreamsdesign.in03@gmail.com';
   const fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura AI';
 
   const transporter = nodemailer.createTransport({
@@ -3608,7 +3610,7 @@ app.get('/api/settings/smtp', async (req, res) => {
   try {
     const userId = await resolveUserId(req.query.email, req.headers.cookie);
     if (!userId) return res.json({ host: '', port: 587, user: '', fromEmail: '', fromName: '' });
-    const sRes = await db.query('SELECT host, port, user, from_email, from_name FROM smtp_settings WHERE user_id = $1', [userId]);
+    const sRes = await db.query('SELECT host, port, smtp_user, from_email, from_name FROM smtp_settings WHERE user_id = $1', [userId]);
     if (sRes.rows.length > 0) {
       const s = sRes.rows[0];
       res.json({ host: s.host || '', port: s.port || 587, user: s.smtp_user || '', fromEmail: s.from_email || '', fromName: s.from_name || '' });
