@@ -725,10 +725,10 @@ Best regards,
 Aura AI Growth Team`;
 
     const insertRes = await db.query(
-      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, subject, body, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'draft', NOW())
+      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'draft', NOW())
        RETURNING *`,
-      [userId, leadId ? Number(leadId) : null, recipientEmail, subject, body]
+      [userId, leadId ? Number(leadId) : null, recipientEmail, recipientEmail, contactName, company, subject, body]
     );
 
     res.status(201).json(insertRes.rows[0]);
@@ -864,11 +864,15 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
 
     // Save to outreach_emails if we have a lead
     if (leadId && userId) {
-      await db.query(
-        `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, subject, body, status, sent_at, created_at)
-         VALUES ($1, $2, $3, $4, $5, 'sent', NOW(), NOW())`,
-        [userId, leadId, toEmail, subject || '', body || '']
-      );
+      try {
+        await db.query(
+          `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, sent_at, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sent', NOW(), NOW())`,
+          [userId, leadId, toEmail, toEmail, toName || '', req.body.data?.company || '', subject || '', body || '']
+        );
+      } catch (dbErr) {
+        console.error('[outreach] Failed to save to outreach_emails:', dbErr.message);
+      }
     }
 
     console.log(`[outreach] Quick email sent to ${toEmail}`);
