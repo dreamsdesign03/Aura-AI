@@ -250,7 +250,7 @@ export default function Outreach() {
                 </p>
               </div>) : (tabEmails.map((email) => {
             const isSelected = selectedId === email.id;
-            const isGen = generating?.leadId === email.leadId && generating.status === "running";
+            const isGen = generating?.leadId === email.leadId && generating?.status === "running";
             return (<button key={email.id} onClick={() => {
                     setSelectedId(email.id);
                     setIsEditing(false);
@@ -394,14 +394,14 @@ export default function Outreach() {
               </div>
 
               {/* Generation progress */}
-              {generating?.leadId === selected.leadId && generating.status === "running" && (<div className="px-6 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-xs text-amber-700 font-medium flex-shrink-0">
+              {generating?.leadId === selected.leadId && generating?.status === "running" && (<div className="px-6 py-2 bg-amber-50 border-b border-amber-100 flex items-center gap-2 text-xs text-amber-700 font-medium flex-shrink-0">
                   <Zap className="w-3.5 h-3.5 animate-pulse"/>
                   {generating.message}
                 </div>)}
-              {generating?.leadId === selected.leadId && generating.status === "done" && (<div className="px-6 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2 text-xs text-emerald-700 font-medium flex-shrink-0">
+              {generating?.leadId === selected.leadId && generating?.status === "done" && (<div className="px-6 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center gap-2 text-xs text-emerald-700 font-medium flex-shrink-0">
                   <CheckCircle2 className="w-3.5 h-3.5"/> Email generated successfully!
                 </div>)}
-              {generating?.leadId === selected.leadId && generating.status === "error" && (<div className="px-6 py-2 bg-red-50 border-b border-red-100 flex items-center gap-2 text-xs text-red-700 font-medium flex-shrink-0">
+              {generating?.leadId === selected.leadId && generating?.status === "error" && (<div className="px-6 py-2 bg-red-50 border-b border-red-100 flex items-center gap-2 text-xs text-red-700 font-medium flex-shrink-0">
                   <XCircle className="w-3.5 h-3.5"/> {generating.message}
                 </div>)}
 

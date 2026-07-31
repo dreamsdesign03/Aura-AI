@@ -88,6 +88,15 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
   }
 })();
 
+// Client error reporting from ErrorBoundary
+app.post('/api/client-error', (req, res) => {
+  const { error, stack, componentStack, url } = req.body || {};
+  console.error(`[ClientError] ${url || 'unknown url'}:`, error || 'unknown error');
+  console.error(`[ClientError] componentStack: ${(componentStack || '').slice(0, 500)}`);
+  console.error(`[ClientError] stack: ${(stack || '').slice(0, 800)}`);
+  res.json({ success: true });
+});
+
 // 1. Health check & DB connection test
 app.get('/api/health', async (req, res) => {
   try {
