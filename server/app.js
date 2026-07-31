@@ -79,6 +79,9 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS user_id INT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS recipient_email TEXT;`);
+    await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS to_email TEXT;`);
+    await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS to_name TEXT;`);
+    await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS company TEXT;`);
     console.log('[Startup Migration] ✅ All migrations complete.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
