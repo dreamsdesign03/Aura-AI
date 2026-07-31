@@ -1,29 +1,15 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { useGetAvailableSlots, useListAppointments, useCreateAppointment, useUpdateAppointment, useDeleteAppointment, useListMeetings, useUpdateMeeting, useDeleteMeeting, useListLeads, getListAppointmentsQueryKey, getListMeetingsQueryKey, } from "@workspace/api-client-react";
+import { useListAppointments, useUpdateAppointment, useDeleteAppointment, useListMeetings, useUpdateMeeting, useDeleteMeeting, useListLeads, getListAppointmentsQueryKey, getListMeetingsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, Brain, ExternalLink, } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, Brain, ExternalLink, RefreshCw, } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewMeetingModal, downloadICS, MEETING_TYPES } from "@/components/NewMeetingModal";
 import TranscriptModal from "@/components/TranscriptModal";
-// ── Constants ─────────────────────────────────────────────────────────────────
-const SERVICES = [
-    "Business Growth Consulting",
-    "SEO & Lead Generation",
-    "D2C Development / Marketing",
-    "Ecommerce Development",
-    "Website Development",
-    "Digital Marketing & Brand Awareness",
-    "Branding & Identity Management",
-    "Mobile Apps and Software Development",
-    "Marketing Automation & Funnel Development",
-    "Films, Videos and Corporate Identity",
-    "Other",
-];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
+import CalendlyEmbed from "@/components/CalendlyEmbed";
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const DESCRIPTION = `Hello there,
-PLEASE READ BELOW BEFORE BOOKING THE CALL 👇
+PLEASE READ BELOW BEFORE BOOKING THE CALL ðŸ‘‡
 
 1. I want to respect your time & mine so please fill out the form only if you are serious and available on given time.
 2. Please REVIEW the form carefully before booking
@@ -32,15 +18,7 @@ Can't wait to speak with you! =)
 
 Thanks,
 Krishna Puranik`;
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function toYMD(d) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-function formatDisplayDate(dateStr, timeLabel) {
-    const d = new Date(dateStr + "T00:00:00");
-    const full = d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-    return timeLabel ? `${full} at ${timeLabel}` : full;
-}
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function statusColor(s) {
     if (s === "confirmed")
         return { bg: "#dcfce7", text: "#16a34a" };
@@ -50,7 +28,7 @@ function statusColor(s) {
         return { bg: "#fee2e2", text: "#dc2626" };
     return { bg: "#f3f4f6", text: "#6b7280" };
 }
-// ── HostPanel (left side, shared across all steps) ───────────────────────────
+// â”€â”€ HostPanel (left side, shared across all steps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function HostPanel({ selectedDate, selectedTimeLabel }) {
     return (<div className="w-64 flex-shrink-0 border-r border-gray-200 p-7 flex flex-col gap-5">
       <div className="flex flex-col items-start gap-3">
@@ -90,426 +68,22 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
       </div>
     </div>);
 }
-// ── Step 1: Calendar + Time Slots ─────────────────────────────────────────────
-function CalendarStep({ onSelect }) {
-    const today = new Date();
-    const [viewYear, setViewYear] = useState(today.getFullYear());
-    const [viewMonth, setViewMonth] = useState(today.getMonth()); // 0-indexed
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [selectedTime, setSelectedTime] = useState(null);
-    const todayStr = toYMD(today);
-    // Days in viewed month
-    const firstDay = new Date(viewYear, viewMonth, 1);
-    const lastDay = new Date(viewYear, viewMonth + 1, 0);
-    // ISO: 0=Mon..6=Sun
-    const startPad = (firstDay.getDay() + 6) % 7; // days before first of month
-    const totalCells = startPad + lastDay.getDate();
-    const rows = Math.ceil(totalCells / 7);
-    const cells = Array(rows * 7).fill(null);
-    for (let i = 0; i < lastDay.getDate(); i++)
-        cells[startPad + i] = i + 1;
-    function prevMonth() {
-        if (viewMonth === 0) {
-            setViewYear(y => y - 1);
-            setViewMonth(11);
-        }
-        else
-            setViewMonth(m => m - 1);
-        setSelectedDate(null);
-    }
-    function nextMonth() {
-        if (viewMonth === 11) {
-            setViewYear(y => y + 1);
-            setViewMonth(0);
-        }
-        else
-            setViewMonth(m => m + 1);
-        setSelectedDate(null);
-    }
-    function getDateStr(day) {
-        return `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    }
-    function isDayAvailable(day) {
-        const ds = getDateStr(day);
-        if (ds < todayStr)
-            return false;
-        const d = new Date(ds + "T00:00:00");
-        return d.getDay() !== 0; // Sunday blocked
-    }
-    // Fetch slots when date selected
-    const { data: slotsData, isFetching: slotsFetching } = useGetAvailableSlots({ date: selectedDate ?? "" }, { query: { enabled: !!selectedDate, queryKey: ["slots", selectedDate] } });
-    const slots = slotsData?.slots ?? [];
-    // Can we go back? Only if not already at current month
-    const canPrev = viewYear > today.getFullYear() || (viewYear === today.getFullYear() && viewMonth > today.getMonth());
-    return (<div className="flex flex-1 min-h-0">
-      {/* Calendar */}
-      <div className="flex-1 p-7 border-r border-gray-200">
-        <h2 className="text-base font-bold text-gray-900 mb-5">Select a Date &amp; Time</h2>
-
-        <div className="flex items-center justify-between mb-4">
-          <button onClick={prevMonth} disabled={!canPrev} className="p-1.5 rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
-            <ChevronLeft className="w-4 h-4 text-gray-600"/>
-          </button>
-          <span className="text-sm font-semibold text-gray-900">{MONTHS[viewMonth]} {viewYear}</span>
-          <button onClick={nextMonth} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-            <ChevronRight className="w-4 h-4 text-gray-600"/>
-          </button>
-        </div>
-
-        {/* Grid */}
-        <div className="grid grid-cols-7 mb-2">
-          {DAY_LABELS.map(d => (<div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>))}
-        </div>
-        <div className="grid grid-cols-7 gap-y-1">
-          {cells.map((day, idx) => {
-            if (!day)
-                return <div key={idx}/>;
-            const ds = getDateStr(day);
-            const available = isDayAvailable(day);
-            const isSelected = ds === selectedDate;
-            const isToday = ds === todayStr;
-            return (<button key={idx} disabled={!available} onClick={() => { setSelectedDate(ds); setSelectedTime(null); }} className={cn("mx-auto w-9 h-9 rounded-full text-sm font-medium flex items-center justify-center transition-all relative", isSelected
-                    ? "text-white shadow-sm"
-                    : available
-                        ? "text-gray-800 hover:border-2 hover:border-[#1A3D2B] hover:text-[#1A3D2B]"
-                        : "text-gray-300 cursor-not-allowed")} style={isSelected ? { background: "#1A3D2B" } : undefined}>
-                {day}
-                {isToday && !isSelected && (<span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-[#1A3D2B]"/>)}
-              </button>);
-        })}
-        </div>
-
-        <div className="mt-5 flex items-center gap-2 text-[11px] text-gray-400">
-          <div className="w-3 h-3 rounded-full border border-gray-300 flex items-center justify-center">
-            <div className="w-1.5 h-1.5 rounded-full bg-gray-400"/>
-          </div>
-          Time zone: India Standard Time (IST)
-        </div>
-      </div>
-
-      {/* Time Slots */}
-      {selectedDate && (<div className="w-48 p-7 flex flex-col">
-          <div className="text-sm font-semibold text-gray-900 mb-4">
-            {new Date(selectedDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
-          </div>
-          {slotsFetching ? (<div className="flex items-center gap-2 text-xs text-gray-400">
-              <Loader2 className="w-3.5 h-3.5 animate-spin"/> Loading…
-            </div>) : slots.length === 0 ? (<div className="text-xs text-gray-400">No times available on this day.</div>) : (<div className="flex flex-col gap-2 overflow-y-auto" style={{ maxHeight: "380px" }}>
-              {slots.map((slot) => (<button key={slot.time} onClick={() => {
-                        if (selectedTime === slot.time) {
-                            onSelect(selectedDate, slot.time, slot.label);
-                        }
-                        else {
-                            setSelectedTime(slot.time);
-                        }
-                    }} className={cn("py-2.5 rounded-lg text-sm font-semibold border-2 transition-all", selectedTime === slot.time
-                        ? "text-white border-transparent"
-                        : "bg-white border-[#1A3D2B] text-[#1A3D2B] hover:bg-green-50")} style={selectedTime === slot.time ? { background: "#1A3D2B" } : undefined}>
-                  {selectedTime === slot.time ? "Confirm →" : slot.label}
-                </button>))}
-            </div>)}
-        </div>)}
-    </div>);
-}
-function DetailsStep({ selectedDate, selectedTime, selectedTimeLabel, onBack, onSubmit, submitting, error, }) {
-    const [form, setForm] = useState({
-        name: "", email: "", phone: "", location: "meet",
-        businessSummary: "", specificProblem: "", desiredResult: "", whyCanHelp: "",
-        investmentWillingness: "", minInvestmentConfirm: "", startSoon: "", businessPartner: "",
-        services: [], otherService: "",
-    });
-    const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-    const toggleService = (svc) => {
-        set("services", form.services.includes(svc)
-            ? form.services.filter(s => s !== svc)
-            : [...form.services, svc]);
-    };
-    const labelCls = "block text-[11px] font-semibold text-gray-700 mb-1.5";
-    const inputCls = "w-full text-sm rounded-lg border border-gray-200 bg-white text-gray-900 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-700/20 focus:border-green-700 transition-colors";
-    const textareaCls = inputCls + " resize-none";
-    return (<div className="flex-1 overflow-y-auto p-7">
-      <div className="flex items-center gap-3 mb-6">
-        <button onClick={onBack} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors">
-          <ChevronLeft className="w-4 h-4 text-gray-600"/>
-        </button>
-        <h2 className="text-base font-bold text-gray-900">Enter Details</h2>
-      </div>
-
-      <div className="space-y-5 max-w-lg">
-        {/* Name */}
-        <div>
-          <label className={labelCls}>Name <span className="text-red-500">*</span></label>
-          <input value={form.name} onChange={e => set("name", e.target.value)} className={inputCls} required/>
-        </div>
-
-        {/* Email */}
-        <div>
-          <label className={labelCls}>Email <span className="text-red-500">*</span></label>
-          <input type="email" value={form.email} onChange={e => set("email", e.target.value)} className={inputCls} required/>
-        </div>
-
-        {/* Location */}
-        <div>
-          <label className={labelCls}>Location <span className="text-red-500">*</span></label>
-          <div className="space-y-2">
-            {[
-            { val: "zoom", label: "Zoom", icon: <Video className="w-4 h-4 text-blue-500"/> },
-            { val: "inperson", label: "In-person – Vadodara", icon: <MapPin className="w-4 h-4 text-red-500"/> },
-        ].map(opt => (<label key={opt.val} className={cn("flex items-center gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition-all", form.location === opt.val ? "border-green-700 bg-green-50" : "border-gray-200 hover:border-gray-300")}>
-                <input type="radio" name="location" value={opt.val} checked={form.location === opt.val} onChange={() => set("location", opt.val)} className="accent-green-700"/>
-                {opt.icon}
-                <span className="text-sm text-gray-800 font-medium">{opt.label}</span>
-              </label>))}
-          </div>
-        </div>
-
-        {/* Phone */}
-        <div>
-          <label className={labelCls}>Your Call &amp; WhatsApp No <span className="text-red-500">*</span></label>
-          <div className="flex">
-            <div className="flex items-center gap-1.5 px-3 py-2.5 border border-r-0 border-gray-200 rounded-l-lg bg-gray-50 text-sm text-gray-700 whitespace-nowrap">
-              🇮🇳 +91
-            </div>
-            <input value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="98765 43210" className="flex-1 text-sm border border-gray-200 rounded-r-lg bg-white text-gray-900 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-700/20 focus:border-green-700"/>
-          </div>
-        </div>
-
-        {/* Business summary */}
-        <div>
-          <label className={labelCls}>
-            Please provide a brief summary of your business &amp; what it is that you do?
-            <span className="text-red-500"> *</span>
-          </label>
-          <textarea rows={3} value={form.businessSummary} onChange={e => set("businessSummary", e.target.value)} className={textareaCls} required/>
-        </div>
-
-        {/* Specific problem */}
-        <div>
-          <label className={labelCls}>
-            What specific problem are you facing right now in your business and would you like us to talk about?
-            <span className="text-red-500"> *</span>
-          </label>
-          <textarea rows={3} value={form.specificProblem} onChange={e => set("specificProblem", e.target.value)} className={textareaCls} required/>
-        </div>
-
-        {/* Desired result */}
-        <div>
-          <label className={labelCls}>
-            What is your Desired Result in terms of Income Goal that you want to achieve in the next 3-6 months?
-            <span className="text-red-500"> *</span>
-          </label>
-          <input value={form.desiredResult} onChange={e => set("desiredResult", e.target.value)} className={inputCls} required/>
-        </div>
-
-        {/* Why can I help */}
-        <div>
-          <label className={labelCls}>
-            Why do you believe I can help you to grow your business?
-            <span className="text-red-500"> *</span>
-          </label>
-          <input value={form.whyCanHelp} onChange={e => set("whyCanHelp", e.target.value)} className={inputCls} required/>
-        </div>
-
-        {/* Investment willingness */}
-        <div>
-          <label className={labelCls}>
-            How willing and able are you to invest in solving your problem right now?
-            <span className="text-red-500"> *</span>
-          </label>
-          <div className="space-y-2.5">
-            {[
-            "I have the financial resources and am ready to invest in my business right now.",
-            "I have access to the resources to invest if I needed them.",
-            "I don't have the resources to invest.",
-        ].map(opt => (<label key={opt} className="flex items-start gap-2.5 cursor-pointer group">
-                <div className={cn("mt-0.5 w-4 h-4 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-all", form.investmentWillingness === opt ? "border-green-700" : "border-gray-300 group-hover:border-gray-400")}>
-                  {form.investmentWillingness === opt && (<div className="w-2 h-2 rounded-full bg-green-700"/>)}
-                </div>
-                <input type="radio" name="investmentWillingness" value={opt} checked={form.investmentWillingness === opt} onChange={() => set("investmentWillingness", opt)} className="sr-only"/>
-                <span className="text-sm text-gray-700 leading-relaxed">{opt}</span>
-              </label>))}
-          </div>
-        </div>
-
-        {/* Min investment */}
-        <div>
-          <label className={labelCls}>
-            If we are a good fit, would you be able to invest a minimum of $1000 / INR 81,000 to get started with the project?
-            <span className="text-red-500"> *</span>
-          </label>
-          <input value={form.minInvestmentConfirm} onChange={e => set("minInvestmentConfirm", e.target.value)} className={inputCls} required/>
-        </div>
-
-        {/* How soon */}
-        <div>
-          <label className={labelCls}>
-            If we are a fit, how soon can you get started?
-            <span className="text-red-500"> *</span>
-          </label>
-          <input value={form.startSoon} onChange={e => set("startSoon", e.target.value)} className={inputCls} required/>
-        </div>
-
-        {/* Business partner */}
-        <div>
-          <label className={labelCls}>
-            Do you have anyone else (business partner, significant other, etc.) who should be on the call to help you make a decision?
-          </label>
-          <input value={form.businessPartner} onChange={e => set("businessPartner", e.target.value)} className={inputCls}/>
-        </div>
-
-        {/* Services */}
-        <div>
-          <label className={labelCls}>If you are aware then choose for which solutions you would like to consult us.</label>
-          <div className="space-y-2.5">
-            {SERVICES.map(svc => (<label key={svc} className="flex items-center gap-2.5 cursor-pointer group">
-                <div className={cn("w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all", form.services.includes(svc) ? "bg-green-700 border-green-700" : "border-gray-300 group-hover:border-gray-400")}>
-                  {form.services.includes(svc) && (<svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 12 12">
-                      <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>)}
-                </div>
-                <input type="checkbox" value={svc} checked={form.services.includes(svc)} onChange={() => toggleService(svc)} className="sr-only"/>
-                <span className="text-sm text-gray-700">{svc}</span>
-              </label>))}
-            {form.services.includes("Other") && (<div className="ml-6.5 mt-2">
-                <input value={form.otherService} onChange={e => set("otherService", e.target.value)} placeholder="Please specify…" className={inputCls + " text-sm"}/>
-              </div>)}
-          </div>
-        </div>
-
-        {error && (<div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 rounded-lg border border-red-100 text-xs text-red-600">
-            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"/> {error}
-          </div>)}
-
-        <div className="text-[11px] text-gray-400 leading-relaxed">
-          By proceeding, you confirm that you have read and agree to our{" "}
-          <a href="https://dreamsdesign.ca" target="_blank" rel="noreferrer" className="text-green-700 underline">Privacy Policy</a>.
-        </div>
-
-        <button onClick={() => onSubmit(form)} disabled={submitting || !form.name || !form.email || !form.businessSummary || !form.specificProblem || !form.desiredResult || !form.whyCanHelp || !form.investmentWillingness || !form.minInvestmentConfirm || !form.startSoon} className="w-full py-3 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2" style={{ background: "#1A3D2B" }}>
-          {submitting
-            ? <><Loader2 className="w-4 h-4 animate-spin"/> Scheduling…</>
-            : "Schedule Event"}
-        </button>
-      </div>
-    </div>);
-}
-// ── Step 3: Confirmation ──────────────────────────────────────────────────────
-function ConfirmStep({ appointment, onBookAnother }) {
-    const [hStr, mStr] = appointment.scheduledTime.split(":");
-    const h = Number(hStr);
-    const suffix = h >= 12 ? "PM" : "AM";
-    const h12 = h > 12 ? h - 12 : h === 0 ? 12 : h;
-    const timeLabel = `${h12}:${mStr} ${suffix} IST`;
-    const dateLabel = new Date(appointment.scheduledDate + "T00:00:00").toLocaleDateString("en-US", {
-        weekday: "long", year: "numeric", month: "long", day: "numeric",
-    });
-    return (<div className="flex-1 flex flex-col items-center justify-center p-10 text-center gap-5">
-      <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
-        <CheckCircle2 className="w-9 h-9 text-green-600"/>
-      </div>
-      <div>
-        <div className="text-xl font-bold text-gray-900 mb-1">You're scheduled!</div>
-        <div className="text-sm text-gray-500">A confirmation email has been sent to <strong>{appointment.email}</strong></div>
-      </div>
-      <div className="bg-gray-50 rounded-xl border border-gray-200 px-6 py-5 text-left space-y-3 w-full max-w-sm">
-        <div className="flex items-start gap-3">
-          <CalendarDays className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0"/>
-          <div>
-            <div className="text-xs text-gray-500">Date &amp; Time</div>
-            <div className="text-sm font-semibold text-gray-800">{dateLabel}</div>
-            <div className="text-sm text-gray-600">{timeLabel}</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <Clock className="w-4 h-4 text-gray-400 flex-shrink-0"/>
-          <div>
-            <div className="text-xs text-gray-500">Duration</div>
-            <div className="text-sm font-semibold text-gray-800">45 minutes</div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {appointment.location === "meet"
-            ? <Video className="w-4 h-4 text-blue-500 flex-shrink-0"/>
-            : <MapPin className="w-4 h-4 text-red-500 flex-shrink-0"/>}
-          <div>
-            <div className="text-xs text-gray-500">Location</div>
-            <div className="text-sm font-semibold text-gray-800">
-              {appointment.location === "meet" ? "Google Meet (link sent before call)" : "In-person – Vadodara"}
-            </div>
-          </div>
-        </div>
-      </div>
-      <button onClick={onBookAnother} className="text-xs font-semibold text-green-700 hover:underline mt-2">
-        Book another time
-      </button>
-    </div>);
-}
-// ── Booking Widget (wraps all 3 steps) ────────────────────────────────────────
+// â”€â”€ Booking Widget (Calendly embed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function BookingWidget() {
-    const qc = useQueryClient();
-    const [step, setStep] = useState(1);
-    const [selectedDate, setSelectedDate] = useState(null);
-    const [selectedTime, setSelectedTime] = useState(null);
-    const [selectedTimeLabel, setSelectedTimeLabel] = useState(null);
-    const [bookedAppt, setBookedAppt] = useState(null);
-    const [submitting, setSubmitting] = useState(false);
-    const [submitError, setSubmitError] = useState(null);
-    const createAppt = useCreateAppointment({
-        mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() }) },
-    });
-    const handleSlotSelected = (date, time, label) => {
-        setSelectedDate(date);
-        setSelectedTime(time);
-        setSelectedTimeLabel(label);
-        setStep(2);
-    };
-    const handleSubmit = async (fd) => {
-        if (!selectedDate || !selectedTime)
-            return;
-        setSubmitting(true);
-        setSubmitError(null);
-        try {
-            const result = await createAppt.mutateAsync({
-                data: {
-                    name: fd.name, email: fd.email, phone: fd.phone,
-                    scheduledDate: selectedDate, scheduledTime: selectedTime,
-                    location: fd.location,
-                    businessSummary: fd.businessSummary, specificProblem: fd.specificProblem,
-                    desiredResult: fd.desiredResult, whyCanHelp: fd.whyCanHelp,
-                    investmentWillingness: fd.investmentWillingness, minInvestmentConfirm: fd.minInvestmentConfirm,
-                    startSoon: fd.startSoon, businessPartner: fd.businessPartner,
-                    services: fd.services, otherService: fd.otherService,
-                },
-            });
-            setBookedAppt(result);
-            setStep(3);
-        }
-        catch (e) {
-            setSubmitError(e.message ?? "Booking failed. Please try again.");
-        }
-        finally {
-            setSubmitting(false);
-        }
-    };
-    const resetBooking = () => {
-        setStep(1);
-        setSelectedDate(null);
-        setSelectedTime(null);
-        setSelectedTimeLabel(null);
-        setBookedAppt(null);
-        setSubmitError(null);
-    };
     return (<div className="flex items-start justify-center py-8 px-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(900px, 100%)", minHeight: "560px" }}>
-        <HostPanel selectedDate={step > 1 ? selectedDate ?? undefined : undefined} selectedTimeLabel={step > 1 ? selectedTimeLabel ?? undefined : undefined}/>
-
-        {step === 1 && <CalendarStep onSelect={handleSlotSelected}/>}
-        {step === 2 && selectedDate && selectedTime && selectedTimeLabel && (<DetailsStep selectedDate={selectedDate} selectedTime={selectedTime} selectedTimeLabel={selectedTimeLabel} onBack={() => setStep(1)} onSubmit={handleSubmit} submitting={submitting} error={submitError}/>)}
-        {step === 3 && bookedAppt && (<ConfirmStep appointment={bookedAppt} onBookAnother={resetBooking}/>)}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(1000px, 100%)", minHeight: "620px" }}>
+        <HostPanel/>
+        <div className="flex-1 p-6 overflow-y-auto">
+          <div className="mb-4">
+            <div className="text-base font-bold text-gray-900">Schedule your Growth Discovery Call</div>
+            <div className="text-xs text-gray-500 mt-0.5">Pick a time â€” confirmation &amp; calendar invite are sent automatically by Calendly.</div>
+          </div>
+          <CalendlyEmbed height={600}/>
+        </div>
       </div>
     </div>);
 }
-// ── Admin Bookings View ───────────────────────────────────────────────────────
+// â”€â”€ Admin Bookings View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function AdminView() {
     const qc = useQueryClient();
     const { data: appts = [], isLoading } = useListAppointments();
@@ -518,6 +92,26 @@ function AdminView() {
     const deleteAppt = useDeleteAppointment({
         mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() }) },
     });
+    const [syncing, setSyncing] = useState(false);
+    const [syncError, setSyncError] = useState("");
+    async function syncCalendly() {
+        setSyncing(true);
+        setSyncError("");
+        try {
+            const r = await fetch("/api/calendly/sync");
+            const j = await r.json();
+            if (!r.ok || j.error) {
+                setSyncError(j.error ?? "Calendly sync failed. Is CALENDLY_TOKEN set?");
+            }
+            qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() });
+        }
+        catch {
+            setSyncError("Network error during Calendly sync.");
+        }
+        finally {
+            setSyncing(false);
+        }
+    }
     const [activeId, setActiveId] = useState(null);
     const active = appointments.find(a => a.id === activeId);
     async function handleStatusChange(id, status) {
@@ -549,6 +143,13 @@ function AdminView() {
           <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
             Appointments ({appointments.length})
           </span>
+          <div className="flex items-center gap-1.5">
+            {syncError && <span className="text-[10px] text-red-500 max-w-[140px] truncate">{syncError}</span>}
+            <button onClick={syncCalendly} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-green-700 text-green-800 hover:bg-green-50 disabled:opacity-60" title="Sync bookings from Calendly">
+              <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")}/>
+              {syncing ? "Syncingâ€¦" : "Sync Calendly"}
+            </button>
+          </div>
         </div>
 
         {isLoading ? (<div className="p-4 space-y-3">
@@ -609,12 +210,12 @@ function AdminView() {
                   {active.phone && <div className="text-sm text-gray-500">{active.phone}</div>}
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
                     <CalendarDays className="w-3.5 h-3.5 text-gray-400"/>
-                    {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {activeTimeLabel}
+                    {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} Â· {activeTimeLabel}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
                     {active.location === "meet"
                 ? <><Video className="w-3.5 h-3.5 text-blue-500"/> Google Meet</>
-                : <><MapPin className="w-3.5 h-3.5 text-red-500"/> In-person – Vadodara</>}
+                : <><MapPin className="w-3.5 h-3.5 text-red-500"/> In-person â€“ Vadodara</>}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {active.meetingLink && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
@@ -683,7 +284,7 @@ function AdminView() {
         })()}
     </>);
 }
-// ── CRM Meetings View ─────────────────────────────────────────────────────────
+// â”€â”€ CRM Meetings View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const MEETING_STATUSES = ["scheduled", "confirmed", "completed", "cancelled", "no_show"];
 function toDatetimeLocal(isoStr) {
     const d = new Date(isoStr);
@@ -853,7 +454,7 @@ function CrmMeetingsView() {
             <CalendarDays className="w-8 h-8 text-gray-200 mb-3"/>
             <div className="text-sm text-gray-400">Select a meeting to view details</div>
           </div>) : isEditing && editForm ? (
-        /* ── Edit form ── */
+        /* â”€â”€ Edit form â”€â”€ */
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -918,14 +519,14 @@ function CrmMeetingsView() {
                     </button>
                     <button onClick={handleSave} disabled={updateMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#1A3D2B" }}>
                       {updateMeeting.isPending
-                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Saving…</>
+                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Savingâ€¦</>
                         : "Save Changes"}
                     </button>
                   </div>
                 </div>);
             })()}
           </div>) : (
-        /* ── Read-only detail view ── */
+        /* â”€â”€ Read-only detail view â”€â”€ */
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <div className="flex items-start justify-between">
               <div>
@@ -941,7 +542,7 @@ function CrmMeetingsView() {
                 </div>
                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                   <Clock className="w-3.5 h-3.5 text-gray-400"/>
-                  {activeMeeting.duration} min · <span className="capitalize">{activeMeeting.type.replace(/_/g, " ")}</span>
+                  {activeMeeting.duration} min Â· <span className="capitalize">{activeMeeting.type.replace(/_/g, " ")}</span>
                 </div>
                 {activeMeeting.meetingUrl && (<div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                     {activeMeeting.meetingUrl.startsWith("http")
@@ -1023,7 +624,7 @@ function CrmMeetingsView() {
               </button>
               <button onClick={() => handleDelete(confirmDeleteId)} disabled={deleteMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#dc2626" }}>
                 {deleteMeeting.isPending
-                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Deleting…</>
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Deletingâ€¦</>
                     : "Delete"}
               </button>
             </div>
@@ -1032,16 +633,16 @@ function CrmMeetingsView() {
         })()}
     </>);
 }
-// ── Main Meetings page ────────────────────────────────────────────────────────
+// â”€â”€ Main Meetings page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export default function Meetings() {
     const [mainTab, setMainTab] = useState("manage");
     return (<div className="min-h-screen" style={{ background: "#f5f5f5" }}>
       {/* Tab bar */}
       <div className="bg-white border-b border-gray-200 px-6 flex items-center gap-1">
         {([
-            { key: "book", label: "📅 Book a Meeting", icon: <Calendar className="w-3.5 h-3.5"/> },
-            { key: "manage", label: "📋 Manage Bookings", icon: <Users className="w-3.5 h-3.5"/> },
-            { key: "crm", label: "🤝 CRM Meetings", icon: <CalendarDays className="w-3.5 h-3.5"/> },
+            { key: "book", label: "ðŸ“… Book a Meeting", icon: <Calendar className="w-3.5 h-3.5"/> },
+            { key: "manage", label: "ðŸ“‹ Manage Bookings", icon: <Users className="w-3.5 h-3.5"/> },
+            { key: "crm", label: "ðŸ¤ CRM Meetings", icon: <CalendarDays className="w-3.5 h-3.5"/> },
         ]).map(tab => (<button key={tab.key} onClick={() => setMainTab(tab.key)} className={cn("flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px", mainTab === tab.key
                 ? "border-green-700 text-green-800"
                 : "border-transparent text-gray-400 hover:text-gray-700")}>

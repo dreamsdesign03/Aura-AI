@@ -82,6 +82,26 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS to_email TEXT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS to_name TEXT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS company TEXT;`);
+
+    // Ensure calendly_events table exists (synced Calendly bookings)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS calendly_events (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        calendly_uri TEXT UNIQUE,
+        invitee_uri TEXT,
+        invitee_name TEXT,
+        invitee_email TEXT,
+        event_name TEXT,
+        start_time TIMESTAMPTZ,
+        end_time TIMESTAMPTZ,
+        status TEXT DEFAULT 'confirmed',
+        location TEXT,
+        meeting_link TEXT,
+        questions JSONB DEFAULT '[]',
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
     console.log('[Startup Migration] ✅ All migrations complete.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
@@ -95,6 +115,231 @@ app.post('/api/client-error', (req, res) => {
   console.error(`[ClientError] componentStack: ${(componentStack || '').slice(0, 500)}`);
   console.error(`[ClientError] stack: ${(stack || '').slice(0, 800)}`);
   res.json({ success: true });
+});
+
+// ── Calendly integration ──────────────────────────────────────────────────────
+function extractLocation(event) {
+  const loc = event?.location;
+  if (!loc) return { location: 'meet', meetingLink: '' };
+  const type = loc.type || '';
+  if (type === 'google_conference') return { location: 'meet', meetingLink: loc.join_url || '' };
+  if (type === 'zoom') return { location: 'meet', meetingLink: loc.join_url || '' };
+  if (type === 'physical') return { location: 'inperson', meetingLink: loc.location || '' };
+  if (loc.link) return { location: 'meet', meetingLink: loc.link };
+  if (loc.join_url) return { location: 'meet', meetingLink: loc.join_url };
+  return { location: 'meet', meetingLink: '' };
+}
+
+async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
+  const { location, meetingLink } = extractLocation(scheduledEvent);
+  const startIso = scheduledEvent.start_time ? new Date(scheduledEvent.start_time).toISOString() : null;
+  const endIso = scheduledEvent.end_time ? new Date(scheduledEvent.end_time).toISOString() : null;
+  const questions = Array.isArray(invitee?.questions_and_answers) ? invitee.questions_and_answers : [];
+  const qs = questions.reduce((acc, q) => {
+    acc[q.question || ''] = q.answer || '';
+    return acc;
+  }, {});
+  await db.query(
+    `INSERT INTO calendly_events (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, location, meeting_link, questions, created_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+     ON CONFLICT (calendly_uri) DO UPDATE SET
+       invitee_uri = EXCLUDED.invitee_uri,
+       invitee_name = EXCLUDED.invitee_name,
+       invitee_email = EXCLUDED.invitee_email,
+       event_name = EXCLUDED.event_name,
+       start_time = EXCLUDED.start_time,
+       end_time = EXCLUDED.end_time,
+       status = EXCLUDED.status,
+       location = EXCLUDED.location,
+       meeting_link = EXCLUDED.meeting_link,
+       questions = EXCLUDED.questions`,
+    [userId, scheduledEvent.uri, invitee?.uri || null, invitee?.name || 'Invitee', invitee?.email || '', scheduledEvent.name || 'Meeting', startIso, endIso, scheduledEvent.status === 'canceled' ? 'cancelled' : 'confirmed', location, meetingLink, JSON.stringify(qs)]
+  );
+}
+
+function mapCalendlyToAppointment(row) {
+  const dt = row.start_time ? new Date(row.start_time) : null;
+  const dateStr = dt ? `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}` : null;
+  const timeStr = dt ? `${String(dt.getUTCHours()).padStart(2, '0')}:${String(dt.getUTCMinutes()).padStart(2, '0')}` : null;
+  const q = row.questions || {};
+  return {
+    id: row.id,
+    name: row.invitee_name,
+    email: row.invitee_email,
+    phone: q['Phone / WhatsApp'] || q['phone'] || '',
+    scheduledDate: dateStr,
+    scheduledTime: timeStr,
+    location: row.location === 'inperson' ? 'inperson' : 'meet',
+    status: row.status,
+    meetingLink: row.meeting_link || '',
+    businessSummary: q['Please provide a brief summary of your business & what it is that you do?'] || q['business'] || '',
+    specificProblem: q['What specific problem are you facing right now in your business and would you like us to talk about?'] || '',
+    desiredResult: q['What is your Desired Result in terms of Income Goal that you want to achieve in the next 3-6 months?'] || '',
+    investmentWillingness: q['How willing and able are you to invest in solving your problem right now?'] || '',
+    source: 'calendly',
+    calendlyUri: row.calendly_uri,
+    createdAt: row.created_at,
+  };
+}
+
+// Sync bookings from Calendly API
+app.get('/api/calendly/sync', async (req, res) => {
+  try {
+    const token = process.env.CALENDLY_TOKEN;
+    if (!token) return res.status(400).json({ error: 'CALENDLY_TOKEN is not configured.' });
+
+    const userId = await resolveUserId(req.query.email, req.headers.cookie);
+
+    const meRes = await fetch('https://api.calendly.com/users/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!meRes.ok) {
+      const txt = await meRes.text();
+      return res.status(502).json({ error: `Calendly /users/me failed (${meRes.status}): ${txt.slice(0, 200)}` });
+    }
+    const me = await meRes.json();
+    const userUri = me.resource?.uri;
+
+    // Sync last 90 days
+    const min = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    const max = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
+    const evRes = await fetch(`https://api.calendly.com/scheduled_events?user=${encodeURIComponent(userUri)}&status=active&count=100&min_start_time=${encodeURIComponent(min)}&max_start_time=${encodeURIComponent(max)}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!evRes.ok) {
+      const txt = await evRes.text();
+      return res.status(502).json({ error: `Calendly /scheduled_events failed (${evRes.status}): ${txt.slice(0, 200)}` });
+    }
+    const evData = await evRes.json();
+    const events = evData.collection || [];
+
+    let added = 0;
+    let updated = 0;
+    for (const ev of events) {
+      let invitee = null;
+      try {
+        const invRes = await fetch(`${ev.uri}/invitees?count=100`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (invRes.ok) {
+          const invData = await invRes.json();
+          invitee = (invData.collection || [])[0] || null;
+        }
+      } catch (e) {
+        console.error('[calendly] invitees fetch error:', e.message);
+      }
+
+      // Also capture cancelled events in range
+      const existing = await db.query('SELECT id FROM calendly_events WHERE calendly_uri = $1', [ev.uri]);
+      const status = ev.status === 'canceled' ? 'cancelled' : 'confirmed';
+      if (existing.rows.length > 0) {
+        await db.query('UPDATE calendly_events SET status = $1 WHERE calendly_uri = $2', [status, ev.uri]);
+        if (status === 'cancelled') {
+          updated++;
+          continue;
+        }
+      }
+      await upsertCalendlyEvent(userId, ev, invitee);
+      if (existing.rows.length > 0) updated++;
+      else added++;
+    }
+
+    // Mark local events not seen in the range as cancelled if their time passed and Calendly no longer lists them
+    const local = await db.query('SELECT id, calendly_uri, start_time FROM calendly_events WHERE user_id = $1 AND status != $2', [userId, 'cancelled']);
+    const seenUris = new Set(events.map(e => e.uri));
+    let pruned = 0;
+    for (const row of local.rows) {
+      if (!seenUris.has(row.calendly_uri) && row.start_time && new Date(row.start_time).getTime() < Date.now() - 30 * 60 * 1000) {
+        await db.query('UPDATE calendly_events SET status = $1 WHERE id = $2', ['cancelled', row.id]);
+        pruned++;
+      }
+    }
+
+    console.log(`[calendly] Sync complete: ${added} added, ${updated} updated, ${pruned} cancelled`);
+    res.json({ success: true, added, updated, cancelled: pruned, total: events.length });
+  } catch (err) {
+    console.error('[calendly] Sync error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Calendly webhook (real-time: invitee.created / invitee.canceled)
+app.post('/api/calendly/webhook', async (req, res) => {
+  try {
+    const signingKey = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
+    if (signingKey) {
+      const crypto = require('crypto');
+      const signature = req.headers['x-hook-signature'] || '';
+      const rawBody = JSON.stringify(req.body);
+      const expected = crypto.createHmac('sha256', signingKey).update(rawBody).digest('base64');
+      if (signature !== expected) {
+        console.warn('[calendly] Webhook signature mismatch, ignoring');
+        return res.status(401).json({ error: 'Invalid signature' });
+      }
+    } else {
+      console.warn('[calendly] No CALENDLY_WEBHOOK_SIGNING_KEY set, skipping signature verification');
+    }
+
+    const eventName = req.body?.event || '';
+    const payload = req.body?.payload || {};
+    const scheduledEvent = payload.scheduled_event || payload.event || null;
+    const invitee = payload.invitee || null;
+
+    if (!scheduledEvent) {
+      console.log('[calendly] Webhook received with no scheduled_event:', eventName);
+      return res.json({ success: true });
+    }
+
+    const userId = await resolveUserId(null, null);
+    if (eventName === 'invitee.canceled') {
+      await db.query('UPDATE calendly_events SET status = $1 WHERE calendly_uri = $2', ['cancelled', scheduledEvent.uri]);
+      console.log(`[calendly] Webhook cancelled event: ${scheduledEvent.uri}`);
+    } else {
+      await upsertCalendlyEvent(userId, scheduledEvent, invitee);
+      console.log(`[calendly] Webhook upserted event: ${scheduledEvent.name} -> ${invitee?.name || 'invitee'}`);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[calendly] Webhook error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Appointments (powered by Calendly-synced events) ──────────────────────────
+app.get('/api/appointments', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.query.email, req.headers.cookie);
+    const result = await db.query(
+      `SELECT * FROM calendly_events WHERE user_id = $1 ORDER BY start_time DESC`,
+      [userId]
+    );
+    res.json(result.rows.map(mapCalendlyToAppointment));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/appointments/update', async (req, res) => {
+  try {
+    const { id, data } = req.body || {};
+    const status = data?.status || req.body.status;
+    if (!id || !status) return res.status(400).json({ error: 'id and status are required' });
+    await db.query('UPDATE calendly_events SET status = $1 WHERE id = $2', [status, id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/appointments/delete', async (req, res) => {
+  try {
+    const id = req.body?.id;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await db.query('DELETE FROM calendly_events WHERE id = $1', [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 1. Health check & DB connection test
