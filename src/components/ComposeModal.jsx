@@ -220,6 +220,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
         bcc: bcc.trim(),
         attachReport,
         userAttachments: attachedFiles.map((f) => ({ name: f.name, content: f.content })),
+        userEmail: sessionStorage.getItem("aura_user_email") || "",
     });
     const handleSend = async () => {
         if (!selectedLead || !subject.trim() || !getBodyText().trim())
