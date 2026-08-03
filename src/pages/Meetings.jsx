@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useListAppointments, useUpdateAppointment, useDeleteAppointment, useListMeetings, useUpdateMeeting, useDeleteMeeting, useListLeads, getListAppointmentsQueryKey, getListMeetingsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -7,18 +7,19 @@ import { cn } from "@/lib/utils";
 import { NewMeetingModal, downloadICS, MEETING_TYPES } from "@/components/NewMeetingModal";
 import TranscriptModal from "@/components/TranscriptModal";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
-// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Constants ─────────────────────────────────────────────────────────────────
 const DESCRIPTION = `Hello there,
-PLEASE READ BELOW BEFORE BOOKING THE CALL ðŸ‘‡
 
-1. I want to respect your time & mine so please fill out the form only if you are serious and available on given time.
-2. Please REVIEW the form carefully before booking
+PLEASE READ BEFORE BOOKING 👇
 
-Can't wait to speak with you! =)
+1. Fill in the form carefully so Dr. Aditya Shah can prepare for your consultation.
+2. Please review the details before confirming your slot.
+
+Can't wait to help you!
 
 Thanks,
-Krishna Puranik`;
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+Aura Laser & Cosmetic Clinic | Skinnonest`;
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function statusColor(s) {
     if (s === "confirmed")
         return { bg: "#dcfce7", text: "#16a34a" };
@@ -28,23 +29,24 @@ function statusColor(s) {
         return { bg: "#fee2e2", text: "#dc2626" };
     return { bg: "#f3f4f6", text: "#6b7280" };
 }
-// â”€â”€ HostPanel (left side, shared across all steps) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── HostPanel (left side, shared across all steps) ───────────────────────────
 function HostPanel({ selectedDate, selectedTimeLabel }) {
     return (<div className="w-64 flex-shrink-0 border-r border-gray-200 p-7 flex flex-col gap-5">
       <div className="flex flex-col items-start gap-3">
-        <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md" style={{ background: "linear-gradient(135deg,#5C1A8C,#E91E8C)" }}>
-          KP
+        <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md" style={{ background: "linear-gradient(135deg,#0E7490,#DB2777)" }}>
+          AS
         </div>
         <div>
-          <div className="text-[11px] text-gray-500 font-medium">Krishna Puranik</div>
-          <div className="text-base font-bold text-gray-900 mt-0.5 leading-tight">Growth Discovery Call</div>
+          <div className="text-[11px] text-gray-500 font-medium">Dr. Aditya Shah</div>
+          <div className="text-base font-bold text-gray-900 mt-0.5 leading-tight">Clinic Consultation</div>
+          <div className="text-[11px] text-gray-500 font-medium mt-0.5">Aura Laser &amp; Cosmetic Clinic | Skinnonest</div>
         </div>
       </div>
 
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2 text-xs text-gray-600">
           <Clock className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/>
-          <span>45 min</span>
+          <span>30 min</span>
         </div>
         {selectedDate && (<div className="flex items-start gap-2 text-xs text-gray-600">
             <CalendarDays className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 mt-0.5"/>
@@ -68,22 +70,22 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
       </div>
     </div>);
 }
-// â”€â”€ Booking Widget (Calendly embed) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Booking Widget (Calendly embed) ───────────────────────────────────────────
 function BookingWidget() {
     return (<div className="flex items-start justify-center py-8 px-4">
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(1000px, 100%)", minHeight: "620px" }}>
         <HostPanel/>
         <div className="flex-1 p-6 overflow-y-auto">
           <div className="mb-4">
-            <div className="text-base font-bold text-gray-900">Schedule your Growth Discovery Call</div>
-            <div className="text-xs text-gray-500 mt-0.5">Pick a time â€” confirmation &amp; calendar invite are sent automatically by Calendly.</div>
+            <div className="text-base font-bold text-gray-900">Schedule your Clinic Consultation</div>
+            <div className="text-xs text-gray-500 mt-0.5">Pick a time — confirmation &amp; calendar invite are sent automatically by Calendly.</div>
           </div>
           <CalendlyEmbed height={600}/>
         </div>
       </div>
     </div>);
 }
-// â”€â”€ Admin Bookings View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Admin Bookings View ───────────────────────────────────────────────────────
 function AdminView() {
     const qc = useQueryClient();
     const { data: appts = [], isLoading } = useListAppointments();
@@ -147,7 +149,7 @@ function AdminView() {
             {syncError && <span className="text-[10px] text-red-500 max-w-[140px] truncate">{syncError}</span>}
             <button onClick={syncCalendly} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-green-700 text-green-800 hover:bg-green-50 disabled:opacity-60" title="Sync bookings from Calendly">
               <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")}/>
-              {syncing ? "Syncingâ€¦" : "Sync Calendly"}
+              {syncing ? "Syncing…" : "Sync Calendly"}
             </button>
           </div>
         </div>
@@ -210,12 +212,12 @@ function AdminView() {
                   {active.phone && <div className="text-sm text-gray-500">{active.phone}</div>}
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
                     <CalendarDays className="w-3.5 h-3.5 text-gray-400"/>
-                    {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} Â· {activeTimeLabel}
+                    {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {activeTimeLabel}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
                     {active.location === "meet"
                 ? <><Video className="w-3.5 h-3.5 text-blue-500"/> Google Meet</>
-                : <><MapPin className="w-3.5 h-3.5 text-red-500"/> In-person â€“ Vadodara</>}
+                : <><MapPin className="w-3.5 h-3.5 text-red-500"/> In-person – Vadodara</>}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {active.meetingLink && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
@@ -284,7 +286,7 @@ function AdminView() {
         })()}
     </>);
 }
-// â”€â”€ CRM Meetings View â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CRM Meetings View ─────────────────────────────────────────────────────────
 const MEETING_STATUSES = ["scheduled", "confirmed", "completed", "cancelled", "no_show"];
 function toDatetimeLocal(isoStr) {
     const d = new Date(isoStr);
@@ -454,7 +456,7 @@ function CrmMeetingsView() {
             <CalendarDays className="w-8 h-8 text-gray-200 mb-3"/>
             <div className="text-sm text-gray-400">Select a meeting to view details</div>
           </div>) : isEditing && editForm ? (
-        /* â”€â”€ Edit form â”€â”€ */
+        /* ── Edit form ── */
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -519,14 +521,14 @@ function CrmMeetingsView() {
                     </button>
                     <button onClick={handleSave} disabled={updateMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#1A3D2B" }}>
                       {updateMeeting.isPending
-                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Savingâ€¦</>
+                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Saving…</>
                         : "Save Changes"}
                     </button>
                   </div>
                 </div>);
             })()}
           </div>) : (
-        /* â”€â”€ Read-only detail view â”€â”€ */
+        /* ── Read-only detail view ── */
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <div className="flex items-start justify-between">
               <div>
@@ -542,7 +544,7 @@ function CrmMeetingsView() {
                 </div>
                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                   <Clock className="w-3.5 h-3.5 text-gray-400"/>
-                  {activeMeeting.duration} min Â· <span className="capitalize">{activeMeeting.type.replace(/_/g, " ")}</span>
+                  {activeMeeting.duration} min · <span className="capitalize">{activeMeeting.type.replace(/_/g, " ")}</span>
                 </div>
                 {activeMeeting.meetingUrl && (<div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                     {activeMeeting.meetingUrl.startsWith("http")
@@ -624,7 +626,7 @@ function CrmMeetingsView() {
               </button>
               <button onClick={() => handleDelete(confirmDeleteId)} disabled={deleteMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#dc2626" }}>
                 {deleteMeeting.isPending
-                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Deletingâ€¦</>
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Deleting…</>
                     : "Delete"}
               </button>
             </div>
@@ -633,16 +635,16 @@ function CrmMeetingsView() {
         })()}
     </>);
 }
-// â”€â”€ Main Meetings page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main Meetings page ────────────────────────────────────────────────────────
 export default function Meetings() {
     const [mainTab, setMainTab] = useState("manage");
     return (<div className="min-h-screen" style={{ background: "#f5f5f5" }}>
       {/* Tab bar */}
       <div className="bg-white border-b border-gray-200 px-6 flex items-center gap-1">
         {([
-            { key: "book", label: "ðŸ“… Book a Meeting", icon: <Calendar className="w-3.5 h-3.5"/> },
-            { key: "manage", label: "ðŸ“‹ Manage Bookings", icon: <Users className="w-3.5 h-3.5"/> },
-            { key: "crm", label: "ðŸ¤ CRM Meetings", icon: <CalendarDays className="w-3.5 h-3.5"/> },
+            { key: "book", label: "📅 Book a Meeting", icon: <Calendar className="w-3.5 h-3.5"/> },
+            { key: "manage", label: "📋 Manage Bookings", icon: <Users className="w-3.5 h-3.5"/> },
+            { key: "crm", label: "🤝 CRM Meetings", icon: <CalendarDays className="w-3.5 h-3.5"/> },
         ]).map(tab => (<button key={tab.key} onClick={() => setMainTab(tab.key)} className={cn("flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px", mainTab === tab.key
                 ? "border-green-700 text-green-800"
                 : "border-transparent text-gray-400 hover:text-gray-700")}>

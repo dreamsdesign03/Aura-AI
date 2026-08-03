@@ -20,8 +20,8 @@ export default function Booking() {
             <Calendar className="w-5 h-5 text-white"/>
           </div>
           <div>
-            <div className="text-white font-bold text-[15px] leading-tight">Dreamsdesign</div>
-            <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>dreamsdesign.in</div>
+            <div className="text-white font-bold text-[15px] leading-tight">Aura Laser &amp; Cosmetic Clinic</div>
+            <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>aurai.clinic · Skinnonest</div>
           </div>
         </div>
         <button onClick={copyLink} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.12)" }}>
@@ -40,18 +40,18 @@ export default function Booking() {
               <div className="w-12 h-12 rounded-xl mb-5 flex items-center justify-center" style={{ background: "rgba(255,255,255,0.12)" }}>
                 <User className="w-6 h-6 text-white"/>
               </div>
-              <div className="text-white font-bold text-[18px] leading-snug mb-1">Krish Puranik</div>
-              <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Founder CEO · Dreamsdesign</div>
-              <div className="text-[13px] mb-5 font-semibold" style={{ color: "#E91E8C" }}>Your Digital Growth Consultant</div>
+              <div className="text-white font-bold text-[18px] leading-snug mb-1">Dr. Aditya Shah</div>
+              <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Founder · Aura Laser &amp; Cosmetic Clinic</div>
+              <div className="text-[13px] mb-5 font-semibold" style={{ color: "#E91E8C" }}>Dermatologist-backed · Skinnonest</div>
 
               <div className="text-[13px] mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
-                Book a free 45-minute Growth Discovery Call to explore how Dreamsdesign can help your business grow online — more leads, more sales, guaranteed.
+                Book a free 30-minute consultation with Dr. Aditya Shah to discuss your skin, hair &amp; laser treatment needs — personalised care, visible results.
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center gap-2.5">
                   <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "#E91E8C" }}/>
-                  <span className="text-[13px] text-white">45 minutes</span>
+                  <span className="text-[13px] text-white">30 minutes</span>
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Video className="w-4 h-4 flex-shrink-0" style={{ color: "#E91E8C" }}/>
@@ -80,7 +80,7 @@ export default function Booking() {
 
       {/* Footer */}
       <div className="py-4 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-        Powered by Dreamsdesign Sales War Machine · dreamsdesign.in
+        Powered by Aura AI · Aura Laser &amp; Cosmetic Clinic · auriai.clinic
       </div>
     </div>);
 }
