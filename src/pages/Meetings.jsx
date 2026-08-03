@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useListAppointments, useUpdateAppointment, useDeleteAppointment, useListMeetings, useUpdateMeeting, useDeleteMeeting, useListLeads, getListAppointmentsQueryKey, getListMeetingsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -96,7 +96,7 @@ function AdminView() {
     });
     const [syncing, setSyncing] = useState(false);
     const [syncError, setSyncError] = useState("");
-    async function syncCalendly() {
+    const syncCalendly = useCallback(async () => {
         setSyncing(true);
         setSyncError("");
         try {
@@ -113,7 +113,12 @@ function AdminView() {
         finally {
             setSyncing(false);
         }
-    }
+    }, [qc]);
+    useEffect(() => {
+        syncCalendly();
+        const interval = setInterval(syncCalendly, 5 * 60 * 1000);
+        return () => clearInterval(interval);
+    }, [syncCalendly]);
     const [activeId, setActiveId] = useState(null);
     const active = appointments.find(a => a.id === activeId);
     async function handleStatusChange(id, status) {
