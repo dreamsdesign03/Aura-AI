@@ -102,6 +102,47 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;`);
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS hidden_calendly_uris (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        calendly_uri TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (user_id, calendly_uri)
+      );
+    `);
+
+    // Ensure meetings table exists (internal CRM meetings)
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS meetings (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        lead_id INT REFERENCES leads(id) ON DELETE CASCADE,
+        title TEXT,
+        type TEXT DEFAULT 'discovery',
+        scheduled_at TIMESTAMPTZ,
+        duration INT DEFAULT 30,
+        status TEXT DEFAULT 'scheduled',
+        meeting_url TEXT,
+        notes TEXT,
+        google_calendar_event_id TEXT,
+        pain_points JSONB DEFAULT '[]',
+        next_action TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS user_id INT;`);
+    await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS title TEXT;`);
+    await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'discovery';`);
+    await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS google_calendar_event_id TEXT;`);
+    await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS pain_points JSONB DEFAULT '[]';`);
+    await db.query(`ALTER TABLE meetings ALTER COLUMN pain_points DROP DEFAULT;`);
+    await db.query(`ALTER TABLE meetings ALTER COLUMN pain_points TYPE JSONB USING to_jsonb(pain_points);`);
+    await db.query(`ALTER TABLE meetings ALTER COLUMN pain_points SET DEFAULT '[]';`);
+    await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS next_action TEXT;`);
+    await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`);
     console.log('[Startup Migration] ✅ All migrations complete.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
@@ -215,9 +256,14 @@ app.get('/api/calendly/sync', async (req, res) => {
     const evData = await evRes.json();
     const events = evData.collection || [];
 
+    // User-hidden Calendly bookings (deleted in the app) must never come back
+    const hidden = await db.query('SELECT calendly_uri FROM hidden_calendly_uris WHERE user_id = $1', [userId]);
+    const hiddenUris = new Set(hidden.rows.map(r => r.calendly_uri));
+
     let added = 0;
     let updated = 0;
     for (const ev of events) {
+      if (hiddenUris.has(ev.uri)) continue;
       let invitee = null;
       try {
         const invRes = await fetch(`${ev.uri}/invitees?count=100`, {
@@ -231,8 +277,11 @@ app.get('/api/calendly/sync', async (req, res) => {
         console.error('[calendly] invitees fetch error:', e.message);
       }
 
-      // Also capture cancelled events in range
-      const existing = await db.query('SELECT id FROM calendly_events WHERE calendly_uri = $1', [ev.uri]);
+      // Skip events the user has deleted (hidden) in the app
+      const existing = await db.query('SELECT id, is_deleted FROM calendly_events WHERE calendly_uri = $1', [ev.uri]);
+      if (existing.rows.length > 0 && existing.rows[0].is_deleted) {
+        continue;
+      }
       const status = ev.status === 'canceled' ? 'cancelled' : 'confirmed';
       if (existing.rows.length > 0) {
         await db.query('UPDATE calendly_events SET status = $1 WHERE calendly_uri = $2', [status, ev.uri]);
@@ -247,7 +296,7 @@ app.get('/api/calendly/sync', async (req, res) => {
     }
 
     // Mark local events not seen in the range as cancelled if their time passed and Calendly no longer lists them
-    const local = await db.query('SELECT id, calendly_uri, start_time FROM calendly_events WHERE user_id = $1 AND status != $2', [userId, 'cancelled']);
+    const local = await db.query('SELECT id, calendly_uri, start_time FROM calendly_events WHERE user_id = $1 AND status != $2 AND NOT COALESCE(is_deleted, false)', [userId, 'cancelled']);
     const seenUris = new Set(events.map(e => e.uri));
     let pruned = 0;
     for (const row of local.rows) {
@@ -312,7 +361,7 @@ app.get('/api/appointments', async (req, res) => {
   try {
     const userId = await resolveUserId(req.query.email, req.headers.cookie);
     const result = await db.query(
-      `SELECT * FROM calendly_events WHERE user_id = $1 ORDER BY start_time DESC`,
+      `SELECT * FROM calendly_events WHERE user_id = $1 AND NOT COALESCE(is_deleted, false) ORDER BY start_time DESC`,
       [userId]
     );
     res.json(result.rows.map(mapCalendlyToAppointment));
@@ -335,11 +384,139 @@ app.post('/api/appointments/update', async (req, res) => {
 
 app.post('/api/appointments/delete', async (req, res) => {
   try {
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
     const id = req.body?.id;
     if (!id) return res.status(400).json({ error: 'id is required' });
-    await db.query('DELETE FROM calendly_events WHERE id = $1', [id]);
+    const row = await db.query('SELECT calendly_uri FROM calendly_events WHERE id = $1', [id]);
+    if (row.rows.length > 0 && row.rows[0].calendly_uri) {
+      await db.query(
+        'INSERT INTO hidden_calendly_uris (user_id, calendly_uri) VALUES ($1, $2) ON CONFLICT (user_id, calendly_uri) DO NOTHING',
+        [userId, row.rows[0].calendly_uri]
+      );
+    }
+    await db.query('UPDATE calendly_events SET is_deleted = TRUE WHERE id = $1', [id]);
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── CRM Meetings ──────────────────────────────────────────────────────────────
+function mapMeetingRow(row) {
+  const lead = row.lead_id
+    ? {
+        id: row.lead_id,
+        firstName: row.lead_first_name || row.lead_firstname || '',
+        lastName: row.lead_last_name || row.lead_lastname || '',
+        company: row.lead_company || '',
+        industry: row.lead_industry || '',
+      }
+    : null;
+  return {
+    id: row.id,
+    leadId: row.lead_id,
+    lead,
+    title: row.title || '',
+    type: row.type || 'discovery',
+    scheduledAt: row.scheduled_at,
+    duration: row.duration || 30,
+    status: row.status || 'scheduled',
+    meetingUrl: row.meeting_url || '',
+    notes: row.notes || '',
+    googleCalendarEventId: row.google_calendar_event_id || '',
+    painPoints: Array.isArray(row.pain_points) ? row.pain_points : [],
+    nextAction: row.next_action || '',
+    createdAt: row.created_at,
+  };
+}
+
+app.get('/api/meetings', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.query.email, req.headers.cookie);
+    const result = await db.query(
+      `SELECT m.*, l.first_name AS lead_first_name, l.last_name AS lead_last_name, l.company AS lead_company, l.industry AS lead_industry
+       FROM meetings m
+       LEFT JOIN leads l ON l.id = m.lead_id
+       WHERE m.user_id = $1
+       ORDER BY m.scheduled_at DESC`,
+      [userId]
+    );
+    res.json(result.rows.map(mapMeetingRow));
+  } catch (err) {
+    console.error('[meetings] list error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/meetings', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
+    const d = req.body.data || req.body || {};
+    const leadId = d.leadId ? Number(d.leadId) : null;
+    if (!leadId) return res.status(400).json({ error: 'leadId is required' });
+    const scheduledAt = d.scheduledAt ? new Date(d.scheduledAt).toISOString() : null;
+    if (!scheduledAt) return res.status(400).json({ error: 'scheduledAt is required' });
+    const type = ['discovery', 'demo', 'proposal', 'follow_up', 'closing'].includes(d.type) ? d.type : 'discovery';
+    const duration = Math.min(480, Math.max(15, Number(d.duration) || 30));
+    const result = await db.query(
+      `INSERT INTO meetings (user_id, lead_id, title, type, scheduled_at, duration, status, meeting_url, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING *`,
+      [userId, leadId, d.title || null, type, scheduledAt, duration, d.status || 'scheduled', d.meetingUrl || null, d.notes || null]
+    );
+    res.json(mapMeetingRow(result.rows[0]));
+  } catch (err) {
+    console.error('[meetings] create error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/meetings/update', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
+    const id = req.body.id;
+    const d = req.body.data || {};
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    const current = await db.query('SELECT * FROM meetings WHERE id = $1 AND user_id = $2', [id, userId]);
+    if (current.rows.length === 0) return res.status(404).json({ error: 'Meeting not found' });
+    const row = current.rows[0];
+    const scheduledAt = d.scheduledAt ? new Date(d.scheduledAt).toISOString() : row.scheduled_at;
+    const result = await db.query(
+      `UPDATE meetings SET
+         title = $1, type = $2, scheduled_at = $3, duration = $4, status = $5, meeting_url = $6, notes = $7,
+         pain_points = $8, next_action = $9, updated_at = NOW()
+       WHERE id = $10 AND user_id = $11
+       RETURNING *`,
+      [
+        d.title !== undefined ? d.title : row.title,
+        d.type || row.type,
+        scheduledAt,
+        d.duration !== undefined ? Math.min(480, Math.max(15, Number(d.duration))) : row.duration,
+        d.status || row.status,
+        d.meetingUrl !== undefined ? d.meetingUrl : row.meeting_url,
+        d.notes !== undefined ? d.notes : row.notes,
+        JSON.stringify(Array.isArray(d.painPoints) ? d.painPoints : (Array.isArray(row.pain_points) ? row.pain_points : [])),
+        d.nextAction !== undefined ? d.nextAction : row.next_action,
+        id,
+        userId,
+      ]
+    );
+    res.json(mapMeetingRow(result.rows[0]));
+  } catch (err) {
+    console.error('[meetings] update error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/meetings/delete', async (req, res) => {
+  try {
+    const userId = await resolveUserId(req.body.email, req.headers.cookie);
+    const id = req.body.id;
+    if (!id) return res.status(400).json({ error: 'id is required' });
+    await db.query('DELETE FROM meetings WHERE id = $1 AND user_id = $2', [id, userId]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[meetings] delete error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

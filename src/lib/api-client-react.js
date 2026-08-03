@@ -63,6 +63,9 @@ function createMutationHook(key) {
             "useBulkUpdateLeads": "/api/leads/bulk-update",
             "useUpdateAppointment": "/api/appointments/update",
             "useDeleteAppointment": "/api/appointments/delete",
+            "useCreateMeeting": "/api/meetings",
+            "useUpdateMeeting": "/api/meetings/update",
+            "useDeleteMeeting": "/api/meetings/delete",
           };
           const route = routeMap[key] || `/api/${key}`;
           const res = await fetch(route, {
