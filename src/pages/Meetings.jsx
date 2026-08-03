@@ -2,10 +2,9 @@ import { useState, useEffect, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useListAppointments, useUpdateAppointment, useDeleteAppointment, useListMeetings, useUpdateMeeting, useDeleteMeeting, useListLeads, getListAppointmentsQueryKey, getListMeetingsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, Brain, ExternalLink, RefreshCw, } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, ExternalLink, RefreshCw, } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { NewMeetingModal, downloadICS, MEETING_TYPES } from "@/components/NewMeetingModal";
-import TranscriptModal from "@/components/TranscriptModal";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DESCRIPTION = `Hello there,
@@ -131,7 +130,6 @@ function AdminView() {
             qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() });
         }
     }
-    const [transcriptApptId, setTranscriptApptId] = useState(null);
     const upcoming = appointments.filter(a => {
         const now = new Date().toISOString().split("T")[0];
         return a.scheduledDate >= now && a.status === "confirmed";
@@ -226,7 +224,7 @@ function AdminView() {
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {active.meetingLink && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
-                        <Video className="w-2.5 h-2.5"/> Join Zoom <ExternalLink className="w-2.5 h-2.5"/>
+                        <Video className="w-2.5 h-2.5"/> Join Meeting <ExternalLink className="w-2.5 h-2.5"/>
                       </a>)}
                     {active.googleCalendarEventId && (<span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
                         <CheckCircle2 className="w-2.5 h-2.5"/> In Google Calendar
@@ -245,9 +243,6 @@ function AdminView() {
                       <Trash2 className="w-3.5 h-3.5"/>
                     </button>
                   </div>
-                  <button onClick={() => setTranscriptApptId(active.id)} className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg transition-colors">
-                    <Brain className="w-3 h-3"/> AI Transcript & Proposal
-                  </button>
                 </div>
               </div>
             </div>
@@ -284,11 +279,6 @@ function AdminView() {
           </div>)}
       </div>
     </div>
-
-    {transcriptApptId !== null && (() => {
-            const ta = appointments.find(a => a.id === transcriptApptId);
-            return (<TranscriptModal appointmentId={transcriptApptId} clientName={ta?.name} company={undefined} industry={undefined} onClose={() => setTranscriptApptId(null)}/>);
-        })()}
     </>);
 }
 // ── CRM Meetings View ─────────────────────────────────────────────────────────
@@ -310,7 +300,6 @@ function CrmMeetingsView() {
     const [isEditing, setIsEditing] = useState(false);
     const [editForm, setEditForm] = useState(null);
     const [editError, setEditError] = useState(null);
-    const [transcriptMeetingId, setTranscriptMeetingId] = useState(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
     const [deleteError, setDeleteError] = useState(null);
     const activeMeeting = meetings.find(m => m.id === activeId);
@@ -575,9 +564,6 @@ function CrmMeetingsView() {
                 {activeMeeting.googleCalendarEventId && (<span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
                     <CheckCircle2 className="w-2.5 h-2.5"/> In Google Calendar
                   </span>)}
-                <button onClick={() => setTranscriptMeetingId(activeMeeting.id)} className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-3 py-1.5 rounded-lg transition-colors">
-                  <Brain className="w-3 h-3"/> AI Transcript & Proposal
-                </button>
               </div>
             </div>
 
@@ -600,11 +586,6 @@ function CrmMeetingsView() {
           </div>)}
       </div>
     </div>
-
-    {transcriptMeetingId !== null && (() => {
-            const tm = meetings.find(m => m.id === transcriptMeetingId);
-            return (<TranscriptModal meetingId={transcriptMeetingId} clientName={tm?.lead ? `${tm.lead.firstName} ${tm.lead.lastName}` : undefined} company={tm?.lead?.company ?? undefined} industry={tm?.lead?.industry ?? undefined} onClose={() => setTranscriptMeetingId(null)}/>);
-        })()}
 
     {confirmDeleteId !== null && (() => {
             const tm = meetings.find(m => m.id === confirmDeleteId);
