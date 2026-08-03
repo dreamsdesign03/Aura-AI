@@ -73,14 +73,14 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
 // ── Booking Widget (Calendly embed) ───────────────────────────────────────────
 function BookingWidget() {
     return (<div className="flex items-start justify-center py-8 px-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(1000px, 100%)", minHeight: "620px" }}>
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(1050px, 100%)", minHeight: "780px" }}>
         <HostPanel/>
-        <div className="flex-1 p-6 overflow-y-auto">
+        <div className="flex-1 p-6 md:p-8 flex flex-col min-w-0">
           <div className="mb-4">
             <div className="text-base font-bold text-gray-900">Schedule your Clinic Consultation</div>
             <div className="text-xs text-gray-500 mt-0.5">Pick a time — confirmation &amp; calendar invite are sent automatically by Calendly.</div>
           </div>
-          <CalendlyEmbed height={600}/>
+          <CalendlyEmbed height={750}/>
         </div>
       </div>
     </div>);

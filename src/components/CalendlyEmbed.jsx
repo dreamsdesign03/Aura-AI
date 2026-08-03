@@ -17,7 +17,7 @@ function loadCalendlyWidget() {
     return widgetPromise;
 }
 
-export default function CalendlyEmbed({ url = CALENDLY_URL, height = 720, prefill = null }) {
+export default function CalendlyEmbed({ url = CALENDLY_URL, height = 750, prefill = null }) {
     const containerRef = useRef(null);
     const [status, setStatus] = useState("loading");
 
@@ -54,10 +54,20 @@ export default function CalendlyEmbed({ url = CALENDLY_URL, height = 720, prefil
     }, [url, JSON.stringify(prefill)]);
 
     return (<div className="w-full">
+      <style>{`
+        .calendly-embed-wrapper .calendly-inline-widget,
+        .calendly-embed-wrapper iframe {
+          width: 100% !important;
+          height: 100% !important;
+          min-height: ${height}px !important;
+          border: none !important;
+          overflow: hidden !important;
+        }
+      `}</style>
       {status === "loading" && (<div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
           <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-green-700 animate-spin"/>
           <span className="text-xs font-medium">Loading booking calendar…</span>
         </div>)}
-      <div ref={containerRef} style={{ minHeight: height, width: "100%" }}/>
+      <div ref={containerRef} className="calendly-embed-wrapper" style={{ minHeight: height, height: height, width: "100%", overflow: "hidden" }}/>
     </div>);
 }

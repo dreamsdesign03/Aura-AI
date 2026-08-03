@@ -65,14 +65,14 @@ export default function Booking() {
             </div>
 
             {/* Right panel — Calendly embed */}
-            <div className="flex-1 p-6 md:p-8">
+            <div className="flex-1 p-6 md:p-8 flex flex-col min-w-0">
               <div className="mb-4">
                 <div className="text-[17px] font-bold" style={{ color: "#111827" }}>Schedule your call</div>
                 <div className="text-[13px] mt-0.5" style={{ color: "#6B7280" }}>
                   Pick a time that works for you — confirmation &amp; calendar invite are sent automatically.
                 </div>
               </div>
-              <CalendlyEmbed height={640}/>
+              <CalendlyEmbed height={750}/>
             </div>
           </div>
         </div>
