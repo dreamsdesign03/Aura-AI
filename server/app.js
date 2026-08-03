@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 const db = require('./db');
 const nodemailer = require('nodemailer');
+const automationsApi = require('./automations');
 
 const app = express();
 
@@ -149,6 +150,8 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
   }
 })();
 
+automationsApi.init();
+
 // Client error reporting from ErrorBoundary
 app.post('/api/client-error', (req, res) => {
   const { error, stack, componentStack, url } = req.body || {};
@@ -182,7 +185,9 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
   }, {});
   const isPast = startIso && new Date(startIso).getTime() < Date.now();
   const status = scheduledEvent.status === 'canceled' ? 'cancelled' : (isPast ? 'completed' : 'confirmed');
-  await db.query(
+  const prev = await db.query('SELECT id, status FROM calendly_events WHERE calendly_uri = $1', [scheduledEvent.uri]);
+  const wasNew = prev.rows.length === 0;
+  const insertRes = await db.query(
     `INSERT INTO calendly_events (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, location, meeting_link, questions, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
      ON CONFLICT (calendly_uri) DO UPDATE SET
@@ -195,9 +200,42 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
        status = EXCLUDED.status,
        location = EXCLUDED.location,
        meeting_link = EXCLUDED.meeting_link,
-       questions = EXCLUDED.questions`,
+       questions = EXCLUDED.questions
+     RETURNING id`,
     [userId, scheduledEvent.uri, invitee?.uri || null, invitee?.name || 'Invitee', invitee?.email || '', scheduledEvent.name || 'Meeting', startIso, endIso, status, location, meetingLink, JSON.stringify(qs)]
   );
+  const eventId = insertRes.rows[0].id;
+  if (wasNew && status === 'confirmed') {
+    await automationsApi.triggerAutomation(userId, 'call_booked', {
+      entity_type: 'appointment',
+      entity_id: eventId,
+      entity_name: invitee?.name || 'Invitee',
+      first_name: (invitee?.name || '').split(' ')[0],
+      last_name: (invitee?.name || '').split(' ').slice(1).join(' '),
+      name: invitee?.name || 'there',
+      email: invitee?.email || '',
+      phone: qs['Phone / WhatsApp'] || qs['phone'] || '',
+      company: '',
+      date: startIso,
+      time: startIso,
+      meeting_link: meetingLink || '',
+      service: 'Aura Skin Clinic',
+    });
+  } else if (!wasNew && status === 'cancelled' && prev.rows[0].status !== 'cancelled') {
+    await automationsApi.triggerAutomation(userId, 'missed_booking', {
+      entity_type: 'appointment',
+      entity_id: eventId,
+      entity_name: invitee?.name || 'Invitee',
+      first_name: (invitee?.name || '').split(' ')[0],
+      last_name: (invitee?.name || '').split(' ').slice(1).join(' '),
+      name: invitee?.name || 'there',
+      email: invitee?.email || '',
+      phone: qs['Phone / WhatsApp'] || qs['phone'] || '',
+      date: startIso,
+      time: startIso,
+      service: 'Aura Skin Clinic',
+    });
+  }
 }
 
 function mapCalendlyToAppointment(row) {
@@ -375,7 +413,24 @@ app.post('/api/appointments/update', async (req, res) => {
     const { id, data } = req.body || {};
     const status = data?.status || req.body.status;
     if (!id || !status) return res.status(400).json({ error: 'id and status are required' });
+    const prev = await db.query('SELECT id, invitee_name, invitee_email, questions FROM calendly_events WHERE id = $1', [id]);
     await db.query('UPDATE calendly_events SET status = $1 WHERE id = $2', [status, id]);
+    if (/cancelled|noshow|no[- ]?show/i.test(status) && prev.rows.length > 0) {
+      const userId = await resolveUserId(req.body.email, req.headers.cookie);
+      const row = prev.rows[0];
+      const q = row.questions || {};
+      await automationsApi.triggerAutomation(userId, 'missed_booking', {
+        entity_type: 'appointment',
+        entity_id: row.id,
+        entity_name: row.invitee_name || 'Invitee',
+        first_name: (row.invitee_name || '').split(' ')[0],
+        last_name: (row.invitee_name || '').split(' ').slice(1).join(' '),
+        name: row.invitee_name || 'there',
+        email: row.invitee_email || '',
+        phone: q['Phone / WhatsApp'] || q['phone'] || '',
+        service: 'Aura Skin Clinic',
+      });
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -958,6 +1013,24 @@ app.post('/api/leads', async (req, res) => {
       [userId, first_name, last_name, email, phone, company, designation, website, industry, country, city, source, status, bant_score, deal_value]
     );
 
+    const resolvedUserId = userId || (await resolveUserId(userEmail, req.headers.cookie));
+    if (resolvedUserId) {
+      await automationsApi.triggerAutomation(resolvedUserId, 'new_lead_meta_ad', {
+        entity_type: 'lead',
+        entity_id: insertRes.rows[0].id,
+        entity_name: `${first_name} ${last_name}`.trim() || email || 'Lead',
+        first_name,
+        last_name,
+        name: `${first_name} ${last_name}`.trim(),
+        email,
+        phone,
+        company,
+        source,
+        status,
+        service: 'Aura Skin Clinic',
+      });
+    }
+
     res.status(201).json(insertRes.rows[0]);
   } catch (err) {
     console.error('Error creating lead:', err);
@@ -990,6 +1063,24 @@ app.put('/api/leads/:id', async (req, res) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
+    if (/lost|cold|dead/i.test(status || '')) {
+      const updated = updateRes.rows[0];
+      const userId = updated.user_id || (await resolveUserId(null, req.headers.cookie));
+      await automationsApi.triggerAutomation(userId, 'lead_lost', {
+        entity_type: 'lead',
+        entity_id: updated.id,
+        entity_name: `${updated.first_name || ''} ${updated.last_name || ''}`.trim() || updated.email || 'Lead',
+        first_name: updated.first_name,
+        last_name: updated.last_name,
+        name: `${updated.first_name || ''} ${updated.last_name || ''}`.trim(),
+        email: updated.email,
+        phone: updated.phone,
+        company: updated.company,
+        status: updated.status,
+        service: 'Aura Skin Clinic',
+      });
+    }
+
     res.json(updateRes.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1016,6 +1107,25 @@ app.patch('/api/leads/:id', async (req, res) => {
       params
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
+
+    if (/lost|cold|dead/i.test(fields.status || '')) {
+      const updated = result.rows[0];
+      const userId = updated.user_id || (await resolveUserId(null, req.headers.cookie));
+      await automationsApi.triggerAutomation(userId, 'lead_lost', {
+        entity_type: 'lead',
+        entity_id: updated.id,
+        entity_name: `${updated.first_name || ''} ${updated.last_name || ''}`.trim() || updated.email || 'Lead',
+        first_name: updated.first_name,
+        last_name: updated.last_name,
+        name: `${updated.first_name || ''} ${updated.last_name || ''}`.trim(),
+        email: updated.email,
+        phone: updated.phone,
+        company: updated.company,
+        status: updated.status,
+        service: 'Aura Skin Clinic',
+      });
+    }
+
     res.json(result.rows[0]);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1388,6 +1498,28 @@ app.post('/api/proposals/send', async (req, res) => {
   try {
     const { id } = req.body;
     await db.query(`UPDATE proposals SET status = 'sent' WHERE id = $1`, [id]);
+    const propRes = await db.query('SELECT user_id, lead_id FROM proposals WHERE id = $1', [id]);
+    if (propRes.rows.length > 0) {
+      const { user_id: userId, lead_id: leadId } = propRes.rows[0];
+      if (leadId) {
+        const leadRes = await db.query('SELECT id, first_name, last_name, phone, company, email FROM leads WHERE id = $1', [leadId]);
+        if (leadRes.rows.length > 0) {
+          const lead = leadRes.rows[0];
+          await automationsApi.triggerAutomation(userId, 'proposal_sent', {
+            entity_type: 'lead',
+            entity_id: lead.id,
+            entity_name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim() || lead.email || 'Lead',
+            first_name: lead.first_name,
+            last_name: lead.last_name,
+            name: `${lead.first_name || ''} ${lead.last_name || ''}`.trim(),
+            phone: lead.phone,
+            company: lead.company,
+            email: lead.email,
+            service: 'Aura Skin Clinic',
+          });
+        }
+      }
+    }
     res.json({ success: true, message: 'Proposal sent to client successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -4637,6 +4769,9 @@ app.post('/api/auth/google/token', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── Automations API (trigger-based WhatsApp sequences, powered by Gemini) ──────
+automationsApi.registerAutomationRoutes(app, resolveUserId);
 
 module.exports = app;
 

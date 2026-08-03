@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Zap, Plus, Play, Pause, ChevronRight, ChevronDown, X, MessageCircle, Clock, Filter, Calendar, Tag, GitBranch, Send, Bell, AlertCircle, ArrowRight, CheckCircle2, RotateCcw, Star, Loader2, } from "lucide-react";
+import { Zap, Plus, Play, Pause, ChevronRight, ChevronDown, X, MessageCircle, Clock, Filter, Calendar, Tag, GitBranch, Send, Bell, AlertCircle, ArrowRight, CheckCircle2, RotateCcw, Star, Loader2, Trash2, } from "lucide-react";
 const API_BASE = "/api";
 // Icon map — DB stores icon as a string key, we resolve to React component here
 const ICON_MAP = {
@@ -7,6 +7,20 @@ const ICON_MAP = {
 };
 function resolveIcon(iconKey) {
     return ICON_MAP[iconKey] ?? Zap;
+}
+function timeAgo(iso) {
+    if (!iso)
+        return "";
+    const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (s < 60)
+        return "just now";
+    const m = Math.floor(s / 60);
+    if (m < 60)
+        return `${m}m ago`;
+    const h = Math.floor(m / 60);
+    if (h < 24)
+        return `${h}h ago`;
+    return `${Math.floor(h / 24)}d ago`;
 }
 function hydrateAutomation(raw) {
     return {
@@ -71,7 +85,48 @@ function StepNode({ step, isLast }) {
         </div>)}
     </div>);
 }
-function AutomationCard({ automation, onToggle, onExpand, expanded, toggling }) {
+function LiveActivityFeed({ activities, loading }) {
+    return (<div className="rounded-xl border p-4" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
+          <span className="text-[13px] font-bold" style={{ color: "#111827" }}>Live Activity</span>
+        </div>
+        <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Real-time</span>
+      </div>
+      <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+        {loading && activities.length === 0 ? (<div className="space-y-3">
+            {[0, 1, 2, 3].map(i => (<div key={i} className="flex items-start gap-3">
+                <div className="w-8 h-8 rounded-lg animate-pulse" style={{ background: "#F3F4F6" }}/>
+                <div className="flex-1 space-y-1.5 py-1">
+                  <div className="h-2.5 w-1/3 rounded-full animate-pulse" style={{ background: "#F3F4F6" }}/>
+                  <div className="h-2 w-full rounded-full animate-pulse" style={{ background: "#F3F4F6" }}/>
+                  <div className="h-2 w-2/3 rounded-full animate-pulse" style={{ background: "#F3F4F6" }}/>
+                </div>
+              </div>))}
+          </div>) : activities.length === 0 ? (<div className="text-center py-8">
+          <Bell className="w-6 h-6 mx-auto mb-2" style={{ color: "#D1D5DB" }}/>
+          <p className="text-[12px] font-medium" style={{ color: "#9CA3AF" }}>No activity yet</p>
+          <p className="text-[11px] mt-0.5" style={{ color: "#C0C4CC" }}>Trigger a new lead, booking, or proposal to see live events here</p>
+        </div>) : (activities.map(a => {
+        const Icon = resolveIcon(a.icon);
+        return (<div key={a.id} className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${a.color}18` }}>
+              <Icon className="w-4 h-4" style={{ color: a.color }}/>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[12px] font-semibold truncate" style={{ color: "#111827" }}>{a.entity_name}</span>
+                <span className="text-[10px] whitespace-nowrap flex-shrink-0" style={{ color: "#9CA3AF" }}>{timeAgo(a.created_at)}</span>
+              </div>
+              <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#6B7280" }}>{a.message}</p>
+            </div>
+          </div>);
+      }))}
+      </div>
+    </div>);
+}
+function AutomationCard({ automation, onToggle, onDelete, onExpand, expanded, toggling, deleting }) {
     const TriggerIcon = TRIGGER_ICONS[automation.trigger];
     const triggerColor = TRIGGER_COLORS[automation.trigger];
     const convRate = automation.runs ? Math.round((automation.conversions / automation.runs) * 100) : 0;
@@ -100,6 +155,9 @@ function AutomationCard({ automation, onToggle, onExpand, expanded, toggling }) 
                 </button>
                 <button onClick={() => onExpand(automation.id)} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ background: "#F3F4F6", color: "#6B7280" }}>
                   {expanded ? <ChevronDown className="w-3.5 h-3.5"/> : <ChevronRight className="w-3.5 h-3.5"/>}
+                </button>
+                <button onClick={() => onDelete(automation.id)} disabled={deleting} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-60" style={{ background: "#FEF2F2", color: "#EF4444" }} title="Delete automation">
+                  {deleting ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Trash2 className="w-3.5 h-3.5"/>}
                 </button>
               </div>
             </div>
@@ -229,12 +287,15 @@ function NewAutomationModal({ onClose, onCreate }) {
 }
 export default function Automations() {
     const [automations, setAutomations] = useState([]);
+    const [activity, setActivity] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [activityLoading, setActivityLoading] = useState(true);
     const [error, setError] = useState(null);
     const [expandedId, setExpandedId] = useState(null);
     const [showNew, setShowNew] = useState(false);
     const [filter, setFilter] = useState("all");
     const [togglingId, setTogglingId] = useState(null);
+    const [deletingId, setDeletingId] = useState(null);
     const fetchAutomations = useCallback(async () => {
         setLoading(true);
         setError(null);
@@ -252,7 +313,28 @@ export default function Automations() {
             setLoading(false);
         }
     }, []);
+    const fetchActivity = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE}/automations/activity`, { credentials: "include" });
+            if (!res.ok)
+                throw new Error();
+            const data = await res.json();
+            setActivity(data.activity ?? []);
+        }
+        catch { /* non-fatal */ }
+        finally {
+            setActivityLoading(false);
+        }
+    }, []);
     useEffect(() => { fetchAutomations(); }, [fetchAutomations]);
+    useEffect(() => { fetchActivity(); }, [fetchActivity]);
+    useEffect(() => {
+        const id = setInterval(() => {
+            fetchAutomations();
+            fetchActivity();
+        }, 30000);
+        return () => clearInterval(id);
+    }, [fetchAutomations, fetchActivity]);
     async function toggleAutomation(id) {
         if (togglingId)
             return;
@@ -277,6 +359,30 @@ export default function Automations() {
         }
         finally {
             setTogglingId(null);
+        }
+    }
+    async function deleteAutomation(id) {
+        if (deletingId)
+            return;
+        const a = automations.find(x => x.id === id);
+        if (!a)
+            return;
+        if (!window.confirm(`Delete "${a.name}"? This cannot be undone.`))
+            return;
+        setDeletingId(id);
+        try {
+            const res = await fetch(`${API_BASE}/automations/${id}`, { method: "DELETE", credentials: "include" });
+            if (!res.ok)
+                throw new Error("Failed to delete");
+            setAutomations(prev => prev.filter(x => x.id !== id));
+            if (expandedId === id)
+                setExpandedId(null);
+        }
+        catch (e) {
+            alert(e.message);
+        }
+        finally {
+            setDeletingId(null);
         }
     }
     function toggleExpand(id) {
@@ -317,7 +423,9 @@ export default function Automations() {
           </button>))}
       </div>
 
-      {loading ? (<div className="flex items-center justify-center py-14">
+      <div className="flex flex-col lg:flex-row gap-4 lg:gap-5">
+        <div className="flex-1 min-w-0">
+          {loading ? (<div className="flex items-center justify-center py-14">
           <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#4F35A8" }}/>
         </div>) : error ? (<div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
           <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0"/>
@@ -331,7 +439,13 @@ export default function Automations() {
           <p className="text-sm font-semibold" style={{ color: "#374151" }}>No automations yet</p>
           <p className="text-xs mt-1" style={{ color: "#9CA3AF" }}>Create your first automation to start closing leads automatically</p>
         </div>) : (<div className="space-y-3">
-          {filtered.map(a => (<AutomationCard key={a.id} automation={a} onToggle={toggleAutomation} onExpand={toggleExpand} expanded={expandedId === a.id} toggling={togglingId === a.id}/>))}
+          {filtered.map(a => (<AutomationCard key={a.id} automation={a} onToggle={toggleAutomation} onDelete={deleteAutomation} onExpand={toggleExpand} expanded={expandedId === a.id} toggling={togglingId === a.id} deleting={deletingId === a.id}/>))}
         </div>)}
+        </div>
+
+        <div className="w-full lg:w-[340px] flex-shrink-0">
+          <LiveActivityFeed activities={activity} loading={activityLoading}/>
+        </div>
+      </div>
     </div>);
 }
