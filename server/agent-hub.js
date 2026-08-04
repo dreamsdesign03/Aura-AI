@@ -592,7 +592,8 @@ Rules:
 2. firstName and lastName MUST be the real decision-maker's person name, NOT the business name.
 3. title is the real job title (e.g. Founder, CEO, Medical Director, Owner).
 4. email/phone/website must be the business's real contact details.
-Output ONLY JSON array (no markdown) of objects with keys: firstName, lastName, email, phone, company, title, website, industry.\nICP: ${icpDesc}`
+5. country MUST be the REAL city & country where the business is actually located — NEVER guessed or filled with the ICP's default location; if you don't know the real location, output "".
+Output ONLY JSON array (no markdown) of objects with keys: firstName, lastName, email, phone, company, title, website, industry, country.\nICP: ${icpDesc}`
   );
   const arr = JSON.parse(gen.replace(/```json|```/g, '').trim());
   return (Array.isArray(arr) ? arr : []).slice(0, count).map(l => ({
@@ -644,9 +645,9 @@ async function runLeadHunter(userId, onEvent) {
       const personFirstName = cleanCompanyName(String(c.firstName || '').split(/[,/&\s]+/)[0]) || c.company || 'Lead';
       const personLastName = cleanCompanyName(c.lastName || '');
       const ins = await db.query(
-        `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, title, website, industry, linkedin, source)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
-        [userId, personFirstName, personLastName, email, c.phone || '', c.company || '', c.title || '', c.website || '', c.industry || '', c.linkedin || '', c.source || 'gemini']
+        `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, title, website, industry, country, linkedin, source)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
+        [userId, personFirstName, personLastName, email, c.phone || '', c.company || '', c.title || '', c.website || '', c.industry || '', c.country || '', c.linkedin || '', c.source || 'gemini']
       );
       summary.added++;
       const lead = { id: ins.rows[0].id, ...c, firstName: personFirstName, lastName: personLastName };

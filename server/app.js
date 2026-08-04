@@ -964,8 +964,8 @@ app.get('/api/leads/:id', async (req, res) => {
       website: r.website || r.website_url || r.websiteUrl || null,
       company: r.company || r.company_name || r.companyName || fn,
       designation: r.designation || r.title || 'Owner / Executive',
-      city: r.city || r.location || 'Vadodara',
-      country: r.country || 'India',
+      city: r.city || r.location || null,
+      country: r.country || null,
       status: r.status || 'new_enquiry',
       bantScore: r.bant_score ?? r.bantScore ?? null,
       source: r.source || 'apify_maps',
@@ -2141,7 +2141,7 @@ async function fetchGoogleMaps(icp, count, apiKey) {
       phone: item.phone || '',
       website,
       industry: item.categoryName || (icp.industries || [])[0] || '',
-      country: (icp.markets || ['United States'])[0],
+      country: item.countryCode || item.state || item.city || '',
       designation: '',
       source: 'google_maps',
     };
@@ -2240,7 +2240,7 @@ async function fetchApollo(icp, count, apiKey) {
           phone: person.phone_numbers?.[0]?.sanitized_number || '',
           website,
           industry: account.industry || (icp.industries || [])[0] || '',
-          country: person.country || (icp.markets || ['United States'])[0],
+          country: person.country || account.country || '',
           designation: person.title || '',
           source: 'apollo',
         };
@@ -2443,7 +2443,8 @@ CRITICAL RULES:
 4. company MUST be the SHORT brand name only (e.g. "Minimalist", "Dot & Key") — NEVER a tagline, service list, SEO title, or anything containing "—", "|", "Best", or a location like "in Mumbai".
 5. firstName and lastName MUST be the real person's name (Founder/Brand Manager), NOT the brand name.
 6. designation: real job title (e.g. Co-Founder & CEO, Brand Manager, E-commerce Head).
-7. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
+7. country MUST be the REAL city & country where the brand is actually located (e.g. "Mumbai, Maharashtra, India") — taken from the brand's actual presence, NEVER guessed or filled with the ICP's default location; if you don't know the real location, output "".
+8. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
 [
   {
     "company": "Brand Name (e.g. Minimalist Cosmeceuticals)",
@@ -2454,7 +2455,7 @@ CRITICAL RULES:
     "phone": "+91 XXXXXXXXXX",
     "website": "https://www.branddomain.com",
     "industry": "Skincare / Cosmeceuticals",
-    "country": "Location (City, Country)"
+    "country": "Real location (City, Country) — do NOT invent or default"
   }
 ]`
     : `You are a B2B Lead Generation & Market Intelligence Expert.
@@ -2473,7 +2474,8 @@ CRITICAL RULES:
 4. company MUST be the SHORT clinic brand name only (e.g. "Cutis Skin & Laser Clinic", "Sakhiya Skin Clinic") — NEVER a tagline, service list, SEO title, or anything containing "—", "|", "Best", or a location like "in Bodakdev, Ahmedabad".
 5. firstName and lastName MUST be the real doctor/owner person's name, NOT the clinic name.
 6. designation: real job title (e.g. Dermatologist, Medical Director, Clinic Owner).
-7. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
+7. country MUST be the REAL city & country where the clinic is actually located (e.g. "Bodakdev, Ahmedabad, Gujarat, India") — taken from the clinic's actual presence, NEVER guessed or filled with the ICP's default location; if you don't know the real location, output "".
+8. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
 [
   {
     "company": "Clinic Name (e.g. Cutis Skin & Laser Clinic)",
@@ -2540,7 +2542,7 @@ CRITICAL RULES:
       website: "https://sakhiyaskinclinic.com",
       email: "info@sakhiyaskinclinic.com",
       phone: "+91 98250 12345",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "Kaya Skin Clinic",
@@ -2549,7 +2551,7 @@ CRITICAL RULES:
       website: "https://kayaskinclinic.com",
       email: "info@kayaskinclinic.com",
       phone: "+91 265 233 4567",
-      city: validCities[1] || "Surat"
+      city: ''
     },
     {
       company: "Cutis Skin & Laser Clinic",
@@ -2558,7 +2560,7 @@ CRITICAL RULES:
       website: "https://cutisskinclinic.com",
       email: "contact@cutisskinclinic.com",
       phone: "+91 98980 56789",
-      city: validCities[2] || "Ahmedabad"
+      city: ''
     },
     {
       company: "Radiance Aesthetics & Derma Center",
@@ -2567,7 +2569,7 @@ CRITICAL RULES:
       website: "https://radianceclinic.co.in",
       email: "info@radianceclinic.co.in",
       phone: "+91 79 2640 1122",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "Twacha Skin & Hair Clinic",
@@ -2576,7 +2578,7 @@ CRITICAL RULES:
       website: "https://twachaskinclinic.in",
       email: "contact@twachaskinclinic.in",
       phone: "+91 99240 33445",
-      city: validCities[1] || "Surat"
+      city: ''
     },
     {
       company: "Desai Skin & Laser Clinic",
@@ -2585,7 +2587,7 @@ CRITICAL RULES:
       website: "https://desaiderma.com",
       email: "info@desaiderma.com",
       phone: "+91 265 242 8899",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "Cosmoderma Aesthetic Clinic",
@@ -2594,7 +2596,7 @@ CRITICAL RULES:
       website: "https://cosmodermaclinic.in",
       email: "care@cosmodermaclinic.in",
       phone: "+91 98795 66778",
-      city: validCities[2] || "Ahmedabad"
+      city: ''
     },
     {
       company: "Aura Aesthetics & Skin Care",
@@ -2603,7 +2605,7 @@ CRITICAL RULES:
       website: "https://auraaesthetics.in",
       email: "contact@auraaesthetics.in",
       phone: "+91 79 4005 9900",
-      city: validCities[2] || "Ahmedabad"
+      city: ''
     },
     {
       company: "Dermacare Skin & Laser Institute",
@@ -2612,7 +2614,7 @@ CRITICAL RULES:
       website: "https://dermacareindia.com",
       email: "info@dermacareindia.com",
       phone: "+91 265 235 6677",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "ClearSkin Cosmetic Dermatology",
@@ -2621,7 +2623,7 @@ CRITICAL RULES:
       website: "https://clearskin.in",
       email: "support@clearskin.in",
       phone: "+91 98241 22334",
-      city: validCities[1] || "Surat"
+      city: ''
     }
   ];
 
@@ -2633,7 +2635,7 @@ CRITICAL RULES:
       website: "https://dermatouch.com",
       email: "care@dermatouch.com",
       phone: "+91 98251 99887",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "Dr. Sheth's Skincare",
@@ -2642,7 +2644,7 @@ CRITICAL RULES:
       website: "https://drsheths.com",
       email: "support@drsheths.com",
       phone: "+91 80 4709 2345",
-      city: validCities[1] || "Surat"
+      city: ''
     },
     {
       company: "Minimalist Cosmeceuticals",
@@ -2651,7 +2653,7 @@ CRITICAL RULES:
       website: "https://beminimalist.co",
       email: "support@beminimalist.co",
       phone: "+91 95133 99770",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "The Derma Co",
@@ -2660,7 +2662,7 @@ CRITICAL RULES:
       website: "https://thedermaco.com",
       email: "care@thedermaco.com",
       phone: "+91 89015 55444",
-      city: validCities[2] || "Ahmedabad"
+      city: ''
     },
     {
       company: "Dot & Key Skincare",
@@ -2669,7 +2671,7 @@ CRITICAL RULES:
       website: "https://www.dotandkey.com",
       email: "care@dotandkey.com",
       phone: "+91 84200 33445",
-      city: validCities[2] || "Ahmedabad"
+      city: ''
     },
     {
       company: "Foxtale Skincare",
@@ -2678,7 +2680,7 @@ CRITICAL RULES:
       website: "https://foxtale.in",
       email: "help@foxtale.in",
       phone: "+91 98920 11223",
-      city: validCities[1] || "Surat"
+      city: ''
     },
     {
       company: "Fixderma Cosmeceuticals",
@@ -2687,7 +2689,7 @@ CRITICAL RULES:
       website: "https://fixderma.com",
       email: "info@fixderma.com",
       phone: "+91 124 408 6700",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "Re'equil Cosmeceuticals",
@@ -2696,7 +2698,7 @@ CRITICAL RULES:
       website: "https://www.reequil.com",
       email: "care@reequil.com",
       phone: "+91 73474 12345",
-      city: validCities[2] || "Ahmedabad"
+      city: ''
     },
     {
       company: "Chemist at Play",
@@ -2705,7 +2707,7 @@ CRITICAL RULES:
       website: "https://chemistatplay.com",
       email: "hello@chemistatplay.com",
       phone: "+91 93190 77665",
-      city: validCities[0] || "Vadodara"
+      city: ''
     },
     {
       company: "Plum Goodness Skincare",
@@ -2714,7 +2716,7 @@ CRITICAL RULES:
       website: "https://plumgoodness.com",
       email: "hello@plumgoodness.com",
       phone: "+91 75064 96604",
-      city: validCities[1] || "Surat"
+      city: ''
     }
   ];
 
@@ -2735,7 +2737,7 @@ CRITICAL RULES:
       phone: t.phone,
       website: t.website,
       industry: targetInd,
-      country: `${t.city}, Gujarat, India`
+      country: ''
     };
   });
 }
@@ -2933,8 +2935,8 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               let category = item.categoryName || item.category || (icp.industries || [])[0] || 'Dermatology / Clinic';
               
               // Location formatting
-              const locParts = [item.city, item.state, item.countryCode || (icp.markets || [])[0] || 'India'].filter(Boolean);
-              let locationStr = locParts.length > 0 ? locParts.join(', ') : 'India';
+              const locParts = [item.city, item.state, item.countryCode].filter(Boolean);
+              const locationStr = locParts.length > 0 ? locParts.join(', ') : '';
 
               return {
                 firstName: cleanCompanyName(name),
@@ -3152,7 +3154,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                   phone: phone || null,
                   website: website || null,
                   industry: industryStr,
-                  country: person.country || country,
+                  country: person.country || '',
                   designation: desig,
                   source: 'apollo',
                   icpId: icpId ? Number(icpId) : null,
@@ -3216,7 +3218,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                     phone: phone || null,
                     website: website || null,
                     industry: industryStr,
-                    country: org.country || country,
+                    country: org.country || '',
                     designation: desig,
                     source: 'apollo',
                     icpId: icpId ? Number(icpId) : null,
