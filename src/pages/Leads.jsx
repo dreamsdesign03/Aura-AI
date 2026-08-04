@@ -8,7 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useBatchPoller } from "@/hooks/useBatchPoller";
 import { StatusBadge } from "@/components/Badge";
-import { formatDate, scoreToBandKey, bandHexFromKey, bantBandDarkColor, bantBandDarkGradient, statusLabel, statusColor } from "@/lib/utils";
+import { formatDate, scoreToBandKey, bandHexFromKey, bantBandDarkColor, bantBandDarkGradient, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, } from "lucide-react";
 import FetchLeads from "./FetchLeads";
@@ -1287,7 +1287,7 @@ export default function Leads() {
                     {/* Row 2: Company + status dot */}
                     <div className="flex items-center gap-1.5 mt-0.5">
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: statusDot }}/>
-                      <p className="text-xs text-gray-500 font-medium truncate">{lead.company}</p>
+                      <p className="text-xs text-gray-500 font-medium truncate">{cleanCompanyName(lead.company)}</p>
                     </div>
 
                     {/* Row 3: Badge chips */}
@@ -1411,7 +1411,7 @@ export default function Leads() {
                     <td className="px-3 py-2" style={{ maxWidth: "150px" }}>
                       <div className="flex items-center gap-1.5">
                         {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0"/>}
-                        <span className="text-gray-700 font-medium truncate">{lead.company}</span>
+                        <span className="text-gray-700 font-medium truncate">{cleanCompanyName(lead.company)}</span>
                       </div>
                     </td>
                     <td className="px-3 py-2" style={{ maxWidth: "175px" }}>
@@ -1572,7 +1572,7 @@ export default function Leads() {
                           {lead.email}
                         </span>
                       </td>
-                      <td className="px-4 py-2.5 text-gray-700">{lead.company}</td>
+                      <td className="px-4 py-2.5 text-gray-700">{cleanCompanyName(lead.company)}</td>
                       <td className="px-4 py-2.5">
                         {bantScore != null && bantScore > 0 ? (<span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: bandHexFromKey(scoreToBandKey(bantScore)) + "22", color: bandHexFromKey(scoreToBandKey(bantScore)) }}>
                             {bantScore}
@@ -1680,7 +1680,7 @@ export default function Leads() {
                         </div>
                         <div>
                           <div className="font-medium text-gray-900">{lead.firstName} {lead.lastName}</div>
-                          <div className="text-[10px] text-gray-400">{lead.company}</div>
+                          <div className="text-[10px] text-gray-400">{cleanCompanyName(lead.company)}</div>
                         </div>
                       </div>
                     </td>
@@ -2189,7 +2189,7 @@ function LeadDrawer({ leadId, onClose }) {
                 {lead ? `${lead.firstName} ${lead.lastName}` : "Lead Detail"}
               </div>
               {lead && (<div className="text-[11px] truncate mt-0.5" style={{ color: D.textMuted }}>
-                  {[lead.designation, lead.company].filter(Boolean).join(" · ")}
+                  {[lead.designation, cleanCompanyName(lead.company)].filter(Boolean).join(" · ")}
                 </div>)}
               {lead?.status && (() => {
             const sc = statusColor(lead.status);
@@ -2343,7 +2343,7 @@ function LeadDrawer({ leadId, onClose }) {
               {/* ── Company ── */}
               <DarkCard title="Company" d={D}>
                 <div className="space-y-2.5">
-                  {lead.company && <DarkInfoRow icon="🏢" label="Company" value={lead.company} d={D}/>}
+                  {lead.company && <DarkInfoRow icon="🏢" label="Company" value={cleanCompanyName(lead.company)} d={D}/>}
                   {lead.designation && <DarkInfoRow icon="👤" label="Title" value={lead.designation} d={D}/>}
                   {lead.industry && <DarkInfoRow icon="🏭" label="Industry" value={lead.industry} d={D}/>}
                   {lead.country && <DarkInfoRow icon="🌍" label="Location" value={`${lead.city ? lead.city + ", " : ""}${lead.country}`} d={D}/>}
@@ -2599,7 +2599,7 @@ function LeadListsPanel({ BASE, toast }) {
                       <div className="font-medium text-gray-800">{lead.firstName} {lead.lastName}</div>
                       <div className="text-gray-400">{lead.email}</div>
                     </td>
-                    <td className="px-3 py-2.5 hidden md:table-cell text-gray-600">{lead.company ?? "—"}</td>
+                    <td className="px-3 py-2.5 hidden md:table-cell text-gray-600">{cleanCompanyName(lead.company) ?? "—"}</td>
                     <td className="px-3 py-2.5 hidden md:table-cell">
                       <span className={cn("px-1.5 py-0.5 rounded border text-[10px] font-medium capitalize", statusColor(lead.status))}>
                         {statusLabel(lead.status)}

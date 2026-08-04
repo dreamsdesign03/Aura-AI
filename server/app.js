@@ -2132,10 +2132,11 @@ async function fetchGoogleMaps(icp, count, apiKey) {
     const name = String(item.title || item.name || '').trim();
     const website = item.website || '';
     const domain = getDomain(website);
+    const cleanName = cleanCompanyName(name);
     return {
-      firstName: name.split(' ')[0] || 'Unknown',
-      lastName: name.split(' ').slice(1).join(' ') || '',
-      company: name,
+      firstName: cleanName.split(' ')[0] || 'Unknown',
+      lastName: cleanName.split(' ').slice(1).join(' ') || '',
+      company: cleanName,
       email: domain ? `info@${domain}` : '',
       phone: item.phone || '',
       website,
@@ -2392,8 +2393,24 @@ function buildApifySearchQueries(icp) {
 
   return [...new Set(searchQueries)].slice(0, 6);
 }
-
 // ── Gemini AI Lead Generation Helper ──────────────────
+
+function cleanCompanyName(raw) {
+  if (!raw) return raw;
+  let name = String(raw).trim();
+  if (!name) return name;
+  const sep = name.match(/\s*(?:[—–|•]|\s-\s)\s*/);
+  if (sep) name = name.slice(0, sep.index).trim();
+  name = name.replace(/\s+(?:in|at)\s+.{2,}$/i, '');
+  name = name.replace(/^(?:Best|Top|Leading|Advanced|Premium|Most|Trusted|No\.?\s?1|Award[\s-]?Winning)\s+/i, '');
+  if (name.length > 45) {
+    const cut = name.slice(0, 45);
+    const ws = cut.lastIndexOf(' ');
+    name = (ws > 20 ? cut.slice(0, ws) : cut).trim();
+  }
+  return name.replace(/[,\s\-]+$/g, '').trim();
+}
+
 async function fetchGeminiLeads(icp, count = 10, geminiKey) {
   const apiKey = geminiKey || process.env.GEMINI_API_KEY;
   const name = icp?.name || 'Dermatology & Cosmetic Clinics';
@@ -2912,9 +2929,9 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               let locationStr = locParts.length > 0 ? locParts.join(', ') : 'India';
 
               return {
-                firstName: name,
+                firstName: cleanCompanyName(name),
                 lastName: '',
-                company: name,
+                company: cleanCompanyName(name),
                 email: emailAddr,
                 phone: phone || null,
                 website: website || null,
@@ -3283,6 +3300,7 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 
           for (const lead of newGeminiLeads) {
             try {
+              const cleanedCompany = cleanCompanyName(lead.company);
               const insertRes = await db.query(
                 `INSERT INTO leads (
                   user_id, icp_id, first_name, last_name, email, phone, company,
@@ -3290,24 +3308,24 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'New', 'Lead In', NOW(), NOW())
                 RETURNING *`,
                 [
-                  userId, icpId ? Number(icpId) : null, lead.firstName || lead.company, lead.lastName || '', lead.email,
-                  lead.phone || null, lead.company, lead.designation || 'Owner / Director', lead.website || null,
+                  userId, icpId ? Number(icpId) : null, lead.firstName || cleanedCompany, lead.lastName || '', lead.email,
+                  lead.phone || null, cleanedCompany, lead.designation || 'Owner / Director', lead.website || null,
                   lead.industry || (icp.industries || [])[0] || 'Dermatology / Clinic', lead.country || 'India'
                 ]
               );
               results.totalImported++;
               results.leads.push({
                 id: insertRes.rows[0].id,
-                firstName: lead.firstName || lead.company,
+                firstName: lead.firstName || cleanedCompany,
                 lastName: lead.lastName || '',
-                name: `${lead.firstName || lead.company} ${lead.lastName || ''}`.trim(),
-                company: lead.company,
+                name: `${lead.firstName || cleanedCompany} ${lead.lastName || ''}`.trim(),
+                company: cleanedCompany,
                 email: lead.email,
                 phone: lead.phone || '',
                 industry: lead.industry || 'Dermatology / Clinic',
                 country: lead.country || 'India',
               });
-              console.log(`[fetch-poll] Gemini SUCCESS: Inserted lead ID=${insertRes.rows[0].id} Company="${lead.company}"`);
+              console.log(`[fetch-poll] Gemini SUCCESS: Inserted lead ID=${insertRes.rows[0].id} Company="${cleanedCompany}"`);
             } catch (insertErr) {
               console.error(`[fetch-poll] Gemini Insert failed for "${lead.company}":`, insertErr.message);
             }

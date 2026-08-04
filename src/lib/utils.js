@@ -34,6 +34,24 @@ export function formatRelative(date) {
         return `${days}d ago`;
     return formatDate(date);
 }
+export function cleanCompanyName(raw) {
+    if (!raw)
+        return "";
+    let name = String(raw).trim();
+    if (!name)
+        return "";
+    const sep = name.match(/\s*(?:[—–|•]|\s-\s)\s*/);
+    if (sep)
+        name = name.slice(0, sep.index).trim();
+    name = name.replace(/\s+(?:in|at)\s+.{2,}$/i, "");
+    name = name.replace(/^(?:Best|Top|Leading|Advanced|Premium|Most|Trusted|No\.?\s?1|Award[\s-]?Winning)\s+/i, "");
+    if (name.length > 45) {
+        const cut = name.slice(0, 45);
+        const ws = cut.lastIndexOf(" ");
+        name = (ws > 20 ? cut.slice(0, ws) : cut).trim();
+    }
+    return name.replace(/[,\s\-]+$/g, "").trim();
+}
 export const LEAD_STATUS_LIST = [
     "new_enquiry", "enquiry_qualified", "discovery_call",
     "quote_sent", "follow_up", "project_won", "project_lost",

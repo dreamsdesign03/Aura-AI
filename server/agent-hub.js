@@ -498,6 +498,22 @@ function parseRoles(roles) {
   return String(roles).split(',').map(s => s.trim()).filter(Boolean);
 }
 
+function cleanCompanyName(raw) {
+  if (!raw) return raw;
+  let name = String(raw).trim();
+  if (!name) return name;
+  const sep = name.match(/\s*(?:[—–|•]|\s-\s)\s*/);
+  if (sep) name = name.slice(0, sep.index).trim();
+  name = name.replace(/\s+(?:in|at)\s+.{2,}$/i, '');
+  name = name.replace(/^(?:Best|Top|Leading|Advanced|Premium|Most|Trusted|No\.?\s?1|Award[\s-]?Winning)\s+/i, '');
+  if (name.length > 45) {
+    const cut = name.slice(0, 45);
+    const ws = cut.lastIndexOf(' ');
+    name = (ws > 20 ? cut.slice(0, ws) : cut).trim();
+  }
+  return name.replace(/[,\s\-]+$/g, '').trim();
+}
+
 async function fetchApolloLeads(icp, count, apiKey) {
   if (!apiKey) throw new Error('APOLLO_API_KEY not configured');
   let rawTags = [];
@@ -546,7 +562,7 @@ async function fetchApolloLeads(icp, count, apiKey) {
           lastName: p.last_name || '',
           email,
           phone: p.phone || '',
-          company: (p.organization && p.organization.name) || account.name || '',
+          company: cleanCompanyName((p.organization && p.organization.name) || account.name || ''),
           title: p.title || '',
           website: (p.organization && p.organization.website_url) || account.website_url || '',
           industry: (p.organization && p.organization.industry) || '',
@@ -573,7 +589,12 @@ async function fetchGeminiLeads(icp, count) {
     `Generate a realistic prospect list of ${count} businesses matching this ICP. Output ONLY JSON array (no markdown) of objects with keys: firstName, lastName, email, phone, company, title, website, industry.\nICP: ${icpDesc}`
   );
   const arr = JSON.parse(gen.replace(/```json|```/g, '').trim());
-  return (Array.isArray(arr) ? arr : []).slice(0, count).map(l => ({ ...l, linkedin: '', source: 'gemini' }));
+  return (Array.isArray(arr) ? arr : []).slice(0, count).map(l => ({
+    ...l,
+    company: cleanCompanyName(l.company || ''),
+    linkedin: '',
+    source: 'gemini',
+  }));
 }
 
 async function runLeadHunter(userId, onEvent) {
