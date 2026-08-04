@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { NewMeetingModal, downloadICS } from "@/components/NewMeetingModal";
 import { AiPanelOverlay } from "@/components/AiLoader";
 import { IntelReport } from "@/components/IntelReport";
+import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 
 const INPUT_CLS = "w-full text-xs rounded border border-gray-300 bg-white text-gray-900 px-2 py-1 focus:outline-none focus:ring-1 focus:ring-teal-500";
 const LABEL_CLS = "text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5";
@@ -94,6 +95,7 @@ export default function LeadDetail() {
     const [rescoreError, setRescoreError] = useState(null);
     const ALREADY_SCORED_MSG = "This lead has already been scored. Refresh or use Re-score to update.";
     const [showScheduleModal, setShowScheduleModal] = useState(false);
+    const [showWaModal, setShowWaModal] = useState(false);
     const [aiModalOpen, setAiModalOpen] = useState(false);
     const [aiModalType, setAiModalType] = useState("outreach");
     const [genLoading, setGenLoading] = useState(false);
@@ -405,6 +407,10 @@ export default function LeadDetail() {
                     <button onClick={() => setShowScheduleModal(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-95 shadow-xs" style={{ background: "#A4285E" }}>
                       <CalendarPlus className="w-3.5 h-3.5"/>
                       Schedule Meeting
+                    </button>
+                    <button onClick={() => setShowWaModal(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-95 shadow-xs" style={{ background: "#25D366" }}>
+                      <MessageCircle className="w-3.5 h-3.5"/>
+                      Send WhatsApp
                     </button>
                     <button onClick={startEditing} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-300 text-gray-700 bg-white hover:bg-gray-50 transition-all">
                       <Pencil className="w-3.5 h-3.5 text-gray-500"/>
@@ -802,5 +808,6 @@ export default function LeadDetail() {
           </div>
         </div>
       )}
+      <SendWhatsAppModal lead={lead} isOpen={showWaModal} onClose={() => setShowWaModal(false)} />
     </div>);
 }

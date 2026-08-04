@@ -105,13 +105,30 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
       );
     `);
     await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;`);
+    // Ensure whatsapp_conversations & whatsapp_messages tables exist
     await db.query(`
-      CREATE TABLE IF NOT EXISTS hidden_calendly_uris (
+      CREATE TABLE IF NOT EXISTS whatsapp_conversations (
         id SERIAL PRIMARY KEY,
         user_id INT,
-        calendly_uri TEXT,
+        lead_id INT UNIQUE,
+        phone TEXT,
+        status TEXT DEFAULT 'Active',
+        last_message TEXT,
+        state TEXT DEFAULT 'hook_sent',
+        last_message_at TIMESTAMPTZ DEFAULT NOW(),
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE (user_id, calendly_uri)
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS whatsapp_messages (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        lead_id INT,
+        phone TEXT,
+        body TEXT,
+        direction TEXT DEFAULT 'outbound',
+        status TEXT DEFAULT 'sent',
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
 
@@ -4799,6 +4816,130 @@ Question: "${message}"`;
     res.json({
       reply: `Based on Sales Brain memory for ${leadName} at ${leadCompany}: The lead is active in the sales pipeline. Recommended action: ${memory.next_best_action || 'Send a follow-up proposal and schedule a demo.'}`
     });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── WHATSAPP DIRECT SEND API ───────────────────────────────────────────────
+
+// POST /api/whatsapp/send — Send a WhatsApp message to a lead / phone
+app.post('/api/whatsapp/send', async (req, res) => {
+  try {
+    const { leadId, phone: rawPhone, message } = req.body || {};
+
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ error: 'Message content is required' });
+    }
+
+    let lead = {};
+    if (leadId) {
+      try {
+        const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+        lead = leadRes.rows[0] || {};
+      } catch {}
+    }
+
+    const phone = (rawPhone || lead.whatsapp || lead.phone || '').replace(/[^0-9+]/g, '');
+    if (!phone) {
+      return res.status(400).json({ error: 'A valid phone number is required to send WhatsApp messages' });
+    }
+
+    const leadName = `${lead.first_name || lead.firstName || 'Contact'} ${lead.last_name || lead.lastName || ''}`.trim();
+    const companyName = lead.company || '';
+
+    let metaResult = { success: false, error: 'Not configured' };
+    const token = process.env.WHATSAPP_ACCESS_TOKEN;
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
+    if (token && phoneNumberId) {
+      try {
+        const cleanDigits = phone.replace(/\D/g, '');
+        const metaRes = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: cleanDigits,
+            type: 'text',
+            text: { preview_url: false, body: message.trim() }
+          })
+        });
+        const metaData = await metaRes.json();
+        if (metaRes.ok && metaData.messages?.[0]?.id) {
+          metaResult = { success: true, messageId: metaData.messages[0].id };
+        } else {
+          metaResult = { success: false, error: metaData.error?.message || 'Meta API error' };
+        }
+      } catch (err) {
+        metaResult = { success: false, error: err.message };
+      }
+    } else {
+      metaResult = { success: true, simulated: true };
+    }
+
+    let savedMsg = null;
+    try {
+      const r = await db.query(
+        `INSERT INTO whatsapp_messages (lead_id, phone, body, direction, status, timestamp, created_at)
+         VALUES ($1, $2, $3, 'outbound', 'sent', NOW(), NOW()) RETURNING *`,
+        [leadId || null, phone, message.trim()]
+      );
+      savedMsg = r.rows[0];
+    } catch (dbErr) {
+      console.error('Error inserting whatsapp_message:', dbErr.message);
+      savedMsg = { id: Date.now(), lead_id: leadId, phone, body: message, direction: 'outbound', status: 'sent', timestamp: new Date().toISOString() };
+    }
+
+    try {
+      await db.query(
+        `INSERT INTO whatsapp_conversations (lead_id, phone, status, last_message, state, last_message_at, updated_at)
+         VALUES ($1, $2, 'Active', $3, 'hook_sent', NOW(), NOW())
+         ON CONFLICT (lead_id) DO UPDATE SET
+           last_message = EXCLUDED.last_message,
+           last_message_at = NOW(),
+           updated_at = NOW()`,
+        [leadId || null, phone, message.trim()]
+      );
+    } catch {}
+
+    try {
+      const activityType = 'whatsapp_sent';
+      await db.query(
+        `INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail, executed_at)
+         VALUES ($1, 'Sales Agent', $2, 'completed', $3, $4, $5, NOW())`,
+        [1, activityType, leadName, companyName, message.slice(0, 100)]
+      );
+    } catch {}
+
+    res.json({
+      success: true,
+      message: savedMsg,
+      simulated: metaResult.simulated || false,
+      metaResult
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/whatsapp/messages/:leadId — Get conversation history for a lead
+app.get('/api/whatsapp/messages/:leadId', async (req, res) => {
+  try {
+    const leadId = req.params.id || req.params.leadId;
+    const r = await db.query(
+      `SELECT id, lead_id as "leadId", phone, body as content, direction, status, 
+              timestamp as "sentAt", created_at as "createdAt"
+       FROM whatsapp_messages 
+       WHERE lead_id = $1 
+       ORDER BY timestamp ASC LIMIT 200`,
+      [leadId]
+    );
+    res.json({ messages: r.rows });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

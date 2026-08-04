@@ -501,13 +501,20 @@ function ConversationsTab() {
     const [selectedId, setSelectedId] = useState(null);
     const [filterState, setFilterState] = useState("all");
     const [search, setSearch] = useState("");
+    const [waText, setWaText] = useState("");
+    const [sendingWa, setSendingWa] = useState(false);
+    const [localMsgs, setLocalMsgs] = useState([]);
     const threadRef = useRef(null);
+    const { toast } = useToast();
     const { data: conversations = [], isLoading: loading, refetch: refetchConvs } = useGetWhatsAppConversations();
     const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId, { query: { enabled: !!selectedId, queryKey: getGetWhatsAppMessagesQueryKey(selectedId ?? 0) } });
     useEffect(() => {
+        setLocalMsgs(msgData?.messages ?? []);
+    }, [msgData]);
+    useEffect(() => {
         if (threadRef.current)
             threadRef.current.scrollTop = threadRef.current.scrollHeight;
-    }, [msgData]);
+    }, [localMsgs]);
     const filtered = conversations.filter(c => {
         if (filterState !== "all" && c.state !== filterState)
             return false;
@@ -523,6 +530,39 @@ function ConversationsTab() {
         { val: "report_sent", label: "Report Sent" }, { val: "qualifying", label: "Qualifying" },
         { val: "appointment_pitched", label: "Pitched" }, { val: "appointment_booked", label: "Booked" }, { val: "opted_out", label: "Opted Out" },
     ];
+    async function handleSendWa(e) {
+        e?.preventDefault();
+        if (!waText.trim() || !selectedConv || sendingWa) return;
+        const msgContent = waText.trim();
+        setSendingWa(true);
+        setWaText("");
+        try {
+            const res = await fetch("/api/whatsapp/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({
+                    leadId: selectedConv.leadId || selectedConv.lead?.id,
+                    phone: selectedConv.waPhoneNumber || selectedConv.lead?.whatsapp || selectedConv.lead?.phone,
+                    message: msgContent
+                })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || "Failed to send message");
+            setLocalMsgs(prev => [...prev, {
+                id: Date.now(),
+                content: msgContent,
+                direction: "outbound",
+                sentAt: new Date().toISOString()
+            }]);
+            toast({ title: "WhatsApp message sent" });
+            refetchConvs();
+        } catch (err) {
+            toast({ title: "Failed to send message", description: err.message, variant: "destructive" });
+        } finally {
+            setSendingWa(false);
+        }
+    }
     return (<div className="flex flex-1 overflow-hidden" style={{ height: "100%" }}>
       <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-80", selectedId ? "hidden md:flex" : "flex w-full")}>
         <div className="px-3 py-2.5 border-b border-gray-100 space-y-2 flex-shrink-0">
@@ -573,7 +613,7 @@ function ConversationsTab() {
               <MessageCircle className="w-8 h-8" style={{ color: "#CB3273" }}/>
             </div>
             <p className="text-sm font-semibold text-gray-700 mb-1">Select a conversation</p>
-            <p className="text-xs text-gray-400 max-w-xs">View the full WhatsApp thread — the AI bot handles all replies automatically</p>
+            <p className="text-xs text-gray-400 max-w-xs">View thread and send instant WhatsApp messages to contacts</p>
           </div>) : (<>
             <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -608,19 +648,52 @@ function ConversationsTab() {
             })()}
 
             <div ref={threadRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2" style={{ background: "#F0F4F0" }}>
-              {msgLoading ? (<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400"/></div>) : !msgData || msgData.messages.length === 0 ? (<div className="text-center text-xs text-gray-400 py-12">No messages yet</div>) : (msgData.messages.map(msg => {
+              {msgLoading ? (<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400"/></div>) : localMsgs.length === 0 ? (<div className="text-center text-xs text-gray-400 py-12">No messages yet</div>) : (localMsgs.map(msg => {
                 const isOut = msg.direction === "outbound";
                 return (<div key={msg.id} className={cn("flex", isOut ? "justify-end" : "justify-start")}>
-                      <div className="max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm" style={{ background: isOut ? "#CB3273" : "#ffffff", color: isOut ? "#ffffff" : "#111827", borderBottomRightRadius: isOut ? 4 : 16, borderBottomLeftRadius: isOut ? 16 : 4 }}>
-                        <p className="text-[13px] leading-snug whitespace-pre-wrap">{msg.content}</p>
-                        <div className={cn("mt-1 text-[10px]", isOut ? "text-right" : "text-left")} style={{ color: isOut ? "rgba(255,255,255,0.55)" : "#9CA3AF" }}>{timeAgo(msg.sentAt)}</div>
+                      <div className="max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm" style={{ background: isOut ? "#25D366" : "#ffffff", color: isOut ? "#ffffff" : "#111827", borderBottomRightRadius: isOut ? 4 : 16, borderBottomLeftRadius: isOut ? 16 : 4 }}>
+                        <p className="text-[13px] leading-snug whitespace-pre-wrap">{msg.content || msg.body}</p>
+                        <div className={cn("mt-1 text-[10px]", isOut ? "text-right" : "text-left")} style={{ color: isOut ? "rgba(255,255,255,0.75)" : "#9CA3AF" }}>{timeAgo(msg.sentAt || msg.timestamp)}</div>
                       </div>
                     </div>);
             }))}
             </div>
-            <div className="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-              <p className="text-[11px] text-gray-400 text-center">AI bot handles all replies automatically · Read-only view</p>
-            </div>
+
+            <form onSubmit={handleSendWa} className="p-3 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
+              <div className="flex gap-1.5 overflow-x-auto pb-1">
+                {[
+                  "Hi {{name}} 👋 Wanted to check in on your audit.",
+                  "Following up regarding your consultation call.",
+                  "Do you have time for a 5-min quick chat today?"
+                ].map(tmpl => {
+                  const name = selectedConv.lead?.firstName || selectedConv.lead?.first_name || "there";
+                  const txt = tmpl.replace("{{name}}", name);
+                  return (
+                    <button key={tmpl} type="button" onClick={() => setWaText(txt)} className="text-[10px] font-semibold px-2 py-0.5 rounded-full border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 flex-shrink-0 whitespace-nowrap">
+                      {txt.slice(0, 32)}...
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={waText}
+                  onChange={e => setWaText(e.target.value)}
+                  placeholder={`Send WhatsApp message to ${leadName(selectedConv.lead)}...`}
+                  className="flex-1 px-3.5 py-2 text-xs rounded-xl border border-gray-200 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-green-500/40"
+                />
+                <button
+                  type="submit"
+                  disabled={sendingWa || !waText.trim()}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-xl transition-all disabled:opacity-50 flex-shrink-0 shadow-sm"
+                  style={{ background: "#25D366" }}
+                >
+                  {sendingWa ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  Send
+                </button>
+              </div>
+            </form>
           </>)}
       </div>
     </div>);

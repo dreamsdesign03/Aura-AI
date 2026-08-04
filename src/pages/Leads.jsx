@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, } from "lucide-react";
 import FetchLeads from "./FetchLeads";
 import { AiBanner } from "@/components/AiLoader";
+import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 const BANT_KEYS = ["budget", "authority", "need", "timeline"];
 const CSV_COLUMNS = ["firstName", "lastName", "email", "company", "designation", "industry", "country", "phone", "whatsapp", "website", "city", "companySize", "linkedInUrl", "notes"];
 const CSV_COLUMN_LABELS = {
@@ -99,6 +100,7 @@ export default function Leads() {
     const [csvMapping, setCsvMapping] = useState({});
     const fileRef = useRef(null);
     const [drawerLeadId, setDrawerLeadId] = useState(null);
+    const [waModalLead, setWaModalLead] = useState(null);
     const [whcStatus, setWhcStatus] = useState(null);
     const [whcStarting, setWhcStarting] = useState(false);
     const [deadPoolLeads, setDeadPoolLeads] = useState([]);
@@ -1447,15 +1449,11 @@ export default function Leads() {
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button onClick={() => navigate(`/leads/${lead.id}`)} title="Open"><ExternalLink className="w-3.5 h-3.5 text-gray-300 hover:text-gray-700"/></button>
-                        <button title={lead.whatsapp || lead.phone ? "WA hook" : "No phone"} disabled={(!lead.whatsapp && !lead.phone) || loadingLeads.has(lead.id)} onClick={() => {
-                    setLoadingLeads(prev => new Set([...prev, lead.id]));
-                    initiateWa.mutate({ leadId: lead.id }, {
-                        onSuccess: (d) => toast({ title: "WhatsApp hook sent", description: d.message ?? `Started with ${lead.firstName}` }),
-                        onError: () => toast({ title: "WhatsApp failed", variant: "destructive" }),
-                        onSettled: () => setLoadingLeads(prev => { const next = new Set(prev); next.delete(lead.id); return next; }),
-                    });
-                }}>
-                          {loadingLeads.has(lead.id) ? <Loader2 className="w-3.5 h-3.5 animate-spin text-green-500"/> : <MessageCircle className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-gray-300 hover:text-green-600" : "text-gray-200 cursor-not-allowed")}/>}
+                        <button title={lead.whatsapp || lead.phone ? "Send WhatsApp message" : "No phone"} onClick={(e) => {
+                          e.stopPropagation();
+                          setWaModalLead(lead);
+                        }}>
+                          <MessageCircle className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
                         </button>
                         <button onClick={() => { if (confirm("Delete this lead?"))
                 deleteLead.mutate({ id: lead.id }); }}>
@@ -2823,5 +2821,6 @@ function SaveToListModal({ BASE, selectedIds, onClose, toast }) {
             </button>
           </div>)}
       </div>
+      <SendWhatsAppModal lead={waModalLead} isOpen={!!waModalLead} onClose={() => setWaModalLead(null)} />
     </div>);
 }
