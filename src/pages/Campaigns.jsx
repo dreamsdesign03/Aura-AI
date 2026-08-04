@@ -9,11 +9,11 @@ const SEGMENT_LABELS = {
     old_leads: "Old Leads",
 };
 const SEGMENT_COLORS = {
-    new_leads: "#4F35A8",
+    new_leads: "#A4285E",
     no_response: "#F59E0B",
     proposal_sent: "#3B82F6",
     won_customers: "#10B981",
-    old_leads: "#8B5CF6",
+    old_leads: "#CB3273",
 };
 const STATUS_CONFIG = {
     draft: { label: "Draft", color: "#6B7280", bg: "#F3F4F6" },
@@ -24,16 +24,16 @@ const STATUS_CONFIG = {
 const TEMPLATES = [
     { id: 1, name: "WhatsApp Welcome + Audit Offer", category: "reminder", preview: "Hi {{firstName}}, I noticed you're running {{company}} and wanted to share a free brand audit. Want to see your score?", variables: ["firstName", "company"] },
     { id: 2, name: "Gentle Follow-Up Offer", category: "offer", preview: "Hey {{firstName}}, just checking in. We're running a limited offer for {{industry}} businesses this month!", variables: ["firstName", "industry"] },
-    { id: 3, name: "Reactivation — 30-Day No Response", category: "reactivation", preview: "Hi {{firstName}}, it's been a while! We've helped 3 businesses in {{city}} grow their revenue by 40% last quarter.", variables: ["firstName", "city"] },
+    { id: 3, name: "Reactivation Ã¢â‚¬â€ 30-Day No Response", category: "reactivation", preview: "Hi {{firstName}}, it's been a while! We've helped 3 businesses in {{city}} grow their revenue by 40% last quarter.", variables: ["firstName", "city"] },
     { id: 4, name: "Testimonial Request", category: "testimonial", preview: "{{firstName}}, working with you on {{project}} was amazing! Would you mind sharing a 2-line testimonial?", variables: ["firstName", "project"] },
     { id: 5, name: "Google Review Request", category: "review", preview: "Hi {{firstName}}, we loved working with {{company}}! A Google review would mean the world to us.", variables: ["firstName", "company", "reviewLink"] },
-    { id: 6, name: "Proposal Reminder — Day 3", category: "reminder", preview: "Hi {{firstName}}, just following up on the proposal for {{service}}. Any questions?", variables: ["firstName", "service"] },
+    { id: 6, name: "Proposal Reminder Ã¢â‚¬â€ Day 3", category: "reminder", preview: "Hi {{firstName}}, just following up on the proposal for {{service}}. Any questions?", variables: ["firstName", "service"] },
 ];
 const TEMPLATE_ICONS = {
     reminder: Clock, offer: TrendingUp, reactivation: RotateCcw, testimonial: Star, review: ThumbsUp,
 };
 const TEMPLATE_COLORS = {
-    reminder: "#4F35A8", offer: "#10B981", reactivation: "#8B5CF6", testimonial: "#F59E0B", review: "#3B82F6",
+    reminder: "#A4285E", offer: "#10B981", reactivation: "#CB3273", testimonial: "#F59E0B", review: "#3B82F6",
 };
 function pct(n, total) {
     if (!total)
@@ -84,7 +84,7 @@ function CampaignRow({ campaign, onToggle, toggling }) {
           {[
             { label: "Sent", value: campaign.total, icon: Send, color: "#6B7280" },
             { label: "Delivered", value: campaign.delivered, icon: CheckCircle2, color: "#3B82F6" },
-            { label: "Replied", value: campaign.replied, icon: MessageCircle, color: "#4F35A8" },
+            { label: "Replied", value: campaign.replied, icon: MessageCircle, color: "#A4285E" },
             { label: "Booked", value: campaign.booked, icon: CalendarCheck, color: "#059669" },
         ].map(({ label, value, icon: Icon, color }) => (<div key={label} className="text-center">
               <div className="text-[15px] font-bold" style={{ color: "#111827" }}>{value}</div>
@@ -97,7 +97,7 @@ function CampaignRow({ campaign, onToggle, toggling }) {
 
         <div className="space-y-1.5">
           <FunnelBar label="Delivered" value={campaign.delivered} total={campaign.total} color="#3B82F6"/>
-          <FunnelBar label="Replied" value={campaign.replied} total={campaign.total} color="#4F35A8"/>
+          <FunnelBar label="Replied" value={campaign.replied} total={campaign.total} color="#A4285E"/>
           <FunnelBar label="Booked" value={campaign.booked} total={campaign.total} color="#059669"/>
         </div>
       </div>
@@ -145,7 +145,7 @@ function CreateCampaignModal({ onClose, onCreate }) {
       <div className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{ background: "#ffffff" }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid hsl(220 13% 91%)" }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#4F35A8" }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#A4285E" }}>
               <Megaphone className="w-3.5 h-3.5 text-white"/>
             </div>
             <span className="text-[15px] font-bold" style={{ color: "#111827" }}>New Campaign</span>
@@ -184,9 +184,9 @@ function CreateCampaignModal({ onClose, onCreate }) {
 
         <div className="flex gap-3 px-5 pb-5">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-colors" style={{ borderColor: "hsl(220 13% 88%)", color: "#6B7280" }}>Cancel</button>
-          <button onClick={handleCreate} disabled={!name.trim() || saving} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all flex items-center justify-center gap-1.5" style={{ background: name.trim() && !saving ? "#4F35A8" : "#D1D5DB", cursor: name.trim() && !saving ? "pointer" : "not-allowed" }}>
+          <button onClick={handleCreate} disabled={!name.trim() || saving} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all flex items-center justify-center gap-1.5" style={{ background: name.trim() && !saving ? "#A4285E" : "#D1D5DB", cursor: name.trim() && !saving ? "pointer" : "not-allowed" }}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin"/>}
-            {saving ? "Creating…" : "Create Campaign"}
+            {saving ? "CreatingÃ¢â‚¬Â¦" : "Create Campaign"}
           </button>
         </div>
       </div>
@@ -216,7 +216,7 @@ function AnalyticsTab({ campaigns }) {
     const funnel = [
         { label: "Total Sent", value: totals.sent, icon: Send, color: "#6B7280" },
         { label: "Delivered", value: totals.delivered, icon: CheckCircle2, color: "#3B82F6" },
-        { label: "Replied", value: totals.replied, icon: MessageCircle, color: "#4F35A8" },
+        { label: "Replied", value: totals.replied, icon: MessageCircle, color: "#A4285E" },
         { label: "Meetings Booked", value: totals.booked, icon: CalendarCheck, color: "#059669" },
     ];
     return (<div className="space-y-5">
@@ -237,7 +237,7 @@ function AnalyticsTab({ campaigns }) {
         <div className="text-[14px] font-semibold mb-4" style={{ color: "#111827" }}>Overall Funnel</div>
         <div className="space-y-3">
           <FunnelBar label="Delivered" value={totals.delivered} total={totals.sent} color="#3B82F6"/>
-          <FunnelBar label="Replied" value={totals.replied} total={totals.sent} color="#4F35A8"/>
+          <FunnelBar label="Replied" value={totals.replied} total={totals.sent} color="#A4285E"/>
           <FunnelBar label="Meetings Booked" value={totals.booked} total={totals.sent} color="#059669"/>
         </div>
       </div>
@@ -264,7 +264,7 @@ function AnalyticsTab({ campaigns }) {
                   <td className="py-2.5 pr-4" style={{ color: "#374151" }}>{c.delivered}</td>
                   <td className="py-2.5 pr-4" style={{ color: "#374151" }}>{c.replied}</td>
                   <td className="py-2.5 pr-4" style={{ color: "#374151" }}>{c.booked}</td>
-                  <td className="py-2.5 font-bold" style={{ color: "#059669" }}>{c.total ? `${pct(c.booked, c.total)}%` : "—"}</td>
+                  <td className="py-2.5 font-bold" style={{ color: "#059669" }}>{c.total ? `${pct(c.booked, c.total)}%` : "Ã¢â‚¬â€"}</td>
                 </tr>))}
             </tbody>
           </table>
@@ -298,6 +298,10 @@ export default function Campaigns() {
         }
     }, []);
     useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+    useEffect(() => {
+        const id = setInterval(fetchCampaigns, 15000);
+        return () => clearInterval(id);
+    }, [fetchCampaigns]);
     async function toggleCampaign(id) {
         if (togglingId)
             return;
@@ -341,7 +345,7 @@ export default function Campaigns() {
           <h1 className="text-lg font-bold text-foreground">Campaigns & Broadcast</h1>
           <p className="text-xs text-muted-foreground mt-0.5">WhatsApp broadcast campaigns by lead segment</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: "#4F35A8" }}>
+        <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: "#A4285E" }}>
           <Plus className="w-3.5 h-3.5"/>
           New Campaign
         </button>
@@ -350,7 +354,7 @@ export default function Campaigns() {
       <div className="grid grid-cols-3 gap-3">
         {[
             { label: "Active Campaigns", value: activeCampaigns, color: "#059669" },
-            { label: "Total Sent", value: totalSent.toLocaleString(), color: "#4F35A8" },
+            { label: "Total Sent", value: totalSent.toLocaleString(), color: "#A4285E" },
             { label: "Meetings Booked", value: totalBooked, color: "#D97706" },
         ].map(({ label, value, color }) => (<div key={label} className="rounded-xl border p-3 text-center" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
             <div className="text-[20px] font-black" style={{ color }}>{value}</div>
@@ -359,7 +363,7 @@ export default function Campaigns() {
       </div>
 
       <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "hsl(220 13% 95%)" }}>
-        {TABS.map(({ id, label }) => (<button key={id} onClick={() => setTab(id)} className="flex-1 py-2 rounded-lg text-[12px] font-semibold transition-all" style={{ background: tab === id ? "#ffffff" : "transparent", color: tab === id ? "#4F35A8" : "#6B7280", boxShadow: tab === id ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
+        {TABS.map(({ id, label }) => (<button key={id} onClick={() => setTab(id)} className="flex-1 py-2 rounded-lg text-[12px] font-semibold transition-all" style={{ background: tab === id ? "#ffffff" : "transparent", color: tab === id ? "#A4285E" : "#6B7280", boxShadow: tab === id ? "0 1px 3px rgba(0,0,0,0.08)" : "none" }}>
             {label}
           </button>))}
       </div>
@@ -367,16 +371,16 @@ export default function Campaigns() {
       {tab === "campaigns" && (<div className="space-y-4">
           <div className="flex items-center gap-2 flex-wrap">
             {["all", "active", "paused", "draft", "completed"].map(s => (<button key={s} onClick={() => setStatusFilter(s)} className="text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors capitalize" style={{
-                    background: statusFilter === s ? "#4F35A8" : "#ffffff",
+                    background: statusFilter === s ? "#A4285E" : "#ffffff",
                     color: statusFilter === s ? "#ffffff" : "#6B7280",
-                    borderColor: statusFilter === s ? "#4F35A8" : "hsl(220 13% 88%)",
+                    borderColor: statusFilter === s ? "#A4285E" : "hsl(220 13% 88%)",
                 }}>
                 {s === "all" ? "All" : STATUS_CONFIG[s].label}
               </button>))}
           </div>
 
           {loading ? (<div className="flex items-center justify-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#4F35A8" }}/>
+              <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#A4285E" }}/>
             </div>) : error ? (<div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
               <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0"/>
               <div>

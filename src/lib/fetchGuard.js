@@ -2,7 +2,7 @@ const PLAN_ERROR_CODES = new Set(["PLAN_LIMIT", "TRIAL_EXPIRED", "LIMIT_EXCEEDED
 /**
  * Parse a JSON body object (or unknown value) for plan-limit error codes.
  * Returns a PlanLimitDetail if a recognised code is found, otherwise null.
- * Safe to call with any value — never throws.
+ * Safe to call with any value â€” never throws.
  */
 export function tryParsePlanLimit(body) {
     try {
@@ -57,7 +57,7 @@ export function installFetchGuard() {
                 }
             }
             catch {
-                // Body was not JSON or not parseable — ignore
+                // Body was not JSON or not parseable â€” ignore
             }
         }
         return response;

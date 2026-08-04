@@ -19,7 +19,7 @@ export default function Logo({ size = 48, showText = true }) {
           fontFamily: 'Outfit, sans-serif', 
           fontWeight: 800, 
           fontSize: `${Math.round(size * 0.5)}px`,
-          background: 'linear-gradient(135deg, #00f2fe 0%, #7f00ff 100%)',
+          background: 'linear-gradient(135deg, #E15C94 0%, #CB3273 100%)',
           WebkitBackgroundClip: 'text',
           WebkitTextFillColor: 'transparent',
           letterSpacing: '-0.5px'

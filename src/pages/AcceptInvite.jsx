@@ -72,7 +72,7 @@ export default function AcceptInvite() {
     }
     const inputClass = "w-full text-sm rounded-lg border border-gray-200 bg-white text-gray-900 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-colors";
     const labelClass = "block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5";
-    return (<div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(135deg, #0d2318 0%, #1A3D2B 45%, #12502e 100%)" }}>
+    return (<div className="min-h-screen flex items-center justify-center px-4" style={{ background: "linear-gradient(135deg, #2A0A18 0%, #A4285E 45%, #3A0C20 100%)" }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: "rgba(255,255,255,0.12)" }}>
@@ -87,7 +87,7 @@ export default function AcceptInvite() {
         <div className="rounded-2xl bg-white shadow-xl p-8">
           {loading && (<div className="flex flex-col items-center gap-3 py-8">
               <Loader2 className="w-6 h-6 animate-spin text-gray-400"/>
-              <p className="text-sm text-gray-400">Verifying invitation…</p>
+              <p className="text-sm text-gray-400">Verifying invitationÃ¢â‚¬Â¦</p>
             </div>)}
 
           {!loading && inviteError && (<div className="flex flex-col items-center gap-3 py-8 text-center">
@@ -102,7 +102,7 @@ export default function AcceptInvite() {
           {!loading && done && (<div className="flex flex-col items-center gap-3 py-8 text-center">
               <CheckCircle className="w-10 h-10 text-green-500"/>
               <p className="text-sm font-semibold text-gray-900">Account created!</p>
-              <p className="text-xs text-gray-400">Redirecting to your dashboard…</p>
+              <p className="text-xs text-gray-400">Redirecting to your dashboardÃ¢â‚¬Â¦</p>
             </div>)}
 
           {!loading && inviteInfo && !done && (<>
@@ -143,7 +143,7 @@ export default function AcceptInvite() {
 
                 <div>
                   <label className={labelClass}>Confirm password</label>
-                  <input type={showPw ? "text" : "password"} className={inputClass} required value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" style={{ borderColor: confirmPw && confirmPw !== password ? "#EF4444" : undefined }}/>
+                  <input type={showPw ? "text" : "password"} className={inputClass} required value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete="new-password" style={{ borderColor: confirmPw && confirmPw !== password ? "#EF4444" : undefined }}/>
                   {confirmPw && confirmPw !== password && (<p className="mt-1 text-[11px] text-red-500">Passwords do not match</p>)}
                 </div>
 
@@ -151,9 +151,9 @@ export default function AcceptInvite() {
                     <XCircle className="w-3.5 h-3.5 flex-shrink-0"/> {submitErr}
                   </div>)}
 
-                <button type="submit" disabled={submitting} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#1A3D2B" }}>
+                <button type="submit" disabled={submitting} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#A4285E" }}>
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4"/>}
-                  {submitting ? "Creating account…" : "Accept invitation"}
+                  {submitting ? "Creating accountÃ¢â‚¬Â¦" : "Accept invitation"}
                 </button>
 
                 <p className="text-center text-[11px] text-gray-400">

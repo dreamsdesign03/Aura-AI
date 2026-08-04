@@ -46,7 +46,7 @@ export default function CalendlyEmbed({ url = CALENDLY_URL, height = 750, prefil
                     setStatus("error");
                     containerRef.current.innerHTML = `<div style="padding:40px;text-align:center;font-family:inherit;">
                 <p style="font-size:14px;color:#374151;margin-bottom:12px;">Could not load the booking calendar.</p>
-                <a href="${CALENDLY_URL}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#1A3D2B;color:#fff;font-size:13px;font-weight:600;text-decoration:none;">Book on Calendly →</a>
+                <a href="${CALENDLY_URL}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 18px;border-radius:8px;background:#A4285E;color:#fff;font-size:13px;font-weight:600;text-decoration:none;">Book on Calendly Ã¢â€ â€™</a>
               </div>`;
                 }
             });
@@ -66,7 +66,7 @@ export default function CalendlyEmbed({ url = CALENDLY_URL, height = 750, prefil
       `}</style>
       {status === "loading" && (<div className="flex flex-col items-center justify-center gap-3 py-20 text-gray-400">
           <div className="w-6 h-6 rounded-full border-2 border-gray-200 border-t-green-700 animate-spin"/>
-          <span className="text-xs font-medium">Loading booking calendar…</span>
+          <span className="text-xs font-medium">Loading booking calendarÃ¢â‚¬Â¦</span>
         </div>)}
       <div ref={containerRef} className="calendly-embed-wrapper" style={{ minHeight: height, height: height, width: "100%", overflow: "hidden" }}/>
     </div>);

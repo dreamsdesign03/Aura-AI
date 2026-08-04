@@ -6,10 +6,10 @@ import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2
 import { cn } from "@/lib/utils";
 import { NewMeetingModal, downloadICS, MEETING_TYPES } from "@/components/NewMeetingModal";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
-// ── Constants ─────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Constants Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const DESCRIPTION = `Hello there,
 
-PLEASE READ BEFORE BOOKING 👇
+PLEASE READ BEFORE BOOKING Ã°Å¸â€˜â€¡
 
 1. Fill in the form carefully so Dr. Aditya Shah can prepare for your consultation.
 2. Please review the details before confirming your slot.
@@ -18,7 +18,7 @@ Can't wait to help you!
 
 Thanks,
 Aura Laser & Cosmetic Clinic | Skinnonest`;
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function statusColor(s) {
     if (s === "confirmed")
         return { bg: "#dcfce7", text: "#16a34a" };
@@ -28,11 +28,11 @@ function statusColor(s) {
         return { bg: "#fee2e2", text: "#dc2626" };
     return { bg: "#f3f4f6", text: "#6b7280" };
 }
-// ── HostPanel (left side, shared across all steps) ───────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ HostPanel (left side, shared across all steps) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function HostPanel({ selectedDate, selectedTimeLabel }) {
     return (<div className="w-64 flex-shrink-0 border-r border-gray-200 p-7 flex flex-col gap-5">
       <div className="flex flex-col items-start gap-3">
-        <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md" style={{ background: "linear-gradient(135deg,#0E7490,#DB2777)" }}>
+        <div className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold text-white shadow-md" style={{ background: "linear-gradient(135deg,#8E1F54,#CB3273)" }}>
           AS
         </div>
         <div>
@@ -69,7 +69,7 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
       </div>
     </div>);
 }
-// ── Booking Widget (Calendly embed) ───────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Booking Widget (Calendly embed) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function BookingWidget() {
     return (<div className="flex items-start justify-center py-8 px-4">
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(1050px, 100%)", minHeight: "780px" }}>
@@ -77,14 +77,14 @@ function BookingWidget() {
         <div className="flex-1 p-6 md:p-8 flex flex-col min-w-0">
           <div className="mb-4">
             <div className="text-base font-bold text-gray-900">Schedule your Clinic Consultation</div>
-            <div className="text-xs text-gray-500 mt-0.5">Pick a time — confirmation &amp; calendar invite are sent automatically by Calendly.</div>
+            <div className="text-xs text-gray-500 mt-0.5">Pick a time Ã¢â‚¬â€ confirmation &amp; calendar invite are sent automatically by Calendly.</div>
           </div>
           <CalendlyEmbed height={750}/>
         </div>
       </div>
     </div>);
 }
-// ── Admin Bookings View ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Admin Bookings View Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function AdminView() {
     const qc = useQueryClient();
     const { data: appts = [], isLoading } = useListAppointments();
@@ -152,7 +152,7 @@ function AdminView() {
             {syncError && <span className="text-[10px] text-red-500 max-w-[140px] truncate">{syncError}</span>}
             <button onClick={syncCalendly} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-green-700 text-green-800 hover:bg-green-50 disabled:opacity-60" title="Sync bookings from Calendly">
               <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")}/>
-              {syncing ? "Syncing…" : "Sync Calendly"}
+              {syncing ? "SyncingÃ¢â‚¬Â¦" : "Sync Calendly"}
             </button>
           </div>
         </div>
@@ -215,12 +215,12 @@ function AdminView() {
                   {active.phone && <div className="text-sm text-gray-500">{active.phone}</div>}
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
                     <CalendarDays className="w-3.5 h-3.5 text-gray-400"/>
-                    {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {activeTimeLabel}
+                    {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} Ã‚Â· {activeTimeLabel}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
                     {active.location === "meet"
                 ? <><Video className="w-3.5 h-3.5 text-blue-500"/> Google Meet</>
-                : <><MapPin className="w-3.5 h-3.5 text-red-500"/> In-person – Vadodara</>}
+                : <><MapPin className="w-3.5 h-3.5 text-red-500"/> In-person Ã¢â‚¬â€œ Vadodara</>}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {active.meetingLink && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
@@ -281,7 +281,7 @@ function AdminView() {
     </div>
     </>);
 }
-// ── CRM Meetings View ─────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ CRM Meetings View Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const MEETING_STATUSES = ["scheduled", "confirmed", "completed", "cancelled", "no_show"];
 function toDatetimeLocal(isoStr) {
     const d = new Date(isoStr);
@@ -402,7 +402,7 @@ function CrmMeetingsView() {
           <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
             CRM Meetings ({meetings.length})
           </span>
-          <button onClick={() => setShowModal(true)} className="flex items-center gap-1.5 text-xs font-semibold text-white px-2.5 py-1.5 rounded-lg transition-all" style={{ background: "#1A3D2B" }}>
+          <button onClick={() => setShowModal(true)} className="flex items-center gap-1.5 text-xs font-semibold text-white px-2.5 py-1.5 rounded-lg transition-all" style={{ background: "#A4285E" }}>
             <Plus className="w-3.5 h-3.5"/> New
           </button>
         </div>
@@ -450,7 +450,7 @@ function CrmMeetingsView() {
             <CalendarDays className="w-8 h-8 text-gray-200 mb-3"/>
             <div className="text-sm text-gray-400">Select a meeting to view details</div>
           </div>) : isEditing && editForm ? (
-        /* ── Edit form ── */
+        /* Ã¢â€â‚¬Ã¢â€â‚¬ Edit form Ã¢â€â‚¬Ã¢â€â‚¬ */
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <div className="flex items-center justify-between">
               <div>
@@ -513,16 +513,16 @@ function CrmMeetingsView() {
                     <button onClick={() => setIsEditing(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
                       Cancel
                     </button>
-                    <button onClick={handleSave} disabled={updateMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#1A3D2B" }}>
+                    <button onClick={handleSave} disabled={updateMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#A4285E" }}>
                       {updateMeeting.isPending
-                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Saving…</>
+                        ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> SavingÃ¢â‚¬Â¦</>
                         : "Save Changes"}
                     </button>
                   </div>
                 </div>);
             })()}
           </div>) : (
-        /* ── Read-only detail view ── */
+        /* Ã¢â€â‚¬Ã¢â€â‚¬ Read-only detail view Ã¢â€â‚¬Ã¢â€â‚¬ */
         <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-4">
             <div className="flex items-start justify-between">
               <div>
@@ -538,7 +538,7 @@ function CrmMeetingsView() {
                 </div>
                 <div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                   <Clock className="w-3.5 h-3.5 text-gray-400"/>
-                  {activeMeeting.duration} min · <span className="capitalize">{activeMeeting.type.replace(/_/g, " ")}</span>
+                  {activeMeeting.duration} min Ã‚Â· <span className="capitalize">{activeMeeting.type.replace(/_/g, " ")}</span>
                 </div>
                 {activeMeeting.meetingUrl && (<div className="flex items-center gap-2 mt-1 text-xs text-gray-600">
                     {activeMeeting.meetingUrl.startsWith("http")
@@ -612,7 +612,7 @@ function CrmMeetingsView() {
               </button>
               <button onClick={() => handleDelete(confirmDeleteId)} disabled={deleteMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#dc2626" }}>
                 {deleteMeeting.isPending
-                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Deleting…</>
+                    ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> DeletingÃ¢â‚¬Â¦</>
                     : "Delete"}
               </button>
             </div>
@@ -621,16 +621,16 @@ function CrmMeetingsView() {
         })()}
     </>);
 }
-// ── Main Meetings page ────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Main Meetings page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function Meetings() {
     const [mainTab, setMainTab] = useState("manage");
     return (<div className="min-h-screen" style={{ background: "#f5f5f5" }}>
       {/* Tab bar */}
       <div className="bg-white border-b border-gray-200 px-6 flex items-center gap-1">
         {([
-            { key: "book", label: "📅 Book a Meeting", icon: <Calendar className="w-3.5 h-3.5"/> },
-            { key: "manage", label: "📋 Manage Bookings", icon: <Users className="w-3.5 h-3.5"/> },
-            { key: "crm", label: "🤝 CRM Meetings", icon: <CalendarDays className="w-3.5 h-3.5"/> },
+            { key: "book", label: "Ã°Å¸â€œâ€¦ Book a Meeting", icon: <Calendar className="w-3.5 h-3.5"/> },
+            { key: "manage", label: "Ã°Å¸â€œâ€¹ Manage Bookings", icon: <Users className="w-3.5 h-3.5"/> },
+            { key: "crm", label: "Ã°Å¸Â¤Â CRM Meetings", icon: <CalendarDays className="w-3.5 h-3.5"/> },
         ]).map(tab => (<button key={tab.key} onClick={() => setMainTab(tab.key)} className={cn("flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-colors -mb-px", mainTab === tab.key
                 ? "border-green-700 text-green-800"
                 : "border-transparent text-gray-400 hover:text-gray-700")}>

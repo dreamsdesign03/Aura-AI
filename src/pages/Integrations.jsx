@@ -44,7 +44,7 @@ export default function Integrations() {
           <p className="text-sm text-gray-500 mt-1">Connect Google Calendar & Meet so every booking auto-syncs and transcripts flow into Sales Brain.</p>
         </div>
 
-        {/* ── GOOGLE CALENDAR / MEET ─────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ GOOGLE CALENDAR / MEET Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="flex items-center gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}>
@@ -70,7 +70,7 @@ export default function Integrations() {
                 <div>
                   <div className="text-sm font-semibold text-green-800">Google Calendar & Meet active</div>
                   <div className="text-xs text-green-700 mt-0.5">
-                    Connected via AuraAI's secure Google integration — no API keys needed. All new bookings sync to Google Calendar and a Google Meet link is created automatically.
+                    Connected via AuraAI's secure Google integration Ã¢â‚¬â€ no API keys needed. All new bookings sync to Google Calendar and a Google Meet link is created automatically.
                   </div>
                 </div>
               </div>)}
@@ -81,7 +81,7 @@ export default function Integrations() {
                 <div>
                   <div className="text-sm font-semibold text-amber-800">Google Calendar not reachable</div>
                   <div className="text-xs text-amber-700 mt-0.5">
-                    The Google Calendar connection could not be verified. This may be a temporary issue — try refreshing in a moment. The integration is managed securely by AuraAI.
+                    The Google Calendar connection could not be verified. This may be a temporary issue Ã¢â‚¬â€ try refreshing in a moment. The integration is managed securely by AuraAI.
                   </div>
                   <button onClick={() => { setGoogleLoading(true); loadGoogleStatus(); }} className="mt-2 inline-flex items-center gap-1.5 text-xs font-medium text-amber-700 hover:text-amber-900 transition-colors">
                     <RefreshCw className="w-3 h-3"/> Retry check
@@ -92,10 +92,10 @@ export default function Integrations() {
             {/* What you get */}
             <div className="grid grid-cols-2 gap-3">
               {[
-            { icon: "📅", title: "Auto Calendar Events", desc: "Every booking creates a Google Calendar event instantly" },
-            { icon: "🎥", title: "Google Meet Links", desc: "Meet link generated and sent in booking confirmation email" },
-            { icon: "🔄", title: "Real-time Sync", desc: "Updates, cancellations reflected in your calendar" },
-            { icon: "📝", title: "Manual Transcripts", desc: "Paste post-meeting transcripts for AI analysis and proposals" },
+            { icon: "Ã°Å¸â€œâ€¦", title: "Auto Calendar Events", desc: "Every booking creates a Google Calendar event instantly" },
+            { icon: "Ã°Å¸Å½Â¥", title: "Google Meet Links", desc: "Meet link generated and sent in booking confirmation email" },
+            { icon: "Ã°Å¸â€â€ž", title: "Real-time Sync", desc: "Updates, cancellations reflected in your calendar" },
+            { icon: "Ã°Å¸â€œÂ", title: "Manual Transcripts", desc: "Paste post-meeting transcripts for AI analysis and proposals" },
         ].map((f) => (<div key={f.title} className="flex gap-2.5 p-3 rounded-xl bg-gray-50">
                   <span className="text-base">{f.icon}</span>
                   <div>
@@ -107,7 +107,7 @@ export default function Integrations() {
           </div>
         </div>
 
-        {/* ── GOOGLE MEET INFO ──────────────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ GOOGLE MEET INFO Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="flex items-center gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#00832D,#0F9D58)" }}>
@@ -120,7 +120,7 @@ export default function Integrations() {
                   <CheckCircle2 className="w-3 h-3"/> Included
                 </span>
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">Google Meet is the default video call option for all bookings — no extra setup needed.</p>
+              <p className="text-xs text-gray-500 mt-0.5">Google Meet is the default video call option for all bookings Ã¢â‚¬â€ no extra setup needed.</p>
             </div>
           </div>
 
@@ -137,10 +137,10 @@ export default function Integrations() {
 
             <div className="grid grid-cols-2 gap-3">
               {[
-            { icon: "🔗", title: "Auto Meet Link", desc: "Unique Meet link created per booking, no manual steps" },
-            { icon: "📧", title: "Email Delivery", desc: "Link sent to prospect in booking confirmation email" },
-            { icon: "📆", title: "Calendar Invite", desc: "Meet join button added to Google Calendar invite" },
-            { icon: "🧠", title: "AI Analysis", desc: "Paste transcripts manually for Sales Brain analysis" },
+            { icon: "Ã°Å¸â€â€”", title: "Auto Meet Link", desc: "Unique Meet link created per booking, no manual steps" },
+            { icon: "Ã°Å¸â€œÂ§", title: "Email Delivery", desc: "Link sent to prospect in booking confirmation email" },
+            { icon: "Ã°Å¸â€œâ€ ", title: "Calendar Invite", desc: "Meet join button added to Google Calendar invite" },
+            { icon: "Ã°Å¸Â§Â ", title: "AI Analysis", desc: "Paste transcripts manually for Sales Brain analysis" },
         ].map((f) => (<div key={f.title} className="flex gap-2.5 p-3 rounded-xl bg-gray-50">
                   <span className="text-base">{f.icon}</span>
                   <div>
@@ -156,7 +156,7 @@ export default function Integrations() {
           </div>
         </div>
 
-        {/* ── HOW IT WORKS ────────────────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ HOW IT WORKS Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5">
           <div className="flex items-center gap-2 mb-4">
             <Zap className="w-4 h-4 text-indigo-500"/>
@@ -166,10 +166,10 @@ export default function Integrations() {
             {[
             { step: "1", text: "Customer books a call via your booking link", color: "#4285F4" },
             { step: "2", text: "AuraAI creates a Google Calendar event with a Google Meet link", color: "#34A853" },
-            { step: "3", text: "Booking confirmation email sent with Google Meet join link", color: "#5C1A8C" },
+            { step: "3", text: "Booking confirmation email sent with Google Meet join link", color: "#8E1F54" },
             { step: "4", text: "You see the meeting in your Google Calendar with one-click join", color: "#FBBC05" },
             { step: "5", text: "After the call, paste the transcript into Sales Brain for analysis", color: "#2D8CFF" },
-            { step: "6", text: "Sales Brain analyzes transcript → generates custom proposal + email sequence", color: "#E91E8C" },
+            { step: "6", text: "Sales Brain analyzes transcript Ã¢â€ â€™ generates custom proposal + email sequence", color: "#CB3273" },
         ].map(({ step, text, color }) => (<li key={step} className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold text-white mt-0.5" style={{ background: color }}>{step}</span>
                 <span className="text-sm text-gray-700">{text}</span>
@@ -177,13 +177,13 @@ export default function Integrations() {
           </ol>
         </div>
 
-        {/* ── BOOKING LINK ────────────────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ BOOKING LINK Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5">
           <div className="flex items-center gap-2 mb-3">
             <Link2 className="w-4 h-4 text-gray-500"/>
             <h3 className="font-semibold text-gray-900 text-sm">Your Booking Link</h3>
           </div>
-          <CopyField label="Share this with prospects — Google Meet link auto-created on booking" value={typeof window !== "undefined" ? `${window.location.origin}${BASE}/book` : `${BASE}/book`}/>
+          <CopyField label="Share this with prospects Ã¢â‚¬â€ Google Meet link auto-created on booking" value={typeof window !== "undefined" ? `${window.location.origin}${BASE}/book` : `${BASE}/book`}/>
         </div>
 
       </div>

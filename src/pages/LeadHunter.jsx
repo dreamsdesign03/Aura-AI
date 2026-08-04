@@ -4,12 +4,12 @@ import { Link } from "wouter";
 import { Target, Zap, Play, Pause, Activity, CheckCircle2, AlertCircle, Users, TrendingUp, MessageCircle, Brain, Globe, Settings, FileText, Loader2, ChevronRight, Sparkles, ArrowLeft, Bot, Save, RefreshCw, ToggleLeft, ToggleRight, Shield, BookOpen, GitBranch, Database, Send, Download, } from "lucide-react";
 import { cn, bantBandChipStyle } from "@/lib/utils";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const DEFAULT_SKILLS_DOC = `# Lead Hunter Agent — Skills & Operating Manual
+const DEFAULT_SKILLS_DOC = `# Lead Hunter Agent Ã¢â‚¬â€ Skills & Operating Manual
 
 ## Identity & Mission
 I am the **Lead Hunter Agent** for Dreamsdesign. My mission is to operate as a tireless virtual Business Development Representative (BDR), hunting for high-fit B2B prospects 24 hours a day, 7 days a week.
 
-My end objective: deliver well-qualified, pipeline-ready leads directly into Dreamsdesign's sales pipeline — enriched with research and a personalised first-touch message.
+My end objective: deliver well-qualified, pipeline-ready leads directly into Dreamsdesign's sales pipeline Ã¢â‚¬â€ enriched with research and a personalised first-touch message.
 
 ---
 
@@ -34,12 +34,12 @@ For each prospect I find, I research:
 
 ### Phase 4: Qualification via Sales Brain
 I score every lead against BANT criteria in collaboration with Sales Brain:
-- **Budget**: Does the company profile match Dreamsdesign's ₹50K–5L project range?
+- **Budget**: Does the company profile match Dreamsdesign's Ã¢â€šÂ¹50KÃ¢â‚¬â€œ5L project range?
 - **Authority**: Is the contact a Founder, C-Suite, or Director?
 - **Need**: Do they show signals of needing branding, web design, or digital marketing?
 - **Timeline**: Are there signals of active buying intent or urgency?
 
-Leads scoring **≥ 60** are approved for pipeline entry. Leads scoring **≥ 85** are flagged for immediate human attention.
+Leads scoring **Ã¢â€°Â¥ 60** are approved for pipeline entry. Leads scoring **Ã¢â€°Â¥ 85** are flagged for immediate human attention.
 
 ### Phase 5: Marketing Brain Collaboration
 After BANT qualification, I collaborate with Marketing Brain to craft a personalised WhatsApp first-touch message for each lead. The message:
@@ -61,7 +61,7 @@ Qualified leads are added to the active pipeline with:
 
 ### Sales Brain Sync
 Before marking a lead as qualified, I present the full lead profile to Sales Brain. Sales Brain provides:
-- BANT qualification verdict with score 0–100
+- BANT qualification verdict with score 0Ã¢â‚¬â€œ100
 - One-sentence reason for accept/reject
 - Recommended next step for the sales team
 
@@ -86,10 +86,10 @@ After qualification, Marketing Brain crafts the personalised opener using:
 
 ## Target Persona (from ICP Manager)
 I read this dynamically before each cycle. Examples of what I look for:
-- Founders and CEOs of D2C brands (₹1Cr–50Cr revenue)
-- Marketing Heads at SaaS startups (10–200 employees)
+- Founders and CEOs of D2C brands (Ã¢â€šÂ¹1CrÃ¢â‚¬â€œ50Cr revenue)
+- Marketing Heads at SaaS startups (10Ã¢â‚¬â€œ200 employees)
 - Business owners in hospitality, healthcare, retail needing digital presence
-- E-commerce entrepreneurs scaling from ₹10L to ₹1Cr+ monthly GMV
+- E-commerce entrepreneurs scaling from Ã¢â€šÂ¹10L to Ã¢â€šÂ¹1Cr+ monthly GMV
 
 ---
 
@@ -99,15 +99,15 @@ I read this dynamically before each cycle. Examples of what I look for:
 - **Daily target**: 10 high-quality leads per cycle (configurable)
 `;
 const ACTIVITY_META = {
-    hunt_started: { color: "#7C3AED", bg: "#F5F3FF", Icon: Zap, label: "Hunt Started" },
-    icp_read: { color: "#4F35A8", bg: "#EDE9FE", Icon: BookOpen, label: "ICP Read" },
+    hunt_started: { color: "#CB3273", bg: "#FBE9F1", Icon: Zap, label: "Hunt Started" },
+    icp_read: { color: "#A4285E", bg: "#FBE9F1", Icon: BookOpen, label: "ICP Read" },
     source_scan: { color: "#6B7280", bg: "#F3F4F6", Icon: Globe, label: "Source Scan" },
     lead_found: { color: "#3B82F6", bg: "#EFF6FF", Icon: Users, label: "Lead Found" },
     brain_sync: { color: "#25D366", bg: "#F0FDF4", Icon: Brain, label: "Brain Sync" },
     lead_qualified: { color: "#059669", bg: "#ECFDF5", Icon: CheckCircle2, label: "Qualified" },
     lead_rejected: { color: "#EF4444", bg: "#FEF2F2", Icon: AlertCircle, label: "Rejected" },
-    pipeline_added: { color: "#10B981", bg: "#D1FAE5", Icon: Send, label: "→ Pipeline" },
-    hunt_completed: { color: "#1A3D2B", bg: "#F0FDF4", Icon: Activity, label: "Cycle Done" },
+    pipeline_added: { color: "#10B981", bg: "#D1FAE5", Icon: Send, label: "Ã¢â€ â€™ Pipeline" },
+    hunt_completed: { color: "#A4285E", bg: "#F0FDF4", Icon: Activity, label: "Cycle Done" },
     paused: { color: "#6B7280", bg: "#F3F4F6", Icon: Pause, label: "Paused" },
     error: { color: "#EF4444", bg: "#FEF2F2", Icon: AlertCircle, label: "Error" },
 };
@@ -123,7 +123,7 @@ function formatRelative(iso) {
         return `${Math.round(diff / 86400000)}d ago`;
     }
     catch {
-        return "—";
+        return "Ã¢â‚¬â€";
     }
 }
 function formatDate(iso) {
@@ -131,7 +131,7 @@ function formatDate(iso) {
         return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     }
     catch {
-        return "—";
+        return "Ã¢â‚¬â€";
     }
 }
 export default function LeadHunter() {
@@ -282,7 +282,7 @@ export default function LeadHunter() {
                             setSkipped(p => p + 1);
                         if (event === "done") {
                             setHuntDone(true);
-                            setStatusMsg(`Hunt complete — ${payload.imported ?? 0} added · ${payload.skipped ?? 0} skipped`);
+                            setStatusMsg(`Hunt complete Ã¢â‚¬â€ ${payload.imported ?? 0} added Ã‚Â· ${payload.skipped ?? 0} skipped`);
                             refetchActivity();
                             refetchStatus();
                         }
@@ -317,8 +317,8 @@ export default function LeadHunter() {
     ];
     return (<div className="min-h-screen" style={{ background: "hsl(138 25% 96%)" }}>
 
-      {/* ── Agent Hero Header ─────────────────────────────────────────────────── */}
-      <div className="px-6 pt-6 pb-5" style={{ background: "linear-gradient(135deg, #0A0818 0%, #1A1040 60%, #2D1F5E 100%)" }}>
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Agent Hero Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      <div className="px-6 pt-6 pb-5" style={{ background: "linear-gradient(135deg, #2A0A18 0%, #4A1030 60%, #5A1232 100%)" }}>
         {/* Back */}
         <Link href="/agents">
           <div className="flex items-center gap-1.5 text-[12px] font-medium mb-5 cursor-pointer w-fit" style={{ color: "rgba(255,255,255,0.5)" }}>
@@ -331,10 +331,10 @@ export default function LeadHunter() {
           {/* Identity */}
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl flex-shrink-0" style={{ background: "linear-gradient(135deg, #7C3AED, #4F35A8)", boxShadow: "0 0 30px rgba(124,58,237,0.4)" }}>
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-2xl flex-shrink-0" style={{ background: "linear-gradient(135deg, #CB3273, #A4285E)", boxShadow: "0 0 30px rgba(203,50,115,0.4)" }}>
                 <Target className="w-8 h-8 text-white"/>
               </div>
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ background: status?.active ? "#059669" : "#6B7280", borderColor: "#0A0818" }}>
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 flex items-center justify-center" style={{ background: status?.active ? "#059669" : "#6B7280", borderColor: "#2A0A18" }}>
                 {status?.active && (<span className="absolute animate-ping w-full h-full rounded-full opacity-60" style={{ background: "#059669" }}/>)}
               </span>
             </div>
@@ -345,11 +345,11 @@ export default function LeadHunter() {
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={status?.active
             ? { background: "rgba(5,150,105,0.25)", color: "#34D399", border: "1px solid rgba(52,211,153,0.3)" }
             : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  {status?.active ? "● Hunting" : "Idle"}
+                  {status?.active ? "Ã¢â€”Â Hunting" : "Idle"}
                 </span>
               </div>
               <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>
-                Virtual BDR · hunts leads 24×7 based on your ICPs · synced with Sales Brain & Marketing Brain
+                Virtual BDR Ã‚Â· hunts leads 24Ãƒâ€”7 based on your ICPs Ã‚Â· synced with Sales Brain & Marketing Brain
               </p>
               <div className="flex items-center gap-4 mt-2.5 text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
                 <span>Last run: <span style={{ color: "rgba(255,255,255,0.7)" }}>{cfg ? formatRelative(cfg.lastRunAt) : "14h ago"}</span></span>
@@ -361,7 +361,7 @@ export default function LeadHunter() {
 
           {/* Controls */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button onClick={startHunt} disabled={toggleMutation.isPending} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all" style={{ background: streaming ? "#B91C1C" : "#7C3AED", color: "#fff", boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
+            <button onClick={startHunt} disabled={toggleMutation.isPending} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold transition-all" style={{ background: streaming ? "#B91C1C" : "#CB3273", color: "#fff", boxShadow: "0 4px 16px rgba(203,50,115,0.35)" }}>
               {streaming
             ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Stop Hunt</>
             : <><Zap className="w-3.5 h-3.5"/> Hunt Now</>}
@@ -377,7 +377,7 @@ export default function LeadHunter() {
         {/* Stats row */}
         <div className="grid grid-cols-4 gap-3 mt-5">
           {[
-            { label: "Total Found", value: cfg?.totalLeadsFound ?? 87, icon: Users, color: "#A78BFA" },
+            { label: "Total Found", value: cfg?.totalLeadsFound ?? 87, icon: Users, color: "#E58BB5" },
             { label: "Qualified", value: cfg?.totalQualified ?? 34, icon: CheckCircle2, color: "#34D399" },
             { label: "In Pipeline", value: cfg?.totalPipelineAdded ?? 28, icon: Send, color: "#60A5FA" },
             { label: "Success Rate", value: `${successRate}%`, icon: TrendingUp, color: "#FBBF24" },
@@ -391,7 +391,7 @@ export default function LeadHunter() {
         </div>
       </div>
 
-      {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Tabs Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <div className="px-6 bg-white border-b border-gray-200">
         <div className="flex gap-0">
           {TABS.map(({ id, label, icon: Icon }) => (<button key={id} onClick={() => setTab(id)} className={cn("flex items-center gap-1.5 px-4 py-3 text-[13px] font-semibold border-b-2 transition-all", tab === id
@@ -403,14 +403,14 @@ export default function LeadHunter() {
         </div>
       </div>
 
-      {/* ── Tab Content ───────────────────────────────────────────────────────── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Tab Content Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <div className="p-6 space-y-5">
 
-        {/* ─── OVERVIEW ────────────────────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OVERVIEW Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         {tab === "overview" && (<>
             {/* Live Hunt Feed */}
             {(streaming || streamedLeads.length > 0 || huntDone || huntError) && (<div className="rounded-xl border border-violet-200 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-violet-100" style={{ background: "#F5F3FF" }}>
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-violet-100" style={{ background: "#FBE9F1" }}>
                   {streaming && <Loader2 className="w-3.5 h-3.5 text-violet-600 animate-spin"/>}
                   {huntDone && <CheckCircle2 className="w-3.5 h-3.5 text-green-600"/>}
                   {huntError && <AlertCircle className="w-3.5 h-3.5 text-red-500"/>}
@@ -422,13 +422,13 @@ export default function LeadHunter() {
                 </div>
                 <div className="divide-y divide-violet-50 max-h-64 overflow-y-auto">
                   {streamedLeads.map((l, i) => (<div key={i} className="flex items-start gap-3 px-4 py-2.5 bg-white">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white" style={{ background: "#7C3AED" }}>
+                      <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white" style={{ background: "#CB3273" }}>
                         {l.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[13px] font-semibold text-gray-900">{l.name}</span>
-                          <span className="text-[11px] text-gray-500">{l.designation} · {l.company}</span>
+                          <span className="text-[11px] text-gray-500">{l.designation} Ã‚Â· {l.company}</span>
                           <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full" style={bantBandChipStyle(l.bantScore)}>
                             BANT {l.bantScore}
                           </span>
@@ -465,17 +465,17 @@ export default function LeadHunter() {
                 </div>
                 {activeIcps.length === 0 ? (<div className="py-6 text-center text-[12px] text-gray-400">
                     <Target className="w-6 h-6 mx-auto mb-2 text-gray-200"/>
-                    No active ICPs. <Link href="/icp"><span className="text-violet-600 cursor-pointer hover:underline">Create one →</span></Link>
+                    No active ICPs. <Link href="/icp"><span className="text-violet-600 cursor-pointer hover:underline">Create one Ã¢â€ â€™</span></Link>
                   </div>) : (<div className="space-y-2">
                     {activeIcps.map(icp => (<div key={icp.id} className="rounded-lg px-3 py-2.5 flex items-start gap-2.5" style={{ background: "#FAFAFA", border: "1px solid hsl(220 13% 93%)" }}>
-                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: "#7C3AED" }}/>
+                        <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: "#CB3273" }}/>
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-semibold text-gray-900">{icp.name}</div>
                           <div className="text-[11px] text-gray-500 mt-0.5">
-                            {[icp.industries?.slice(0, 2).join(", "), icp.companySize, icp.markets?.slice(0, 1).join(", ")].filter(Boolean).join(" · ")}
+                            {[icp.industries?.slice(0, 2).join(", "), icp.companySize, icp.markets?.slice(0, 1).join(", ")].filter(Boolean).join(" Ã‚Â· ")}
                           </div>
                           {icp.roles?.length > 0 && (<div className="flex flex-wrap gap-1 mt-1">
-                              {icp.roles.slice(0, 3).map(r => (<span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#EDE9FE", color: "#7C3AED" }}>{r}</span>))}
+                              {icp.roles.slice(0, 3).map(r => (<span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#FBE9F1", color: "#CB3273" }}>{r}</span>))}
                             </div>)}
                         </div>
                       </div>))}
@@ -505,7 +505,7 @@ export default function LeadHunter() {
                     desc: "Crafts personalised WhatsApp openers using the prospect's industry, designation, and pain points.",
                 },
                 {
-                    name: "ICP Intelligence", icon: Database, color: "#7C3AED", href: "/icp",
+                    name: "ICP Intelligence", icon: Database, color: "#CB3273", href: "/icp",
                     role: "Target definition",
                     desc: "Reads active ICPs before every hunt cycle to ensure only on-profile leads are pursued.",
                 },
@@ -541,7 +541,7 @@ export default function LeadHunter() {
                 { name: "Apollo.io", desc: "B2B contacts & emails", enabled: cfg?.sources.includes("apollo") ?? true, color: "#0891B2", bg: "#CFFAFE" },
                 { name: "Google Maps", desc: "Local Indian businesses", enabled: cfg?.sources.includes("google_maps") ?? true, color: "#DC2626", bg: "#FEE2E2" },
                 { name: "Apify Scraper", desc: "LinkedIn-style profiles", enabled: cfg?.sources.includes("apify") ?? false, color: "#EA580C", bg: "#FFEDD5" },
-                { name: "Manual Import", desc: "CSV / paste leads", enabled: true, color: "#7C3AED", bg: "#F5F3FF" },
+                { name: "Manual Import", desc: "CSV / paste leads", enabled: true, color: "#CB3273", bg: "#FBE9F1" },
             ].map(({ name, desc, enabled, color, bg }) => (<div key={name} className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: bg, opacity: enabled ? 1 : 0.5 }}>
                     <div className="flex items-center gap-1.5">
                       <div className="w-1.5 h-1.5 rounded-full" style={{ background: enabled ? color : "#9CA3AF" }}/>
@@ -564,9 +564,9 @@ export default function LeadHunter() {
               <div className="grid md:grid-cols-3 gap-2.5">
                 {[
                 { text: "No duplicate leads ever added to pipeline", ok: true },
-                { text: `Only BANT ≥ ${cfg?.minQualScore ?? 60} leads reach the pipeline`, ok: true },
+                { text: `Only BANT Ã¢â€°Â¥ ${cfg?.minQualScore ?? 60} leads reach the pipeline`, ok: true },
                 { text: "Every decision logged in Activity Log", ok: true },
-                { text: "BANT ≥ 85 flagged for immediate human review", ok: true },
+                { text: "BANT Ã¢â€°Â¥ 85 flagged for immediate human review", ok: true },
                 { text: "Rate limits respected on all external APIs", ok: true },
                 { text: `Max ${cfg?.dailyTarget ?? 10} leads hunted per cycle`, ok: true },
             ].map(({ text, ok }) => (<div key={text} className="flex items-start gap-2 text-[12px] text-gray-600">
@@ -577,19 +577,19 @@ export default function LeadHunter() {
             </div>
           </>)}
 
-        {/* ─── SKILLS DOCUMENT ─────────────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ SKILLS DOCUMENT Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         {tab === "skills" && (<div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100" style={{ background: "#FAFAFA" }}>
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-violet-600"/>
                 <span className="text-[13px] font-bold text-gray-900">Skills Document</span>
-                <span className="text-[11px] text-gray-400">— editable agent constitution · stored locally</span>
+                <span className="text-[11px] text-gray-400">Ã¢â‚¬â€ editable agent constitution Ã‚Â· stored locally</span>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={resetSkills} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
                   <RefreshCw className="w-3 h-3"/> Reset to default
                 </button>
-                <button onClick={saveSkills} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-colors" style={{ background: skillsSaved ? "#059669" : "#7C3AED" }}>
+                <button onClick={saveSkills} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold text-white transition-colors" style={{ background: skillsSaved ? "#059669" : "#CB3273" }}>
                   {skillsSaved ? <><CheckCircle2 className="w-3 h-3"/> Saved</> : <><Save className="w-3 h-3"/> Save Changes</>}
                 </button>
               </div>
@@ -598,13 +598,13 @@ export default function LeadHunter() {
             <div className="p-4">
               <div className="mb-3 text-[12px] text-gray-500 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2 flex items-start gap-2">
                 <Bot className="w-3.5 h-3.5 text-violet-500 flex-shrink-0 mt-0.5"/>
-                This document defines the agent's objectives, strategy, and behaviour. Edit any section and save — the agent reads this before every hunt cycle.
+                This document defines the agent's objectives, strategy, and behaviour. Edit any section and save Ã¢â‚¬â€ the agent reads this before every hunt cycle.
               </div>
               <textarea value={skillsDoc} onChange={e => setSkillsDoc(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 text-[13px] leading-relaxed text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 font-mono resize-none p-4 transition-colors" rows={40} placeholder="Enter agent skills and instructions..."/>
             </div>
           </div>)}
 
-        {/* ─── ACTIVITY LOG ────────────────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ACTIVITY LOG Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         {tab === "activity" && (<div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-gray-100" style={{ background: "#FAFAFA" }}>
@@ -612,7 +612,7 @@ export default function LeadHunter() {
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-violet-600"/>
                   <span className="text-[13px] font-bold text-gray-900">Activity Log</span>
-                  <span className="text-[11px] text-gray-400 ml-1">— every decision the agent makes</span>
+                  <span className="text-[11px] text-gray-400 ml-1">Ã¢â‚¬â€ every decision the agent makes</span>
                   {(activityData ?? []).length > 0 && (<span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 ml-1">
                       {activityData.length} events
                     </span>)}
@@ -639,14 +639,14 @@ export default function LeadHunter() {
                 {/* Date range pills */}
                 <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
                   {["today", "7d", "30d", "all"].map(f => (<button key={f} onClick={() => setDateFilter(f)} className="px-3 py-1 rounded-md text-[11px] font-semibold transition-all" style={dateFilter === f
-                    ? { background: "#7C3AED", color: "#fff" }
+                    ? { background: "#CB3273", color: "#fff" }
                     : { background: "transparent", color: "#6B7280" }}>
                       {f === "today" ? "Today" : f === "7d" ? "Last 7 days" : f === "30d" ? "Last 30 days" : "All time"}
                     </button>))}
                 </div>
                 {/* Group by cycle toggle */}
                 <button onClick={() => setGroupByCycle(v => !v)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border transition-colors" style={groupByCycle
-                ? { borderColor: "#7C3AED", color: "#7C3AED", background: "#F5F3FF" }
+                ? { borderColor: "#CB3273", color: "#CB3273", background: "#FBE9F1" }
                 : { borderColor: "#E5E7EB", color: "#6B7280", background: "#fff" }}>
                   <GitBranch className="w-3 h-3"/>
                   Group by cycle
@@ -704,7 +704,7 @@ export default function LeadHunter() {
                             current.completed = true;
                     }
                     else {
-                        // Entries before any hunt_started — put in an "uncategorised" cycle
+                        // Entries before any hunt_started Ã¢â‚¬â€ put in an "uncategorised" cycle
                         if (!cycles[cycles.length - 1] || cycles[cycles.length - 1].cycleIdx !== -1) {
                             cycles.push({ cycleIdx: -1, startEntry: entry, entries: [entry], completed: false });
                         }
@@ -782,7 +782,7 @@ export default function LeadHunter() {
             </div>
           </div>)}
 
-        {/* ─── SETTINGS ────────────────────────────────────────────────────── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ SETTINGS Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
         {tab === "settings" && (<div className="max-w-2xl space-y-4">
             <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5">
               <h2 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
@@ -793,7 +793,7 @@ export default function LeadHunter() {
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2.5">Hunt Frequency</label>
                 <div className="grid grid-cols-4 gap-2">
-                  {["6h", "12h", "24h", "manual"].map(f => (<button key={f} onClick={() => setLocalFreq(f)} className="py-2.5 rounded-xl text-[13px] font-bold border transition-all" style={localFreq === f ? { background: "#7C3AED", color: "#fff", borderColor: "#7C3AED" } : { background: "#fff", color: "#6B7280", borderColor: "#E5E7EB" }}>
+                  {["6h", "12h", "24h", "manual"].map(f => (<button key={f} onClick={() => setLocalFreq(f)} className="py-2.5 rounded-xl text-[13px] font-bold border transition-all" style={localFreq === f ? { background: "#CB3273", color: "#fff", borderColor: "#CB3273" } : { background: "#fff", color: "#6B7280", borderColor: "#E5E7EB" }}>
                       {f === "manual" ? "Manual" : `Every ${f}`}
                     </button>))}
                 </div>
@@ -802,12 +802,12 @@ export default function LeadHunter() {
               {/* Min BANT Score */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2.5">
-                  Minimum BANT Score — <span className="text-violet-600">{localScore}</span>
+                  Minimum BANT Score Ã¢â‚¬â€ <span className="text-violet-600">{localScore}</span>
                 </label>
                 <input type="range" min={40} max={90} step={5} value={localScore} onChange={e => setLocalScore(Number(e.target.value))} className="w-full accent-violet-600"/>
                 <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                  <span>40 — permissive</span>
-                  <span>90 — very strict</span>
+                  <span>40 Ã¢â‚¬â€ permissive</span>
+                  <span>90 Ã¢â‚¬â€ very strict</span>
                 </div>
               </div>
 
@@ -815,7 +815,7 @@ export default function LeadHunter() {
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2.5">Leads per Cycle</label>
                 <div className="flex gap-2">
-                  {[5, 10, 25, 50].map(n => (<button key={n} onClick={() => setLocalTarget(n)} className="flex-1 py-2.5 rounded-xl text-[13px] font-bold border transition-all" style={localTarget === n ? { background: "#7C3AED", color: "#fff", borderColor: "#7C3AED" } : { background: "#fff", color: "#6B7280", borderColor: "#E5E7EB" }}>
+                  {[5, 10, 25, 50].map(n => (<button key={n} onClick={() => setLocalTarget(n)} className="flex-1 py-2.5 rounded-xl text-[13px] font-bold border transition-all" style={localTarget === n ? { background: "#CB3273", color: "#fff", borderColor: "#CB3273" } : { background: "#fff", color: "#6B7280", borderColor: "#E5E7EB" }}>
                       {n}
                     </button>))}
                 </div>
@@ -831,9 +831,9 @@ export default function LeadHunter() {
                 { id: "apify", label: "Apify Scraper", desc: "LinkedIn-style scraping" },
             ].map(({ id, label, desc }) => {
                 const on = localSources.includes(id);
-                return (<button key={id} onClick={() => setLocalSources(s => on ? s.filter(x => x !== id) : [...s, id])} className="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left" style={{ background: on ? "#F5F3FF" : "#fff", borderColor: on ? "#7C3AED" : "#E5E7EB" }}>
+                return (<button key={id} onClick={() => setLocalSources(s => on ? s.filter(x => x !== id) : [...s, id])} className="w-full flex items-center justify-between px-4 py-3 rounded-xl border transition-all text-left" style={{ background: on ? "#FBE9F1" : "#fff", borderColor: on ? "#CB3273" : "#E5E7EB" }}>
                         <div>
-                          <div className="text-[13px] font-semibold" style={{ color: on ? "#7C3AED" : "#374151" }}>{label}</div>
+                          <div className="text-[13px] font-semibold" style={{ color: on ? "#CB3273" : "#374151" }}>{label}</div>
                           <div className="text-[11px] text-gray-500">{desc}</div>
                         </div>
                         {on
@@ -844,7 +844,7 @@ export default function LeadHunter() {
                 </div>
               </div>
 
-              <button onClick={() => saveSettingsMutation.mutate()} disabled={saveSettingsMutation.isPending} className="w-full py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 transition-colors" style={{ background: settingsSaved ? "#059669" : "#7C3AED" }}>
+              <button onClick={() => saveSettingsMutation.mutate()} disabled={saveSettingsMutation.isPending} className="w-full py-3 rounded-xl text-[14px] font-bold text-white flex items-center justify-center gap-2 transition-colors" style={{ background: settingsSaved ? "#059669" : "#CB3273" }}>
                 {saveSettingsMutation.isPending
                 ? <><Loader2 className="w-4 h-4 animate-spin"/> Saving...</>
                 : settingsSaved
@@ -856,7 +856,7 @@ export default function LeadHunter() {
             {/* Danger zone */}
             <div className="rounded-xl border border-red-100 bg-white p-4">
               <div className="text-[12px] font-bold text-red-600 mb-1">Agent Controls</div>
-              <p className="text-[11px] text-gray-500 mb-3">Activate or pause the 24×7 automation. "Hunt Now" always triggers a one-time immediate cycle regardless of schedule.</p>
+              <p className="text-[11px] text-gray-500 mb-3">Activate or pause the 24Ãƒâ€”7 automation. "Hunt Now" always triggers a one-time immediate cycle regardless of schedule.</p>
               <div className="flex gap-2">
                 <button onClick={() => toggleMutation.mutate()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold border transition-all" style={status?.active ? { borderColor: "#FCA5A5", color: "#DC2626", background: "#FEF2F2" } : { borderColor: "#BBF7D0", color: "#059669", background: "#F0FDF4" }}>
                   {status?.active ? <><Pause className="w-3.5 h-3.5"/> Pause Automation</> : <><Play className="w-3.5 h-3.5"/> Activate Automation</>}

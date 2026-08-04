@@ -58,7 +58,7 @@ function SectionCard({ title, subtitle, icon: Icon, iconBg, iconColor, children 
     </div>);
 }
 function SaveButton({ pending, success, label = "Save changes" }) {
-    return (<button type="submit" disabled={pending} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#b01c5b]" style={{ background: success ? "#16a34a" : "#D42370" }}>
+    return (<button type="submit" disabled={pending} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#A4285E]" style={{ background: success ? "#16a34a" : "#CB3273" }}>
       {pending
             ? <Loader2 className="w-3.5 h-3.5 animate-spin"/>
             : success
@@ -67,7 +67,7 @@ function SaveButton({ pending, success, label = "Save changes" }) {
       {success ? "Saved!" : label}
     </button>);
 }
-// ── Profile Name Form ──────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Profile Name Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ProfileNameForm() {
     const authUser = useAuthUser();
     const updateUser = useUpdateUser();
@@ -162,7 +162,7 @@ function ProfileNameForm() {
         const body = { firstName: trimmedFirst, lastName: trimmedLast };
         if (isPhoneUser && trimmedEmail)
             body.email = trimmedEmail;
-        console.log("[Client - User Profile Settings] 💾 Saving profile details to PostgreSQL table 'users':", body);
+        console.log("[Client - User Profile Settings] Ã°Å¸â€™Â¾ Saving profile details to PostgreSQL table 'users':", body);
         try {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
@@ -172,11 +172,11 @@ function ProfileNameForm() {
             });
             const d = await res.json().catch(() => ({}));
             if (!res.ok) {
-                console.error("[Client - User Profile Settings] ❌ Error updating PostgreSQL table 'users':", d);
+                console.error("[Client - User Profile Settings] Ã¢ÂÅ’ Error updating PostgreSQL table 'users':", d);
                 setProfileErr(d.error || "Failed to save");
             }
             else {
-                console.log("[Client - User Profile Settings] ✅ Successfully updated user details in PostgreSQL table 'users':", d);
+                console.log("[Client - User Profile Settings] Ã¢Å“â€¦ Successfully updated user details in PostgreSQL table 'users':", d);
                 committedFirst.current = trimmedFirst;
                 committedLast.current = trimmedLast;
                 if (d.verificationEmailSent) {
@@ -192,7 +192,7 @@ function ProfileNameForm() {
             }
         }
         catch (err) {
-            console.error("[Client - User Profile Settings] ❌ Network Error while updating table 'users':", err);
+            console.error("[Client - User Profile Settings] Ã¢ÂÅ’ Network Error while updating table 'users':", err);
             setProfileErr("Network error");
         }
         finally {
@@ -203,7 +203,7 @@ function ProfileNameForm() {
     return (<SectionCard title="Personal Information" subtitle="Update your name and profile details" icon={User} iconBg="#F0FDF4" iconColor="#1A7A45">
       <form onSubmit={handleProfileSave} className="space-y-4">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #D42370, #E63980)" }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-lg font-bold text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #CB3273, #E63980)" }}>
             {avatarInitials}
           </div>
           <div>
@@ -234,9 +234,9 @@ function ProfileNameForm() {
                         <div className="flex-1 min-w-0">
                           {linkExpired ? (<div>
                               <strong className="block">Verification link expired</strong>
-                              <span className="text-[11px] opacity-80">{authUser.pendingEmail} — send a new link to confirm this address.</span>
+                              <span className="text-[11px] opacity-80">{authUser.pendingEmail} Ã¢â‚¬â€ send a new link to confirm this address.</span>
                             </div>) : (<span>
-                              <strong>{authUser.pendingEmail}</strong> — verification email sent. Check your inbox to confirm it.
+                              <strong>{authUser.pendingEmail}</strong> Ã¢â‚¬â€ verification email sent. Check your inbox to confirm it.
                               {expiryLabel && (<span className="ml-1 text-[11px] opacity-70">(Link expires in {expiryLabel})</span>)}
                             </span>)}
                           <div className="mt-1.5">
@@ -245,7 +245,7 @@ function ProfileNameForm() {
                               </span>) : resendErr ? (<span className="text-red-600">{resendErr}</span>) : null}
                             <button type="button" onClick={handleResendPendingEmail} disabled={resendPend || resendCooldown > 0} className={`mt-1 inline-flex items-center gap-1 font-semibold underline underline-offset-2 disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed transition-colors ${linkExpired ? "text-red-800 hover:text-red-900" : "text-amber-800 hover:text-amber-900"}`}>
                               {resendPend
-                    ? <><Loader2 className="w-3 h-3 animate-spin"/> Sending…</>
+                    ? <><Loader2 className="w-3 h-3 animate-spin"/> SendingÃ¢â‚¬Â¦</>
                     : resendCooldown > 0
                         ? linkExpired ? <>Send a new link in {resendCooldown}s</> : <>Resend link in {resendCooldown}s</>
                         : linkExpired
@@ -277,9 +277,9 @@ function ProfileNameForm() {
                     <div className="flex-1 min-w-0">
                       {linkExpired ? (<div>
                           <strong className="block">Verification link expired</strong>
-                          <span className="text-[11px] opacity-80">{authUser.pendingEmail} — send a new link to confirm this address.</span>
+                          <span className="text-[11px] opacity-80">{authUser.pendingEmail} Ã¢â‚¬â€ send a new link to confirm this address.</span>
                         </div>) : (<span>
-                          <strong>{authUser.pendingEmail}</strong> — verification email sent. Check your inbox to confirm it.
+                          <strong>{authUser.pendingEmail}</strong> Ã¢â‚¬â€ verification email sent. Check your inbox to confirm it.
                           {expiryLabel && (<span className="ml-1 text-[11px] opacity-70">(Link expires in {expiryLabel})</span>)}
                         </span>)}
                       <div className="mt-1.5">
@@ -288,7 +288,7 @@ function ProfileNameForm() {
                           </span>) : resendErr ? (<span className="text-red-600">{resendErr}</span>) : null}
                         <button type="button" onClick={handleResendPendingEmail} disabled={resendPend || resendCooldown > 0} className={`mt-1 inline-flex items-center gap-1 font-semibold underline underline-offset-2 disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed transition-colors ${linkExpired ? "text-red-800 hover:text-red-900" : "text-amber-800 hover:text-amber-900"}`}>
                           {resendPend
-                    ? <><Loader2 className="w-3 h-3 animate-spin"/> Sending…</>
+                    ? <><Loader2 className="w-3 h-3 animate-spin"/> SendingÃ¢â‚¬Â¦</>
                     : resendCooldown > 0
                         ? linkExpired ? <>Send a new link in {resendCooldown}s</> : <>Resend link in {resendCooldown}s</>
                         : linkExpired
@@ -312,7 +312,7 @@ function ProfileNameForm() {
       </form>
     </SectionCard>);
 }
-// ── Change Password Form ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Change Password Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ChangePasswordForm() {
     const authUser = useAuthUser();
     const refreshUser = useRefreshUser();
@@ -374,7 +374,7 @@ function ChangePasswordForm() {
       <form onSubmit={handlePasswordSave} className="space-y-4">
         {hasPassword && (<div>
             <label className={labelClass}>Current password</label>
-            <input type="password" className={inputClass} value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="••••••••" autoComplete="current-password" required/>
+            <input type="password" className={inputClass} value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete="current-password" required/>
           </div>)}
         <div>
           <label className={labelClass}>{hasPassword ? "New password" : "Password"}</label>
@@ -382,7 +382,7 @@ function ChangePasswordForm() {
         </div>
         <div>
           <label className={labelClass}>Confirm password</label>
-          <input type="password" className={inputClass} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" required style={{ borderColor: confirmPw && confirmPw !== newPw ? "#EF4444" : undefined }}/>
+          <input type="password" className={inputClass} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete="new-password" required style={{ borderColor: confirmPw && confirmPw !== newPw ? "#EF4444" : undefined }}/>
           {confirmPw && confirmPw !== newPw && (<p className="mt-1 text-[11px] text-red-500">Passwords do not match</p>)}
         </div>
         {pwErr && (<div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">
@@ -392,18 +392,18 @@ function ChangePasswordForm() {
       </form>
     </SectionCard>);
 }
-// ── Phone Number Form ──────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Phone Number Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const PHONE_COUNTRY_CODES = [
-    { code: "+91", flag: "🇮🇳", name: "India" },
-    { code: "+1", flag: "🇺🇸", name: "USA / Canada" },
-    { code: "+44", flag: "🇬🇧", name: "UK" },
-    { code: "+61", flag: "🇦🇺", name: "Australia" },
-    { code: "+971", flag: "🇦🇪", name: "UAE" },
-    { code: "+65", flag: "🇸🇬", name: "Singapore" },
-    { code: "+60", flag: "🇲🇾", name: "Malaysia" },
-    { code: "+49", flag: "🇩🇪", name: "Germany" },
-    { code: "+33", flag: "🇫🇷", name: "France" },
-    { code: "+81", flag: "🇯🇵", name: "Japan" },
+    { code: "+91", flag: "Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³", name: "India" },
+    { code: "+1", flag: "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸", name: "USA / Canada" },
+    { code: "+44", flag: "Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§", name: "UK" },
+    { code: "+61", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº", name: "Australia" },
+    { code: "+971", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âª", name: "UAE" },
+    { code: "+65", flag: "Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¬", name: "Singapore" },
+    { code: "+60", flag: "Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¾", name: "Malaysia" },
+    { code: "+49", flag: "Ã°Å¸â€¡Â©Ã°Å¸â€¡Âª", name: "Germany" },
+    { code: "+33", flag: "Ã°Å¸â€¡Â«Ã°Å¸â€¡Â·", name: "France" },
+    { code: "+81", flag: "Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ", name: "Japan" },
 ];
 function PhoneNumberForm() {
     const authUser = useAuthUser();
@@ -570,7 +570,7 @@ function PhoneNumberForm() {
           <CheckCircle className="w-3.5 h-3.5 flex-shrink-0"/> {success}
         </div>)}
 
-      {step === "idle" && (<button type="button" onClick={() => { setStep("phone"); setError(""); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#b01c5b]" style={{ background: "#D42370" }}>
+      {step === "idle" && (<button type="button" onClick={() => { setStep("phone"); setError(""); }} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
           <Phone className="w-3.5 h-3.5"/>
           {currentPhone ? "Change phone number" : "Add phone number"}
         </button>)}
@@ -589,11 +589,11 @@ function PhoneNumberForm() {
               <XCircle className="w-3.5 h-3.5 flex-shrink-0"/> {error}
             </div>)}
           <div className="flex gap-2">
-            <button type="submit" disabled={loading} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#b01c5b]" style={{ background: "#D42370" }}>
+            <button type="submit" disabled={loading} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Send className="w-3.5 h-3.5"/>}
               Send code
             </button>
-            <button type="button" onClick={resetFlow} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-[#FBE9F1] hover:text-[#D42370] transition-colors">
+            <button type="button" onClick={resetFlow} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-[#FBE9F1] hover:text-[#CB3273] transition-colors">
               <ChevronLeft className="w-3.5 h-3.5"/> Cancel
             </button>
           </div>
@@ -611,7 +611,7 @@ function PhoneNumberForm() {
               <XCircle className="w-3.5 h-3.5 flex-shrink-0"/> {error}
             </div>)}
           <div className="flex gap-2 items-center flex-wrap">
-            <button type="submit" disabled={loading || otpCode.length < 6} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#b01c5b]" style={{ background: "#D42370" }}>
+            <button type="submit" disabled={loading || otpCode.length < 6} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
               {loading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <CheckCircle className="w-3.5 h-3.5"/>}
               Verify
             </button>
@@ -625,7 +625,7 @@ function PhoneNumberForm() {
         </form>)}
     </SectionCard>);
 }
-// ── Business WHY Form ──────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Business WHY Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function BusinessWhyForm() {
     const authUser = useAuthUser();
     const updateUser = useUpdateUser();
@@ -646,7 +646,7 @@ function BusinessWhyForm() {
         setSaved(false);
         setSaving(true);
         const userEmail = authUser?.email || "dreamsdesign.in03@gmail.com";
-        console.log("[Client - Business WHY] 💾 Saving Business WHY to PostgreSQL table 'users':", { businessWhy: why, email: userEmail });
+        console.log("[Client - Business WHY] Ã°Å¸â€™Â¾ Saving Business WHY to PostgreSQL table 'users':", { businessWhy: why, email: userEmail });
         try {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
@@ -656,27 +656,27 @@ function BusinessWhyForm() {
             });
             const d = await res.json().catch(() => ({}));
             if (!res.ok) {
-                console.error("[Client - Business WHY] ❌ Error saving Business WHY to PostgreSQL table 'users':", d);
+                console.error("[Client - Business WHY] Ã¢ÂÅ’ Error saving Business WHY to PostgreSQL table 'users':", d);
                 setErr(d.error || "Failed to save");
             }
             else {
-                console.log("[Client - Business WHY] ✅ Saved Business WHY successfully to PostgreSQL table 'users':", d);
+                console.log("[Client - Business WHY] Ã¢Å“â€¦ Saved Business WHY successfully to PostgreSQL table 'users':", d);
                 updateUser({ businessWhy: why });
                 setSaved(true);
                 setTimeout(() => setSaved(false), 3000);
             }
         }
         catch (err) {
-            console.error("[Client - Business WHY] ❌ Network Error while saving to 'users':", err);
+            console.error("[Client - Business WHY] Ã¢ÂÅ’ Network Error while saving to 'users':", err);
             setErr("Network error");
         }
         finally {
             setSaving(false);
         }
     }
-    return (<SectionCard title="Your Business WHY" subtitle="Injected into every AI-generated email to make outreach feel human" icon={MessageCircle} iconBg="#F0FDFA" iconColor="#0D9488">
+    return (<SectionCard title="Your Business WHY" subtitle="Injected into every AI-generated email to make outreach feel human" icon={MessageCircle} iconBg="#FBE9F1" iconColor="#CB3273">
       <form onSubmit={handleSave} className="space-y-4">
-        <div className="rounded-lg px-3 py-2.5 text-[11px] italic border-l-2" style={{ background: "#F0FDFA", borderColor: "#0D9488", color: "#0F766E" }}>
+        <div className="rounded-lg px-3 py-2.5 text-[11px] italic border-l-2" style={{ background: "#FBE9F1", borderColor: "#CB3273", color: "#A4285E" }}>
           "We believe every B2B founder deserves a sales engine that works as hard as they do."
         </div>
         <div>
@@ -696,7 +696,7 @@ function BusinessWhyForm() {
       </form>
     </SectionCard>);
 }
-// ── Profile Tab ────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Profile Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ProfileTab() {
     return (<div className="space-y-6">
       <BusinessWhyForm />
@@ -705,7 +705,7 @@ function ProfileTab() {
       <ChangePasswordForm />
     </div>);
 }
-// ── Company Tab ─────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Company Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function CompanyTab() {
     const { data: brandingData, isLoading } = useGetBrandingSettings();
     const [companyName, setCompanyName] = useState("");
@@ -713,7 +713,7 @@ function CompanyTab() {
     const [phone, setPhone] = useState("");
     const [tagline, setTagline] = useState("");
     const [contactInfo, setContactInfo] = useState("");
-    const [brandColor, setBrandColor] = useState("#D42370");
+    const [brandColor, setBrandColor] = useState("#CB3273");
     const [logoBase64, setLogoBase64] = useState(null);
     const [brandSaveOk, setBrandSaveOk] = useState(false);
     const [brandSavePend, setBrandSavePend] = useState(false);
@@ -727,7 +727,7 @@ function CompanyTab() {
             setPhone(brandingData.phone ?? "");
             setTagline(brandingData.tagline ?? "");
             setContactInfo(brandingData.contactInfo ?? "");
-            setBrandColor(brandingData.brandColor ?? "#D42370");
+            setBrandColor(brandingData.brandColor ?? "#CB3273");
             setLogoBase64(brandingData.logoBase64 ?? null);
         }
     }, [brandingData]);
@@ -788,12 +788,12 @@ function CompanyTab() {
 
             if (res.ok) {
                 const data = await res.json().catch(() => ({ ok: true }));
-                console.log("[Client - Company Settings] ✅ Saved successfully to database table 'branding_settings':", data);
+                console.log("[Client - Company Settings] Ã¢Å“â€¦ Saved successfully to database table 'branding_settings':", data);
                 setBrandSaveOk(true);
                 setTimeout(() => setBrandSaveOk(false), 3000);
             } else {
                 const errText = await res.text().catch(() => "Unknown server error");
-                console.error(`[Client - Company Settings] ❌ Database save error (${res.status}):`, errText);
+                console.error(`[Client - Company Settings] Ã¢ÂÅ’ Database save error (${res.status}):`, errText);
                 alert(`Error saving company details (${res.status}): ${res.statusText}`);
             }
         }
@@ -810,9 +810,9 @@ function CompanyTab() {
     }
 
     return (<div className="space-y-6">
-      <SectionCard title="Company & Brand Details" subtitle="Company info, website, address, and logo used by Google Gemini AI" icon={Building2} iconBg="#FBE9F1" iconColor="#D42370">
+      <SectionCard title="Company & Brand Details" subtitle="Company info, website, address, and logo used by Google Gemini AI" icon={Building2} iconBg="#FBE9F1" iconColor="#CB3273">
         <form onSubmit={handleBrandSave} className="space-y-4">
-          <div className="rounded-lg border border-pink-100 bg-[#FBE9F1]/60 px-3 py-2.5 text-[11px] text-[#D42370] font-medium">
+          <div className="rounded-lg border border-pink-100 bg-[#FBE9F1]/60 px-3 py-2.5 text-[11px] text-[#CB3273] font-medium">
             These details train Aura AI to generate personalized leads, proposals, outreach emails, and BANT qualification scores tailored specifically to your company or clinic.
           </div>
 
@@ -856,7 +856,7 @@ function CompanyTab() {
                 </div>)}
               <div>
                 <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} className="hidden" id="logo-upload"/>
-                <label htmlFor="logo-upload" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-[#FBE9F1] hover:text-[#D42370] transition-colors">
+                <label htmlFor="logo-upload" className="cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-gray-200 text-gray-700 hover:bg-[#FBE9F1] hover:text-[#CB3273] transition-colors">
                   <Upload className="w-3.5 h-3.5"/>
                   {logoBase64 ? "Replace Logo" : "Upload Logo"}
                 </label>
@@ -870,7 +870,7 @@ function CompanyTab() {
             <label className={labelClass}>Brand Color</label>
             <div className="flex items-center gap-3">
               <input type="color" value={brandColor} onChange={e => setBrandColor(e.target.value)} className="w-10 h-8 rounded border border-gray-200 cursor-pointer p-0.5 bg-white"/>
-              <input type="text" className={inputClass + " w-32 font-mono"} value={brandColor} onChange={e => setBrandColor(e.target.value)} placeholder="#D42370" maxLength={7}/>
+              <input type="text" className={inputClass + " w-32 font-mono"} value={brandColor} onChange={e => setBrandColor(e.target.value)} placeholder="#CB3273" maxLength={7}/>
               <div className="w-8 h-8 rounded-lg border border-gray-200 flex-shrink-0" style={{ background: brandColor }}/>
             </div>
           </div>
@@ -883,7 +883,7 @@ function CompanyTab() {
       </SectionCard>
     </div>);
 }
-// ── Email Tab ──────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Email Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function EmailTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -967,7 +967,7 @@ function EmailTab() {
             setTestResult(await res.json());
         }
         catch {
-            setTestResult({ success: false, message: "Network error — could not reach the server." });
+            setTestResult({ success: false, message: "Network error Ã¢â‚¬â€ could not reach the server." });
         }
         finally {
             setTestPend(false);
@@ -1048,7 +1048,7 @@ function EmailTab() {
       </SectionCard>
     </div>);
 }
-// ── WhatsApp Tab ───────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ WhatsApp Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function WhatsAppTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -1145,11 +1145,11 @@ function WhatsAppTab() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Access Token</label>
-              <input type="password" className={inputClass + " font-mono"} value={accessToken} onChange={e => setAccessToken(e.target.value)} placeholder={hasAccessToken ? "••••••  (set — enter new value to change)" : "EAAx…"} autoComplete="off"/>
+              <input type="password" className={inputClass + " font-mono"} value={accessToken} onChange={e => setAccessToken(e.target.value)} placeholder={hasAccessToken ? "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢  (set Ã¢â‚¬â€ enter new value to change)" : "EAAxÃ¢â‚¬Â¦"} autoComplete="off"/>
             </div>
             <div>
               <label className={labelClass}>App Secret</label>
-              <input type="password" className={inputClass + " font-mono"} value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder={hasAppSecret ? "••••••  (set — enter new value to change)" : "a1b2c3…"} autoComplete="off"/>
+              <input type="password" className={inputClass + " font-mono"} value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder={hasAppSecret ? "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢  (set Ã¢â‚¬â€ enter new value to change)" : "a1b2c3Ã¢â‚¬Â¦"} autoComplete="off"/>
             </div>
             <div>
               <label className={labelClass}>Phone Number ID</label>
@@ -1226,7 +1226,7 @@ function WhatsAppTab() {
       </SectionCard>
     </div>);
 }
-// ── Disconnect Button Component ───────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Disconnect Button Component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function DisconnectButton({ href, onDisconnected }) {
     const [pending, setPending] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
@@ -1322,7 +1322,7 @@ function IntegrationsTab({ onSwitchTab }) {
         {
             name: "Apollo.io",
             description: "Lead enrichment with company data, emails, and phone numbers.",
-            icon: Phone, iconBg: "#F5F3FF", iconColor: "#7C3AED",
+            icon: Phone, iconBg: "#FBE9F1", iconColor: "#CB3273",
             status: { connected: true, loading: false },
             managedBy: "API key",
             manageHref: "/leads",
@@ -1362,12 +1362,12 @@ function IntegrationsTab({ onSwitchTab }) {
                       </button>)}
                     {manageHref && manageHref !== "#" && (<DisconnectButton href={`/api/integrations/${name.toLowerCase().includes("hubspot") ? "hubspot" : "google"}/disconnect`} onDisconnected={refreshStatuses}/>)}
                   </>) : (<>
-                    {connectHref && connectHref !== "#" && (<a href={connectHref} className="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-colors" style={{ background: "#1A3D2B", color: "#fff", borderColor: "#1A3D2B" }}>
+                    {connectHref && connectHref !== "#" && (<a href={connectHref} className="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-colors" style={{ background: "#A4285E", color: "#fff", borderColor: "#A4285E" }}>
                         <Link2 className="w-3 h-3"/>
                         Connect
                         <ExternalLink className="w-3 h-3 opacity-60"/>
                       </a>)}
-                    {connectHref === "#" && (<button type="button" onClick={() => onSwitchTab("whatsapp")} className="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-colors" style={{ background: "#1A3D2B", color: "#fff", borderColor: "#1A3D2B" }}>
+                    {connectHref === "#" && (<button type="button" onClick={() => onSwitchTab("whatsapp")} className="inline-flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg border transition-colors" style={{ background: "#A4285E", color: "#fff", borderColor: "#A4285E" }}>
                         <Link2 className="w-3 h-3"/>
                         Configure
                       </button>)}
@@ -1385,7 +1385,7 @@ function IntegrationsTab({ onSwitchTab }) {
 const ROLE_LABELS = { owner: "Owner", admin: "Admin", member: "Member" };
 const ROLE_COLORS = {
     owner: { bg: "#FEF3C7", color: "#D97706" },
-    admin: { bg: "#EDE9FE", color: "#7C3AED" },
+    admin: { bg: "#FBE9F1", color: "#CB3273" },
     member: { bg: "#F0FDF4", color: "#1A7A45" },
 };
 function RoleBadge({ role }) {
@@ -1398,7 +1398,7 @@ function MemberRow({ member, canManage, canDelete, onRoleChange, onToggleActive,
     const [menuOpen, setMenuOpen] = useState(false);
     const initials = (((member.firstName?.[0] ?? "") + (member.lastName?.[0] ?? "")).toUpperCase()) || (member.email[0]?.toUpperCase() ?? "?");
     return (<div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
-      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #1A3D2B, #5C1A8C)", opacity: member.isActive ? 1 : 0.45 }}>
+      <div className="w-8 h-8 rounded-xl flex items-center justify-center text-xs font-bold text-white flex-shrink-0" style={{ background: "linear-gradient(135deg, #A4285E, #8E1F54)", opacity: member.isActive ? 1 : 0.45 }}>
         {initials}
       </div>
       <div className="flex-1 min-w-0">
@@ -1534,7 +1534,7 @@ function TeamTab() {
       </SectionCard>
 
       {/* Invite form (owner/admin only) */}
-      {canManage && (<SectionCard title="Invite a Team Member" subtitle="They'll receive an email to set up their account" icon={UserPlus} iconBg="#EDE9FE" iconColor="#7C3AED">
+      {canManage && (<SectionCard title="Invite a Team Member" subtitle="They'll receive an email to set up their account" icon={UserPlus} iconBg="#FBE9F1" iconColor="#CB3273">
           <form onSubmit={handleInvite} className="space-y-4">
             <div className="flex gap-3">
               <div className="flex-1">
@@ -1560,9 +1560,9 @@ function TeamTab() {
                 <CheckCircle className="w-3.5 h-3.5 flex-shrink-0"/> {inviteOk}
               </div>)}
 
-            <button type="submit" disabled={inviting} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#1A3D2B" }}>
+            <button type="submit" disabled={inviting} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#A4285E" }}>
               {inviting ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Send className="w-3.5 h-3.5"/>}
-              {inviting ? "Sending…" : "Send Invitation"}
+              {inviting ? "SendingÃ¢â‚¬Â¦" : "Send Invitation"}
             </button>
           </form>
         </SectionCard>)}
@@ -1588,7 +1588,7 @@ function TeamTab() {
         </SectionCard>)}
     </div>);
 }
-// ── AI Spend Threshold Widget ──────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ AI Spend Threshold Widget Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function AiSpendThresholdSection() {
     const [limitInput, setLimitInput] = useState("");
     const [todaySpend, setTodaySpend] = useState(null);
@@ -1697,7 +1697,7 @@ function AiSpendThresholdSection() {
           <label className={labelClass}>Daily Spend Limit (USD)</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-            <input type="number" min="0" step="0.01" value={limitInput} onChange={e => setLimitInput(e.target.value)} placeholder="e.g. 5.00 — leave blank to disable" className="w-full text-sm rounded-lg border border-gray-200 bg-white text-gray-900 pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-colors"/>
+            <input type="number" min="0" step="0.01" value={limitInput} onChange={e => setLimitInput(e.target.value)} placeholder="e.g. 5.00 Ã¢â‚¬â€ leave blank to disable" className="w-full text-sm rounded-lg border border-gray-200 bg-white text-gray-900 pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-colors"/>
           </div>
           <p className="mt-1.5 text-[11px] text-gray-400">
             An email alert fires to your admin address each day the limit is exceeded. Clear the field to disable alerts.
@@ -1712,9 +1712,9 @@ function AiSpendThresholdSection() {
             <CheckCircle className="w-3.5 h-3.5 flex-shrink-0"/> Threshold saved
           </div>)}
 
-        <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#b01c5b] disabled:opacity-60" style={{ background: "#D42370" }}>
+        <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#A4285E] disabled:opacity-60" style={{ background: "#CB3273" }}>
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Save className="w-3.5 h-3.5"/>}
-          {saving ? "Saving…" : "Save Threshold"}
+          {saving ? "SavingÃ¢â‚¬Â¦" : "Save Threshold"}
         </button>
       </form>
     </div>);
@@ -1733,9 +1733,9 @@ const OPERATION_DESCRIPTIONS = {
 function TierPill({ tier, active, onClick }) {
     const isFast = tier === "FAST";
     return (<button type="button" onClick={onClick} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border" style={active ? {
-            background: isFast ? "#F0FDF4" : "#F5F3FF",
-            color: isFast ? "#1A7A45" : "#5C1A8C",
-            borderColor: isFast ? "#BBF7D0" : "#DDD6FE",
+            background: isFast ? "#F0FDF4" : "#FBE9F1",
+            color: isFast ? "#1A7A45" : "#8E1F54",
+            borderColor: isFast ? "#BBF7D0" : "#F3C9DB",
         } : {
             background: "#F9FAFB",
             color: "#9CA3AF",
@@ -1814,7 +1814,7 @@ function ModelIntelligenceTab() {
         <AiSpendThresholdSection />
       </SectionCard>
 
-      <SectionCard title="Model Intelligence" subtitle="Override AI model tier per operation — Fast cuts cost, Smart boosts quality" icon={Brain} iconBg="#F5F3FF" iconColor="#5C1A8C">
+      <SectionCard title="Model Intelligence" subtitle="Override AI model tier per operation Ã¢â‚¬â€ Fast cuts cost, Smart boosts quality" icon={Brain} iconBg="#FBE9F1" iconColor="#8E1F54">
         <form onSubmit={handleSave} className="space-y-4">
           <div className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-2.5 text-[11px] text-purple-800 flex items-start gap-2">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"/>
@@ -1866,7 +1866,7 @@ function ModelIntelligenceTab() {
       </SectionCard>
     </div>);
 }
-// ── Main Settings Page ──────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Main Settings Page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function Settings() {
     const authUser = useAuthUser();
     const isOwner = authUser?.role === "owner";

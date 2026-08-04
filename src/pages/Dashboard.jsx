@@ -88,7 +88,7 @@ export default function Dashboard() {
       </div>
 
       {/* WHY Banner */}
-      <div style={{ background: "#F0FDFA", borderLeft: "3px solid #0D9488", borderRadius: "0 8px 8px 0", padding: "12px 16px" }}>
+      <div style={{ background: "#FBE9F1", borderLeft: "3px solid #CB3273", borderRadius: "0 8px 8px 0", padding: "12px 16px" }}>
         <p className="text-xs italic" style={{ color: "#0F766E" }}>
           "We believe every B2B founder deserves a sales engine that works as hard as they do."
         </p>
@@ -102,7 +102,7 @@ export default function Dashboard() {
             const badge = planBadgeStyle(planData.plan);
             const usageItems = [
                 { label: "Leads", used: planData.usage.leads?.used ?? 0, max: planData.usage.leads?.max ?? 0, color: "#0D9488" },
-                { label: "Audits", used: planData.usage.audits?.used ?? 0, max: planData.usage.audits?.max ?? 0, color: "#7C3AED" },
+                { label: "Audits", used: planData.usage.audits?.used ?? 0, max: planData.usage.audits?.max ?? 0, color: "#CB3273" },
                 { label: "Emails", used: planData.usage.emails?.used ?? 0, max: planData.usage.emails?.max ?? 0, color: "#2563EB" },
             ];
             return (<div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
@@ -129,7 +129,7 @@ export default function Dashboard() {
                     <div className="flex justify-between items-baseline">
                       <span className="text-[10px] font-semibold text-gray-500">{item.label}</span>
                       <span className="text-[10px] font-bold tabular-nums" style={{ color: warn ? "#EF4444" : "#374151" }}>
-                        {unlimited ? "∞" : `${item.used}/${item.max}`}
+                        {unlimited ? "Ã¢Ë†Å¾" : `${item.used}/${item.max}`}
                       </span>
                     </div>
                     {!unlimited && (<div className="h-1 rounded-full bg-gray-100 overflow-hidden">
@@ -143,7 +143,7 @@ export default function Dashboard() {
                   {planData.trialDaysLeft === 0 ? "Trial ends today" : `${planData.trialDaysLeft} trial day${planData.trialDaysLeft !== 1 ? "s" : ""} left`}
                 </span>
                 <Link href="/billing">
-                  <button className="text-[11px] font-bold px-2.5 py-1 rounded-lg text-white" style={{ background: "#7C3AED" }}>
+                  <button className="text-[11px] font-bold px-2.5 py-1 rounded-lg text-white" style={{ background: "#CB3273" }}>
                     Upgrade now <ArrowRight className="inline w-3 h-3"/>
                   </button>
                 </Link>
@@ -151,7 +151,7 @@ export default function Dashboard() {
           </div>);
         })()}
 
-      {/* KPI Grid — 2 cols mobile, 3 cols desktop */}
+      {/* KPI Grid Ã¢â‚¬â€ 2 cols mobile, 3 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
         <StatCard label="Leads This Month" value={summary?.totalLeadsThisMonth ?? 0} icon={Users} color="teal" loading={isLoading} trend="New prospects"/>
         <StatCard label="Qualified" value={summary?.qualifiedLeads ?? 0} icon={Award} color="green" loading={isLoading} trend="Ready to close"/>
@@ -174,11 +174,11 @@ export default function Dashboard() {
             </button>))}
         </div>
         {checked.size === DAILY_CHECKLIST.length && (<div className="mt-3 px-3 py-2 rounded border border-amber-200 bg-amber-50 text-[11px] text-amber-600 text-center">
-            🎯 All done! Great sales rhythm today.
+            Ã°Å¸Å½Â¯ All done! Great sales rhythm today.
           </div>)}
       </div>
 
-      {/* Pipeline Funnel + Activity — stack on mobile, side-by-side on desktop */}
+      {/* Pipeline Funnel + Activity Ã¢â‚¬â€ stack on mobile, side-by-side on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pipeline Funnel */}
         <div className="md:col-span-2 rounded-xl border border-gray-200 p-4 bg-white shadow-sm">

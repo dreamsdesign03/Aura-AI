@@ -5,11 +5,11 @@ import { useIsAdmin } from "@/contexts/AuthContext";
 import { Crown, Users, TrendingUp, DollarSign, Zap, Activity, CheckCircle2, XCircle, AlertTriangle, Plus, RefreshCw, BarChart3, Building2, Loader2, ChevronRight, Send, Ban, Trash2, UserPlus, MessageSquarePlus, Bot, Wrench, CheckCheck, Bug, Sparkles, MessageCircle, ChevronDown, ChevronUp, AlertCircle, } from "lucide-react";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const PLAN_COLORS = {
-    trial: "#9CA3AF", starter: "#3B82F6", growth: "#7C3AED", pro: "#C9A84C",
+    trial: "#9CA3AF", starter: "#3B82F6", growth: "#CB3273", pro: "#C9A84C",
 };
 const STATUS_COLORS = {
     active: { bg: "#D1FAE5", text: "#065F46" },
-    trialing: { bg: "#EDE9FE", text: "#5B21B6" },
+    trialing: { bg: "#FBE9F1", text: "#A4285E" },
     past_due: { bg: "#FEE2E2", text: "#991B1B" },
     canceled: { bg: "#F3F4F6", text: "#6B7280" },
 };
@@ -17,7 +17,7 @@ function fmt(n, decimals = 0) { return n.toLocaleString("en-US", { minimumFracti
 function fmtCurrency(n) { return "$" + fmt(n); }
 function fmtDate(iso) {
     if (!iso)
-        return "—";
+        return "Ã¢â‚¬â€";
     return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "2-digit" });
 }
 function fmtRelative(iso) {
@@ -185,22 +185,22 @@ export default function SuperAdmin() {
             <div>
               <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                 Super Admin
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#4F35A8,#7C3AED)" }}>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full text-white" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)" }}>
                   MYSA AI SAAS
                 </span>
               </h1>
             </div>
           </div>
-          <p className="text-sm text-gray-500 ml-11.5">Full platform control — subscribers, billing, agents, and growth metrics.</p>
+          <p className="text-sm text-gray-500 ml-11.5">Full platform control Ã¢â‚¬â€ subscribers, billing, agents, and growth metrics.</p>
         </div>
-        <button onClick={() => setShowOrgModal(true)} className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg,#4F35A8,#7C3AED)" }}>
+        <button onClick={() => setShowOrgModal(true)} className="flex items-center gap-1.5 text-sm font-bold px-4 py-2 rounded-xl text-white transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)" }}>
           <Plus className="w-4 h-4"/> Add Organization
         </button>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 p-1 rounded-xl w-fit flex-wrap" style={{ background: "#F3F4F6" }}>
-        {["overview", "organizations", "waitlist", "feedback", "api-usage"].map(t => (<button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-lg text-sm font-semibold capitalize transition-all flex items-center gap-1.5" style={tab === t ? { background: "#fff", color: "#4F35A8", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" } : { color: "#6B7280" }}>
+        {["overview", "organizations", "waitlist", "feedback", "api-usage"].map(t => (<button key={t} onClick={() => setTab(t)} className="px-4 py-2 rounded-lg text-sm font-semibold capitalize transition-all flex items-center gap-1.5" style={tab === t ? { background: "#fff", color: "#A4285E", boxShadow: "0 1px 4px rgba(0,0,0,0.08)" } : { color: "#6B7280" }}>
             {t === "feedback" && <MessageSquarePlus className="w-3.5 h-3.5"/>}
             {t === "api-usage" && <DollarSign className="w-3.5 h-3.5"/>}
             {t === "api-usage" ? "AI Cost" : t}{t === "waitlist" && data?.summary?.pendingInvite ? ` (${data.summary.pendingInvite})` : ""}
@@ -210,13 +210,13 @@ export default function SuperAdmin() {
           </button>))}
       </div>
 
-      {/* ── OVERVIEW TAB ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ OVERVIEW TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {tab === "overview" && (<>
           {/* KPI Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
                 { label: "Monthly Revenue", value: fmtCurrency(s?.mrr ?? 0), sub: `ARR: ${fmtCurrency(s?.arr ?? 0)}`, icon: DollarSign, color: "#C9A84C", bg: "#FFFBEB" },
-                { label: "Active Subscribers", value: fmt(s?.activeOrgs ?? 0), sub: `${fmt(s?.trialOrgs ?? 0)} on trial`, icon: Users, color: "#7C3AED", bg: "#F5F3FF" },
+                { label: "Active Subscribers", value: fmt(s?.activeOrgs ?? 0), sub: `${fmt(s?.trialOrgs ?? 0)} on trial`, icon: Users, color: "#CB3273", bg: "#FBE9F1" },
                 { label: "Total Organizations", value: fmt(s?.totalOrgs ?? 0), sub: `${fmt(s?.canceledOrgs ?? 0)} churned`, icon: Building2, color: "#3B82F6", bg: "#EFF6FF" },
                 { label: "Total Leads (DB)", value: fmt(s?.totalLeads ?? 0), sub: `${fmt(s?.totalWaitlist ?? 0)} waitlist`, icon: BarChart3, color: "#10B981", bg: "#ECFDF5" },
             ].map(({ label, value, sub, icon: Icon, color, bg }) => (<div key={label} className="rounded-2xl border p-5" style={{ background: "#fff", borderColor: "hsl(220 13% 91%)" }}>
@@ -235,13 +235,13 @@ export default function SuperAdmin() {
           {data?.signupTrend && (<div className="rounded-2xl border p-5" style={{ borderColor: "hsl(220 13% 91%)" }}>
               <div className="flex items-center gap-2 mb-4">
                 <TrendingUp className="w-4 h-4 text-violet-500"/>
-                <span className="text-sm font-bold text-gray-800">New Organizations — Last 12 Days</span>
+                <span className="text-sm font-bold text-gray-800">New Organizations Ã¢â‚¬â€ Last 12 Days</span>
               </div>
               <div className="flex items-end gap-2 h-20">
                 {data.signupTrend.map(({ date, count }) => (<div key={date} className="flex-1 flex flex-col items-center gap-1">
                     <div className="w-full rounded-md transition-all" style={{
                         height: `${count === 0 ? 4 : Math.max(8, (count / maxTrend) * 72)}px`,
-                        background: count > 0 ? "linear-gradient(180deg,#7C3AED,#4F35A8)" : "#F3F4F6",
+                        background: count > 0 ? "linear-gradient(180deg,#CB3273,#A4285E)" : "#F3F4F6",
                     }} title={`${date}: ${count}`}/>
                     <span className="text-[9px] text-gray-400">{date.slice(8)}</span>
                   </div>))}
@@ -276,10 +276,10 @@ export default function SuperAdmin() {
               {data?.pendingWaitlist?.length === 0 ? (<p className="text-sm text-gray-400 text-center py-4">No pending invites.</p>) : data?.pendingWaitlist?.map(w => (<div key={w.id} className="flex items-center gap-3 py-2.5 border-b last:border-0" style={{ borderColor: "hsl(220 13% 93%)" }}>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-semibold text-gray-800 truncate">{w.name}</div>
-                    <div className="text-[11px] text-gray-400 truncate">{w.email} {w.company && `— ${w.company}`}</div>
+                    <div className="text-[11px] text-gray-400 truncate">{w.email} {w.company && `Ã¢â‚¬â€ ${w.company}`}</div>
                   </div>
-                  <button onClick={() => inviteMutation.mutate(w.id)} disabled={inviteMutation.isPending} className="flex-shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90 text-white" style={{ background: "#7C3AED" }}>
-                    {inviteMutation.isPending ? "…" : "Invite"}
+                  <button onClick={() => inviteMutation.mutate(w.id)} disabled={inviteMutation.isPending} className="flex-shrink-0 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90 text-white" style={{ background: "#CB3273" }}>
+                    {inviteMutation.isPending ? "Ã¢â‚¬Â¦" : "Invite"}
                   </button>
                 </div>))}
             </div>
@@ -293,7 +293,7 @@ export default function SuperAdmin() {
               </div>
               {data.recentActivities.map(a => (<div key={a.id} className="flex items-center gap-3 px-5 py-2.5 border-b last:border-0 hover:bg-gray-50" style={{ borderColor: "hsl(220 13% 93%)" }}>
                   {a.status === "success" ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0"/> : <XCircle className="w-3.5 h-3.5 text-red-400 flex-shrink-0"/>}
-                  <span className="text-[11px] font-bold" style={{ color: a.agentName === "scout" ? "#3B82F6" : a.agentName === "sales" ? "#7C3AED" : "#10B981" }}>
+                  <span className="text-[11px] font-bold" style={{ color: a.agentName === "scout" ? "#3B82F6" : a.agentName === "sales" ? "#CB3273" : "#10B981" }}>
                     [{a.agentName.toUpperCase()}]
                   </span>
                   <span className="text-xs text-gray-700 flex-1">{a.activityType.replace(/_/g, " ")}</span>
@@ -302,7 +302,7 @@ export default function SuperAdmin() {
             </div>)}
         </>)}
 
-      {/* ── ORGANIZATIONS TAB ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ ORGANIZATIONS TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {tab === "organizations" && (<div className="rounded-2xl border overflow-hidden" style={{ borderColor: "hsl(220 13% 91%)" }}>
           <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "hsl(220 13% 91%)" }}>
             <span className="text-sm font-bold text-gray-800">{orgs?.length ?? 0} Organizations</span>
@@ -345,9 +345,9 @@ export default function SuperAdmin() {
                         <td className="px-4 py-3">
                           <div className="w-24">
                             <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                              <div className="h-full rounded-full" style={{ width: `${leadPct}%`, background: leadPct > 80 ? "#EF4444" : "#7C3AED" }}/>
+                              <div className="h-full rounded-full" style={{ width: `${leadPct}%`, background: leadPct > 80 ? "#EF4444" : "#CB3273" }}/>
                             </div>
-                            <div className="text-[10px] text-gray-400 mt-0.5">{org.leadsUsedThisMonth} / {lim.leads === 99999 ? "∞" : lim.leads}</div>
+                            <div className="text-[10px] text-gray-400 mt-0.5">{org.leadsUsedThisMonth} / {lim.leads === 99999 ? "Ã¢Ë†Å¾" : lim.leads}</div>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-[11px] text-gray-400">
@@ -367,7 +367,7 @@ export default function SuperAdmin() {
             </div>)}
         </div>)}
 
-      {/* ── WAITLIST TAB ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ WAITLIST TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {tab === "waitlist" && (<div className="rounded-2xl border overflow-hidden" style={{ borderColor: "hsl(220 13% 91%)" }}>
           <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "hsl(220 13% 91%)" }}>
             <span className="text-sm font-bold text-gray-800">{waitlistAll?.length ?? 0} Waitlist Signups</span>
@@ -384,18 +384,18 @@ export default function SuperAdmin() {
                   {waitlistAll.map(w => (<tr key={w.id} className="border-t hover:bg-gray-50" style={{ borderColor: "hsl(220 13% 93%)" }}>
                       <td className="px-4 py-3 text-xs font-semibold text-gray-900">{w.name}</td>
                       <td className="px-4 py-3 text-[11px] text-gray-500">{w.email}</td>
-                      <td className="px-4 py-3 text-[11px] text-gray-500">{w.company ?? "—"}</td>
-                      <td className="px-4 py-3 text-[11px] text-gray-500">{w.role ?? "—"}</td>
+                      <td className="px-4 py-3 text-[11px] text-gray-500">{w.company ?? "Ã¢â‚¬â€"}</td>
+                      <td className="px-4 py-3 text-[11px] text-gray-500">{w.role ?? "Ã¢â‚¬â€"}</td>
                       <td className="px-4 py-3 text-[11px] text-gray-400">{fmtDate(w.createdAt)}</td>
                       <td className="px-4 py-3">
                         {w.approved
-                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Invited ✓</span>
+                        ? <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">Invited Ã¢Å“â€œ</span>
                         : <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700">Pending</span>}
                       </td>
                       <td className="px-4 py-3">
-                        {!w.approved && (<button onClick={() => inviteMutation.mutate(w.id)} disabled={inviteMutation.isPending} className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90 text-white disabled:opacity-50" style={{ background: "#7C3AED" }}>
+                        {!w.approved && (<button onClick={() => inviteMutation.mutate(w.id)} disabled={inviteMutation.isPending} className="flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-lg transition-all hover:opacity-90 text-white disabled:opacity-50" style={{ background: "#CB3273" }}>
                             <UserPlus className="w-3 h-3"/>
-                            {inviteMutation.isPending ? "Inviting…" : "Invite"}
+                            {inviteMutation.isPending ? "InvitingÃ¢â‚¬Â¦" : "Invite"}
                           </button>)}
                       </td>
                     </tr>))}
@@ -404,7 +404,7 @@ export default function SuperAdmin() {
             </div>)}
         </div>)}
 
-      {/* ── FEEDBACK CENTER TAB ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ FEEDBACK CENTER TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {tab === "feedback" && (<div className="space-y-4">
           {/* Stats bar */}
           {feedbackList && (<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -438,18 +438,18 @@ export default function SuperAdmin() {
                   {feedbackList.map(item => {
                     const catColors = {
                         bug: { bg: "#FEF2F2", text: "#DC2626", icon: <Bug className="w-3 h-3"/> },
-                        feature: { bg: "#F5F3FF", text: "#7C3AED", icon: <Sparkles className="w-3 h-3"/> },
+                        feature: { bg: "#FBE9F1", text: "#CB3273", icon: <Sparkles className="w-3 h-3"/> },
                         general: { bg: "#EFF6FF", text: "#2563EB", icon: <MessageCircle className="w-3 h-3"/> },
                         complaint: { bg: "#FFFBEB", text: "#D97706", icon: <AlertCircle className="w-3 h-3"/> },
                     };
                     const statusColors = {
-                        new: "#EF4444", discussing: "#7C3AED", fixing: "#F59E0B", fixed: "#10B981", closed: "#9CA3AF",
+                        new: "#EF4444", discussing: "#CB3273", fixing: "#F59E0B", fixed: "#10B981", closed: "#9CA3AF",
                     };
                     const cat = catColors[item.category] ?? catColors.general;
                     const isActive = activeFeedbackId === item.id;
                     return (<button key={item.id} onClick={() => openFeedback(item)} className="w-full text-left px-4 py-3 border-b transition-colors" style={{
                             borderColor: "hsl(220 13% 93%)",
-                            background: isActive ? "#F5F3FF" : "white",
+                            background: isActive ? "#FBE9F1" : "white",
                         }} onMouseEnter={e => { if (!isActive)
                         e.currentTarget.style.background = "#F9FAFB"; }} onMouseLeave={e => { if (!isActive)
                         e.currentTarget.style.background = "white"; }}>
@@ -459,7 +459,7 @@ export default function SuperAdmin() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5 mb-0.5">
-                              <span className="text-[11px] font-bold truncate" style={{ color: isActive ? "#4F35A8" : "#111827" }}>{item.title}</span>
+                              <span className="text-[11px] font-bold truncate" style={{ color: isActive ? "#A4285E" : "#111827" }}>{item.title}</span>
                               <span className="flex-shrink-0 w-2 h-2 rounded-full" style={{ background: statusColors[item.status] ?? "#9CA3AF" }}/>
                             </div>
                             <div className="text-[10px] text-gray-400 truncate">{item.message}</div>
@@ -489,7 +489,7 @@ export default function SuperAdmin() {
                 if (!item)
                     return null;
                 const statusColors = {
-                    new: "#EF4444", discussing: "#7C3AED", fixing: "#F59E0B", fixed: "#10B981", closed: "#9CA3AF",
+                    new: "#EF4444", discussing: "#CB3273", fixing: "#F59E0B", fixed: "#10B981", closed: "#9CA3AF",
                 };
                 return (<div className="flex flex-col h-full overflow-y-auto">
                     {/* Detail header */}
@@ -499,12 +499,12 @@ export default function SuperAdmin() {
                           <h3 className="font-bold text-gray-900 text-sm mb-1">{item.title}</h3>
                           <div className="flex flex-wrap items-center gap-2">
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize" style={{
-                        background: item.category === "bug" ? "#FEF2F2" : item.category === "feature" ? "#F5F3FF" : "#EFF6FF",
-                        color: item.category === "bug" ? "#DC2626" : item.category === "feature" ? "#7C3AED" : "#2563EB",
+                        background: item.category === "bug" ? "#FEF2F2" : item.category === "feature" ? "#FBE9F1" : "#EFF6FF",
+                        color: item.category === "bug" ? "#DC2626" : item.category === "feature" ? "#CB3273" : "#2563EB",
                     }}>{item.category}</span>
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full capitalize" style={{ background: `${statusColors[item.status]}20`, color: statusColors[item.status] }}>{item.status}</span>
-                            {item.page && <span className="text-[10px] text-gray-400">📍 {item.page}</span>}
-                            {item.email && <span className="text-[10px] text-gray-400">✉️ {item.email}</span>}
+                            {item.page && <span className="text-[10px] text-gray-400">Ã°Å¸â€œÂ {item.page}</span>}
+                            {item.email && <span className="text-[10px] text-gray-400">Ã¢Å“â€°Ã¯Â¸Â {item.email}</span>}
                             <span className="text-[10px] text-gray-300">{fmtDate(item.createdAt)}</span>
                           </div>
                         </div>
@@ -526,13 +526,13 @@ export default function SuperAdmin() {
                     {/* AI Action buttons */}
                     <div className="px-5 py-3 flex gap-3 border-b" style={{ borderColor: "hsl(220 13% 91%)" }}>
                       <button onClick={() => { setShowDiscuss(!showDiscuss); setShowFix(false); if (!showDiscuss && discussHistory.length === 0)
-                    sendDiscussMessage(item.id); }} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all" style={{ background: showDiscuss ? "#4F35A8" : "#F5F3FF", color: showDiscuss ? "#fff" : "#4F35A8", border: `1px solid ${showDiscuss ? "#4F35A8" : "#DDD6FE"}` }}>
+                    sendDiscussMessage(item.id); }} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all" style={{ background: showDiscuss ? "#A4285E" : "#FBE9F1", color: showDiscuss ? "#fff" : "#A4285E", border: `1px solid ${showDiscuss ? "#A4285E" : "#F3C9DB"}` }}>
                         <Bot className="w-4 h-4"/>
                         Discuss with AI
                         {showDiscuss ? <ChevronUp className="w-3.5 h-3.5"/> : <ChevronDown className="w-3.5 h-3.5"/>}
                       </button>
                       <button onClick={() => { setShowFix(!showFix); setShowDiscuss(false); if (!showFix && !fixPlan)
-                    runFix(item.id); }} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all" style={{ background: showFix ? "#7C3AED" : "#F5F3FF", color: showFix ? "#fff" : "#7C3AED", border: `1px solid ${showFix ? "#7C3AED" : "#DDD6FE"}` }}>
+                    runFix(item.id); }} className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all" style={{ background: showFix ? "#CB3273" : "#FBE9F1", color: showFix ? "#fff" : "#CB3273", border: `1px solid ${showFix ? "#CB3273" : "#F3C9DB"}` }}>
                         <Wrench className="w-4 h-4"/>
                         Fix It
                         {fixing && <Loader2 className="w-3.5 h-3.5 animate-spin"/>}
@@ -543,15 +543,15 @@ export default function SuperAdmin() {
                     {showDiscuss && (<div className="flex-1 flex flex-col" style={{ minHeight: 280 }}>
                         <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ maxHeight: 280 }}>
                           {discussing && discussHistory.length === 0 && (<div className="flex items-center gap-2 text-sm text-gray-400">
-                              <Loader2 className="w-4 h-4 animate-spin text-violet-500"/> Analyzing with AI…
+                              <Loader2 className="w-4 h-4 animate-spin text-violet-500"/> Analyzing with AIÃ¢â‚¬Â¦
                             </div>)}
                           {discussHistory.map((msg, i) => (<div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                              {msg.role === "assistant" && (<div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center mr-2" style={{ background: "linear-gradient(135deg,#4F35A8,#7C3AED)" }}>
+                              {msg.role === "assistant" && (<div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center mr-2" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)" }}>
                                   <Bot className="w-3.5 h-3.5 text-white"/>
                                 </div>)}
                               <div className="max-w-[85%] rounded-2xl px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap" style={msg.role === "user"
-                                ? { background: "#4F35A8", color: "#fff", borderBottomRightRadius: 4 }
-                                : { background: "#F5F3FF", color: "#111827", borderBottomLeftRadius: 4 }}>
+                                ? { background: "#A4285E", color: "#fff", borderBottomRightRadius: 4 }
+                                : { background: "#FBE9F1", color: "#111827", borderBottomLeftRadius: 4 }}>
                                 {msg.content}
                               </div>
                             </div>))}
@@ -560,8 +560,8 @@ export default function SuperAdmin() {
                           <input value={discussInput} onChange={e => setDiscussInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         sendDiscussMessage(item.id);
-                    } }} placeholder="Ask a follow-up question…" className="flex-1 text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400" style={{ borderColor: "hsl(220 13% 88%)" }}/>
-                          <button onClick={() => sendDiscussMessage(item.id)} disabled={discussing || !discussInput.trim()} className="w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50 hover:opacity-90" style={{ background: "#4F35A8" }}>
+                    } }} placeholder="Ask a follow-up questionÃ¢â‚¬Â¦" className="flex-1 text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-400" style={{ borderColor: "hsl(220 13% 88%)" }}/>
+                          <button onClick={() => sendDiscussMessage(item.id)} disabled={discussing || !discussInput.trim()} className="w-9 h-9 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-50 hover:opacity-90" style={{ background: "#A4285E" }}>
                             {discussing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4"/>}
                           </button>
                         </div>
@@ -571,7 +571,7 @@ export default function SuperAdmin() {
                     {showFix && (<div className="flex-1 p-4 overflow-y-auto" style={{ maxHeight: 360 }}>
                         {fixing ? (<div className="flex flex-col items-center justify-center py-12 gap-3">
                             <Loader2 className="w-6 h-6 animate-spin text-violet-500"/>
-                            <div className="text-sm text-gray-400">Generating implementation plan…</div>
+                            <div className="text-sm text-gray-400">Generating implementation planÃ¢â‚¬Â¦</div>
                           </div>) : fixPlan ? (<div>
                             <div className="flex items-center gap-2 mb-3">
                               <Wrench className="w-4 h-4 text-violet-500"/>
@@ -591,13 +591,13 @@ export default function SuperAdmin() {
           </div>
         </div>)}
 
-      {/* ── AI COST DASHBOARD TAB ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ AI COST DASHBOARD TAB Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {tab === "api-usage" && (<div className="space-y-6">
           {apiUsageLoading ? (<div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-violet-500"/></div>) : apiUsageData ? (<>
               {/* Platform summary KPIs */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                    { label: "All-time AI Cost", value: `$${fmt(apiUsageData.summary.totalCostUsd, 4)}`, icon: DollarSign, color: "#7C3AED", bg: "#F5F3FF" },
+                    { label: "All-time AI Cost", value: `$${fmt(apiUsageData.summary.totalCostUsd, 4)}`, icon: DollarSign, color: "#CB3273", bg: "#FBE9F1" },
                     { label: "Total API Calls", value: fmt(apiUsageData.summary.totalApiCalls), icon: Zap, color: "#3B82F6", bg: "#EFF6FF" },
                     { label: "Input Tokens", value: fmt(apiUsageData.summary.totalInputTokens), icon: Activity, color: "#10B981", bg: "#ECFDF5" },
                     { label: "Output Tokens", value: fmt(apiUsageData.summary.totalOutputTokens), icon: TrendingUp, color: "#F59E0B", bg: "#FFFBEB" },
@@ -614,7 +614,7 @@ export default function SuperAdmin() {
               <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "hsl(220 13% 91%)" }}>
                 <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: "hsl(220 13% 91%)" }}>
                   <div>
-                    <span className="text-sm font-bold text-gray-800">Today's AI Spend — Per Org</span>
+                    <span className="text-sm font-bold text-gray-800">Today's AI Spend Ã¢â‚¬â€ Per Org</span>
                     <p className="text-[11px] text-gray-400 mt-0.5">Live view of current-day spend vs each org's daily limit</p>
                   </div>
                   <button onClick={() => qc.invalidateQueries({ queryKey: ["saas-api-usage"] })} className="text-gray-400 hover:text-gray-600">
@@ -678,17 +678,17 @@ export default function SuperAdmin() {
                 <label className="text-xs font-semibold text-gray-600 block mb-1">Plan</label>
                 <select value={newOrg.plan} onChange={e => setNewOrg(p => ({ ...p, plan: e.target.value }))} className="w-full text-sm border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500" style={{ borderColor: "hsl(220 13% 88%)" }}>
                   <option value="trial">Trial (7 days free)</option>
-                  <option value="starter">Starter — $49/mo</option>
-                  <option value="growth">Growth — $149/mo</option>
-                  <option value="pro">Pro — $299/mo</option>
+                  <option value="starter">Starter Ã¢â‚¬â€ $49/mo</option>
+                  <option value="growth">Growth Ã¢â‚¬â€ $149/mo</option>
+                  <option value="pro">Pro Ã¢â‚¬â€ $299/mo</option>
                 </select>
               </div>
             </div>
             <div className="flex gap-3 mt-5">
               <button onClick={() => setShowOrgModal(false)} className="flex-1 py-2.5 rounded-xl text-sm font-semibold border text-gray-600 hover:bg-gray-50" style={{ borderColor: "hsl(220 13% 88%)" }}>Cancel</button>
-              <button onClick={createOrg} disabled={saving || !newOrg.email || !newOrg.name} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2" style={{ background: "linear-gradient(135deg,#4F35A8,#7C3AED)" }}>
+              <button onClick={createOrg} disabled={saving || !newOrg.email || !newOrg.name} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50 flex items-center justify-center gap-2" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)" }}>
                 {saving ? <Loader2 className="w-4 h-4 animate-spin"/> : <Plus className="w-4 h-4"/>}
-                {saving ? "Creating…" : "Create Organization"}
+                {saving ? "CreatingÃ¢â‚¬Â¦" : "Create Organization"}
               </button>
             </div>
           </div>

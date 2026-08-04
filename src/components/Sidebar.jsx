@@ -38,11 +38,11 @@ export default function Sidebar({ activeTab, setActiveTab }) {
           width: '40px',
           height: '40px',
           borderRadius: '12px',
-          background: 'linear-gradient(135deg, #00f2fe 0%, #7f00ff 100%)',
+          background: 'linear-gradient(135deg, #E15C94 0%, #CB3273 100%)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          boxShadow: '0 0 15px rgba(0, 242, 254, 0.4)'
+          boxShadow: '0 0 15px rgba(203, 50, 115, 0.4)'
         }}>
           <Sparkles size={22} color="#fff" />
         </div>
@@ -71,9 +71,9 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                 gap: '12px',
                 padding: '12px 16px',
                 borderRadius: '10px',
-                background: isActive ? 'linear-gradient(90deg, rgba(0, 242, 254, 0.15) 0%, rgba(127, 0, 255, 0.05) 100%)' : 'transparent',
-                border: isActive ? '1px solid rgba(0, 242, 254, 0.3)' : '1px solid transparent',
-                color: isActive ? '#00f2fe' : 'var(--text-muted)',
+                background: isActive ? 'linear-gradient(90deg, rgba(203, 50, 115, 0.15) 0%, rgba(164, 40, 94, 0.05) 100%)' : 'transparent',
+                border: isActive ? '1px solid rgba(203, 50, 115, 0.3)' : '1px solid transparent',
+                color: isActive ? '#E15C94' : 'var(--text-muted)',
                 fontWeight: isActive ? 600 : 400,
                 fontSize: '14px',
                 cursor: 'pointer',
@@ -81,7 +81,7 @@ export default function Sidebar({ activeTab, setActiveTab }) {
                 transition: 'all 0.2s ease'
               }}
             >
-              <Icon size={18} color={isActive ? '#00f2fe' : '#64748b'} />
+              <Icon size={18} color={isActive ? '#E15C94' : '#64748b'} />
               <span>{item.label}</span>
             </button>
           );

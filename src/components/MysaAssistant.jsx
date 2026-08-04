@@ -1,21 +1,21 @@
 import { useState, useRef, useEffect, useId } from "react";
 import { Sparkles, X, Send, Loader2, ChevronRight, RefreshCw, Users, BarChart2, Globe, Zap, Bot, CheckCircle2, AlertTriangle, ArrowRight, Search, Phone, } from "lucide-react";
-// ── Constants ─────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Constants Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const DARK = "#0D0B18";
-const DARK2 = "#161225";
-const DARK3 = "#1E1A30";
-const PURPLE = "#7C3AED";
-const PURPLE_L = "#A78BFA";
-const BORDER = "rgba(124,58,237,0.18)";
+const DARK2 = "#2A0A18";
+const DARK3 = "#2A0A18";
+const PURPLE = "#CB3273";
+const PURPLE_L = "#E58BB5";
+const BORDER = "rgba(203,50,115,0.18)";
 const EXAMPLE_PROMPTS = [
-    { icon: Search, text: "Find 30 IT companies in Mumbai", color: "#7C3AED" },
+    { icon: Search, text: "Find 30 IT companies in Mumbai", color: "#CB3273" },
     { icon: Globe, text: "Check which leads have dead websites", color: "#0EA5E9" },
     { icon: BarChart2, text: "How many meetings did I book this month?", color: "#10B981" },
-    { icon: Zap, text: "Start outreach — 25 emails a day", color: "#F59E0B" },
-    { icon: Bot, text: "Audit the top 5 newest leads", color: "#EC4899" },
-    { icon: Users, text: "Search my leads in healthcare", color: "#8B5CF6" },
+    { icon: Zap, text: "Start outreach Ã¢â‚¬â€ 25 emails a day", color: "#F59E0B" },
+    { icon: Bot, text: "Audit the top 5 newest leads", color: "#CB3273" },
+    { icon: Users, text: "Search my leads in healthcare", color: "#CB3273" },
 ];
-// ── SSE stream reader ─────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ SSE stream reader Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 async function readSSEStream(response, onEvent) {
     const reader = response.body?.getReader();
     if (!reader)
@@ -50,33 +50,33 @@ async function readSSEStream(response, onEvent) {
         reader.releaseLock();
     }
 }
-// ── Tool-start text ───────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Tool-start text Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function getToolStartText(tool, params) {
     switch (tool) {
         case "find_leads": {
             const kw = String(params["keyword"] ?? params["industry"] ?? "businesses");
             const loc = String(params["location"] ?? "India");
-            return `🗺️ Starting search for ${kw} in ${loc}…`;
+            return `Ã°Å¸â€”ÂºÃ¯Â¸Â Starting search for ${kw} in ${loc}Ã¢â‚¬Â¦`;
         }
         case "run_brand_audit":
-            return `🔍 Starting brand audit${params["website_url"] ? ` for ${params["website_url"]}` : ""}…`;
+            return `Ã°Å¸â€Â Starting brand audit${params["website_url"] ? ` for ${params["website_url"]}` : ""}Ã¢â‚¬Â¦`;
         case "check_website_health":
-            return "🌐 Scanning lead websites for health issues…";
+            return "Ã°Å¸Å’Â Scanning lead websites for health issuesÃ¢â‚¬Â¦";
         case "start_autopilot":
-            return "🚀 Enabling outreach automation…";
+            return "Ã°Å¸Å¡â‚¬ Enabling outreach automationÃ¢â‚¬Â¦";
         case "stop_autopilot":
-            return "⏹️ Pausing outreach automation…";
+            return "Ã¢ÂÂ¹Ã¯Â¸Â Pausing outreach automationÃ¢â‚¬Â¦";
         case "create_icp":
-            return "✨ Generating Ideal Customer Profile…";
+            return "Ã¢Å“Â¨ Generating Ideal Customer ProfileÃ¢â‚¬Â¦";
         case "search_my_leads":
-            return "🔎 Searching your lead database…";
+            return "Ã°Å¸â€Å½ Searching your lead databaseÃ¢â‚¬Â¦";
         case "get_stats":
-            return "📊 Fetching pipeline stats…";
+            return "Ã°Å¸â€œÅ  Fetching pipeline statsÃ¢â‚¬Â¦";
         default:
-            return `⚙️ Running ${tool}…`;
+            return `Ã¢Å¡â„¢Ã¯Â¸Â Running ${tool}Ã¢â‚¬Â¦`;
     }
 }
-// ── Inline result cards ───────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Inline result cards Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function LeadsCard({ data }) {
     return (<div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: DARK3 }}>
       <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}` }}>
@@ -86,12 +86,12 @@ function LeadsCard({ data }) {
       </div>
       <div className="max-h-52 overflow-y-auto">
         {data.leads.slice(0, 10).map((l, i) => (<div key={l.id} className="flex items-start gap-2 px-3 py-2" style={{ borderBottom: i < data.leads.length - 1 ? `1px solid ${BORDER}` : "none" }}>
-            <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style={{ background: `linear-gradient(135deg,${PURPLE},#4F35A8)` }}>
+            <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style={{ background: `linear-gradient(135deg,${PURPLE},#A4285E)` }}>
               {(l.company || l.name || "?").charAt(0).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[12px] font-semibold truncate" style={{ color: "#E2E8F0" }}>{l.company || l.name}</div>
-              <div className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>{l.industry} · {l.country}</div>
+              <div className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>{l.industry} Ã‚Â· {l.country}</div>
             </div>
             <div className="flex-shrink-0 flex flex-col items-end gap-1">
               {l.bantScore > 0 && (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: l.bantScore >= 65 ? "#064E3B" : "#1C1917", color: l.bantScore >= 65 ? "#34D399" : "#9CA3AF" }}>
@@ -136,7 +136,7 @@ function LeadsImportedCard({ data }) {
                 catch { /* ignore */ }
             }
             return (<div key={l.id ?? i} className="flex items-center gap-2 px-3 py-1.5" style={{ borderBottom: i < leadsToShow.length - 1 ? `1px solid ${BORDER}` : "none" }}>
-              <div className="w-6 h-6 rounded-md flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style={{ background: `linear-gradient(135deg,${PURPLE},#4F35A8)` }}>
+              <div className="w-6 h-6 rounded-md flex-shrink-0 flex items-center justify-center text-[10px] font-bold text-white" style={{ background: `linear-gradient(135deg,${PURPLE},#A4285E)` }}>
                 {(l.company || "?").charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -164,11 +164,11 @@ function LeadsImportedCard({ data }) {
 }
 function StatsCard({ data }) {
     const stats = [
-        { label: "Total Leads", value: data.totalLeads, color: "#7C3AED" },
+        { label: "Total Leads", value: data.totalLeads, color: "#CB3273" },
         { label: "Qualified", value: data.qualifiedLeads, color: "#10B981" },
         { label: "Meetings This Week", value: data.meetingsThisWeek, color: "#0EA5E9" },
         { label: "Emails Today", value: data.emailsSentToday, color: "#F59E0B" },
-        { label: "Proposals Sent", value: data.proposalsSent, color: "#8B5CF6" },
+        { label: "Proposals Sent", value: data.proposalsSent, color: "#CB3273" },
         { label: "Deals Won (mo)", value: data.dealsWonThisMonth, color: "#34D399" },
     ];
     return (<div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: DARK3 }}>
@@ -182,14 +182,14 @@ function StatsCard({ data }) {
           </div>))}
       </div>
       {data.bounceRatePercent > 0 && (<div className="px-3 py-2 text-[10px]" style={{ color: data.bounceRatePercent > 5 ? "#F87171" : "#9CA3AF" }}>
-          Bounce rate: {data.bounceRatePercent}%{data.bounceRatePercent > 5 ? " ⚠️ — autopilot paused" : ""}
+          Bounce rate: {data.bounceRatePercent}%{data.bounceRatePercent > 5 ? " Ã¢Å¡Â Ã¯Â¸Â Ã¢â‚¬â€ autopilot paused" : ""}
         </div>)}
     </div>);
 }
 function HealthCard({ data }) {
     const total = data.working + data.down + data.dead;
     return (<div className="mt-2 rounded-xl p-3" style={{ border: `1px solid ${BORDER}`, background: DARK3 }}>
-      <div className="text-[11px] font-bold mb-2" style={{ color: PURPLE_L }}><Globe className="w-3 h-3 inline mr-1"/>Website Health — {data.totalChecked} checked</div>
+      <div className="text-[11px] font-bold mb-2" style={{ color: PURPLE_L }}><Globe className="w-3 h-3 inline mr-1"/>Website Health Ã¢â‚¬â€ {data.totalChecked} checked</div>
       <div className="flex gap-2">
         {[
             { label: "Working", value: data.working, color: "#34D399", bg: "#064E3B" },
@@ -287,11 +287,11 @@ function ConfirmCard({ preview, onConfirm, onCancel, loading, }) {
       </div>
     </div>);
 }
-// ── Live activity bubble (streams in real-time) ───────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Live activity bubble (streams in real-time) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ActivityBubble({ activity, onConfirm, onCancel, confirmLoading, }) {
     const hasContent = activity.content.length > 0;
     return (<div className="flex justify-start mb-3">
-      <div className="w-6 h-6 rounded-full flex-shrink-0 mr-2 flex items-center justify-center mt-0.5" style={{ background: `linear-gradient(135deg,${PURPLE},#4F35A8)`, animation: "pulse 1.5s infinite" }}>
+      <div className="w-6 h-6 rounded-full flex-shrink-0 mr-2 flex items-center justify-center mt-0.5" style={{ background: `linear-gradient(135deg,${PURPLE},#A4285E)`, animation: "pulse 1.5s infinite" }}>
         <Sparkles className="w-3 h-3 text-white"/>
       </div>
       <div className="max-w-[85%]">
@@ -307,15 +307,15 @@ function ActivityBubble({ activity, onConfirm, onCancel, confirmLoading, }) {
       </div>
     </div>);
 }
-// ── Message bubble ────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Message bubble Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function MessageBubble({ msg, onConfirm, onCancel, confirmLoading, }) {
     const isUser = msg.role === "user";
     return (<div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
-      {!isUser && (<div className="w-6 h-6 rounded-full flex-shrink-0 mr-2 flex items-center justify-center mt-0.5" style={{ background: `linear-gradient(135deg,${PURPLE},#4F35A8)` }}>
+      {!isUser && (<div className="w-6 h-6 rounded-full flex-shrink-0 mr-2 flex items-center justify-center mt-0.5" style={{ background: `linear-gradient(135deg,${PURPLE},#A4285E)` }}>
           <Sparkles className="w-3 h-3 text-white"/>
         </div>)}
       <div className={`max-w-[85%] ${isUser ? "order-last" : ""}`}>
-        {isUser ? (<div className="px-3 py-2 rounded-2xl rounded-tr-sm text-[13px] leading-relaxed" style={{ background: `linear-gradient(135deg,${PURPLE},#4F35A8)`, color: "#fff" }}>
+        {isUser ? (<div className="px-3 py-2 rounded-2xl rounded-tr-sm text-[13px] leading-relaxed" style={{ background: `linear-gradient(135deg,${PURPLE},#A4285E)`, color: "#fff" }}>
             {msg.content}
           </div>) : (<div>
             <div className="px-3 py-2 rounded-2xl rounded-tl-sm text-[13px] leading-relaxed whitespace-pre-wrap" style={{ background: DARK3, color: "#E2E8F0", border: `1px solid ${BORDER}` }}>
@@ -330,7 +330,7 @@ function MessageBubble({ msg, onConfirm, onCancel, confirmLoading, }) {
       </div>
     </div>);
 }
-// ── Main component ────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Main component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function MysaAssistant({ open, onClose, }) {
     const uid = useId();
     const sessionId = useRef(`mysa-${uid}-${Date.now()}`);
@@ -470,8 +470,8 @@ export default function MysaAssistant({ open, onClose, }) {
         // Remove confirm card from last message
         setMessages(prev => prev.map(m => m.needsConfirmation?.actionId === preview.actionId ? { ...m, needsConfirmation: undefined } : m));
         // Show activity bubble for the executing action
-        liveRef.current = { content: "Executing…", toolResults: [] };
-        setLiveActivity({ content: "Executing…", toolResults: [] });
+        liveRef.current = { content: "ExecutingÃ¢â‚¬Â¦", toolResults: [] };
+        setLiveActivity({ content: "ExecutingÃ¢â‚¬Â¦", toolResults: [] });
         setLoading(true);
         try {
             const res = await fetch("/api/assistant/confirm", {
@@ -539,7 +539,7 @@ export default function MysaAssistant({ open, onClose, }) {
         {/* Header */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 py-3" style={{ borderBottom: `1px solid ${BORDER}`, background: DARK2 }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg,${PURPLE},#4F35A8)` }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg,${PURPLE},#A4285E)` }}>
               <Sparkles className="w-4 h-4 text-white"/>
             </div>
             <div>
@@ -563,7 +563,7 @@ export default function MysaAssistant({ open, onClose, }) {
         /* Welcome state */
         <div className="flex flex-col h-full">
               <div className="flex-1 flex flex-col items-center justify-center text-center pb-4">
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: `linear-gradient(135deg,${PURPLE},#4F35A8)` }}>
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-4" style={{ background: `linear-gradient(135deg,${PURPLE},#A4285E)` }}>
                   <Sparkles className="w-7 h-7 text-white"/>
                 </div>
                 <h2 className="text-[17px] font-black leading-snug mb-1" style={{ color: "#E2E8F0" }}>
@@ -609,14 +609,14 @@ export default function MysaAssistant({ open, onClose, }) {
             t.style.height = `${Math.min(t.scrollHeight, 120)}px`;
         }}/>
             <button onClick={() => sendMessage(input)} disabled={!input.trim() || loading} className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all" style={{
-            background: input.trim() && !loading ? `linear-gradient(135deg,${PURPLE},#4F35A8)` : DARK3,
+            background: input.trim() && !loading ? `linear-gradient(135deg,${PURPLE},#A4285E)` : DARK3,
             color: input.trim() && !loading ? "#fff" : "#4B5563",
         }}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin"/> : <Send className="w-4 h-4"/>}
             </button>
           </div>
           <p className="text-[9px] text-center mt-2" style={{ color: "#374151" }}>
-            Aura only uses tools it was given — no hallucinations, no rogue actions.
+            Aura only uses tools it was given Ã¢â‚¬â€ no hallucinations, no rogue actions.
           </p>
         </div>
       </div>

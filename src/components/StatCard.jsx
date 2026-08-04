@@ -4,7 +4,7 @@ const colorMap = {
     blue: { icon: "#2563EB", bg: "#EFF6FF", badge: "#2563EB" },
     green: { icon: "#16A34A", bg: "#F0FDF4", badge: "#16A34A" },
     red: { icon: "#DC2626", bg: "#FEF2F2", badge: "#DC2626" },
-    purple: { icon: "#7C3AED", bg: "#F5F3FF", badge: "#7C3AED" },
+    purple: { icon: "#CB3273", bg: "#FBE9F1", badge: "#CB3273" },
 };
 export default function StatCard({ label, value, icon: Icon, trend, color = "teal", loading }) {
     const c = colorMap[color];

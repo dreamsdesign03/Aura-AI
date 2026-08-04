@@ -71,7 +71,7 @@ export default function AuditShare() {
         return (<div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center gap-3 text-gray-500">
           <div className="w-8 h-8 border-2 border-green-600 border-t-transparent rounded-full animate-spin"/>
-          <span className="text-sm">Loading audit report…</span>
+          <span className="text-sm">Loading audit reportÃ¢â‚¬Â¦</span>
         </div>
       </div>);
     }
@@ -85,7 +85,7 @@ export default function AuditShare() {
       </div>);
     }
     if (reportHtmlUrl) {
-        return (<iframe src={reportHtmlUrl} style={{ width: "100vw", height: "100vh", border: "none", display: "block" }} title={`Brand Audit Report — ${data.company}`} sandbox="allow-same-origin allow-popups"/>);
+        return (<iframe src={reportHtmlUrl} style={{ width: "100vw", height: "100vh", border: "none", display: "block" }} title={`Brand Audit Report Ã¢â‚¬â€ ${data.company}`} sandbox="allow-same-origin allow-popups"/>);
     }
     const groupedSignals = data.signals.reduce((acc, sig) => {
         const key = sig.categorySlug;
@@ -112,7 +112,7 @@ export default function AuditShare() {
 
         {/* Header */}
         <div className="rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white">
-          <div className="px-6 py-5" style={{ background: "linear-gradient(135deg, #0D1B12 0%, #1a3d2b 100%)" }}>
+          <div className="px-6 py-5" style={{ background: "linear-gradient(135deg, #2A0A18 0%, #A4285E 100%)" }}>
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-5 h-5" style={{ color: "#34D399" }}/>
               <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: "#34D399" }}>Brand Audit Report</span>
@@ -143,7 +143,7 @@ export default function AuditShare() {
           </div>
         </div>
 
-        {/* AI Report — fallback plain text for old-format reports */}
+        {/* AI Report Ã¢â‚¬â€ fallback plain text for old-format reports */}
         {data.aiReport && (<div className="rounded-xl border border-gray-200 p-5 bg-white shadow-sm">
             <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider mb-3">AI Brand Report</div>
             <div className="space-y-3">

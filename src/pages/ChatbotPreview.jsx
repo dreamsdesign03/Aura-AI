@@ -2,7 +2,7 @@ import { ChatWidget } from "@/chatbot/ChatWidget";
 export default function ChatbotPreview() {
     return (<div style={{
             minHeight: "100vh",
-            background: "linear-gradient(135deg, #0A0818 0%, #1A0D2E 50%, #0F0D1E 100%)",
+            background: "linear-gradient(135deg, #2A0A18 0%, #3A0C20 50%, #2A0A18 100%)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -11,10 +11,10 @@ export default function ChatbotPreview() {
       <div style={{ textAlign: "center", color: "rgba(255,255,255,0.55)", maxWidth: 420, padding: "0 24px" }}>
         <div style={{
             width: 64, height: 64, borderRadius: "50%",
-            background: "linear-gradient(135deg, #4F35A8, #7C3AED)",
+            background: "linear-gradient(135deg, #A4285E, #CB3273)",
             display: "flex", alignItems: "center", justifyContent: "center",
             margin: "0 auto 20px",
-            boxShadow: "0 0 40px rgba(79,53,168,0.5)",
+            boxShadow: "0 0 40px rgba(164,40,94,0.5)",
         }}>
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3"/>
@@ -34,7 +34,7 @@ export default function ChatbotPreview() {
             borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#C9A84C",
         }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#25D366" }}/>
-          Widget active · AI-powered BANT qualification
+          Widget active Ã‚Â· AI-powered BANT qualification
         </div>
       </div>
 

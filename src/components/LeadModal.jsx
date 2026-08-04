@@ -34,7 +34,7 @@ export default function LeadModal({ isOpen, onClose, onSave, lead = null }) {
       <div className="modal-content">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Sparkles color="#00f2fe" size={20} />
+            <Sparkles color="#E15C94" size={20} />
             <h3 style={{ fontSize: '20px', fontWeight: 700 }}>
               {lead ? 'Edit Lead' : 'Create New Lead in Neon DB'}
             </h3>

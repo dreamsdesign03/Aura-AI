@@ -129,7 +129,7 @@ export function NewMeetingModal({ leads, defaultLeadId, onClose, onCreated, }) {
             <label className={labelCls}>Lead <span className="text-red-500">*</span></label>
             <select value={leadId} onChange={e => setLeadId(Number(e.target.value))} className={inputCls}>
               {leads.map(l => (<option key={l.id} value={l.id}>
-                  {l.firstName} {l.lastName}{l.company ? ` — ${l.company}` : ""}
+                  {l.firstName} {l.lastName}{l.company ? ` Ã¢â‚¬â€ ${l.company}` : ""}
                 </option>))}
             </select>
           </div>
@@ -177,8 +177,8 @@ export function NewMeetingModal({ leads, defaultLeadId, onClose, onCreated, }) {
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-colors">
             Cancel
           </button>
-          <button onClick={handleSubmit} disabled={createMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#1A3D2B" }}>
-            {createMeeting.isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Creating…</> : "Create Meeting"}
+          <button onClick={handleSubmit} disabled={createMeeting.isPending} className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all disabled:opacity-50" style={{ background: "#A4285E" }}>
+            {createMeeting.isPending ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> CreatingÃ¢â‚¬Â¦</> : "Create Meeting"}
           </button>
         </div>
       </div>

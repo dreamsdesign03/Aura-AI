@@ -26,7 +26,7 @@ function hsFetch(path, opts) {
         return data;
     });
 }
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function fmt(n) { return n.toLocaleString(); }
 function fmtTime(iso) {
     if (!iso)
@@ -64,7 +64,7 @@ const DIRECTION_ICON = {
 };
 function StatCard({ label, value, sub, color }) {
     return (<div className="flex flex-col gap-0.5">
-      <span className="text-2xl font-bold" style={{ color: color ?? "#1A3D2B" }}>{value}</span>
+      <span className="text-2xl font-bold" style={{ color: color ?? "#A4285E" }}>{value}</span>
       <span className="text-xs font-medium text-gray-500">{label}</span>
       {sub && <span className="text-xs text-gray-400">{sub}</span>}
     </div>);
@@ -81,7 +81,7 @@ function Stat({ label, value, icon }) {
       </div>
     </div>);
 }
-// ── Main page ─────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Main page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function HubSpot() {
     const [activeTab, setActiveTab] = useState("sync");
     const qc = useQueryClient();
@@ -110,12 +110,12 @@ export default function HubSpot() {
           </div>
           <div>
             <h1 className="text-xl font-bold text-gray-900">HubSpot CRM Sync</h1>
-            <p className="text-sm text-gray-500">Two-way sync · HubSpot is primary · conflicts auto-resolved</p>
+            <p className="text-sm text-gray-500">Two-way sync Ã‚Â· HubSpot is primary Ã‚Â· conflicts auto-resolved</p>
           </div>
         </div>
         {statusLoading ? (<span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: "#F3F4F6", color: "#6B7280" }}>
-            <Loader2 className="w-3 h-3 animate-spin"/> Checking…
-          </span>) : connected ? (<span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: "#E8F5E9", color: "#1A3D2B" }}>
+            <Loader2 className="w-3 h-3 animate-spin"/> CheckingÃ¢â‚¬Â¦
+          </span>) : connected ? (<span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: "#E8F5E9", color: "#A4285E" }}>
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/> Connected
           </span>) : (<span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold" style={{ background: "#FEF2F2", color: "#DC2626" }}>
             <span className="w-2 h-2 rounded-full bg-red-500"/> Not connected
@@ -147,7 +147,7 @@ export default function HubSpot() {
       {/* Tab bar */}
       <div className="flex gap-1 p-1 rounded-lg w-fit overflow-x-auto" style={{ background: "#F3F4F6" }}>
         {tabs.map(t => (<button key={t.key} onClick={() => setActiveTab(t.key)} className="flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-medium transition-all whitespace-nowrap" style={activeTab === t.key
-                ? { background: "#fff", color: "#1A3D2B", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }
+                ? { background: "#fff", color: "#A4285E", boxShadow: "0 1px 3px rgba(0,0,0,.1)" }
                 : { color: "#6B7280" }}>
             {t.icon}{t.label}
           </button>))}
@@ -161,7 +161,7 @@ export default function HubSpot() {
       {activeTab === "push-deals" && <PushDealsTab />}
     </div>);
 }
-// ── Sync Dashboard tab ────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Sync Dashboard tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function SyncDashboard({ onRefresh }) {
     const [runResult, setRunResult] = useState(null);
     const [dryRun, setDryRun] = useState(false);
@@ -188,8 +188,8 @@ function SyncDashboard({ onRefresh }) {
           <div>
             <p className="text-sm font-semibold text-gray-900">Two-way sync</p>
             <p className="text-xs text-gray-500 mt-0.5">
-              Last run: {isLoading ? "…" : fmtTime(status?.lastRunAt ?? null)}
-              {status?.isRunning && <span className="ml-2 text-blue-600 font-medium">● Running…</span>}
+              Last run: {isLoading ? "Ã¢â‚¬Â¦" : fmtTime(status?.lastRunAt ?? null)}
+              {status?.isRunning && <span className="ml-2 text-blue-600 font-medium">Ã¢â€”Â RunningÃ¢â‚¬Â¦</span>}
             </p>
           </div>
 
@@ -200,7 +200,7 @@ function SyncDashboard({ onRefresh }) {
             </label>
             <button onClick={() => runMut.mutate()} disabled={isRunning} className="flex items-center gap-2 px-5 py-2.5 rounded-lg text-sm font-semibold text-white transition-all" style={{ background: isRunning ? "#9CA3AF" : HUBSPOT_ORANGE, cursor: isRunning ? "not-allowed" : "pointer" }}>
               {isRunning ? <Loader2 className="w-4 h-4 animate-spin"/> : <ArrowLeftRight className="w-4 h-4"/>}
-              {isRunning ? "Syncing…" : dryRun ? "Preview Sync" : "Sync Now"}
+              {isRunning ? "SyncingÃ¢â‚¬Â¦" : dryRun ? "Preview Sync" : "Sync Now"}
             </button>
           </div>
         </div>
@@ -211,17 +211,17 @@ function SyncDashboard({ onRefresh }) {
 
         {runResult && (<div className="mt-4 p-4 rounded-xl border" style={{ background: runResult.dryRun ? "#FFFBEB" : "#F0FDF4", borderColor: runResult.dryRun ? "#FEF3C7" : "#BBF7D0" }}>
             <p className="text-sm font-semibold mb-3" style={{ color: runResult.dryRun ? "#92400E" : "#14532D" }}>
-              {runResult.dryRun ? "Dry-run preview — no changes were made" : "✓ Sync complete"}
+              {runResult.dryRun ? "Dry-run preview Ã¢â‚¬â€ no changes were made" : "Ã¢Å“â€œ Sync complete"}
             </p>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">← Pull from HubSpot</p>
+                <p className="text-xs font-medium text-gray-500 mb-2">Ã¢â€ Â Pull from HubSpot</p>
                 <div className="flex gap-4 flex-wrap">
                   <SyncTotals totals={runResult.pull}/>
                 </div>
               </div>
               <div>
-                <p className="text-xs font-medium text-gray-500 mb-2">→ Push to HubSpot</p>
+                <p className="text-xs font-medium text-gray-500 mb-2">Ã¢â€ â€™ Push to HubSpot</p>
                 <div className="flex gap-4 flex-wrap">
                   <SyncTotals totals={runResult.push}/>
                 </div>
@@ -290,16 +290,16 @@ function LogRow({ entry }) {
         {entry.action}
       </span>
       <span className="text-xs text-gray-600 flex-1 truncate">
-        {entry.direction === "from_hubspot" ? "HS → AuraAI" : "AuraAI → HS"}
-        {entry.mysaId ? ` · Lead #${entry.mysaId}` : ""}
-        {entry.hubspotId ? ` · HS ${entry.hubspotId}` : ""}
-        {entry.reason ? ` · ${entry.reason}` : ""}
+        {entry.direction === "from_hubspot" ? "HS Ã¢â€ â€™ AuraAI" : "AuraAI Ã¢â€ â€™ HS"}
+        {entry.mysaId ? ` Ã‚Â· Lead #${entry.mysaId}` : ""}
+        {entry.hubspotId ? ` Ã‚Â· HS ${entry.hubspotId}` : ""}
+        {entry.reason ? ` Ã‚Â· ${entry.reason}` : ""}
       </span>
       {entry.isDryRun === 1 && <span className="text-xs text-amber-600 font-medium flex-shrink-0">dry-run</span>}
       <span className="text-xs text-gray-400 flex-shrink-0">{timeAgo(entry.createdAt)}</span>
     </div>);
 }
-// ── Sync Log tab ──────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Sync Log tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function SyncLogTab() {
     const [page, setPage] = useState(1);
     const { data, isLoading, isFetching, refetch } = useQuery({
@@ -333,7 +333,7 @@ function SyncLogTab() {
             </span>
             <div className="flex-1 min-w-0">
               <p className="text-gray-700 truncate">
-                {entry.direction === "from_hubspot" ? "HubSpot → AuraAI" : "AuraAI → HubSpot"}
+                {entry.direction === "from_hubspot" ? "HubSpot Ã¢â€ â€™ AuraAI" : "AuraAI Ã¢â€ â€™ HubSpot"}
                 {entry.mysaId ? ` | Lead #${entry.mysaId}` : ""}
                 {entry.hubspotId ? ` | HS ${entry.hubspotId}` : ""}
               </p>
@@ -348,9 +348,9 @@ function SyncLogTab() {
       </div>
 
       {totalPages > 1 && (<div className="flex items-center justify-center gap-2 pt-2">
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40" style={{ borderColor: "#E5E7EB" }}>← Prev</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40" style={{ borderColor: "#E5E7EB" }}>Ã¢â€ Â Prev</button>
           <span className="text-xs text-gray-500">Page {page} of {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40" style={{ borderColor: "#E5E7EB" }}>Next →</button>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} className="px-3 py-1.5 rounded-lg text-sm border disabled:opacity-40" style={{ borderColor: "#E5E7EB" }}>Next Ã¢â€ â€™</button>
         </div>)}
     </div>);
 }
@@ -382,11 +382,11 @@ function ConversationsTab() {
       <div className="flex items-start gap-3 p-3 rounded-xl border" style={{ background: "#F0F7FF", borderColor: "#BFDBFE" }}>
         <MessageSquare className="w-4 h-4 text-blue-600 flex-shrink-0 mt-0.5"/>
         <p className="text-xs text-blue-700">
-          <strong>Import Inbox:</strong> Fetches conversations from your HubSpot inbox, extracts the associated contact, and upserts a Chat Lead for each one — linking the full message thread. Existing leads (same email) are matched and their threads updated automatically.
+          <strong>Import Inbox:</strong> Fetches conversations from your HubSpot inbox, extracts the associated contact, and upserts a Chat Lead for each one Ã¢â‚¬â€ linking the full message thread. Existing leads (same email) are matched and their threads updated automatically.
         </p>
       </div>
 
-      {/* 403 Scope error — missing conversations.read */}
+      {/* 403 Scope error Ã¢â‚¬â€ missing conversations.read */}
       {isScopeError && (<div className="p-4 rounded-xl border flex items-start gap-3" style={{ background: "#FFF7ED", borderColor: "#FED7AA" }}>
           <AlertTriangle className="w-5 h-5 text-orange-500 flex-shrink-0 mt-0.5"/>
           <div>
@@ -395,8 +395,8 @@ function ConversationsTab() {
               Your HubSpot Private App does not have the <strong>conversations.read</strong> scope. Add it in your HubSpot account:
             </p>
             <ol className="text-xs text-orange-700 space-y-0.5 list-decimal list-inside">
-              <li>Go to <strong>HubSpot → Settings → Private Apps</strong></li>
-              <li>Click your app → <strong>Scopes</strong> tab</li>
+              <li>Go to <strong>HubSpot Ã¢â€ â€™ Settings Ã¢â€ â€™ Private Apps</strong></li>
+              <li>Click your app Ã¢â€ â€™ <strong>Scopes</strong> tab</li>
               <li>Enable <code className="font-mono bg-orange-100 px-1 rounded">conversations.read</code> under Conversations</li>
               <li>Save &amp; regenerate the token, then update <strong>HUBSPOT_API_KEY</strong> if it changed</li>
             </ol>
@@ -410,17 +410,17 @@ function ConversationsTab() {
           {/* Controls */}
           <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}>
             <div className="flex items-center gap-6">
-              <Stat label="Conversations" value={data?.total ?? (isLoading ? "…" : "—")} icon={<MessageSquare className="w-4 h-4"/>}/>
-              <Stat label="With contact" value={isLoading ? "…" : withContact.length} icon={<Users className="w-4 h-4"/>}/>
-              <Stat label="Open threads" value={isLoading ? "…" : open.length} icon={<Inbox className="w-4 h-4"/>}/>
+              <Stat label="Conversations" value={data?.total ?? (isLoading ? "Ã¢â‚¬Â¦" : "Ã¢â‚¬â€")} icon={<MessageSquare className="w-4 h-4"/>}/>
+              <Stat label="With contact" value={isLoading ? "Ã¢â‚¬Â¦" : withContact.length} icon={<Users className="w-4 h-4"/>}/>
+              <Stat label="Open threads" value={isLoading ? "Ã¢â‚¬Â¦" : open.length} icon={<Inbox className="w-4 h-4"/>}/>
             </div>
             <div className="flex items-center gap-2">
               <button onClick={() => refetch()} disabled={isFetching} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all" style={{ borderColor: "#E5E7EB", color: "#374151" }}>
                 <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`}/> Refresh
               </button>
-              <button onClick={() => importMut.mutate()} disabled={importMut.isPending || isLoading || withContact.length === 0} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all" style={{ background: (importMut.isPending || withContact.length === 0) ? "#9CA3AF" : "#1A3D2B" }}>
+              <button onClick={() => importMut.mutate()} disabled={importMut.isPending || isLoading || withContact.length === 0} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all" style={{ background: (importMut.isPending || withContact.length === 0) ? "#9CA3AF" : "#A4285E" }}>
                 {importMut.isPending ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4"/>}
-                {importMut.isPending ? "Importing…" : "Import to Chat Leads"}
+                {importMut.isPending ? "ImportingÃ¢â‚¬Â¦" : "Import to Chat Leads"}
               </button>
             </div>
           </div>
@@ -431,10 +431,10 @@ function ConversationsTab() {
                 <span className="text-sm font-semibold text-green-800">Import complete</span>
               </div>
               <p className="text-sm text-green-700">
-                {importResult.imported} new leads · {importResult.updated} threads updated · {importResult.skipped} skipped · {importResult.total} total
+                {importResult.imported} new leads Ã‚Â· {importResult.updated} threads updated Ã‚Â· {importResult.skipped} skipped Ã‚Â· {importResult.total} total
               </p>
-              {importResult.errors.length > 0 && (<p className="text-xs text-red-600 mt-1">{importResult.errors.length} errors — {importResult.errors[0]}</p>)}
-              <p className="text-xs text-green-600 mt-1">View leads in <strong>Chat Leads → HubSpot Inbox</strong> tab.</p>
+              {importResult.errors.length > 0 && (<p className="text-xs text-red-600 mt-1">{importResult.errors.length} errors Ã¢â‚¬â€ {importResult.errors[0]}</p>)}
+              <p className="text-xs text-green-600 mt-1">View leads in <strong>Chat Leads Ã¢â€ â€™ HubSpot Inbox</strong> tab.</p>
             </div>)}
 
           {importScopeError && (<div className="p-4 rounded-xl border flex items-start gap-3" style={{ background: "#FFF7ED", borderColor: "#FED7AA" }}>
@@ -465,7 +465,7 @@ function ConversationsTab() {
                 <tbody className="divide-y divide-gray-100">
                   {threads.slice(0, 100).map(t => (<tr key={t.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-4 py-3 font-medium text-gray-900">{t.contact?.name || <span className="text-gray-400 italic">No contact</span>}</td>
-                      <td className="px-4 py-3 text-gray-600 text-xs">{t.contact?.email ?? "—"}</td>
+                      <td className="px-4 py-3 text-gray-600 text-xs">{t.contact?.email ?? "Ã¢â‚¬â€"}</td>
                       <td className="px-4 py-3 text-xs">
                         <span className="px-1.5 py-0.5 rounded-md font-mono bg-gray-100 text-gray-600 uppercase text-[10px]">{t.channel ?? "email"}</span>
                       </td>
@@ -486,7 +486,7 @@ function ConversationsTab() {
         </>)}
     </div>);
 }
-// ── Import Contacts tab (preserved) ──────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Import Contacts tab (preserved) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ContactsTab() {
     const qc = useQueryClient();
     const [importResult, setImportResult] = useState(null);
@@ -507,16 +507,16 @@ function ContactsTab() {
     return (<div className="space-y-4">
       <div className="flex items-center justify-between p-4 rounded-xl border" style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}>
         <div className="flex items-center gap-6">
-          <Stat label="Total contacts" value={data?.total ?? "—"} icon={<Users className="w-4 h-4"/>}/>
-          <Stat label="With email" value={contacts.filter(c => c.properties.email).length || (isLoading ? "—" : "0")} icon={<Check className="w-4 h-4"/>}/>
+          <Stat label="Total contacts" value={data?.total ?? "Ã¢â‚¬â€"} icon={<Users className="w-4 h-4"/>}/>
+          <Stat label="With email" value={contacts.filter(c => c.properties.email).length || (isLoading ? "Ã¢â‚¬â€" : "0")} icon={<Check className="w-4 h-4"/>}/>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => refetch()} disabled={isFetching} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium border transition-all" style={{ borderColor: "#E5E7EB", color: "#374151" }}>
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? "animate-spin" : ""}`}/> Refresh
           </button>
-          <button onClick={() => importMut.mutate()} disabled={importMut.isPending || isLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all" style={{ background: importMut.isPending ? "#9CA3AF" : "#1A3D2B" }}>
+          <button onClick={() => importMut.mutate()} disabled={importMut.isPending || isLoading} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all" style={{ background: importMut.isPending ? "#9CA3AF" : "#A4285E" }}>
             {importMut.isPending ? <Loader2 className="w-4 h-4 animate-spin"/> : <Download className="w-4 h-4"/>}
-            {importMut.isPending ? "Importing…" : "Import all to AuraAI"}
+            {importMut.isPending ? "ImportingÃ¢â‚¬Â¦" : "Import all to AuraAI"}
           </button>
         </div>
       </div>
@@ -526,7 +526,7 @@ function ContactsTab() {
             <CheckCircle2 className="w-4 h-4 text-green-600"/>
             <span className="text-sm font-semibold text-green-800">Import complete</span>
           </div>
-          <p className="text-sm text-green-700">{importResult.imported} imported · {importResult.skipped} skipped (duplicates)</p>
+          <p className="text-sm text-green-700">{importResult.imported} imported Ã‚Â· {importResult.skipped} skipped (duplicates)</p>
           {importResult.errors.length > 0 && <p className="text-xs text-red-600 mt-1">{importResult.errors.length} errors</p>}
         </div>)}
 
@@ -541,11 +541,11 @@ function ContactsTab() {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {contacts.slice(0, 100).map(c => (<tr key={c.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-gray-900">{[c.properties.firstname, c.properties.lastname].filter(Boolean).join(" ") || "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">{c.properties.email ?? "—"}</td>
-                  <td className="px-4 py-3 text-gray-600">{c.properties.company ?? "—"}</td>
+                  <td className="px-4 py-3 font-medium text-gray-900">{[c.properties.firstname, c.properties.lastname].filter(Boolean).join(" ") || "Ã¢â‚¬â€"}</td>
+                  <td className="px-4 py-3 text-gray-600">{c.properties.email ?? "Ã¢â‚¬â€"}</td>
+                  <td className="px-4 py-3 text-gray-600">{c.properties.company ?? "Ã¢â‚¬â€"}</td>
                   <td className="px-4 py-3">
-                    <Pill label={c.properties.hs_lead_status ?? c.properties.lifecyclestage ?? "—"} color="#374151" bg="#F3F4F6"/>
+                    <Pill label={c.properties.hs_lead_status ?? c.properties.lifecyclestage ?? "Ã¢â‚¬â€"} color="#374151" bg="#F3F4F6"/>
                   </td>
                 </tr>))}
             </tbody>
@@ -556,7 +556,7 @@ function ContactsTab() {
         </div>)}
     </div>);
 }
-// ── Push Contacts tab (preserved) ─────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Push Contacts tab (preserved) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function PushContactsTab() {
     const [result, setResult] = useState(null);
     const pushMut = useMutation({
@@ -569,7 +569,7 @@ function PushContactsTab() {
         <p className="text-xs text-gray-500 mb-4">Upserts all org leads as HubSpot contacts (by email). Existing contacts are updated, new ones are created.</p>
         <button onClick={() => pushMut.mutate()} disabled={pushMut.isPending} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: pushMut.isPending ? "#9CA3AF" : HUBSPOT_ORANGE }}>
           {pushMut.isPending ? <Loader2 className="w-4 h-4 animate-spin"/> : <ArrowUpRight className="w-4 h-4"/>}
-          {pushMut.isPending ? "Pushing…" : "Push all contacts"}
+          {pushMut.isPending ? "PushingÃ¢â‚¬Â¦" : "Push all contacts"}
         </button>
       </div>
       {result && (<div className="p-4 rounded-xl border" style={{ background: "#F0FDF4", borderColor: "#BBF7D0" }}>
@@ -577,7 +577,7 @@ function PushContactsTab() {
             <CheckCircle2 className="w-4 h-4 text-green-600"/>
             <span className="text-sm font-semibold text-green-800">Push complete</span>
           </div>
-          <p className="text-sm text-green-700">{result.pushed} pushed · {result.failed} failed of {result.total} total</p>
+          <p className="text-sm text-green-700">{result.pushed} pushed Ã‚Â· {result.failed} failed of {result.total} total</p>
           {result.errors.length > 0 && <p className="text-xs text-red-600 mt-1">{result.errors.slice(0, 3).join("; ")}</p>}
         </div>)}
       {pushMut.isError && (<div className="p-4 rounded-xl border text-sm text-red-700" style={{ background: "#FEF2F2", borderColor: "#FECACA" }}>
@@ -585,7 +585,7 @@ function PushContactsTab() {
         </div>)}
     </div>);
 }
-// ── Push Deals tab (preserved) ────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Push Deals tab (preserved) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function PushDealsTab() {
     const [pipeline, setPipeline] = useState("");
     const [stage, setStage] = useState("");
@@ -620,7 +620,7 @@ function PushDealsTab() {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Pipeline</label>
             {pipeLoading ? <Loader2 className="w-4 h-4 animate-spin text-gray-400"/> : (<select value={pipeline} onChange={e => { setPipeline(e.target.value); setStage(""); }} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ borderColor: "#E5E7EB" }}>
-                <option value="">Select pipeline…</option>
+                <option value="">Select pipelineÃ¢â‚¬Â¦</option>
                 {pipelines.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>)}
           </div>
@@ -628,7 +628,7 @@ function PushDealsTab() {
           {selectedPipeline && (<div>
               <label className="block text-xs font-medium text-gray-600 mb-1">Deal stage</label>
               <select value={stage} onChange={e => setStage(e.target.value)} className="w-full border rounded-lg px-3 py-2 text-sm" style={{ borderColor: "#E5E7EB" }}>
-                <option value="">Select stage…</option>
+                <option value="">Select stageÃ¢â‚¬Â¦</option>
                 {selectedPipeline.stages.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>)}
@@ -641,7 +641,7 @@ function PushDealsTab() {
 
         <button onClick={() => pushMut.mutate()} disabled={!pipeline || !stage || pushMut.isPending} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white" style={{ background: !pipeline || !stage ? "#9CA3AF" : HUBSPOT_ORANGE }}>
           {pushMut.isPending ? <Loader2 className="w-4 h-4 animate-spin"/> : <Zap className="w-4 h-4"/>}
-          {pushMut.isPending ? "Pushing deals…" : "Push deals to HubSpot"}
+          {pushMut.isPending ? "Pushing dealsÃ¢â‚¬Â¦" : "Push deals to HubSpot"}
         </button>
       </div>
 
@@ -650,7 +650,7 @@ function PushDealsTab() {
             <CheckCircle2 className="w-4 h-4 text-green-600"/>
             <span className="text-sm font-semibold text-green-800">Deals pushed</span>
           </div>
-          <p className="text-sm text-green-700">{result.pushed} pushed · {result.failed} failed</p>
+          <p className="text-sm text-green-700">{result.pushed} pushed Ã‚Â· {result.failed} failed</p>
         </div>)}
 
       {pushMut.isError && (<div className="p-4 rounded-xl border text-sm text-red-700" style={{ background: "#FEF2F2", borderColor: "#FECACA" }}>

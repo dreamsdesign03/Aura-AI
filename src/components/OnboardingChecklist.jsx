@@ -8,21 +8,21 @@ const STEPS = [
         label: "Run your first Brand Audit",
         description: "Analyse a prospect's website for quick wins",
         href: "/audit",
-        emoji: "🔍",
+        emoji: "Ã°Å¸â€Â",
     },
     {
         key: "lead",
         label: "Add your first Lead",
         description: "Drop a contact into your pipeline",
         href: "/leads",
-        emoji: "👤",
+        emoji: "Ã°Å¸â€˜Â¤",
     },
     {
         key: "outreach",
         label: "Generate an Outreach email",
         description: "Let AI write a personalised cold email",
         href: "/outreach",
-        emoji: "✉️",
+        emoji: "Ã¢Å“â€°Ã¯Â¸Â",
     },
 ];
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
@@ -63,28 +63,28 @@ export default function OnboardingChecklist() {
     function handleDismiss() {
         setDismissed(true);
     }
-    return (<div className="rounded-xl overflow-hidden" style={{ border: "1px solid #DDD6FE", background: "#FAFAFE" }}>
-      <button onClick={() => setCollapsed(c => !c)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left" style={{ background: "linear-gradient(135deg, #EDE9FE 0%, #F5F3FF 100%)" }}>
-        <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#7C3AED" }}/>
+    return (<div className="rounded-xl overflow-hidden" style={{ border: "1px solid #F3C9DB", background: "#FFF7FB" }}>
+      <button onClick={() => setCollapsed(c => !c)} className="w-full flex items-center gap-2 px-3 py-2.5 text-left" style={{ background: "linear-gradient(135deg, #FBE9F1 0%, #FBE9F1 100%)" }}>
+        <Sparkles className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#CB3273" }}/>
         <div className="flex-1 min-w-0">
-          <div className="text-[11px] font-bold" style={{ color: "#5B21B6" }}>
+          <div className="text-[11px] font-bold" style={{ color: "#A4285E" }}>
             Getting started
           </div>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "#DDD6FE" }}>
-              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#7C3AED,#A855F7)" }}/>
+            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: "#F3C9DB" }}>
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: "linear-gradient(90deg,#CB3273,#A855F7)" }}/>
             </div>
-            <span className="text-[9px] font-bold flex-shrink-0" style={{ color: "#7C3AED" }}>
+            <span className="text-[9px] font-bold flex-shrink-0" style={{ color: "#CB3273" }}>
               {doneCount}/{STEPS.length}
             </span>
           </div>
         </div>
         <div className="flex items-center gap-1 flex-shrink-0">
           {collapsed
-            ? <ChevronDown className="w-3 h-3" style={{ color: "#7C3AED" }}/>
-            : <ChevronUp className="w-3 h-3" style={{ color: "#7C3AED" }}/>}
-          <button onClick={e => { e.stopPropagation(); handleDismiss(); }} className="w-4 h-4 flex items-center justify-center rounded-full transition-colors" style={{ background: "rgba(124,58,237,0.12)" }} title="Dismiss">
-            <X className="w-2.5 h-2.5" style={{ color: "#7C3AED" }}/>
+            ? <ChevronDown className="w-3 h-3" style={{ color: "#CB3273" }}/>
+            : <ChevronUp className="w-3 h-3" style={{ color: "#CB3273" }}/>}
+          <button onClick={e => { e.stopPropagation(); handleDismiss(); }} className="w-4 h-4 flex items-center justify-center rounded-full transition-colors" style={{ background: "rgba(203,50,115,0.12)" }} title="Dismiss">
+            <X className="w-2.5 h-2.5" style={{ color: "#CB3273" }}/>
           </button>
         </div>
       </button>
@@ -95,14 +95,14 @@ export default function OnboardingChecklist() {
                 return (<div key={step.key} className="flex items-center gap-2">
                 <button onClick={() => handleTick(step.key)} className="flex-shrink-0 transition-all" title={done ? "Completed" : "Mark as done"}>
                   {done
-                        ? <CheckCircle2 className="w-4 h-4" style={{ color: "#7C3AED" }}/>
-                        : <Circle className="w-4 h-4" style={{ color: "#C4B5FD" }}/>}
+                        ? <CheckCircle2 className="w-4 h-4" style={{ color: "#CB3273" }}/>
+                        : <Circle className="w-4 h-4" style={{ color: "#F3C9DB" }}/>}
                 </button>
                 <Link href={step.href} className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors cursor-pointer" onMouseEnter={e => { e.currentTarget.style.background = "#EDE9FE"; }} onMouseLeave={e => { e.currentTarget.style.background = ""; }}>
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg transition-colors cursor-pointer" onMouseEnter={e => { e.currentTarget.style.background = "#FBE9F1"; }} onMouseLeave={e => { e.currentTarget.style.background = ""; }}>
                     <span className="text-[12px] flex-shrink-0">{step.emoji}</span>
                     <div className="min-w-0">
-                      <div className="text-[11px] font-semibold truncate" style={{ color: done ? "#A78BFA" : "#3B1FA8", textDecoration: done ? "line-through" : "none" }}>
+                      <div className="text-[11px] font-semibold truncate" style={{ color: done ? "#E58BB5" : "#3B1FA8", textDecoration: done ? "line-through" : "none" }}>
                         {step.label}
                       </div>
                       <div className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>

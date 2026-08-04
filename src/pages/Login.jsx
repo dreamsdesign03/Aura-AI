@@ -3,22 +3,22 @@ import { Eye, EyeOff, ArrowRight, Phone, ChevronLeft, Sparkles, Shield, Zap, Use
 import { RecaptchaVerifier, signInWithPhoneNumber, } from "firebase/auth";
 import { getFirebaseAuth, firebaseConfigured } from "../lib/firebase";
 const COUNTRY_CODES = [
-    { code: "+91", flag: "🇮🇳", name: "India" },
-    { code: "+1", flag: "🇺🇸", name: "USA / Canada" },
-    { code: "+44", flag: "🇬🇧", name: "UK" },
-    { code: "+61", flag: "🇦🇺", name: "Australia" },
-    { code: "+971", flag: "🇦🇪", name: "UAE" },
-    { code: "+65", flag: "🇸🇬", name: "Singapore" },
-    { code: "+60", flag: "🇲🇾", name: "Malaysia" },
-    { code: "+49", flag: "🇩🇪", name: "Germany" },
-    { code: "+33", flag: "🇫🇷", name: "France" },
-    { code: "+81", flag: "🇯🇵", name: "Japan" },
+    { code: "+91", flag: "Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³", name: "India" },
+    { code: "+1", flag: "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸", name: "USA / Canada" },
+    { code: "+44", flag: "Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§", name: "UK" },
+    { code: "+61", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº", name: "Australia" },
+    { code: "+971", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âª", name: "UAE" },
+    { code: "+65", flag: "Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¬", name: "Singapore" },
+    { code: "+60", flag: "Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¾", name: "Malaysia" },
+    { code: "+49", flag: "Ã°Å¸â€¡Â©Ã°Å¸â€¡Âª", name: "Germany" },
+    { code: "+33", flag: "Ã°Å¸â€¡Â«Ã°Å¸â€¡Â·", name: "France" },
+    { code: "+81", flag: "Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ", name: "Japan" },
 ];
-const TEAM_SIZES = ["Just me", "2–5", "6–10", "11–25", "26–50", "51–100", "100+"];
-const PINK = "#DB2777";
-const PINK_LIGHT = "#EC4899";
+const TEAM_SIZES = ["Just me", "2Ã¢â‚¬â€œ5", "6Ã¢â‚¬â€œ10", "11Ã¢â‚¬â€œ25", "26Ã¢â‚¬â€œ50", "51Ã¢â‚¬â€œ100", "100+"];
+const PINK = "#CB3273";
+const PINK_LIGHT = "#E15C94";
 const PINK_GRAD = `linear-gradient(135deg, ${PINK}, ${PINK_LIGHT})`;
-const PINK_SHADOW = "0 4px 18px rgba(219,39,119,0.32)";
+const PINK_SHADOW = "0 4px 18px rgba(203,50,115,0.32)";
 export default function Login({ onSuccess, onRegisterClick }) {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -61,7 +61,7 @@ export default function Login({ onSuccess, onRegisterClick }) {
                 no_email: "Your Google account didn't share an email address.",
                 server_error: "A server error occurred during sign-in. Please try again.",
                 oauth_not_configured: "Google sign-in is not configured yet.",
-                redirect_uri_mismatch: "Google OAuth redirect URI mismatch — check Google Cloud Console settings.",
+                redirect_uri_mismatch: "Google OAuth redirect URI mismatch Ã¢â‚¬â€ check Google Cloud Console settings.",
             };
             setError(messages[oauthError] ?? `Sign-in error: ${oauthError}`);
             window.history.replaceState({}, "", window.location.pathname);
@@ -237,7 +237,7 @@ export default function Login({ onSuccess, onRegisterClick }) {
             }
         }
         catch {
-            setError("Connection error — please try again");
+            setError("Connection error Ã¢â‚¬â€ please try again");
         }
         finally {
             setLoading(false);
@@ -272,21 +272,21 @@ export default function Login({ onSuccess, onRegisterClick }) {
         { icon: <Sparkles className="w-4 h-4"/>, label: "Complete Growth", desc: "All-in-one clinic growth OS" },
     ];
     return (<div className="min-h-screen flex flex-col lg:flex-row" style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: "#fff" }}>
-      {/* ── Left panel — soft pink (desktop only) ── */}
-      <div className="hidden lg:flex flex-col justify-between w-[52%] flex-shrink-0 px-14 py-12 relative overflow-hidden" style={{ background: "linear-gradient(150deg, #FFF0F6 0%, #FCE7F3 35%, #FBD0E4 65%, #F9A8D4 100%)" }}>
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Left panel Ã¢â‚¬â€ soft pink (desktop only) Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      <div className="hidden lg:flex flex-col justify-between w-[52%] flex-shrink-0 px-14 py-12 relative overflow-hidden" style={{ background: "linear-gradient(150deg, #FFF0F6 0%, #FCE7F3 35%, #FBE9F1 65%, #F9A8D4 100%)" }}>
         {/* subtle dot grid */}
-        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: `radial-gradient(circle, rgba(219,39,119,0.07) 1px, transparent 1px)`, backgroundSize: "28px 28px" }}/>
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: `radial-gradient(circle, rgba(203,50,115,0.07) 1px, transparent 1px)`, backgroundSize: "28px 28px" }}/>
         {/* soft glow */}
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: `radial-gradient(ellipse 420px 340px at 80% 90%, rgba(236,72,153,0.12) 0%, transparent 65%)` }}/>
 
         {/* Logo */}
         <div className="relative z-10">
-          <img src={`${import.meta.env.BASE_URL}logo-full.png`} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 188, width: "auto", maxWidth: 480, objectFit: "contain", marginLeft: -42 }}/>
+          <img src={`${import.meta.env.BASE_URL}logo-full.png`} alt="AuraAI Ã¢â‚¬â€ Laser & Cosmetic Clinic" style={{ height: 188, width: "auto", maxWidth: 480, objectFit: "contain", marginLeft: -42 }}/>
         </div>
 
         {/* Hero copy */}
         <div className="relative z-10">
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: PINK, background: "rgba(219,39,119,0.08)", border: `1px solid rgba(219,39,119,0.18)`, padding: "5px 14px", borderRadius: 100, marginBottom: 24 }}>
+          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, fontWeight: 700, letterSpacing: "2px", textTransform: "uppercase", color: PINK, background: "rgba(203,50,115,0.08)", border: `1px solid rgba(203,50,115,0.18)`, padding: "5px 14px", borderRadius: 100, marginBottom: 24 }}>
             <Sparkles className="w-3 h-3"/> AI-Powered Clinic Management
           </div>
 
@@ -297,12 +297,12 @@ export default function Login({ onSuccess, onRegisterClick }) {
           </h2>
 
           <p style={{ fontSize: 15, lineHeight: 1.7, color: "#6B7280", marginBottom: 40, maxWidth: 380 }}>
-            Everything your clinic needs — from patient management and AI-powered bookings to automated outreach and growth analytics.
+            Everything your clinic needs Ã¢â‚¬â€ from patient management and AI-powered bookings to automated outreach and growth analytics.
           </p>
 
           {/* Feature cards */}
           <div className="grid grid-cols-2 gap-3">
-            {featureItems.map(({ icon, label, desc }) => (<div key={label} className="rounded-2xl p-4 bg-white" style={{ border: "1px solid rgba(219,39,119,0.12)", boxShadow: "0 2px 12px rgba(219,39,119,0.06)" }}>
+            {featureItems.map(({ icon, label, desc }) => (<div key={label} className="rounded-2xl p-4 bg-white" style={{ border: "1px solid rgba(203,50,115,0.12)", boxShadow: "0 2px 12px rgba(203,50,115,0.06)" }}>
                 <div className="flex items-center gap-2 mb-1.5" style={{ color: PINK }}>
                   {icon}
                   <span style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>{label}</span>
@@ -313,27 +313,27 @@ export default function Login({ onSuccess, onRegisterClick }) {
 
           {/* Stats */}
           <div className="flex items-center gap-8 mt-8">
-            {[{ val: "98%", label: "Client satisfaction" }, { val: "3×", label: "Faster bookings" }, { val: "40%", label: "More retention" }].map(({ val, label }) => (<div key={label}>
+            {[{ val: "98%", label: "Client satisfaction" }, { val: "3Ãƒâ€”", label: "Faster bookings" }, { val: "40%", label: "More retention" }].map(({ val, label }) => (<div key={label}>
                 <div style={{ fontSize: 24, fontWeight: 900, color: PINK, letterSpacing: "-0.025em", lineHeight: 1 }}>{val}</div>
                 <div style={{ fontSize: 10, marginTop: 3, color: "#9CA3AF", fontWeight: 500 }}>{label}</div>
               </div>))}
           </div>
         </div>
 
-        <p style={{ fontSize: 11, color: "#C4A8C4", position: "relative", zIndex: 10 }}>© {new Date().getFullYear()} AuraAI · Laser &amp; Cosmetic Clinic</p>
+        <p style={{ fontSize: 11, color: "#C4A8C4", position: "relative", zIndex: 10 }}>Ã‚Â© {new Date().getFullYear()} AuraAI Ã‚Â· Laser &amp; Cosmetic Clinic</p>
       </div>
 
-      {/* ── Right panel ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Right panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <div className="flex-1 flex flex-col items-center justify-center px-5 py-10 lg:py-0" style={{ background: "#FAFAFA" }}>
 
         {/* Mobile logo */}
         <div className="flex lg:hidden mb-8">
-          <img src={`${import.meta.env.BASE_URL}logo-full.png`} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 56, width: "auto", maxWidth: 200, objectFit: "contain" }}/>
+          <img src={`${import.meta.env.BASE_URL}logo-full.png`} alt="AuraAI Ã¢â‚¬â€ Laser & Cosmetic Clinic" style={{ height: 56, width: "auto", maxWidth: 200, objectFit: "contain" }}/>
         </div>
 
         <div className="w-full max-w-[400px]">
 
-          {/* ── Phone OTP flow ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Phone OTP flow Ã¢â€â‚¬Ã¢â€â‚¬ */}
           {phoneStep !== "idle" ? (<div className="bg-white rounded-2xl shadow-sm border p-8" style={{ borderColor: "#F3F4F6" }}>
               <button type="button" onClick={resetPhoneFlow} className="flex items-center gap-1.5 mb-6" style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7280", fontSize: 13, fontWeight: 500, padding: 0 }}>
                 <ChevronLeft className="w-4 h-4"/> Back
@@ -346,15 +346,15 @@ export default function Login({ onSuccess, onRegisterClick }) {
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 6, color: "#374151" }}>Phone number</label>
                       <div className="flex gap-2">
-                        <select value={countryCode} onChange={e => setCountryCode(e.target.value)} style={{ border: `1.5px solid #FBD0E4`, borderRadius: 12, padding: "12px 10px", fontSize: 13, fontWeight: 600, color: "#374151", background: "white", outline: "none", cursor: "pointer", flexShrink: 0 }}>
+                        <select value={countryCode} onChange={e => setCountryCode(e.target.value)} style={{ border: `1.5px solid #FBE9F1`, borderRadius: 12, padding: "12px 10px", fontSize: 13, fontWeight: 600, color: "#374151", background: "white", outline: "none", cursor: "pointer", flexShrink: 0 }}>
                           {COUNTRY_CODES.map(c => <option key={c.code} value={c.code}>{c.flag} {c.code}</option>)}
                         </select>
-                        <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="9876543210" autoFocus className={inputBase} style={{ border: "1.5px solid #FBD0E4" }}/>
+                        <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} placeholder="9876543210" autoFocus className={inputBase} style={{ border: "1.5px solid #FBE9F1" }}/>
                       </div>
                     </div>
                     {phoneError && <div style={{ fontSize: 12, padding: "10px 14px", borderRadius: 12, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>{phoneError}</div>}
                     <button type="submit" disabled={phoneLoading} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all" style={pinkBtnStyle(phoneLoading)}>
-                      {phoneLoading ? "Sending…" : <><span>Send OTP</span><ArrowRight className="w-4 h-4"/></>}
+                      {phoneLoading ? "SendingÃ¢â‚¬Â¦" : <><span>Send OTP</span><ArrowRight className="w-4 h-4"/></>}
                     </button>
                   </form>
                 </>)}
@@ -363,10 +363,10 @@ export default function Login({ onSuccess, onRegisterClick }) {
                   <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", marginBottom: 5 }}>Enter your code</h2>
                   <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 22 }}>Sent to <strong>{countryCode}{phoneNumber}</strong>.</p>
                   <form onSubmit={handleVerifyOtp} className="space-y-4">
-                    <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" autoFocus className={inputBase} style={{ border: "1.5px solid #FBD0E4", letterSpacing: "0.4em", textAlign: "center", fontSize: 24, fontWeight: 800 }}/>
+                    <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" autoFocus className={inputBase} style={{ border: "1.5px solid #FBE9F1", letterSpacing: "0.4em", textAlign: "center", fontSize: 24, fontWeight: 800 }}/>
                     {phoneError && <div style={{ fontSize: 12, padding: "10px 14px", borderRadius: 12, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>{phoneError}</div>}
                     <button type="submit" disabled={phoneLoading || otpCode.length !== 6} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all" style={pinkBtnStyle(phoneLoading || otpCode.length !== 6)}>
-                      {phoneLoading ? "Verifying…" : <><span>Verify &amp; sign in</span><ArrowRight className="w-4 h-4"/></>}
+                      {phoneLoading ? "VerifyingÃ¢â‚¬Â¦" : <><span>Verify &amp; sign in</span><ArrowRight className="w-4 h-4"/></>}
                     </button>
                     <div style={{ textAlign: "center", fontSize: 13, color: "#6B7280" }}>
                       {resendSecs > 0 ? <span>Resend in {resendSecs}s</span> : (<button type="button" onClick={() => { setPhoneStep("phone"); setOtpCode(""); setPhoneError(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: PINK, fontWeight: 600, fontSize: 13 }}>Resend code</button>)}
@@ -376,11 +376,11 @@ export default function Login({ onSuccess, onRegisterClick }) {
 
               <div id="recaptcha-container"/>
             </div>) : (
-        /* ── Idle: email/password form ── */
+        /* Ã¢â€â‚¬Ã¢â€â‚¬ Idle: email/password form Ã¢â€â‚¬Ã¢â€â‚¬ */
         <>
               <div className="mb-7">
                 <h1 style={{ fontSize: 30, fontWeight: 900, color: "#111827", letterSpacing: "-0.03em", lineHeight: 1.1, marginBottom: 6 }}>
-                  Welcome back 👋
+                  Welcome back Ã°Å¸â€˜â€¹
                 </h1>
                 <p style={{ fontSize: 14, color: "#6B7280" }}>Sign in to your AuraAI account</p>
               </div>
@@ -408,7 +408,7 @@ export default function Login({ onSuccess, onRegisterClick }) {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div>
                     <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 6, color: "#374151" }}>Email address</label>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@clinic.com" className={inputBase} style={{ border: "1.5px solid #FBD0E4" }} onFocus={e => { e.currentTarget.style.borderColor = PINK; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(219,39,119,0.08)`; }} onBlur={e => { e.currentTarget.style.borderColor = "#FBD0E4"; e.currentTarget.style.boxShadow = "none"; }}/>
+                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="email" placeholder="you@clinic.com" className={inputBase} style={{ border: "1.5px solid #FBE9F1" }} onFocus={e => { e.currentTarget.style.borderColor = PINK; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(203,50,115,0.08)`; }} onBlur={e => { e.currentTarget.style.borderColor = "#FBE9F1"; e.currentTarget.style.boxShadow = "none"; }}/>
                   </div>
 
                   <div>
@@ -419,7 +419,7 @@ export default function Login({ onSuccess, onRegisterClick }) {
                       </button>
                     </div>
                     <div className="relative">
-                      <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" placeholder="••••••••" className={inputBase + " pr-10"} style={{ border: "1.5px solid #FBD0E4" }} onFocus={e => { e.currentTarget.style.borderColor = PINK; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(219,39,119,0.08)`; }} onBlur={e => { e.currentTarget.style.borderColor = "#FBD0E4"; e.currentTarget.style.boxShadow = "none"; }}/>
+                      <input type={showPw ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" className={inputBase + " pr-10"} style={{ border: "1.5px solid #FBE9F1" }} onFocus={e => { e.currentTarget.style.borderColor = PINK; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(203,50,115,0.08)`; }} onBlur={e => { e.currentTarget.style.borderColor = "#FBE9F1"; e.currentTarget.style.boxShadow = "none"; }}/>
                       <button type="button" onClick={() => setShowPw(v => !v)} tabIndex={-1} className="absolute right-3 top-1/2 -translate-y-1/2" style={{ color: "#9CA3AF", background: "none", border: "none", cursor: "pointer" }}>
                         {showPw ? <EyeOff className="w-4 h-4"/> : <Eye className="w-4 h-4"/>}
                       </button>
@@ -444,14 +444,14 @@ export default function Login({ onSuccess, onRegisterClick }) {
                   {error && (<div style={{ fontSize: 12, padding: "10px 14px", borderRadius: 12, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>{error}</div>)}
 
                   <button type="submit" disabled={loading} className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl transition-all" style={pinkBtnStyle(loading)} onMouseEnter={e => { if (!loading)
-            e.currentTarget.style.boxShadow = "0 6px 24px rgba(219,39,119,0.42)"; }} onMouseLeave={e => { if (!loading)
+            e.currentTarget.style.boxShadow = "0 6px 24px rgba(203,50,115,0.42)"; }} onMouseLeave={e => { if (!loading)
             e.currentTarget.style.boxShadow = PINK_SHADOW; }}>
-                    {loading ? "Signing in…" : <><span>Sign in</span><ArrowRight className="w-4 h-4"/></>}
+                    {loading ? "Signing inÃ¢â‚¬Â¦" : <><span>Sign in</span><ArrowRight className="w-4 h-4"/></>}
                   </button>
                 </form>
 
                 {/* Phone OTP option */}
-                {otpEnabled && (<button type="button" onClick={() => { setPhoneStep("phone"); setPhoneError(""); setOtpCode(""); }} className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border-2 transition-all text-[13px] font-semibold" style={{ borderColor: "#FBD0E4", color: PINK, background: "#FFF0F6" }} onMouseEnter={e => { e.currentTarget.style.background = "#FCE7F3"; }} onMouseLeave={e => { e.currentTarget.style.background = "#FFF0F6"; }}>
+                {otpEnabled && (<button type="button" onClick={() => { setPhoneStep("phone"); setPhoneError(""); setOtpCode(""); }} className="w-full flex items-center justify-center gap-2.5 py-3 rounded-xl border-2 transition-all text-[13px] font-semibold" style={{ borderColor: "#FBE9F1", color: PINK, background: "#FFF0F6" }} onMouseEnter={e => { e.currentTarget.style.background = "#FCE7F3"; }} onMouseLeave={e => { e.currentTarget.style.background = "#FFF0F6"; }}>
                     <Phone className="w-4 h-4"/> Continue with Mobile OTP
                   </button>)}
               </div>
@@ -473,13 +473,13 @@ export default function Login({ onSuccess, onRegisterClick }) {
         </div>
       </div>
 
-      {/* ── Complete your profile modal ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Complete your profile modal Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {showProfileModal && (<div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overflowY: "auto" }}>
           <div style={{ background: "white", borderRadius: 24, padding: "32px 28px", width: "100%", maxWidth: 480, margin: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.28)" }}>
             {!profEmailSent ? (<>
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
                   <div style={{ width: 54, height: 54, borderRadius: 15, margin: "0 auto 14px", display: "flex", alignItems: "center", justifyContent: "center", background: PINK_GRAD }}>
-                    <span style={{ fontSize: 26 }}>👤</span>
+                    <span style={{ fontSize: 26 }}>Ã°Å¸â€˜Â¤</span>
                   </div>
                   <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", margin: 0 }}>Complete your profile</h2>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 6, lineHeight: 1.5 }}>
@@ -491,11 +491,11 @@ export default function Login({ onSuccess, onRegisterClick }) {
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>First name <span style={{ color: PINK }}>*</span></label>
-                      <input type="text" value={profFirstName} onChange={e => setProfFirstName(e.target.value)} placeholder="Alex" autoFocus required className={inputSm} style={{ border: "1.5px solid #FBD0E4" }}/>
+                      <input type="text" value={profFirstName} onChange={e => setProfFirstName(e.target.value)} placeholder="Alex" autoFocus required className={inputSm} style={{ border: "1.5px solid #FBE9F1" }}/>
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>Last name</label>
-                      <input type="text" value={profLastName} onChange={e => setProfLastName(e.target.value)} placeholder="Smith" className={inputSm} style={{ border: "1.5px solid #FBD0E4" }}/>
+                      <input type="text" value={profLastName} onChange={e => setProfLastName(e.target.value)} placeholder="Smith" className={inputSm} style={{ border: "1.5px solid #FBE9F1" }}/>
                     </div>
                   </div>
 
@@ -504,34 +504,34 @@ export default function Login({ onSuccess, onRegisterClick }) {
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>
                         Work email <span style={{ color: PINK }}>*</span>
                       </label>
-                      <input type="email" value={profEmail} onChange={e => setProfEmail(e.target.value)} placeholder="you@company.com" required className={inputSm} style={{ border: "1.5px solid #FBD0E4" }}/>
+                      <input type="email" value={profEmail} onChange={e => setProfEmail(e.target.value)} placeholder="you@company.com" required className={inputSm} style={{ border: "1.5px solid #FBE9F1" }}/>
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>Phone no</label>
-                      <input type="text" value={verifiedPhone} readOnly className={inputSm} style={{ border: "1.5px solid #FBD0E4", background: "#FFF0F6", color: "#6B7280", cursor: "default" }}/>
+                      <input type="text" value={verifiedPhone} readOnly className={inputSm} style={{ border: "1.5px solid #FBE9F1", background: "#FFF0F6", color: "#6B7280", cursor: "default" }}/>
                     </div>
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>City</label>
-                      <input type="text" value={profCity} onChange={e => setProfCity(e.target.value)} placeholder="Mumbai" className={inputSm} style={{ border: "1.5px solid #FBD0E4" }}/>
+                      <input type="text" value={profCity} onChange={e => setProfCity(e.target.value)} placeholder="Mumbai" className={inputSm} style={{ border: "1.5px solid #FBE9F1" }}/>
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>Clinic name</label>
-                      <input type="text" value={profCompany} onChange={e => setProfCompany(e.target.value)} placeholder="Aura Clinic" className={inputSm} style={{ border: "1.5px solid #FBD0E4" }}/>
+                      <input type="text" value={profCompany} onChange={e => setProfCompany(e.target.value)} placeholder="Aura Clinic" className={inputSm} style={{ border: "1.5px solid #FBE9F1" }}/>
                     </div>
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>Role</label>
-                      <input type="text" value={profDesignation} onChange={e => setProfDesignation(e.target.value)} placeholder="Clinic Manager" className={inputSm} style={{ border: "1.5px solid #FBD0E4" }}/>
+                      <input type="text" value={profDesignation} onChange={e => setProfDesignation(e.target.value)} placeholder="Clinic Manager" className={inputSm} style={{ border: "1.5px solid #FBE9F1" }}/>
                     </div>
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>Team size</label>
-                      <select value={profTeamSize} onChange={e => setProfTeamSize(e.target.value)} className={inputSm} style={{ border: "1.5px solid #FBD0E4", cursor: "pointer", appearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: 30 }}>
-                        <option value="">Select…</option>
+                      <select value={profTeamSize} onChange={e => setProfTeamSize(e.target.value)} className={inputSm} style={{ border: "1.5px solid #FBE9F1", cursor: "pointer", appearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: 30 }}>
+                        <option value="">SelectÃ¢â‚¬Â¦</option>
                         {TEAM_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
@@ -544,12 +544,12 @@ export default function Login({ onSuccess, onRegisterClick }) {
                   {profError && <div style={{ fontSize: 12, padding: "10px 14px", borderRadius: 12, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>{profError}</div>}
 
                   <button type="submit" disabled={profLoading} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all" style={{ ...pinkBtnStyle(profLoading), marginTop: 4 }}>
-                    {profLoading ? "Saving…" : <><span>Get started</span><ArrowRight className="w-4 h-4"/></>}
+                    {profLoading ? "SavingÃ¢â‚¬Â¦" : <><span>Get started</span><ArrowRight className="w-4 h-4"/></>}
                   </button>
                 </form>
               </>) : (<div style={{ textAlign: "center", padding: "8px 0" }}>
                 <div style={{ width: 54, height: 54, borderRadius: 15, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", background: PINK_GRAD }}>
-                  <span style={{ fontSize: 26 }}>✉️</span>
+                  <span style={{ fontSize: 26 }}>Ã¢Å“â€°Ã¯Â¸Â</span>
                 </div>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", marginBottom: 8 }}>Verify your email</h2>
                 <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, marginBottom: 20 }}>

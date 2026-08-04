@@ -1,21 +1,21 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-// ── Config ────────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Config Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const PRIMARY = "#5B2FC9";
 const CALENDLY = "https://calendly.com/dreamsdesign-in/consulting";
-const INTENT_OPTS = ["Grow my business 🚀", "Looking for a job 💼", "Just browsing 👀", "Something else 💬"];
-const BUDGET_OPTS = ["Under ₹50k", "₹50k – ₹1L", "₹1L – ₹2L", "₹2L – ₹5L", "₹5L+"];
+const INTENT_OPTS = ["Grow my business Ã°Å¸Å¡â‚¬", "Looking for a job Ã°Å¸â€™Â¼", "Just browsing Ã°Å¸â€˜â‚¬", "Something else Ã°Å¸â€™Â¬"];
+const BUDGET_OPTS = ["Under Ã¢â€šÂ¹50k", "Ã¢â€šÂ¹50k Ã¢â‚¬â€œ Ã¢â€šÂ¹1L", "Ã¢â€šÂ¹1L Ã¢â‚¬â€œ Ã¢â€šÂ¹2L", "Ã¢â€šÂ¹2L Ã¢â‚¬â€œ Ã¢â€šÂ¹5L", "Ã¢â€šÂ¹5L+"];
 const DM_OPTS = ["Yes, I decide", "I'm part of the decision", "Need to consult others"];
 const TIMELINE_OPTS = ["Right away", "Within a month", "Next 3 months", "Just exploring"];
-// ── Scoring ───────────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Scoring Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function scoreLead(l) {
     let s = 0;
-    if (l.budget === "₹5L+")
+    if (l.budget === "Ã¢â€šÂ¹5L+")
         s += 30;
-    else if (l.budget === "₹2L – ₹5L")
+    else if (l.budget === "Ã¢â€šÂ¹2L Ã¢â‚¬â€œ Ã¢â€šÂ¹5L")
         s += 20;
-    else if (l.budget === "₹1L – ₹2L")
+    else if (l.budget === "Ã¢â€šÂ¹1L Ã¢â‚¬â€œ Ã¢â€šÂ¹2L")
         s += 10;
-    else if (l.budget === "₹50k – ₹1L")
+    else if (l.budget === "Ã¢â€šÂ¹50k Ã¢â‚¬â€œ Ã¢â€šÂ¹1L")
         s += 5;
     if (l.timeline === "Right away")
         s += 25;
@@ -30,7 +30,7 @@ function scoreLead(l) {
     const tier = s >= 60 ? "HOT" : s >= 40 ? "WARM" : s >= 20 ? "COOL" : "COLD";
     return { score: s, tier };
 }
-// ── Typing dots ───────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Typing dots Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function TypingDots() {
     return (<span style={{ display: "inline-flex", gap: 4, alignItems: "center" }}>
       {[0, 1, 2].map(i => (<span key={i} style={{
@@ -39,7 +39,7 @@ function TypingDots() {
             }}/>))}
     </span>);
 }
-// ── Arrow send button ─────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Arrow send button Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function SendBtn({ active, onClick }) {
     return (<button onClick={onClick} disabled={!active} style={{
             width: 34, height: 34, borderRadius: "50%", border: "none",
@@ -82,7 +82,7 @@ export function ChatWidget({ apiBase = "" }) {
             setTimeout(() => inputRef.current?.focus(), 120);
         }
     }, [chatStep, phase]);
-    // ── Add Krish message with realistic "typing" delay ──────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Add Krish message with realistic "typing" delay Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const krishSay = useCallback((text) => {
         return new Promise(resolve => {
             const id = ++msgIdRef.current;
@@ -94,7 +94,7 @@ export function ChatWidget({ apiBase = "" }) {
             }, ms);
         });
     }, []);
-    // ── Submit lead to API ──────────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Submit lead to API Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const submitLead = useCallback(async () => {
         const l = leadRef.current;
         const { score, tier } = scoreLead(l);
@@ -133,8 +133,8 @@ export function ChatWidget({ apiBase = "" }) {
                 opps = d.opportunities.slice(0, 3);
         }
         catch (_) { /* use defaults */ }
-        // Consultant verdict — with ✅ opportunities
-        const verdictText = `Thanks ${firstName}! 🙏\n\nBased on what you've shared about ${cmp}...\n\nI believe there are 3 key areas where we can make a real difference:`;
+        // Consultant verdict Ã¢â‚¬â€ with Ã¢Å“â€¦ opportunities
+        const verdictText = `Thanks ${firstName}! Ã°Å¸â„¢Â\n\nBased on what you've shared about ${cmp}...\n\nI believe there are 3 key areas where we can make a real difference:`;
         const verdictId = ++msgIdRef.current;
         setMsgs(prev => [...prev, { id: verdictId, role: "krish", text: "", typing: true }]);
         await new Promise(r => setTimeout(r, 1200));
@@ -147,7 +147,7 @@ export function ChatWidget({ apiBase = "" }) {
         busyRef.current = false;
         setPhase("done");
     }, [apiBase, krishSay]);
-    // ── Handle a single answer (text or button) ──────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Handle a single answer (text or button) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const handleAnswer = useCallback(async (val) => {
         const v = val.trim();
         if (!v || busyRef.current)
@@ -158,13 +158,13 @@ export function ChatWidget({ apiBase = "" }) {
         const id = ++msgIdRef.current;
         setMsgs(prev => [...prev, { id, role: "user", text: v }]);
         setTextVal("");
-        // ── Intent step (step -1) ──────────────────────────────────────────────
+        // Ã¢â€â‚¬Ã¢â€â‚¬ Intent step (step -1) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
         if (step === -1) {
             const l = leadRef.current;
             const cmp = l.company || "your company";
             const isGrowth = v.includes("Grow");
             if (isGrowth) {
-                await krishSay(`Great! Let's see how we can help grow ${cmp}. Quick question first — what's your website URL?`);
+                await krishSay(`Great! Let's see how we can help grow ${cmp}. Quick question first Ã¢â‚¬â€ what's your website URL?`);
                 chatStepRef.current = 0;
                 setChatStep(0);
                 busyRef.current = false;
@@ -172,19 +172,19 @@ export function ChatWidget({ apiBase = "" }) {
                 setTimeout(() => inputRef.current?.focus(), 120);
             }
             else if (v.includes("job")) {
-                await krishSay(`Thanks for letting me know! 😊 For career opportunities at Dreamsdesign, please send your resume to careers@dreamsdesign.in — we'd love to hear from you!`);
+                await krishSay(`Thanks for letting me know! Ã°Å¸ËœÅ  For career opportunities at Dreamsdesign, please send your resume to careers@dreamsdesign.in Ã¢â‚¬â€ we'd love to hear from you!`);
                 busyRef.current = false;
                 setBusy(false);
                 setPhase("done");
             }
             else if (v.includes("browsing")) {
-                await krishSay(`No problem at all! 😊 Feel free to explore. If you ever want to know how we can help grow your business, just say the word — I'm right here.`);
+                await krishSay(`No problem at all! Ã°Å¸ËœÅ  Feel free to explore. If you ever want to know how we can help grow your business, just say the word Ã¢â‚¬â€ I'm right here.`);
                 busyRef.current = false;
                 setBusy(false);
                 setPhase("done");
             }
             else {
-                await krishSay(`Of course! For anything specific, feel free to reach out at hello@dreamsdesign.in — we'd be happy to help. 😊`);
+                await krishSay(`Of course! For anything specific, feel free to reach out at hello@dreamsdesign.in Ã¢â‚¬â€ we'd be happy to help. Ã°Å¸ËœÅ `);
                 busyRef.current = false;
                 setBusy(false);
                 setPhase("done");
@@ -196,7 +196,7 @@ export function ChatWidget({ apiBase = "" }) {
         leadRef.current = { ...leadRef.current, [fields[step]]: v };
         const nextStep = step + 1;
         if (nextStep > 5) {
-            // All 6 chat fields collected — submit
+            // All 6 chat fields collected Ã¢â‚¬â€ submit
             await submitLead();
         }
         else {
@@ -215,15 +215,15 @@ export function ChatWidget({ apiBase = "" }) {
             setBusy(false);
         }
     }, [krishSay, submitLead]);
-    // ── Start chat after form submit ─────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Start chat after form submit Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const startChat = useCallback(async (lead) => {
         setPhase("chat");
         chatStepRef.current = -1;
         setChatStep(-1);
         const firstName = (lead.name ?? "").split(" ")[0] || (lead.name ?? "");
-        await krishSay(`Hey ${firstName}! 👋 I'm Krish. What brings you here today?`);
+        await krishSay(`Hey ${firstName}! Ã°Å¸â€˜â€¹ I'm Krish. What brings you here today?`);
     }, [krishSay]);
-    // ── Handle form submit ───────────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Handle form submit Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const handleFormSubmit = useCallback(async () => {
         if (busyRef.current)
             return;
@@ -240,7 +240,7 @@ export function ChatWidget({ apiBase = "" }) {
         leadRef.current = { ...fv };
         await startChat(fv);
     }, [fv, startChat]);
-    // ── Render ───────────────────────────────────────────────────────────────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Render Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     const isButtonStep = phase === "chat" && (chatStep === -1 || chatStep >= 3);
     const isTextStep = phase === "chat" && chatStep >= 0 && chatStep < 3;
     const buttonOpts = chatStep === -1 ? INTENT_OPTS :
@@ -256,7 +256,7 @@ export function ChatWidget({ apiBase = "" }) {
         .kw-input:focus { border-color: ${PRIMARY} !important; box-shadow: 0 0 0 3px rgba(91,47,201,.12); }
       `}</style>
 
-      {/* Teaser — always in DOM, hidden when open or dismissed */}
+      {/* Teaser Ã¢â‚¬â€ always in DOM, hidden when open or dismissed */}
       <div style={{
             display: (!open && !teaserOff) ? "block" : "none",
             position: "fixed", bottom: 92, right: 24, zIndex: 9998,
@@ -268,8 +268,8 @@ export function ChatWidget({ apiBase = "" }) {
             maxWidth: 220, cursor: "pointer", animation: "kup .3s ease",
             position: "relative",
         }}>
-          <button onClick={e => { e.stopPropagation(); setTeaserOff(true); }} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 20, lineHeight: 1, padding: 0 }}>×</button>
-          <p style={{ margin: 0, fontSize: 13, color: "#111827", lineHeight: 1.5 }}>Got any questions? I'm happy to help. 😊</p>
+          <button onClick={e => { e.stopPropagation(); setTeaserOff(true); }} style={{ position: "absolute", top: 8, right: 10, background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", fontSize: 20, lineHeight: 1, padding: 0 }}>Ãƒâ€”</button>
+          <p style={{ margin: 0, fontSize: 13, color: "#111827", lineHeight: 1.5 }}>Got any questions? I'm happy to help. Ã°Å¸ËœÅ </p>
         </div>
         {/* Tail */}
         <div style={{ width: 12, height: 12, background: "#fff", transform: "rotate(45deg)", marginLeft: "auto", marginRight: 30, marginTop: -6, boxShadow: "2px 2px 4px rgba(0,0,0,.06)" }}/>
@@ -279,7 +279,7 @@ export function ChatWidget({ apiBase = "" }) {
       <button onClick={() => setOpen(o => !o)} aria-label="Chat with Krish" style={{
             position: "fixed", bottom: 24, right: 24, zIndex: 9999,
             width: 58, height: 58, borderRadius: "50%",
-            background: `linear-gradient(135deg, ${PRIMARY}, #7C3AED)`,
+            background: `linear-gradient(135deg, ${PRIMARY}, #CB3273)`,
             border: "none", cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             boxShadow: "0 4px 18px rgba(91,47,201,.45)",
@@ -289,7 +289,7 @@ export function ChatWidget({ apiBase = "" }) {
             : <svg width={22} height={22} viewBox="0 0 24 24" stroke="white" strokeWidth={1.9} strokeLinecap="round" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>}
       </button>
 
-      {/* Panel — ALWAYS mounted; hidden via display:none to preserve state */}
+      {/* Panel Ã¢â‚¬â€ ALWAYS mounted; hidden via display:none to preserve state */}
       <div style={{
             display: open ? "flex" : "none",
             position: "fixed", bottom: 92, right: 24, zIndex: 9998,
@@ -301,17 +301,17 @@ export function ChatWidget({ apiBase = "" }) {
             animation: "kup .22s ease",
         }}>
 
-        {/* ── Header ── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Header Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div style={{
-            background: `linear-gradient(135deg, ${PRIMARY}, #7C3AED)`,
+            background: `linear-gradient(135deg, ${PRIMARY}, #CB3273)`,
             padding: "14px 16px", display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
         }}>
           <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,.2)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-            <span style={{ fontSize: 20 }}>🧑‍💼</span>
+            <span style={{ fontSize: 20 }}>Ã°Å¸Â§â€˜Ã¢â‚¬ÂÃ°Å¸â€™Â¼</span>
           </div>
           <div>
             <div style={{ color: "#fff", fontWeight: 700, fontSize: 14, lineHeight: 1.2 }}>Krish</div>
-            <div style={{ color: "rgba(255,255,255,.75)", fontSize: 11 }}>Business Growth Consultant · 25+ yrs</div>
+            <div style={{ color: "rgba(255,255,255,.75)", fontSize: 11 }}>Business Growth Consultant Ã‚Â· 25+ yrs</div>
           </div>
           <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 5 }}>
             <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#4ADE80" }}/>
@@ -319,13 +319,13 @@ export function ChatWidget({ apiBase = "" }) {
           </div>
         </div>
 
-        {/* ── Body ── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Body Ã¢â€â‚¬Ã¢â€â‚¬ */}
         <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
 
           {/* Contact form */}
           {phase === "form" && (<div style={{ padding: 18 }}>
               <p style={{ margin: "0 0 14px", fontSize: 13, color: "#374151", textAlign: "center" }}>
-                Hi! Quick details before we start 👇
+                Hi! Quick details before we start Ã°Å¸â€˜â€¡
               </p>
               {[
                 { k: "name", label: "Full Name *", ph: "Your full name", type: "text" },
@@ -346,12 +346,12 @@ export function ChatWidget({ apiBase = "" }) {
               {fErr && <p style={{ fontSize: 12, color: "#EF4444", margin: "4px 0 8px" }}>{fErr}</p>}
               <button onClick={() => void handleFormSubmit()} style={{
                 width: "100%", marginTop: 4,
-                background: `linear-gradient(135deg, ${PRIMARY}, #7C3AED)`,
+                background: `linear-gradient(135deg, ${PRIMARY}, #CB3273)`,
                 color: "#fff", border: "none", borderRadius: 10,
                 padding: 12, fontSize: 14, fontWeight: 700, cursor: "pointer",
-            }}>Let's Talk →</button>
+            }}>Let's Talk Ã¢â€ â€™</button>
               <p style={{ fontSize: 10, color: "#9CA3AF", textAlign: "center", marginTop: 8, marginBottom: 0 }}>
-                🔒 We never share your info.
+                Ã°Å¸â€â€™ We never share your info.
               </p>
             </div>)}
 
@@ -366,7 +366,7 @@ export function ChatWidget({ apiBase = "" }) {
                 }}>
                   {m.role === "krish" && (<div style={{
                         width: 26, height: 26, borderRadius: "50%",
-                        background: `linear-gradient(135deg, ${PRIMARY}, #7C3AED)`,
+                        background: `linear-gradient(135deg, ${PRIMARY}, #CB3273)`,
                         display: "flex", alignItems: "center", justifyContent: "center",
                         flexShrink: 0, marginRight: 7, marginTop: 2,
                     }}>
@@ -374,8 +374,8 @@ export function ChatWidget({ apiBase = "" }) {
                     </div>)}
                   <div style={{
                     maxWidth: "78%",
-                    background: m.role === "user" ? "#EDE9FE" : "#F3F4F6",
-                    color: m.role === "user" ? "#5B21B6" : "#111827",
+                    background: m.role === "user" ? "#FBE9F1" : "#F3F4F6",
+                    color: m.role === "user" ? "#A4285E" : "#111827",
                     borderRadius: m.role === "user" ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
                     padding: "10px 14px",
                     fontSize: 13, lineHeight: 1.6,
@@ -386,7 +386,7 @@ export function ChatWidget({ apiBase = "" }) {
                         {m.text}
                         {m.opps && m.opps.length > 0 && (<div style={{ marginTop: 10 }}>
                             {m.opps.map((o, i) => (<div key={i} style={{ display: "flex", gap: 7, alignItems: "flex-start", marginBottom: 5 }}>
-                                <span style={{ color: "#16A34A", fontSize: 14, lineHeight: 1.4 }}>✅</span>
+                                <span style={{ color: "#16A34A", fontSize: 14, lineHeight: 1.4 }}>Ã¢Å“â€¦</span>
                                 <span style={{ fontWeight: 600 }}>{o}</span>
                               </div>))}
                           </div>)}
@@ -398,11 +398,11 @@ export function ChatWidget({ apiBase = "" }) {
               {phase === "done" && showCalendly && (<div style={{ textAlign: "center", paddingBottom: 8, animation: "kup .25s ease" }}>
                   <a href={CALENDLY} target="_blank" rel="noopener noreferrer" style={{
                     display: "inline-block", marginTop: 6,
-                    background: `linear-gradient(135deg, ${PRIMARY}, #7C3AED)`,
+                    background: `linear-gradient(135deg, ${PRIMARY}, #CB3273)`,
                     color: "#fff", borderRadius: 10, padding: "11px 22px",
                     fontSize: 13, fontWeight: 700, textDecoration: "none",
                 }}>
-                    Book My Free Strategy Call →
+                    Book My Free Strategy Call Ã¢â€ â€™
                   </a>
                 </div>)}
             </div>)}
@@ -410,7 +410,7 @@ export function ChatWidget({ apiBase = "" }) {
           <div ref={bottomRef}/>
         </div>
 
-        {/* ── Text input bar (steps 0-2) ── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Text input bar (steps 0-2) Ã¢â€â‚¬Ã¢â€â‚¬ */}
         {isTextStep && !busy && (<div style={{ padding: "8px 12px 12px", borderTop: "1px solid #F3F4F6", flexShrink: 0 }}>
             <div style={{
                 display: "flex", alignItems: "center", gap: 8,
@@ -429,7 +429,7 @@ export function ChatWidget({ apiBase = "" }) {
             </div>
           </div>)}
 
-        {/* ── Button options (steps 3-5) ── */}
+        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Button options (steps 3-5) Ã¢â€â‚¬Ã¢â€â‚¬ */}
         {isButtonStep && !busy && (<div style={{
                 padding: "8px 12px 12px", borderTop: "1px solid #F3F4F6",
                 display: "flex", flexWrap: "wrap", gap: 7, flexShrink: 0,
@@ -439,7 +439,7 @@ export function ChatWidget({ apiBase = "" }) {
                     background: "#F3F4F6", border: "1.5px solid #E5E7EB",
                     color: "#374151", cursor: "pointer",
                     transition: "border-color .15s, background .15s",
-                }} onMouseOver={e => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.background = "#F3EEFF"; }} onMouseOut={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#F3F4F6"; }}>
+                }} onMouseOver={e => { e.currentTarget.style.borderColor = PRIMARY; e.currentTarget.style.background = "#FBE9F1"; }} onMouseOut={e => { e.currentTarget.style.borderColor = "#E5E7EB"; e.currentTarget.style.background = "#F3F4F6"; }}>
                 {opt}
               </button>))}
           </div>)}

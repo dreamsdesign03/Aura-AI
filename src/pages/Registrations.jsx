@@ -90,7 +90,7 @@ export default function Registrations() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
-            { label: "Total Signups", value: total, icon: Users, color: "#4F35A8" },
+            { label: "Total Signups", value: total, icon: Users, color: "#A4285E" },
             { label: "Pending Review", value: pending, icon: Clock, color: "#F59E0B" },
             { label: "Approved", value: approved, icon: CheckCircle2, color: "#10B981" },
         ].map(({ label, value, icon: Icon, color }) => (<div key={label} className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-4">
@@ -107,7 +107,7 @@ export default function Registrations() {
       {/* Filters */}
       <div className="flex gap-2 mb-4">
         {["all", "pending", "approved"].map(f => (<button key={f} onClick={() => setFilter(f)} className="px-4 py-1.5 rounded-full text-sm font-medium capitalize transition-all" style={filter === f
-                ? { background: "#4F35A8", color: "#fff" }
+                ? { background: "#A4285E", color: "#fff" }
                 : { background: "#F3F4F6", color: "#6B7280" }}>
             {f}
           </button>))}
@@ -116,7 +116,7 @@ export default function Registrations() {
       {/* Table */}
       {error && (<div className="text-center py-12 text-red-500 text-sm">{error}</div>)}
 
-      {!error && loading && !data && (<div className="text-center py-12 text-gray-400 text-sm">Loading registrations…</div>)}
+      {!error && loading && !data && (<div className="text-center py-12 text-gray-400 text-sm">Loading registrationsÃ¢â‚¬Â¦</div>)}
 
       {!loading && !error && filtered.length === 0 && (<div className="text-center py-16 bg-white rounded-xl border border-gray-100">
           <Users className="w-10 h-10 mx-auto mb-3 text-gray-300"/>
@@ -140,7 +140,7 @@ export default function Registrations() {
               {filtered.map(r => (<tr key={r.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#4F35A8" }}>
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#A4285E" }}>
                         {r.name.charAt(0).toUpperCase()}
                       </div>
                       <div>
@@ -160,7 +160,7 @@ export default function Registrations() {
                     </div>
                   </td>
                   <td className="px-5 py-4 max-w-[200px]">
-                    <p className="text-gray-500 text-xs truncate">{r.message ?? "—"}</p>
+                    <p className="text-gray-500 text-xs truncate">{r.message ?? "Ã¢â‚¬â€"}</p>
                   </td>
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-1.5 text-gray-500 text-xs">
@@ -178,7 +178,7 @@ export default function Registrations() {
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-2 justify-end">
                       {!r.approved && (<button onClick={() => approve(r.id)} disabled={approving.has(r.id)} className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors" style={{ background: "#10B981" }}>
-                          {approving.has(r.id) ? "…" : "Approve"}
+                          {approving.has(r.id) ? "Ã¢â‚¬Â¦" : "Approve"}
                         </button>)}
                       <button onClick={() => remove(r.id)} disabled={deleting.has(r.id)} className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                         <Trash2 className="w-3.5 h-3.5"/>

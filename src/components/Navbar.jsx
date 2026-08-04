@@ -36,10 +36,10 @@ export default function Navbar({ onOpenAddModal, dbStatus, onRefresh }) {
           gap: '8px',
           padding: '6px 14px',
           borderRadius: '20px',
-          background: 'rgba(0, 242, 254, 0.08)',
-          border: '1px solid rgba(0, 242, 254, 0.25)',
+          background: 'rgba(203, 50, 115, 0.08)',
+          border: '1px solid rgba(203, 50, 115, 0.25)',
           fontSize: '12px',
-          color: '#00f2fe'
+          color: '#E15C94'
         }}>
           <Database size={14} />
           <span>{dbStatus ? 'neondb (Connected)' : 'Connecting...'}</span>

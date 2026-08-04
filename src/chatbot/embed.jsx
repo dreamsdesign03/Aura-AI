@@ -2,7 +2,7 @@ import { createRoot } from "react-dom/client";
 import { ChatWidget } from "./ChatWidget";
 // Capture the script's own origin BEFORE any async code runs.
 // When pasted on an external site (e.g. WordPress), this is the only
-// reliable way to know the MysaAI API domain — relative URLs would
+// reliable way to know the MysaAI API domain â€” relative URLs would
 // resolve against the host page, not the server that served this file.
 const scriptEl = document.currentScript;
 const scriptSrc = scriptEl?.src ?? "";

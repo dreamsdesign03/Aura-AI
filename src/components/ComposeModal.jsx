@@ -9,17 +9,17 @@ const CTA_OPTIONS = [
     { key: "pitch_deck", label: "Send Pitch Deck", icon: <Monitor className="w-3.5 h-3.5"/> },
 ];
 const TONE_OPTIONS = [
-    { key: "professional", label: "Professional", emoji: "🎯" },
-    { key: "friendly", label: "Friendly", emoji: "😊" },
-    { key: "direct", label: "Direct", emoji: "⚡" },
-    { key: "consultative", label: "Consultative", emoji: "🧠" },
+    { key: "professional", label: "Professional", emoji: "Ã°Å¸Å½Â¯" },
+    { key: "friendly", label: "Friendly", emoji: "Ã°Å¸ËœÅ " },
+    { key: "direct", label: "Direct", emoji: "Ã¢Å¡Â¡" },
+    { key: "consultative", label: "Consultative", emoji: "Ã°Å¸Â§Â " },
 ];
 const AI_STAGES = [
-    "Analyzing client profile…",
-    "Identifying pain points…",
-    "Applying brand voice & Business WHY…",
-    "Writing personalized email…",
-    "Formatting for delivery…",
+    "Analyzing client profileÃ¢â‚¬Â¦",
+    "Identifying pain pointsÃ¢â‚¬Â¦",
+    "Applying brand voice & Business WHYÃ¢â‚¬Â¦",
+    "Writing personalized emailÃ¢â‚¬Â¦",
+    "Formatting for deliveryÃ¢â‚¬Â¦",
 ];
 function initials(first, last) {
     return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
@@ -252,12 +252,12 @@ export default function ComposeModal({ onClose, initialEmail }) {
     const modalH = expanded ? "min(760px, 92vh)" : "580px";
     const hasAttachments = attachReport || attachedFiles.length > 0;
     return (<div className="fixed z-50 flex flex-col shadow-2xl rounded-2xl overflow-hidden border border-gray-200" style={{ bottom: 24, right: 24, width: modalW, height: minimized ? "auto" : modalH, background: "#fff", transition: "width 0.2s, height 0.2s" }}>
-      {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 select-none" style={{ background: "#1A3D2B" }}>
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Header Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      <div className="flex items-center justify-between px-4 py-3 flex-shrink-0 select-none" style={{ background: "#A4285E" }}>
         <div className="flex items-center gap-3">
           <Sparkles className="w-3.5 h-3.5 text-green-300"/>
           <span className="text-sm font-semibold text-white">New Email</span>
-          {selectedLead && (<span className="text-[11px] text-green-200 opacity-75">→ {selectedLead.firstName} {selectedLead.lastName}</span>)}
+          {selectedLead && (<span className="text-[11px] text-green-200 opacity-75">Ã¢â€ â€™ {selectedLead.firstName} {selectedLead.lastName}</span>)}
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setMinimized(v => !v)} className="p-1 rounded text-green-200 hover:text-white hover:bg-white/10 transition-colors" title={minimized ? "Expand" : "Minimise"}>
@@ -274,20 +274,20 @@ export default function ComposeModal({ onClose, initialEmail }) {
 
       {!minimized && (<div className="flex flex-col flex-1 overflow-hidden" onClick={() => setLeadDropdownOpen(false)}>
 
-          {/* ── To field ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ To field Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="relative border-b border-gray-100 flex-shrink-0">
             <div className="flex items-center gap-2 px-4 py-2">
               <span className="text-[11px] font-medium text-gray-400 w-6 flex-shrink-0">To</span>
               <div className="flex-1 flex items-center gap-2 min-w-0">
                 {selectedLead ? (<div className="flex items-center gap-2 px-2 py-0.5 rounded-full bg-green-50 border border-green-200 text-xs font-medium text-green-900">
-                    {selectedLead.photo ? (<img src={selectedLead.photo} className="w-4 h-4 rounded-full object-cover"/>) : (<div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#1A3D2B" }}>
+                    {selectedLead.photo ? (<img src={selectedLead.photo} className="w-4 h-4 rounded-full object-cover"/>) : (<div className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#A4285E" }}>
                         {initials(selectedLead.firstName, selectedLead.lastName)}
                       </div>)}
                     {selectedLead.firstName} {selectedLead.lastName} &lt;{selectedLead.email}&gt;
                     <button onClick={(e) => { e.stopPropagation(); setSelectedLead(null); setLeadDropdownOpen(true); }} className="text-gray-400 hover:text-red-500 ml-1">
                       <X className="w-3 h-3"/>
                     </button>
-                  </div>) : (<input ref={leadSearchRef} value={leadSearch} onChange={(e) => { setLeadSearch(e.target.value); setLeadDropdownOpen(true); }} onFocus={(e) => { e.stopPropagation(); setLeadDropdownOpen(true); }} onClick={(e) => e.stopPropagation()} placeholder="Search audited prospects…" className="flex-1 text-xs outline-none text-gray-800 placeholder:text-gray-400"/>)}
+                  </div>) : (<input ref={leadSearchRef} value={leadSearch} onChange={(e) => { setLeadSearch(e.target.value); setLeadDropdownOpen(true); }} onFocus={(e) => { e.stopPropagation(); setLeadDropdownOpen(true); }} onClick={(e) => e.stopPropagation()} placeholder="Search audited prospectsÃ¢â‚¬Â¦" className="flex-1 text-xs outline-none text-gray-800 placeholder:text-gray-400"/>)}
               </div>
               <div className="flex items-center gap-1 ml-auto">
                 {!showCc && <button onClick={(e) => { e.stopPropagation(); setShowCc(true); }} className="text-[10px] text-gray-400 hover:text-gray-600">Cc</button>}
@@ -312,7 +312,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
                             {audited.map((lead) => {
                                 const c = auditScoreColors(lead.healthScore);
                                 return (<button key={lead.id} onClick={() => selectLead(lead)} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left border-b border-gray-50 last:border-0 transition-colors">
-                                  {lead.photo ? (<img src={lead.photo} className="w-8 h-8 rounded-full object-cover flex-shrink-0"/>) : lead.companyLogo ? (<img src={lead.companyLogo} className="w-8 h-8 rounded-lg object-contain border border-gray-200 bg-white p-0.5 flex-shrink-0"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: "#1A3D2B" }}>
+                                  {lead.photo ? (<img src={lead.photo} className="w-8 h-8 rounded-full object-cover flex-shrink-0"/>) : lead.companyLogo ? (<img src={lead.companyLogo} className="w-8 h-8 rounded-lg object-contain border border-gray-200 bg-white p-0.5 flex-shrink-0"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: "#A4285E" }}>
                                       {initials(lead.firstName, lead.lastName)}
                                     </div>)}
                                   <div className="flex-1 min-w-0">
@@ -320,7 +320,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
                                       {lead.firstName} {lead.lastName}
                                       <span className="ml-1.5 text-gray-400 font-normal">{lead.designation}</span>
                                     </div>
-                                    <div className="text-[11px] text-gray-500 truncate">{lead.company} · {lead.country}</div>
+                                    <div className="text-[11px] text-gray-500 truncate">{lead.company} Ã‚Â· {lead.country}</div>
                                   </div>
                                   <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ color: c.text, background: c.bg }}>
                                     {lead.healthScore}/100
@@ -333,7 +333,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
                               All Leads ({unaudited.length})
                             </div>
                             {unaudited.map((lead) => (<button key={lead.id} onClick={() => selectLead(lead)} className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 text-left border-b border-gray-50 last:border-0 transition-colors">
-                                {lead.photo ? (<img src={lead.photo} className="w-8 h-8 rounded-full object-cover flex-shrink-0"/>) : lead.companyLogo ? (<img src={lead.companyLogo} className="w-8 h-8 rounded-lg object-contain border border-gray-200 bg-white p-0.5 flex-shrink-0"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: "#5C1A8C" }}>
+                                {lead.photo ? (<img src={lead.photo} className="w-8 h-8 rounded-full object-cover flex-shrink-0"/>) : lead.companyLogo ? (<img src={lead.companyLogo} className="w-8 h-8 rounded-lg object-contain border border-gray-200 bg-white p-0.5 flex-shrink-0"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: "#8E1F54" }}>
                                     {initials(lead.firstName, lead.lastName)}
                                   </div>)}
                                 <div className="flex-1 min-w-0">
@@ -341,7 +341,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
                                     {lead.firstName} {lead.lastName}
                                     <span className="ml-1.5 text-gray-400 font-normal">{lead.designation}</span>
                                   </div>
-                                  <div className="text-[11px] text-gray-500 truncate">{lead.company} · {lead.country}</div>
+                                  <div className="text-[11px] text-gray-500 truncate">{lead.company} Ã‚Â· {lead.country}</div>
                                 </div>
                                 <span className="text-[10px] text-gray-400 flex-shrink-0">no audit</span>
                               </button>))}
@@ -353,23 +353,23 @@ export default function ComposeModal({ onClose, initialEmail }) {
 
           {showCc && (<div className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 flex-shrink-0">
               <span className="text-[11px] font-medium text-gray-400 w-6">Cc</span>
-              <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Add Cc… (comma-separated)" className="flex-1 text-xs outline-none text-gray-800 placeholder:text-gray-400 py-0.5"/>
+              <input value={cc} onChange={(e) => setCc(e.target.value)} placeholder="Add CcÃ¢â‚¬Â¦ (comma-separated)" className="flex-1 text-xs outline-none text-gray-800 placeholder:text-gray-400 py-0.5"/>
               <button onClick={() => setShowCc(false)} className="text-gray-300 hover:text-gray-500"><X className="w-3 h-3"/></button>
             </div>)}
           {showBcc && (<div className="flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 flex-shrink-0">
               <span className="text-[11px] font-medium text-gray-400 w-6">Bcc</span>
-              <input value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="Add Bcc… (comma-separated)" className="flex-1 text-xs outline-none text-gray-800 placeholder:text-gray-400 py-0.5"/>
+              <input value={bcc} onChange={(e) => setBcc(e.target.value)} placeholder="Add BccÃ¢â‚¬Â¦ (comma-separated)" className="flex-1 text-xs outline-none text-gray-800 placeholder:text-gray-400 py-0.5"/>
               <button onClick={() => setShowBcc(false)} className="text-gray-300 hover:text-gray-500"><X className="w-3 h-3"/></button>
             </div>)}
 
-          {/* ── AI Panel (collapsible) ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ AI Panel (collapsible) Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="flex-shrink-0 border-b border-gray-100">
             <button onClick={(e) => { e.stopPropagation(); setAiPanelOpen(v => !v); }} className="w-full flex items-center gap-2 px-4 py-2 hover:bg-gray-50 transition-colors">
               <Sparkles className="w-3.5 h-3.5 text-purple-600"/>
               <span className="text-[11px] font-semibold text-purple-700">AI Compose</span>
               <span className="text-[10px] text-gray-400 ml-1">
                 {selectedLead
-                ? `${selectedLead.company} · ${ctaTypes.join(", ")} · ${tone}`
+                ? `${selectedLead.company} Ã‚Â· ${ctaTypes.join(", ")} Ã‚Â· ${tone}`
                 : "Select a prospect to generate"}
               </span>
               <div className="ml-auto text-gray-400">
@@ -424,10 +424,10 @@ export default function ComposeModal({ onClose, initialEmail }) {
                   </div>
 
                   <div className="ml-auto flex flex-col items-end gap-1 flex-shrink-0">
-                    <button onClick={handleGenerate} disabled={!selectedLead || aiRunning} className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-sm", !selectedLead || aiRunning ? "opacity-50 cursor-not-allowed" : "hover:opacity-90")} style={{ background: "#D42370" }}>
+                    <button onClick={handleGenerate} disabled={!selectedLead || aiRunning} className={cn("flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white transition-all shadow-sm", !selectedLead || aiRunning ? "opacity-50 cursor-not-allowed" : "hover:opacity-90")} style={{ background: "#CB3273" }}>
                       {aiRunning ? (<>
                           <Loader2 className="w-4 h-4 animate-spin"/>
-                          {aiStage >= 0 && aiStage < AI_STAGES.length ? AI_STAGES[aiStage] : "Generating…"}
+                          {aiStage >= 0 && aiStage < AI_STAGES.length ? AI_STAGES[aiStage] : "GeneratingÃ¢â‚¬Â¦"}
                         </>) : (<>
                           <Sparkles className="w-4 h-4"/>
                           Generate Email
@@ -443,13 +443,13 @@ export default function ComposeModal({ onClose, initialEmail }) {
               </div>)}
           </div>
 
-          {/* ── Subject ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Subject Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="flex items-center gap-2 px-4 py-2 border-b border-gray-100 flex-shrink-0">
             <span className="text-[11px] font-medium text-gray-400 w-12 flex-shrink-0">Subject</span>
-            <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subject…" onClick={(e) => e.stopPropagation()} className="flex-1 text-sm outline-none text-gray-900 placeholder:text-gray-300 font-medium py-0.5"/>
+            <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Email subjectÃ¢â‚¬Â¦" onClick={(e) => e.stopPropagation()} className="flex-1 text-sm outline-none text-gray-900 placeholder:text-gray-300 font-medium py-0.5"/>
           </div>
 
-          {/* ── Toolbar ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Toolbar Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-gray-100 bg-gray-50/50 flex-shrink-0">
             {[
                 { cmd: "bold", icon: <Bold className="w-3.5 h-3.5"/>, title: "Bold" },
@@ -482,7 +482,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
             </div>
           </div>
 
-          {/* ── Attachments strip ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Attachments strip Ã¢â€â‚¬Ã¢â€â‚¬ */}
           {hasAttachments && (<div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-gray-100 bg-amber-50/40 flex-shrink-0 flex-wrap">
               {attachReport && (<div className={cn("flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border", selectedLead?.isAudited
                         ? "text-amber-800 bg-amber-100 border-amber-300"
@@ -501,21 +501,21 @@ export default function ComposeModal({ onClose, initialEmail }) {
                 </div>))}
             </div>)}
 
-          {/* ── Body editor ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Body editor Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="flex-1 overflow-hidden relative">
-            <div ref={bodyRef} contentEditable suppressContentEditableWarning onInput={() => setBodyEmpty((bodyRef.current?.innerText ?? "").trim().length === 0)} onClick={(e) => e.stopPropagation()} data-placeholder="Start writing your email, or use AI Compose above to generate a personalised draft…" className="h-full w-full px-5 py-4 text-sm text-gray-800 leading-relaxed outline-none overflow-y-auto" style={{ minHeight: 0 }}/>
+            <div ref={bodyRef} contentEditable suppressContentEditableWarning onInput={() => setBodyEmpty((bodyRef.current?.innerText ?? "").trim().length === 0)} onClick={(e) => e.stopPropagation()} data-placeholder="Start writing your email, or use AI Compose above to generate a personalised draftÃ¢â‚¬Â¦" className="h-full w-full px-5 py-4 text-sm text-gray-800 leading-relaxed outline-none overflow-y-auto" style={{ minHeight: 0 }}/>
             {bodyEmpty && (<div className="absolute top-4 left-5 text-sm text-gray-300 pointer-events-none select-none leading-relaxed">
-                Start writing your email, or use AI Compose above to generate a personalised draft…
+                Start writing your email, or use AI Compose above to generate a personalised draftÃ¢â‚¬Â¦
               </div>)}
           </div>
 
-          {/* ── Footer ── */}
+          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Footer Ã¢â€â‚¬Ã¢â€â‚¬ */}
           <div className="flex items-center gap-2 px-4 py-2.5 border-t border-gray-100 bg-gray-50/50 flex-shrink-0">
             {sendStatus === "sent" ? (<div className="flex items-center gap-2 text-sm text-emerald-600 font-medium">
                 <CheckCircle2 className="w-4 h-4"/> Email sent successfully!
               </div>) : sendStatus === "error" ? (<div className="flex items-center gap-2 text-xs text-red-600">
                 <AlertCircle className="w-3.5 h-3.5"/>
-                {sendError ?? "Send failed — please try again."}
+                {sendError ?? "Send failed Ã¢â‚¬â€ please try again."}
               </div>) : (<>
                 <button onClick={handleSaveDraft} disabled={!selectedLead || !subject.trim() || quickSendMutation.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-700 bg-white border border-gray-200 hover:bg-gray-50 disabled:opacity-40 transition-all">
                   <Save className="w-3.5 h-3.5"/> Save Draft
@@ -528,8 +528,8 @@ export default function ComposeModal({ onClose, initialEmail }) {
                     ].filter(Boolean).join(" + ")}
                     {" attached"}
                   </div>)}
-                <button onClick={handleSend} disabled={!isReady || sendStatus === "sending"} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-all ml-auto" style={{ background: "#1A3D2B" }}>
-                  {sendStatus === "sending" ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> Sending…</>) : (<><Send className="w-3.5 h-3.5"/> Send Email</>)}
+                <button onClick={handleSend} disabled={!isReady || sendStatus === "sending"} className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-40 transition-all ml-auto" style={{ background: "#A4285E" }}>
+                  {sendStatus === "sending" ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> SendingÃ¢â‚¬Â¦</>) : (<><Send className="w-3.5 h-3.5"/> Send Email</>)}
                 </button>
               </>)}
           </div>

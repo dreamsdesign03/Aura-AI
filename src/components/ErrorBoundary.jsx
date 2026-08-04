@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component {
               <button onClick={() => this.setState({ hasError: false, errorMsg: "", errorStack: "" })} className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50">
                 Try again
               </button>
-              <button onClick={() => window.location.reload()} className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "#4F35A8" }}>
+              <button onClick={() => window.location.reload()} className="inline-flex items-center px-4 py-2 rounded-lg text-sm font-medium text-white" style={{ background: "#A4285E" }}>
                 Reload page
               </button>
             </div>

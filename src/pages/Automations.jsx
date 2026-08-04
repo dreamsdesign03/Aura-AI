@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Zap, Plus, Play, Pause, ChevronRight, ChevronDown, X, MessageCircle, Clock, Filter, Calendar, Tag, GitBranch, Send, Bell, AlertCircle, ArrowRight, CheckCircle2, RotateCcw, Star, Loader2, Trash2, } from "lucide-react";
 const API_BASE = "/api";
-// Icon map — DB stores icon as a string key, we resolve to React component here
+// Icon map Ã¢â‚¬â€ DB stores icon as a string key, we resolve to React component here
 const ICON_MAP = {
     Tag, Clock, MessageCircle, GitBranch, Zap, Filter, Calendar, Send, Bell, AlertCircle, ArrowRight, CheckCircle2, RotateCcw, Star, Play, Pause, Users: Zap,
 };
@@ -45,21 +45,21 @@ const TRIGGER_ICONS = {
     lead_lost: Star,
 };
 const TRIGGER_COLORS = {
-    new_lead_meta_ad: "#4F35A8",
+    new_lead_meta_ad: "#A4285E",
     missed_booking: "#EF4444",
     no_response: "#F59E0B",
     call_booked: "#3B82F6",
-    proposal_sent: "#8B5CF6",
+    proposal_sent: "#CB3273",
     lead_lost: "#6B7280",
 };
 const STEP_BG = {
-    trigger: "#EDE9FE",
+    trigger: "#FBE9F1",
     condition: "#FEF3C7",
     action: "#ECFDF5",
     delay: "#F3F4F6",
 };
 const STEP_LABEL_COLORS = {
-    trigger: "#6D28D9",
+    trigger: "#A4285E",
     condition: "#D97706",
     action: "#059669",
     delay: "#6B7280",
@@ -130,7 +130,7 @@ function AutomationCard({ automation, onToggle, onDelete, onExpand, expanded, to
     const TriggerIcon = TRIGGER_ICONS[automation.trigger];
     const triggerColor = TRIGGER_COLORS[automation.trigger];
     const convRate = automation.runs ? Math.round((automation.conversions / automation.runs) * 100) : 0;
-    return (<div className="rounded-xl border overflow-hidden transition-all duration-200" style={{ background: "#ffffff", borderColor: expanded ? "#4F35A8" : "hsl(220 13% 91%)" }}>
+    return (<div className="rounded-xl border overflow-hidden transition-all duration-200" style={{ background: "#ffffff", borderColor: expanded ? "#A4285E" : "hsl(220 13% 91%)" }}>
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${triggerColor}18` }}>
@@ -188,7 +188,7 @@ function AutomationCard({ automation, onToggle, onDelete, onExpand, expanded, to
 
       {expanded && (<div className="px-4 pb-4 pt-0" style={{ borderTop: "1px solid hsl(220 13% 91%)" }}>
           <div className="pt-3 text-[12px] font-semibold mb-3 flex items-center gap-2" style={{ color: "#374151" }}>
-            <Zap className="w-3.5 h-3.5" style={{ color: "#4F35A8" }}/>
+            <Zap className="w-3.5 h-3.5" style={{ color: "#A4285E" }}/>
             Automation Flow
           </div>
           <div className="space-y-0">
@@ -236,7 +236,7 @@ function NewAutomationModal({ onClose, onCreate }) {
       <div className="w-full max-w-md rounded-2xl shadow-2xl overflow-hidden" style={{ background: "#ffffff" }}>
         <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: "1px solid hsl(220 13% 91%)" }}>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#4F35A8" }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#A4285E" }}>
               <Zap className="w-3.5 h-3.5 text-white"/>
             </div>
             <span className="text-[15px] font-bold" style={{ color: "#111827" }}>New Automation</span>
@@ -263,12 +263,12 @@ function NewAutomationModal({ onClose, onCreate }) {
             const Icon = TRIGGER_ICONS[k];
             const color = TRIGGER_COLORS[k];
             const selected = trigger === k;
-            return (<button key={k} onClick={() => setTrigger(k)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all" style={{ borderColor: selected ? "#4F35A8" : "hsl(220 13% 91%)", background: selected ? "#EDE9FE" : "#ffffff" }}>
+            return (<button key={k} onClick={() => setTrigger(k)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-left transition-all" style={{ borderColor: selected ? "#A4285E" : "hsl(220 13% 91%)", background: selected ? "#FBE9F1" : "#ffffff" }}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${color}22` }}>
                       <Icon className="w-3.5 h-3.5" style={{ color }}/>
                     </div>
-                    <span className="text-[12px] font-medium" style={{ color: selected ? "#4F35A8" : "#374151" }}>{v}</span>
-                    {selected && <CheckCircle2 className="w-4 h-4 ml-auto" style={{ color: "#4F35A8" }}/>}
+                    <span className="text-[12px] font-medium" style={{ color: selected ? "#A4285E" : "#374151" }}>{v}</span>
+                    {selected && <CheckCircle2 className="w-4 h-4 ml-auto" style={{ color: "#A4285E" }}/>}
                   </button>);
         })}
             </div>
@@ -277,9 +277,9 @@ function NewAutomationModal({ onClose, onCreate }) {
 
         <div className="flex gap-3 px-5 pb-5">
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-colors" style={{ borderColor: "hsl(220 13% 88%)", color: "#6B7280" }}>Cancel</button>
-          <button onClick={handleCreate} disabled={!name.trim() || saving} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all flex items-center justify-center gap-1.5" style={{ background: name.trim() && !saving ? "#4F35A8" : "#D1D5DB", cursor: name.trim() && !saving ? "pointer" : "not-allowed" }}>
+          <button onClick={handleCreate} disabled={!name.trim() || saving} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all flex items-center justify-center gap-1.5" style={{ background: name.trim() && !saving ? "#A4285E" : "#D1D5DB", cursor: name.trim() && !saving ? "pointer" : "not-allowed" }}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin"/>}
-            {saving ? "Creating…" : "Create Automation"}
+            {saving ? "CreatingÃ¢â‚¬Â¦" : "Create Automation"}
           </button>
         </div>
       </div>
@@ -400,7 +400,7 @@ export default function Automations() {
           <h1 className="text-lg font-bold text-foreground">Automation Builder</h1>
           <p className="text-xs text-muted-foreground mt-0.5">Trigger-based WhatsApp sequences that run automatically</p>
         </div>
-        <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: "#4F35A8" }}>
+        <button onClick={() => setShowNew(true)} className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-white" style={{ background: "#A4285E" }}>
           <Plus className="w-3.5 h-3.5"/>
           New Automation
         </button>
@@ -409,7 +409,7 @@ export default function Automations() {
       <div className="grid grid-cols-3 gap-3">
         {[
             { label: "Active Automations", value: activeCount, color: "#059669" },
-            { label: "Total Runs", value: totalRuns.toLocaleString(), color: "#4F35A8" },
+            { label: "Total Runs", value: totalRuns.toLocaleString(), color: "#A4285E" },
             { label: "Conversions", value: totalConversions, color: "#D97706" },
         ].map(({ label, value, color }) => (<div key={label} className="rounded-xl border p-3 text-center" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
             <div className="text-[20px] font-black" style={{ color }}>{value}</div>
@@ -418,7 +418,7 @@ export default function Automations() {
       </div>
 
       <div className="flex items-center gap-2">
-        {["all", "active", "paused"].map(f => (<button key={f} onClick={() => setFilter(f)} className="text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors capitalize" style={{ background: filter === f ? "#4F35A8" : "#ffffff", color: filter === f ? "#ffffff" : "#6B7280", borderColor: filter === f ? "#4F35A8" : "hsl(220 13% 88%)" }}>
+        {["all", "active", "paused"].map(f => (<button key={f} onClick={() => setFilter(f)} className="text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors capitalize" style={{ background: filter === f ? "#A4285E" : "#ffffff", color: filter === f ? "#ffffff" : "#6B7280", borderColor: filter === f ? "#A4285E" : "hsl(220 13% 88%)" }}>
             {f === "all" ? "All" : f === "active" ? "Active" : "Paused"}
           </button>))}
       </div>
@@ -426,7 +426,7 @@ export default function Automations() {
       <div className="flex flex-col lg:flex-row gap-4 lg:gap-5">
         <div className="flex-1 min-w-0">
           {loading ? (<div className="flex items-center justify-center py-14">
-          <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#4F35A8" }}/>
+          <Loader2 className="w-6 h-6 animate-spin" style={{ color: "#A4285E" }}/>
         </div>) : error ? (<div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center gap-3">
           <AlertCircle className="w-4 h-4 text-red-500 flex-shrink-0"/>
           <div>

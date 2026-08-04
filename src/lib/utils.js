@@ -12,12 +12,12 @@ export function formatCurrency(value) {
 }
 export function formatDate(date) {
     if (!date)
-        return "—";
+        return "â€”";
     return new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }
 export function formatRelative(date) {
     if (!date)
-        return "—";
+        return "â€”";
     const d = new Date(date);
     const now = new Date();
     const diff = now.getTime() - d.getTime();
@@ -40,7 +40,7 @@ export function cleanCompanyName(raw) {
     let name = String(raw).trim();
     if (!name)
         return "";
-    const sep = name.match(/\s*(?:[—–|•]|\s-\s)\s*/);
+    const sep = name.match(/\s*(?:[â€”â€“|â€¢]|\s-\s)\s*/);
     if (sep)
         name = name.slice(0, sep.index).trim();
     name = name.replace(/\s+(?:in|at)\s+.{2,}$/i, "");
@@ -180,12 +180,12 @@ export function bantSubScoreColor(pct) {
 export function bantBandMeta(score) {
     const key = scoreToBandKey(score);
     if (key === "hot")
-        return { label: "HOT — Book Meeting Now", color: "#EF4444" };
+        return { label: "HOT â€” Book Meeting Now", color: "#EF4444" };
     if (key === "qualified")
-        return { label: "QUALIFIED — Continue Outreach", color: "#22C55E" };
+        return { label: "QUALIFIED â€” Continue Outreach", color: "#22C55E" };
     if (key === "nurture")
-        return { label: "NURTURE — Long-term pipeline", color: "#3B82F6" };
-    return { label: "DISQUALIFY — Remove from pipeline", color: "#EF4444" };
+        return { label: "NURTURE â€” Long-term pipeline", color: "#3B82F6" };
+    return { label: "DISQUALIFY â€” Remove from pipeline", color: "#EF4444" };
 }
 export function auditScoreTextClass(score) {
     if (score >= 70)

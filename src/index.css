@@ -51,8 +51,8 @@
 
   --color-teal: #0D9488;
   --color-amber: #F59E0B;
-  --color-pink: #EC4899;
-  --color-pink-deep: #DB2777;
+  --color-pink: #CB3273;
+  --color-pink-deep: #A4285E;
   --color-navy: #1E293B;
 
   --font-sans: 'Inter', sans-serif;
@@ -77,10 +77,10 @@
   --popover-foreground: 222 39% 10%;
   --popover-border: 334 50% 93%;
 
-  /* Primary: #D42370 */
-  --primary: 334 72% 48%;
+  /* Primary: #CB3273 */
+  --primary: 334 60% 50%;
   --primary-foreground: 0 0% 100%;
-  --primary-border: #D42370;
+  --primary-border: #CB3273;
 
   --secondary: 334 75% 95%;
   --secondary-foreground: 334 72% 35%;
@@ -91,9 +91,9 @@
   --muted-foreground: 334 30% 45%;
   --muted-border: 334 50% 92%;
 
-  --accent: 334 72% 48%;
+  --accent: 334 60% 50%;
   --accent-foreground: 0 0% 100%;
-  --accent-border: #D42370;
+  --accent-border: #CB3273;
 
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
@@ -101,15 +101,15 @@
 
   --border: 334 50% 92%;
   --input: 334 75% 96%;
-  --ring: 334 72% 48%;
+  --ring: 334 60% 50%;
 
   /* Sidebar: pure white */
   --sidebar: 0 0% 100%;
   --sidebar-foreground: 220 9% 35%;
   --sidebar-border: 334 50% 92%;
-  --sidebar-primary: 334 72% 48%;
+  --sidebar-primary: 334 60% 50%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-primary-border: #D42370;
+  --sidebar-primary-border: #CB3273;
   --sidebar-accent: 334 75% 95%;
   --sidebar-accent-foreground: 334 72% 35%;
 }

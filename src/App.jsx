@@ -49,14 +49,14 @@ const queryClient = new QueryClient({
             gcTime: 15 * 60 * 1000,
             retry: 1,
             refetchOnWindowFocus: true,
-            refetchInterval: 30 * 1000,
+            refetchInterval: 10 * 1000,
         },
     },
 });
 function PageLoader() {
     return (<div className="min-h-screen flex items-center justify-center" style={{ background: "#f9fafb" }}>
       <div className="flex flex-col items-center gap-3">
-        <div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#4F35A8", borderTopColor: "transparent" }}/>
+        <div className="w-7 h-7 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: "#A4285E", borderTopColor: "transparent" }}/>
       </div>
     </div>);
 }
@@ -65,14 +65,14 @@ function RedirectTo({ to }) {
     useEffect(() => { navigate(to); }, []);
     return null;
 }
-// ── Onboarding Modal ──────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Onboarding Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const AUDIT_STEPS = [
-    "Fetching website metadata…",
-    "Analysing SEO signals…",
-    "Scanning trust indicators…",
-    "Scoring messaging clarity…",
-    "Evaluating social proof…",
-    "Generating AI health score…",
+    "Fetching website metadataÃ¢â‚¬Â¦",
+    "Analysing SEO signalsÃ¢â‚¬Â¦",
+    "Scanning trust indicatorsÃ¢â‚¬Â¦",
+    "Scoring messaging clarityÃ¢â‚¬Â¦",
+    "Evaluating social proofÃ¢â‚¬Â¦",
+    "Generating AI health scoreÃ¢â‚¬Â¦",
 ];
 function OnboardingModal({ user, onComplete }) {
     const [step, setStep] = useState(1);
@@ -142,15 +142,15 @@ function OnboardingModal({ user, onComplete }) {
             boxShadow: "0 32px 80px rgba(0,0,0,0.22)", overflow: "hidden",
         }}>
         {/* Header */}
-        <div style={{ background: "linear-gradient(135deg, #1A3D2B 0%, #0D9488 100%)", padding: "24px 28px 20px" }}>
+        <div style={{ background: "linear-gradient(135deg, #A4285E 0%, #CB3273 100%)", padding: "24px 28px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 18 }}>⚡</span>
+              <span style={{ fontSize: 18 }}>Ã¢Å¡Â¡</span>
             </div>
-            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }}>AuraAI — Laser &amp; Cosmetic Clinic</span>
+            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }}>AuraAI Ã¢â‚¬â€ Laser &amp; Cosmetic Clinic</span>
           </div>
           <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>
-            Welcome, {firstName}! 👋
+            Welcome, {firstName}! Ã°Å¸â€˜â€¹
           </h2>
           <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 6, marginBottom: 0 }}>
             Let's run a free audit on your website in 30 seconds.
@@ -164,10 +164,10 @@ function OnboardingModal({ user, onComplete }) {
         {/* Body */}
         <div style={{ padding: "24px 28px 28px" }}>
 
-          {/* ─ Step 1: URL Input ─ */}
+          {/* Ã¢â€â‚¬ Step 1: URL Input Ã¢â€â‚¬ */}
           {step === 1 && (<div>
               <p style={{ fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 1.6 }}>
-                AuraAI will audit your website's brand health, SEO signals, and trust score — then show you a sample AI-written outreach email personalised to your business.
+                AuraAI will audit your website's brand health, SEO signals, and trust score Ã¢â‚¬â€ then show you a sample AI-written outreach email personalised to your business.
               </p>
               <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Your Website URL
@@ -182,30 +182,30 @@ function OnboardingModal({ user, onComplete }) {
               </div>
               {urlErr && <p style={{ color: "#EF4444", fontSize: 12, marginTop: 6 }}>{urlErr}</p>}
               <button onClick={startAudit} style={{
-                marginTop: 16, width: "100%", background: "linear-gradient(135deg, #1A3D2B, #0D9488)",
+                marginTop: 16, width: "100%", background: "linear-gradient(135deg, #A4285E, #CB3273)",
                 color: "#fff", border: "none", borderRadius: 12, padding: "13px 20px",
                 fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: "-0.01em",
             }}>
-                Run My Free Audit →
+                Run My Free Audit Ã¢â€ â€™
               </button>
               <p style={{ textAlign: "center", fontSize: 11, color: "#9CA3AF", marginTop: 10 }}>
-                Takes about 30 seconds · No credit card needed
+                Takes about 30 seconds Ã‚Â· No credit card needed
               </p>
             </div>)}
 
-          {/* ─ Step 2: Audit Progress ─ */}
+          {/* Ã¢â€â‚¬ Step 2: Audit Progress Ã¢â€â‚¬ */}
           {step === 2 && (<div style={{ textAlign: "center" }}>
               <div style={{ marginBottom: 20 }}>
-                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, #F0FDFA, #CCFBF1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-                  <span style={{ fontSize: 28 }}>🔍</span>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, #FBE9F1, #F3C9DB)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
+                  <span style={{ fontSize: 28 }}>Ã°Å¸â€Â</span>
                 </div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>Auditing your website…</h3>
-                <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>This usually takes 20–30 seconds</p>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>Auditing your websiteÃ¢â‚¬Â¦</h3>
+                <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>This usually takes 20Ã¢â‚¬â€œ30 seconds</p>
               </div>
 
               {/* Progress bar */}
               <div style={{ background: "#F3F4F6", borderRadius: 8, height: 10, overflow: "hidden", marginBottom: 12 }}>
-                <div style={{ height: "100%", background: "linear-gradient(90deg, #1A3D2B, #0D9488)", borderRadius: 8, width: `${progress}%`, transition: "width 0.4s ease" }}/>
+                <div style={{ height: "100%", background: "linear-gradient(90deg, #A4285E, #CB3273)", borderRadius: 8, width: `${progress}%`, transition: "width 0.4s ease" }}/>
               </div>
               <p style={{ fontSize: 12, color: "#6B7280", fontWeight: 600, marginBottom: 20 }}>{Math.round(progress)}% complete</p>
 
@@ -214,60 +214,60 @@ function OnboardingModal({ user, onComplete }) {
                 {AUDIT_STEPS.map((s, i) => (<div key={s} style={{ display: "flex", alignItems: "center", gap: 10, padding: "5px 0" }}>
                     <div style={{
                     width: 20, height: 20, borderRadius: "50%", flexShrink: 0,
-                    background: i < stepIdx ? "#0D9488" : i === stepIdx ? "#1A3D2B" : "#E5E7EB",
+                    background: i < stepIdx ? "#CB3273" : i === stepIdx ? "#A4285E" : "#E5E7EB",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "background 0.3s",
                 }}>
-                      {i < stepIdx ? (<span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>✓</span>) : i === stepIdx ? (<div style={{ width: 8, height: 8, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>) : null}
+                      {i < stepIdx ? (<span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>Ã¢Å“â€œ</span>) : i === stepIdx ? (<div style={{ width: 8, height: 8, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>) : null}
                     </div>
                     <span style={{ fontSize: 13, color: i <= stepIdx ? "#111827" : "#9CA3AF", fontWeight: i === stepIdx ? 600 : 400 }}>{s}</span>
                   </div>))}
               </div>
             </div>)}
 
-          {/* ─ Step 3: Results ─ */}
+          {/* Ã¢â€â‚¬ Step 3: Results Ã¢â€â‚¬ */}
           {step === 3 && (<div>
               {/* Score */}
               <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-                <div style={{ flex: 1, background: "linear-gradient(135deg, #F0FDFA, #CCFBF1)", borderRadius: 14, padding: "16px 14px", textAlign: "center" }}>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: "#0D9488", lineHeight: 1 }}>74</div>
-                  <div style={{ fontSize: 11, color: "#0F766E", fontWeight: 600, marginTop: 4 }}>Brand Health Score</div>
+                <div style={{ flex: 1, background: "linear-gradient(135deg, #FBE9F1, #F3C9DB)", borderRadius: 14, padding: "16px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: "#CB3273", lineHeight: 1 }}>74</div>
+                  <div style={{ fontSize: 11, color: "#A4285E", fontWeight: 600, marginTop: 4 }}>Brand Health Score</div>
                 </div>
-                <div style={{ flex: 1, background: "linear-gradient(135deg, #FFF7ED, #FED7AA)", borderRadius: 14, padding: "16px 14px", textAlign: "center" }}>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: "#EA580C", lineHeight: 1 }}>3</div>
-                  <div style={{ fontSize: 11, color: "#C2410C", fontWeight: 600, marginTop: 4 }}>Quick Wins Found</div>
+                <div style={{ flex: 1, background: "linear-gradient(135deg, #FBE9F1, #F3C9DB)", borderRadius: 14, padding: "16px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: "#A4285E", lineHeight: 1 }}>3</div>
+                  <div style={{ fontSize: 11, color: "#A4285E", fontWeight: 600, marginTop: 4 }}>Quick Wins Found</div>
                 </div>
-                <div style={{ flex: 1, background: "linear-gradient(135deg, #F5F3FF, #EDE9FE)", borderRadius: 14, padding: "16px 14px", textAlign: "center" }}>
-                  <div style={{ fontSize: 32, fontWeight: 900, color: "#7C3AED", lineHeight: 1 }}>B+</div>
-                  <div style={{ fontSize: 11, color: "#6D28D9", fontWeight: 600, marginTop: 4 }}>Credibility Rating</div>
+                <div style={{ flex: 1, background: "linear-gradient(135deg, #FBE9F1, #FBE9F1)", borderRadius: 14, padding: "16px 14px", textAlign: "center" }}>
+                  <div style={{ fontSize: 32, fontWeight: 900, color: "#CB3273", lineHeight: 1 }}>B+</div>
+                  <div style={{ fontSize: 11, color: "#A4285E", fontWeight: 600, marginTop: 4 }}>Credibility Rating</div>
                 </div>
               </div>
 
               {/* Sample email */}
               <div style={{ border: "1.5px solid #E5E7EB", borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
-                <div style={{ background: "#1A3D2B", padding: "8px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>✉ Sample AI-Written Outreach Email</span>
-                  <span style={{ marginLeft: "auto", fontSize: 10, color: "#5EEAD4", fontWeight: 700 }}>PERSONALISED</span>
+                <div style={{ background: "#A4285E", padding: "8px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>Ã¢Å“â€° Sample AI-Written Outreach Email</span>
+                  <span style={{ marginLeft: "auto", fontSize: 10, color: "#FBE9F1", fontWeight: 700 }}>PERSONALISED</span>
                 </div>
                 <div style={{ padding: "14px 16px", background: "#FAFAFA" }}>
                   <p style={{ fontSize: 12, color: "#374151", lineHeight: 1.65, margin: 0 }}>
                     <strong>Subject:</strong> Quick question about your growth plans, {firstName}<br /><br />
                     Hi [Prospect Name],<br /><br />
-                    I came across <em>{url || "your company"}</em> and noticed you're doing some great things in your space — but your brand score of <strong>74/100</strong> suggests there are a few quick wins that could meaningfully improve your pipeline.<br /><br />
-                    We've helped companies like yours increase qualified meetings by 3× in 90 days using AI-driven prospect auditing and personalised outreach.<br /><br />
+                    I came across <em>{url || "your company"}</em> and noticed you're doing some great things in your space Ã¢â‚¬â€ but your brand score of <strong>74/100</strong> suggests there are a few quick wins that could meaningfully improve your pipeline.<br /><br />
+                    We've helped companies like yours increase qualified meetings by 3Ãƒâ€” in 90 days using AI-driven prospect auditing and personalised outreach.<br /><br />
                     Worth a 15-minute call this week?<br /><br />
-                    — {firstName}
+                    Ã¢â‚¬â€ {firstName}
                   </p>
                 </div>
               </div>
 
               <button onClick={handleDone} disabled={saving} style={{
-                width: "100%", background: "linear-gradient(135deg, #1A3D2B, #0D9488)",
+                width: "100%", background: "linear-gradient(135deg, #A4285E, #CB3273)",
                 color: "#fff", border: "none", borderRadius: 12, padding: "13px 20px",
                 fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer",
                 opacity: saving ? 0.7 : 1,
             }}>
-                {saving ? "Saving…" : "Add your first prospect to get started →"}
+                {saving ? "SavingÃ¢â‚¬Â¦" : "Add your first prospect to get started Ã¢â€ â€™"}
               </button>
               <p style={{ textAlign: "center", fontSize: 11, color: "#9CA3AF", marginTop: 10 }}>
                 Your full audit report is waiting in the Audit tab
@@ -377,7 +377,7 @@ function App() {
             } else if (authSuccess) {
                 apiUrl = `/api/auth/me`;
             } else {
-                // No email, no auth param → show Register (new visitor)
+                // No email, no auth param Ã¢â€ â€™ show Register (new visitor)
                 setAuthUser(null);
                 setAuth("unauthenticated");
                 return;
@@ -419,10 +419,10 @@ function App() {
     }, [auth]);
     const base = import.meta.env.BASE_URL.replace(/\/$/, "");
     if (auth === "checking") {
-        return (<div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #0d2318 0%, #1A3D2B 45%, #12502e 100%)" }}>
+        return (<div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #2A0A18 0%, #A4285E 45%, #3A0C20 100%)" }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"/>
-          <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>Loading…</span>
+          <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>LoadingÃ¢â‚¬Â¦</span>
         </div>
       </div>);
     }

@@ -1,6 +1,6 @@
-// ── Color palette matching the HTML design ──────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Color palette matching the HTML design Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const C = {
-    p: "#6C22D4", p2: "#8B45E8", p3: "#F3EEFF", p4: "#E4D4FF", p5: "#FAF7FF",
+    p: "#CB3273", p2: "#E15C94", p3: "#FBE9F1", p4: "#F3C9DB", p5: "#FFF7FB",
     d: "#E03128", d2: "#FFF1F0", d3: "#FFCCC7",
     am: "#C27D0E", am2: "#FFFBF0", am3: "#FFE49A",
     g: "#0A7A52", g2: "#F0FDF8", g3: "#A3E6CC",
@@ -8,9 +8,9 @@ const C = {
     n2: "#E8EAF0", n1: "#F4F5F8", n0: "#FAFAFA", wh: "#FFFFFF",
 };
 const statusStyles = {
-    fail: { color: C.d, bg: C.d2, border: C.d3, prefix: "✕" },
-    warn: { color: C.am, bg: C.am2, border: C.am3, prefix: "◑" },
-    pass: { color: C.g, bg: C.g2, border: C.g3, prefix: "✓" },
+    fail: { color: C.d, bg: C.d2, border: C.d3, prefix: "Ã¢Å“â€¢" },
+    warn: { color: C.am, bg: C.am2, border: C.am3, prefix: "Ã¢â€”â€˜" },
+    pass: { color: C.g, bg: C.g2, border: C.g3, prefix: "Ã¢Å“â€œ" },
 };
 function StatusBadge({ status, label }) {
     const s = statusStyles[status];
@@ -73,7 +73,7 @@ export const IntelReport = ({ data, auditDate }) => {
     const secTint = { padding: "40px 18px", background: C.p5, borderTop: `1px solid ${C.p4}`, borderBottom: `1px solid ${C.p4}` };
     return (<div style={{ fontFamily: "'Plus Jakarta Sans',-apple-system,sans-serif", background: C.n0, borderRadius: 16, overflow: "hidden", border: `1px solid ${C.n2}`, boxShadow: "0 4px 24px rgba(17,18,23,.08)", color: C.n9, lineHeight: 1.6 }}>
 
-      {/* ─ Sticky header ─ */}
+      {/* Ã¢â€â‚¬ Sticky header Ã¢â€â‚¬ */}
       <div style={{ background: "rgba(255,255,255,.96)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${C.n2}`, padding: "0 18px", height: 50, display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg,${C.p},${C.p2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 800, color: C.wh }}>A</div>
@@ -85,19 +85,19 @@ export const IntelReport = ({ data, auditDate }) => {
         </div>
       </div>
 
-      {/* ══ HERO ═══════════════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â HERO Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={{ background: C.wh, borderBottom: `1px solid ${C.n2}`, padding: "40px 18px 32px", position: "relative", overflow: "hidden" }}>
-        <div style={{ position: "absolute", top: -60, right: -80, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle,rgba(108,34,212,.06) 0%,transparent 70%)", pointerEvents: "none" }}/>
+        <div style={{ position: "absolute", top: -60, right: -80, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle,rgba(203,50,115,.06) 0%,transparent 70%)", pointerEvents: "none" }}/>
         <div style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: C.d, marginBottom: 16 }}>
           <span style={{ width: 6, height: 6, borderRadius: 99, background: C.d, flexShrink: 0, display: "inline-block" }}/>
-          Confidential · Intelligence Report
+          Confidential Ã‚Â· Intelligence Report
         </div>
         <h1 style={{ fontSize: 32, fontWeight: 800, color: C.n9, letterSpacing: "-0.7px", lineHeight: 1.18, marginBottom: 14 }}>
           You Built Something Real.<br />The World Just <span style={{ color: C.d }}>Can't Find It Yet.</span>
         </h1>
         <p style={{ fontSize: 15, fontWeight: 400, color: C.n5, lineHeight: 1.7, marginBottom: 24, maxWidth: 520 }}>
           AuraAI's Revenue Intelligence Engine ran a <strong style={{ fontWeight: 700, color: C.n9 }}>61-point digital audit</strong> on {data.website || companyName}. We found <strong style={{ fontWeight: 700, color: C.n9 }}>{data.findings.filter(f => f.severity === "critical").length} critical gaps</strong> that are quietly costing you{" "}
-          <span style={{ color: C.d, fontWeight: 700 }}>{data.hero.monthlyRisk} every month</span> — not because your work isn't good enough, but because the right people can't see it.
+          <span style={{ color: C.d, fontWeight: 700 }}>{data.hero.monthlyRisk} every month</span> Ã¢â‚¬â€ not because your work isn't good enough, but because the right people can't see it.
         </p>
         <div style={{ display: "flex", gap: 14, alignItems: "stretch", marginBottom: 20 }}>
           <div style={{ flexShrink: 0, background: scoreBg, border: `1.5px solid ${scoreBorder}`, borderRadius: 16, padding: "18px 22px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, minWidth: 118, boxShadow: "0 4px 12px rgba(17,18,23,.06)" }}>
@@ -131,12 +131,12 @@ export const IntelReport = ({ data, auditDate }) => {
       </div>
       <Hr />
 
-      {/* ══ WHY ════════════════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â WHY Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={secAlt}>
         <SectionTag>Start With WHY</SectionTag>
         <SectionH>Before the Data,<br /><span style={{ color: C.p }}>The Human Truth</span></SectionH>
         <SectionSub>Every number in this report traces back to one gap. Not in your product. Not in your team. In how clearly your story is being told.</SectionSub>
-        <div style={{ background: `linear-gradient(135deg,${C.p5} 0%,${C.wh} 100%)`, border: `1.5px solid ${C.p4}`, borderLeft: `4px solid ${C.p}`, borderRadius: 16, padding: 24, boxShadow: "0 8px 24px rgba(108,34,212,.12),0 2px 6px rgba(17,18,23,.06)" }}>
+        <div style={{ background: `linear-gradient(135deg,${C.p5} 0%,${C.wh} 100%)`, border: `1.5px solid ${C.p4}`, borderLeft: `4px solid ${C.p}`, borderRadius: 16, padding: 24, boxShadow: "0 8px 24px rgba(203,50,115,.12),0 2px 6px rgba(17,18,23,.06)" }}>
           <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: C.p, marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ background: C.p, color: C.wh, padding: "2px 8px", borderRadius: 99, fontSize: 9 }}>WHY</span>
             The WHY
@@ -147,21 +147,21 @@ export const IntelReport = ({ data, auditDate }) => {
           <div style={{ fontSize: 15, fontWeight: 400, color: C.n7, lineHeight: 1.75, marginBottom: 18 }} dangerouslySetInnerHTML={{ __html: sanitizeReportHtml(data.why.body) }}/>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
             {data.why.negativeTags.map((t, i) => <Pill key={`n${i}`} color="red">{t}</Pill>)}
-            {data.why.positiveTags.map((t, i) => <Pill key={`p${i}`} color="green">{t} ✓</Pill>)}
+            {data.why.positiveTags.map((t, i) => <Pill key={`p${i}`} color="green">{t} Ã¢Å“â€œ</Pill>)}
           </div>
         </div>
       </div>
       <Hr />
 
-      {/* ══ 90-SECOND TEST (COMPARE) ════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â 90-SECOND TEST (COMPARE) Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={sec}>
         <SectionTag>The 90-Second Test</SectionTag>
         <SectionH>What a Prospect Sees<br /><span style={{ color: C.p }}>Before They Call Anyone</span></SectionH>
-        <SectionSub>A business owner comparing agencies spends 90 seconds per website before forming a shortlist. These signals decide if you make it — or get skipped.</SectionSub>
-        <div style={{ background: `linear-gradient(135deg,${C.p},${C.p2})`, borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16, boxShadow: "0 12px 32px rgba(108,34,212,.18),0 2px 8px rgba(108,34,212,.08)" }}>
-          <span style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}>💡</span>
+        <SectionSub>A business owner comparing agencies spends 90 seconds per website before forming a shortlist. These signals decide if you make it Ã¢â‚¬â€ or get skipped.</SectionSub>
+        <div style={{ background: `linear-gradient(135deg,${C.p},${C.p2})`, borderRadius: 16, padding: "20px 24px", display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 16, boxShadow: "0 12px 32px rgba(203,50,115,.18),0 2px 8px rgba(203,50,115,.08)" }}>
+          <span style={{ fontSize: 24, flexShrink: 0, marginTop: 2 }}>Ã°Å¸â€™Â¡</span>
           <div style={{ fontSize: 13, fontWeight: 500, color: "rgba(255,255,255,.9)", lineHeight: 1.65 }}>
-            <strong style={{ fontWeight: 800, color: C.wh }}>The uncomfortable truth:</strong> A prospect who has never heard of {companyName} will judge your digital capability by your own digital presence. If your website doesn't do what you promise to do for clients — they notice. Every time.
+            <strong style={{ fontWeight: 800, color: C.wh }}>The uncomfortable truth:</strong> A prospect who has never heard of {companyName} will judge your digital capability by your own digital presence. If your website doesn't do what you promise to do for clients Ã¢â‚¬â€ they notice. Every time.
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -182,18 +182,18 @@ export const IntelReport = ({ data, auditDate }) => {
       </div>
       <Hr />
 
-      {/* ══ SCORE BREAKDOWN ════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â SCORE BREAKDOWN Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={secAlt}>
         <SectionTag>Score Breakdown</SectionTag>
         <SectionH>Overall Score: <span style={{ color: C.d }}>{healthScore}</span> / 100</SectionH>
-        <SectionSub>Your strongest areas are holding up — this is not a failing business. It's a great business with a visibility problem. Fix that. The rest follows.</SectionSub>
+        <SectionSub>Your strongest areas are holding up Ã¢â‚¬â€ this is not a failing business. It's a great business with a visibility problem. Fix that. The rest follows.</SectionSub>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {data.categoryScores.map((cat, i) => <ScoreBar key={i} name={cat.name} score={cat.score}/>)}
         </div>
       </div>
       <Hr />
 
-      {/* ══ REVENUE AT RISK ════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â REVENUE AT RISK Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={sec}>
         <SectionTag>The Price of Inaction</SectionTag>
         <SectionH>What These Gaps Cost<br /><span style={{ color: C.d }}>Every Single Month</span></SectionH>
@@ -202,7 +202,7 @@ export const IntelReport = ({ data, auditDate }) => {
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", color: C.n5, marginBottom: 8 }}>Estimated Monthly Revenue At Risk</div>
           <div style={{ fontSize: 42, fontWeight: 800, color: C.d, letterSpacing: "-1.5px", lineHeight: 1, marginBottom: 6 }}>{data.hero.monthlyRisk}</div>
           <div style={{ fontSize: 15, fontWeight: 500, color: C.n7 }}>bleeding out of your pipeline every month</div>
-          <div style={{ fontSize: 13, color: C.n5, marginTop: 4 }}>That's <strong style={{ color: C.am, fontWeight: 700 }}>{data.hero.annualRisk} per year</strong> that's yours to recover — starting in 30 days.</div>
+          <div style={{ fontSize: 13, color: C.n5, marginTop: 4 }}>That's <strong style={{ color: C.am, fontWeight: 700 }}>{data.hero.annualRisk} per year</strong> that's yours to recover Ã¢â‚¬â€ starting in 30 days.</div>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {data.revenueCards.map((card, i) => (<div key={i} style={{ background: C.wh, border: `1px solid ${C.n2}`, borderTop: `3px solid ${C.d3}`, borderRadius: 10, padding: 14, boxShadow: "0 1px 3px rgba(17,18,23,.07)" }}>
@@ -214,10 +214,10 @@ export const IntelReport = ({ data, auditDate }) => {
       </div>
       <Hr />
 
-      {/* ══ FINDINGS ═══════════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â FINDINGS Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={secAlt}>
         <SectionTag>9 Critical Findings</SectionTag>
-        <SectionH>The Gaps, The Cost,<br /><span style={{ color: C.p }}>The Fix — All of It.</span></SectionH>
+        <SectionH>The Gaps, The Cost,<br /><span style={{ color: C.p }}>The Fix Ã¢â‚¬â€ All of It.</span></SectionH>
         <SectionSub>Every finding ranked by revenue impact. Every action is specific enough to hand to your team today.</SectionSub>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           {data.findings.map((f, i) => (<div key={i} style={{ background: C.wh, border: `1px solid ${C.n2}`, borderTop: `3px solid ${f.severity === "critical" ? C.d : C.am}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 3px rgba(17,18,23,.07)", transition: "box-shadow .25s" }}>
@@ -228,7 +228,7 @@ export const IntelReport = ({ data, auditDate }) => {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 700, color: C.n9, lineHeight: 1.35, marginBottom: 6 }}>{f.title}</div>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, fontWeight: 700, color: C.d, background: C.d2, border: `1px solid ${C.d3}`, padding: "3px 10px", borderRadius: 99 }}>
-                    <span style={{ fontWeight: 800 }}>→</span>{f.revenuePill}
+                    <span style={{ fontWeight: 800 }}>Ã¢â€ â€™</span>{f.revenuePill}
                   </span>
                 </div>
               </div>
@@ -247,16 +247,16 @@ export const IntelReport = ({ data, auditDate }) => {
       </div>
       <Hr />
 
-      {/* ══ BELIEF SCORE ═══════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â BELIEF SCORE Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={secTint}>
-        <SectionTag>Belief Alignment Score — BANTB</SectionTag>
+        <SectionTag>Belief Alignment Score Ã¢â‚¬â€ BANTB</SectionTag>
         <SectionH>The 5th Dimension<br /><span style={{ color: C.p }}>Beyond Budget and Timeline</span></SectionH>
-        <SectionSub>The clients who stay 3+ years, refer their peers, and never negotiate on price share your WHY. This score predicts who they are — before you ever speak.</SectionSub>
-        <div style={{ background: C.wh, border: `1.5px solid ${C.p4}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 24px rgba(108,34,212,.12)" }}>
+        <SectionSub>The clients who stay 3+ years, refer their peers, and never negotiate on price share your WHY. This score predicts who they are Ã¢â‚¬â€ before you ever speak.</SectionSub>
+        <div style={{ background: C.wh, border: `1.5px solid ${C.p4}`, borderRadius: 16, overflow: "hidden", boxShadow: "0 8px 24px rgba(203,50,115,.12)" }}>
           <div style={{ background: `linear-gradient(135deg,${C.p3},${C.p5})`, borderBottom: `1px solid ${C.p4}`, padding: "24px 24px 20px", display: "flex", alignItems: "center", gap: 20 }}>
             <div style={{ textAlign: "center", flexShrink: 0 }}>
               <div style={{ fontSize: 56, fontWeight: 800, color: C.p, letterSpacing: -2, lineHeight: 1 }}>{data.belief.score}</div>
-              <div style={{ fontSize: 13, fontWeight: 500, color: C.n5 }}>/ 25 · Belief Score</div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: C.n5 }}>/ 25 Ã‚Â· Belief Score</div>
             </div>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: C.n9, marginBottom: 6 }}>{data.belief.title}</div>
@@ -269,7 +269,7 @@ export const IntelReport = ({ data, auditDate }) => {
             <div style={{ fontSize: 13, color: C.n5, lineHeight: 1.7, marginBottom: 16 }}>{data.belief.body}</div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               {data.belief.signals.map((sig, i) => (<span key={i} style={{ fontSize: 11, fontWeight: 600, padding: "4px 11px", borderRadius: 99, display: "inline-flex", alignItems: "center", gap: 4, border: "1px solid", color: sig.on ? C.g : C.n5, background: sig.on ? C.g2 : C.n1, borderColor: sig.on ? C.g3 : C.n2 }}>
-                  <span style={{ fontSize: 9 }}>{sig.on ? "✓" : "○"}</span>{sig.label}
+                  <span style={{ fontSize: 9 }}>{sig.on ? "Ã¢Å“â€œ" : "Ã¢â€”â€¹"}</span>{sig.label}
                 </span>))}
             </div>
           </div>
@@ -277,11 +277,11 @@ export const IntelReport = ({ data, auditDate }) => {
       </div>
       <Hr />
 
-      {/* ══ 30-DAY PLAN ════════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â 30-DAY PLAN Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={sec}>
         <SectionTag>The 30-Day Playbook</SectionTag>
         <SectionH>Stop the Leak.<br /><span style={{ color: C.p }}>Rebuild the Funnel. Dominate Search.</span></SectionH>
-        <SectionSub>Ordered strictly by revenue impact. The highest-return fixes go first. First results visible within 7 days of starting — not 90.</SectionSub>
+        <SectionSub>Ordered strictly by revenue impact. The highest-return fixes go first. First results visible within 7 days of starting Ã¢â‚¬â€ not 90.</SectionSub>
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {data.actionPlan.map((wk, i) => {
             const wkColor = wk.pillType === "urgent" ? C.d : wk.pillType === "high" ? C.am : wk.pillType === "medium" ? C.p : C.g;
@@ -309,13 +309,13 @@ export const IntelReport = ({ data, auditDate }) => {
       </div>
       <Hr />
 
-      {/* ══ CTA ════════════════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â CTA Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={{ background: C.wh, borderTop: `1px solid ${C.n2}`, padding: "48px 18px" }}>
         <div style={{ background: `linear-gradient(135deg,${C.p3},${C.p5})`, border: `1.5px solid ${C.p4}`, borderRadius: 16, padding: "20px 24px", marginBottom: 32, display: "flex", gap: 14, alignItems: "flex-start" }}>
-          <span style={{ fontSize: 28, flexShrink: 0 }}>💜</span>
+          <span style={{ fontSize: 28, flexShrink: 0 }}>Ã°Å¸â€™Å“</span>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.5, textTransform: "uppercase", color: C.p, marginBottom: 5 }}>AuraAI's WHY</div>
-            <div style={{ fontSize: 13, fontWeight: 500, color: C.n7, lineHeight: 1.65, fontStyle: "italic" }}>"We believe every business built with genuine purpose deserves to be seen, found, and chosen — not just by algorithm, but by the right people at the right moment."</div>
+            <div style={{ fontSize: 13, fontWeight: 500, color: C.n7, lineHeight: 1.65, fontStyle: "italic" }}>"We believe every business built with genuine purpose deserves to be seen, found, and chosen Ã¢â‚¬â€ not just by algorithm, but by the right people at the right moment."</div>
           </div>
         </div>
         <h2 style={{ fontSize: 28, fontWeight: 800, color: C.n9, letterSpacing: "-0.5px", lineHeight: 1.2, marginBottom: 10 }}>
@@ -326,12 +326,12 @@ export const IntelReport = ({ data, auditDate }) => {
         </p>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 32 }}>
           <div style={{ borderRadius: 10, padding: 16, background: C.d2, border: `1.5px solid ${C.d3}` }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: C.d, marginBottom: 7 }}>Path A — Do Nothing</div>
-            <div style={{ fontSize: 13, color: C.n7, lineHeight: 1.65 }}>Close this report. The gaps stay open. Every month, visitors leave without a trace. Competitors appear in ChatGPT. The compounding loss deepens quietly — until a competitor takes the position that was always yours to claim.</div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: C.d, marginBottom: 7 }}>Path A Ã¢â‚¬â€ Do Nothing</div>
+            <div style={{ fontSize: 13, color: C.n7, lineHeight: 1.65 }}>Close this report. The gaps stay open. Every month, visitors leave without a trace. Competitors appear in ChatGPT. The compounding loss deepens quietly Ã¢â‚¬â€ until a competitor takes the position that was always yours to claim.</div>
           </div>
           <div style={{ borderRadius: 10, padding: 16, background: C.p3, border: `1.5px solid ${C.p4}` }}>
-            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: C.p, marginBottom: 7 }}>Path B — Take Action</div>
-            <div style={{ fontSize: 13, color: C.n7, lineHeight: 1.65 }}>One 30-minute conversation. No pitch. No pressure. Just a walk-through of exactly how to close these {criticalCount} gaps — starting this week, using your existing team and tools. First results visible in 7 days.</div>
+            <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 0.4, textTransform: "uppercase", color: C.p, marginBottom: 7 }}>Path B Ã¢â‚¬â€ Take Action</div>
+            <div style={{ fontSize: 13, color: C.n7, lineHeight: 1.65 }}>One 30-minute conversation. No pitch. No pressure. Just a walk-through of exactly how to close these {criticalCount} gaps Ã¢â‚¬â€ starting this week, using your existing team and tools. First results visible in 7 days.</div>
           </div>
         </div>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -340,30 +340,30 @@ export const IntelReport = ({ data, auditDate }) => {
           <div style={{ fontSize: 15, color: C.n5, marginBottom: 3 }}>{data.cta.email}</div>
           <div style={{ fontSize: 13, color: C.n3 }}>{data.cta.website}</div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: `linear-gradient(135deg,${C.p},${C.p2})`, color: C.wh, fontSize: 15, fontWeight: 800, padding: 18, borderRadius: 16, boxShadow: "0 12px 32px rgba(108,34,212,.18),0 2px 8px rgba(108,34,212,.08)", marginBottom: 16, letterSpacing: 0.2, cursor: "pointer" }} onClick={() => { if (data.cta.phone)
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 9, background: `linear-gradient(135deg,${C.p},${C.p2})`, color: C.wh, fontSize: 15, fontWeight: 800, padding: 18, borderRadius: 16, boxShadow: "0 12px 32px rgba(203,50,115,.18),0 2px 8px rgba(203,50,115,.08)", marginBottom: 16, letterSpacing: 0.2, cursor: "pointer" }} onClick={() => { if (data.cta.phone)
         window.open(`tel:${data.cta.phone.replace(/[^+0-9]/g, "")}`); }}>
-          Book Your Free Strategy Call — No Pitch, Just a Plan →
+          Book Your Free Strategy Call Ã¢â‚¬â€ No Pitch, Just a Plan Ã¢â€ â€™
         </div>
         {data.cta.address && (<div style={{ fontSize: 11, color: C.n3, textAlign: "center", lineHeight: 1.7 }}>{data.cta.address}</div>)}
       </div>
 
-      {/* ══ FOOTER ════════════════════════════════════════ */}
+      {/* Ã¢â€¢ÂÃ¢â€¢Â FOOTER Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
       <div style={{ background: C.n1, borderTop: `1px solid ${C.n2}`, padding: "32px 18px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14 }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: `linear-gradient(135deg,${C.p},${C.p2})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: C.wh }}>M</div>
           <span style={{ fontSize: 18, fontWeight: 800, color: C.n9, letterSpacing: "-0.3px" }}>Aura<span style={{ color: C.p }}>AI</span></span>
         </div>
         <div style={{ fontSize: 13, fontStyle: "italic", color: C.n7, lineHeight: 1.7, paddingLeft: 13, borderLeft: `2px solid ${C.p}`, marginBottom: 14 }}>
-          "We believe every business built with genuine purpose deserves to be seen, found, and chosen — not just by algorithm, but by the right people."
+          "We believe every business built with genuine purpose deserves to be seen, found, and chosen Ã¢â‚¬â€ not just by algorithm, but by the right people."
         </div>
         <div style={{ fontSize: 11, color: C.n5, lineHeight: 1.65 }}>
-          This report was prepared using automated web crawling, SERP analysis, public data sources, and AI-powered interpretation. Revenue impact estimates are based on industry benchmarks and are intended to illustrate the order-of-magnitude opportunity — they are not guarantees of outcome.
+          This report was prepared using automated web crawling, SERP analysis, public data sources, and AI-powered interpretation. Revenue impact estimates are based on industry benchmarks and are intended to illustrate the order-of-magnitude opportunity Ã¢â‚¬â€ they are not guarantees of outcome.
         </div>
-        <div style={{ fontSize: 11, color: C.n3, marginTop: 8 }}>© 2026 AuraAI · A Dreamsdesign Product · All Rights Reserved</div>
+        <div style={{ fontSize: 11, color: C.n3, marginTop: 8 }}>Ã‚Â© 2026 AuraAI Ã‚Â· A Dreamsdesign Product Ã‚Â· All Rights Reserved</div>
       </div>
     </div>);
 };
-// ── Parser helper ───────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Parser helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export function generateReportHtml(data, auditDate) {
     const date = auditDate ?? new Date().toLocaleDateString("en-IN", { month: "long", year: "numeric" });
     const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -375,16 +375,16 @@ export function generateReportHtml(data, auditDate) {
     const scoreClr = (s) => s <= 3 ? "var(--d)" : s <= 6 ? "var(--am)" : "var(--g)";
     const scoreLabel = (s) => s >= 70 ? "Good Health" : s >= 50 ? "Needs Work" : s >= 30 ? "At Risk" : "Critical Risk";
     const css = `
-:root{--p:#6C22D4;--p2:#8B45E8;--p3:#F3EEFF;--p4:#E4D4FF;--p5:#FAF7FF;--d:#E03128;--d2:#FFF1F0;--d3:#FFCCC7;--am:#C27D0E;--am2:#FFFBF0;--am3:#FFE49A;--g:#0A7A52;--g2:#F0FDF8;--g3:#A3E6CC;--n9:#111217;--n8:#1E2029;--n7:#3A3D4A;--n5:#6B6F80;--n3:#C4C7D4;--n2:#E8EAF0;--n1:#F4F5F8;--n0:#FAFAFA;--wh:#FFFFFF;--sh1:0 1px 3px rgba(17,18,23,.07),0 1px 2px rgba(17,18,23,.04);--sh2:0 4px 12px rgba(17,18,23,.06),0 2px 4px rgba(17,18,23,.04);--sh3:0 8px 24px rgba(108,34,212,.12),0 2px 6px rgba(17,18,23,.06);--shp:0 12px 32px rgba(108,34,212,.18),0 2px 8px rgba(108,34,212,.08);--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--s10:40px;--s12:48px;--r1:6px;--r2:10px;--r3:16px;--r4:22px;--px:18px}
+:root{--p:#CB3273;--p2:#E15C94;--p3:#FBE9F1;--p4:#F3C9DB;--p5:#FFF7FB;--d:#E03128;--d2:#FFF1F0;--d3:#FFCCC7;--am:#C27D0E;--am2:#FFFBF0;--am3:#FFE49A;--g:#0A7A52;--g2:#F0FDF8;--g3:#A3E6CC;--n9:#111217;--n8:#1E2029;--n7:#3A3D4A;--n5:#6B6F80;--n3:#C4C7D4;--n2:#E8EAF0;--n1:#F4F5F8;--n0:#FAFAFA;--wh:#FFFFFF;--sh1:0 1px 3px rgba(17,18,23,.07),0 1px 2px rgba(17,18,23,.04);--sh2:0 4px 12px rgba(17,18,23,.06),0 2px 4px rgba(17,18,23,.04);--sh3:0 8px 24px rgba(203,50,115,.12),0 2px 6px rgba(17,18,23,.06);--shp:0 12px 32px rgba(203,50,115,.18),0 2px 8px rgba(203,50,115,.08);--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--s10:40px;--s12:48px;--r1:6px;--r2:10px;--r3:16px;--r4:22px;--px:18px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}
 body{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:15px;font-weight:400;line-height:1.6;color:var(--n9);background:var(--n0);-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}
 .pill{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:4px 11px;border-radius:99px;border:1px solid;white-space:nowrap}
 .pp{color:var(--p);background:var(--p3);border-color:var(--p4)}.pr{color:var(--d);background:var(--d2);border-color:var(--d3)}.pa{color:var(--am);background:var(--am2);border-color:var(--am3)}.pg{color:var(--g);background:var(--g2);border-color:var(--g3)}.pn{color:var(--n5);background:var(--n1);border-color:var(--n2)}
 .bdg{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:700;padding:3px 9px;border-radius:99px;border:1px solid}
-.bf{color:var(--d);background:var(--d2);border-color:var(--d3)}.bf::before{content:'✕';font-size:9px}
-.bw{color:var(--am);background:var(--am2);border-color:var(--am3)}.bw::before{content:'◑';font-size:9px}
-.bp{color:var(--g);background:var(--g2);border-color:var(--g3)}.bp::before{content:'✓';font-size:9px;font-weight:800}
+.bf{color:var(--d);background:var(--d2);border-color:var(--d3)}.bf::before{content:'Ã¢Å“â€¢';font-size:9px}
+.bw{color:var(--am);background:var(--am2);border-color:var(--am3)}.bw::before{content:'Ã¢â€”â€˜';font-size:9px}
+.bp{color:var(--g);background:var(--g2);border-color:var(--g3)}.bp::before{content:'Ã¢Å“â€œ';font-size:9px;font-weight:800}
 .wrap{max-width:720px;margin:0 auto}.sec{padding:var(--s10) var(--px)}.sec-alt{background:var(--wh);border-top:1px solid var(--n2);border-bottom:1px solid var(--n2);padding:var(--s10) var(--px)}.hr{height:1px;background:var(--n2)}
 .stag{font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--p);background:var(--p3);border:1px solid var(--p4);display:inline-flex;padding:4px 11px;border-radius:99px;margin-bottom:10px}
 .sh{font-size:24px;font-weight:800;color:var(--n9);letter-spacing:-.5px;line-height:1.2;margin-bottom:6px}.sh .ac{color:var(--p)}.sh .rd{color:var(--d)}
@@ -435,7 +435,7 @@ a{color:inherit;text-decoration:none}
 .fc.cr .fc-num{background:var(--d2);color:var(--d)}.fc.hi .fc-num{background:var(--am2);color:var(--am)}
 .fc-title-wrap{flex:1}.fc-title{font-size:15px;font-weight:700;color:var(--n9);line-height:1.35;margin-bottom:6px}
 .fc-rev-pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:var(--d);background:var(--d2);border:1px solid var(--d3);padding:3px 10px;border-radius:99px}
-.fc-rev-pill::before{content:'→';font-weight:800}
+.fc-rev-pill::before{content:'Ã¢â€ â€™';font-weight:800}
 .fc-body{padding:0 16px 16px;display:flex;flex-direction:column;gap:10px}
 .fc-block{border-radius:var(--r1);padding:12px 14px}.fc-block.fi{background:var(--n1);border:1px solid var(--n2)}.fc-block.ac{background:var(--g2);border:1px solid var(--g3)}
 .fc-block-lbl{font-size:11px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-bottom:6px}.fc-block.fi .fc-block-lbl{color:var(--n5)}.fc-block.ac .fc-block-lbl{color:var(--g)}
@@ -448,8 +448,8 @@ a{color:inherit;text-decoration:none}
 .belief-text{font-size:13px;color:var(--n5);line-height:1.7;margin-bottom:16px}
 .sigs{display:flex;flex-wrap:wrap;gap:6px}
 .sig{font-size:11px;font-weight:600;padding:4px 11px;border-radius:99px;border:1px solid;display:flex;align-items:center;gap:4px}
-.sig.on{color:var(--g);background:var(--g2);border-color:var(--g3)}.sig.on::before{content:'✓';font-weight:800}
-.sig.off{color:var(--n5);background:var(--n1);border-color:var(--n2)}.sig.off::before{content:'○';color:var(--n3)}
+.sig.on{color:var(--g);background:var(--g2);border-color:var(--g3)}.sig.on::before{content:'Ã¢Å“â€œ';font-weight:800}
+.sig.off{color:var(--n5);background:var(--n1);border-color:var(--n2)}.sig.off::before{content:'Ã¢â€”â€¹';color:var(--n3)}
 .week-list{display:flex;flex-direction:column;gap:10px}
 .wk{background:var(--wh);border:1px solid var(--n2);border-radius:var(--r3);overflow:hidden}
 .wk-head{display:flex;align-items:center;gap:12px;padding:14px 16px;border-bottom:1px solid var(--n2)}
@@ -478,12 +478,12 @@ a{color:inherit;text-decoration:none}
     const findingsCritical = data.findings.filter(f => f.severity === "critical");
     const findingsHigh = data.findings.filter(f => f.severity === "high");
     const allFindings = [...findingsCritical, ...findingsHigh];
-    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"><title>AuraAI Intelligence Report · ${esc(data.companyName)}</title><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet"><style>${css}</style></head><body>
+    return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover"><title>AuraAI Intelligence Report Ã‚Â· ${esc(data.companyName)}</title><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet"><style>${css}</style></head><body>
 <nav class="nav"><div class="nbrand"><div class="nicon">A</div><span class="nname">Aura<b>AI</b></span></div><div style="display:flex;align-items:center;gap:8px"><span class="pill pp">Intelligence Report</span><span style="font-size:11px;font-weight:600;color:var(--n5)">${esc(date)}</span></div></nav>
 
-<div class="hero"><div class="wrap"><div class="hero-kicker"><div class="hero-kicker-dot"></div>Confidential · ${esc(data.companyName)} · ${esc(data.website ?? "")}</div>
+<div class="hero"><div class="wrap"><div class="hero-kicker"><div class="hero-kicker-dot"></div>Confidential Ã‚Â· ${esc(data.companyName)} Ã‚Â· ${esc(data.website ?? "")}</div>
 <h1 class="hero-h">You Built Something Real.<br>The World Just<br><span class="rd">Can't Find It Yet.</span></h1>
-<p class="hero-intro">AuraAI's Revenue Intelligence Engine ran a <strong>61-point digital audit</strong> on ${esc(data.website || data.companyName)}. We found <strong>${data.criticalCount} critical gaps</strong> that are quietly costing you <span class="rd">${esc(data.hero.monthlyRisk)} every month</span> — not because your work isn't good enough, but because the right people can't see it.</p>
+<p class="hero-intro">AuraAI's Revenue Intelligence Engine ran a <strong>61-point digital audit</strong> on ${esc(data.website || data.companyName)}. We found <strong>${data.criticalCount} critical gaps</strong> that are quietly costing you <span class="rd">${esc(data.hero.monthlyRisk)} every month</span> Ã¢â‚¬â€ not because your work isn't good enough, but because the right people can't see it.</p>
 <div class="hero-score-row"><div class="score-block"><div class="score-n">${data.healthScore}</div><div class="score-d">/ 100</div><div class="score-badge">${esc(scoreLabel(data.healthScore))}</div></div>
 <div class="score-facts">
 <div class="sf-row"><span class="sf-label">Critical Issues</span><span class="sf-val r">${data.criticalCount} Found</span></div>
@@ -510,7 +510,7 @@ a{color:inherit;text-decoration:none}
 <div class="why-body">${sanitizeReportHtml(data.why.body)}</div>
 <div class="why-tags">
 ${data.why.negativeTags.map(t => `<span class="pill pr">${esc(t)}</span>`).join("")}
-${data.why.positiveTags.map(t => `<span class="pill pg">${esc(t)} ✓</span>`).join("")}
+${data.why.positiveTags.map(t => `<span class="pill pg">${esc(t)} Ã¢Å“â€œ</span>`).join("")}
 </div></div></div></div>
 
 <div class="hr"></div>
@@ -518,8 +518,8 @@ ${data.why.positiveTags.map(t => `<span class="pill pg">${esc(t)} ✓</span>`).j
 <div class="sec-alt"><div class="wrap">
 <div class="stag">The 90-Second Test</div>
 <h2 class="sh">What a Prospect Sees<br><span class="ac">Before They Call Anyone</span></h2>
-<p class="ssub">A business owner comparing agencies spends 90 seconds per website before forming a shortlist. These 8 signals decide if you make it — or get skipped.</p>
-<div class="insight"><div class="insight-icon">💡</div><div class="insight-text"><strong>The uncomfortable truth:</strong> A prospect who has never heard of ${esc(data.companyName)} will judge your capability by your own digital presence. If your website doesn't do what you promise to do for clients — they notice. Every time.</div></div>
+<p class="ssub">A business owner comparing agencies spends 90 seconds per website before forming a shortlist. These 8 signals decide if you make it Ã¢â‚¬â€ or get skipped.</p>
+<div class="insight"><div class="insight-icon">Ã°Å¸â€™Â¡</div><div class="insight-text"><strong>The uncomfortable truth:</strong> A prospect who has never heard of ${esc(data.companyName)} will judge your capability by your own digital presence. If your website doesn't do what you promise to do for clients Ã¢â‚¬â€ they notice. Every time.</div></div>
 <div class="clist">
 ${data.compare.map(row => `<div class="citem"><div class="cname">${esc(row.name)}</div><div class="crow"><div><div class="ccol-name">${esc(data.companyName)}</div>${bdg(row.company.status, row.company.label)}</div><div><div class="ccol-name">Competitors</div>${bdg(row.competitors.status, row.competitors.label)}</div><div><div class="ccol-name">Industry Standard</div>${bdg(row.industry.status, row.industry.label)}</div></div></div>`).join("")}
 </div></div></div>
@@ -529,7 +529,7 @@ ${data.compare.map(row => `<div class="citem"><div class="cname">${esc(row.name)
 <div class="sec"><div class="wrap">
 <div class="stag">Score Breakdown</div>
 <h2 class="sh">Overall Score: <span class="rd">${data.healthScore}</span> / 100</h2>
-<p class="ssub">Here's how each dimension of your digital presence scored — and where the biggest recovery opportunity sits.</p>
+<p class="ssub">Here's how each dimension of your digital presence scored Ã¢â‚¬â€ and where the biggest recovery opportunity sits.</p>
 <div class="bars">
 ${data.categoryScores.map(c => `<div class="bar-item"><div class="bar-top"><span class="bar-lbl">${esc(c.name)}</span><span class="bar-val" style="color:${scoreClr(c.score)}">${c.score} / 10</span></div><div class="bar-track"><div class="bar-fill" style="width:${c.score * 10}%;background:${barClr(c.score)}"></div></div></div>`).join("")}
 </div></div></div>
@@ -544,7 +544,7 @@ ${data.categoryScores.map(c => `<div class="bar-item"><div class="bar-top"><span
 <div class="rev-eyebrow">Estimated Monthly Revenue At Risk</div>
 <div class="rev-num">${esc(data.hero.monthlyRisk)}</div>
 <div class="rev-sub">bleeding out of your pipeline every month</div>
-<div class="rev-annual">That's <strong>${esc(data.hero.annualRisk)} per year</strong> that's yours to recover — starting in 30 days.</div>
+<div class="rev-annual">That's <strong>${esc(data.hero.annualRisk)} per year</strong> that's yours to recover Ã¢â‚¬â€ starting in 30 days.</div>
 </div>
 <div class="rgrid">
 ${data.revenueCards.map(c => `<div class="rcard"><div class="rcard-num">${esc(c.amount)}</div><div class="rcard-title">${esc(c.title)}</div><div class="rcard-note">${esc(c.note)}</div></div>`).join("")}
@@ -554,7 +554,7 @@ ${data.revenueCards.map(c => `<div class="rcard"><div class="rcard-num">${esc(c.
 
 <div class="sec"><div class="wrap">
 <div class="stag">${allFindings.length} Critical Findings</div>
-<h2 class="sh">The Gaps, The Cost,<br><span class="ac">The Fix — All of It.</span></h2>
+<h2 class="sh">The Gaps, The Cost,<br><span class="ac">The Fix Ã¢â‚¬â€ All of It.</span></h2>
 <p class="ssub">Every finding ranked by revenue impact. Every action is specific enough to hand to your team today.</p>
 <div class="fc-list">
 ${allFindings.map(f => `<div class="fc ${f.severity === "critical" ? "cr" : "hi"}"><div class="fc-head"><div class="fc-num">${esc(f.num)}</div><div class="fc-title-wrap"><div class="fc-title">${esc(f.title)}</div><span class="fc-rev-pill">${esc(f.revenuePill)}</span></div></div><div class="fc-body"><div class="fc-block fi"><div class="fc-block-lbl">What We Found</div><div class="fc-block-text">${esc(f.whatWeFound)}</div></div><div class="fc-block ac"><div class="fc-block-lbl">Exact Fix</div><div class="fc-block-text">${esc(f.exactFix)}</div></div></div></div>`).join("")}
@@ -565,7 +565,7 @@ ${allFindings.map(f => `<div class="fc ${f.severity === "critical" ? "cr" : "hi"
 <div class="sec-alt"><div class="wrap">
 <div class="stag">Belief Score</div>
 <h2 class="sh">The WHY Behind<br><span class="ac">The Numbers</span></h2>
-<p class="ssub">Great businesses are built on belief. This score measures how clearly that belief is transmitted digitally — before a client ever speaks to you.</p>
+<p class="ssub">Great businesses are built on belief. This score measures how clearly that belief is transmitted digitally Ã¢â‚¬â€ before a client ever speaks to you.</p>
 <div class="belief">
 <div class="belief-top">
 <div class="belief-score-wrap"><div class="belief-score-num">${data.belief.score}</div><div class="belief-score-of">/ 25</div></div>
@@ -599,7 +599,7 @@ ${data.actionPlan.map(w => `<div class="wk"><div class="wk-head"><div class="wk-
 <div class="cta-email">${esc(data.cta.email)}</div>
 <div class="cta-web">${esc(data.cta.website)}</div>
 </div>
-<a href="tel:${esc(data.cta.phone)}" class="cta-btn">📞 Book Strategy Call — ${esc(data.cta.phone)}</a>
+<a href="tel:${esc(data.cta.phone)}" class="cta-btn">Ã°Å¸â€œÅ¾ Book Strategy Call Ã¢â‚¬â€ ${esc(data.cta.phone)}</a>
 ${data.cta.address ? `<div class="cta-addr">${esc(data.cta.address)}</div>` : ""}
 </div></div>
 
@@ -607,11 +607,11 @@ ${data.cta.address ? `<div class="cta-addr">${esc(data.cta.address)}</div>` : ""
 <div class="footer-brand"><div class="nicon" style="width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--p),var(--p2));display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff">A</div><div class="footer-brand-text">Aura<b>AI</b></div></div>
 <div class="footer-why">We believe every business deserves to be found by the clients who need them most. This report is built on that belief.</div>
 <div class="footer-disc">This Intelligence Report was generated by AuraAI's Revenue Intelligence Engine. All revenue estimates are based on industry benchmarks and verified conversion data. Actual results may vary based on implementation quality and market conditions.</div>
-<div class="footer-copy">© ${new Date().getFullYear()} AuraAI · Confidential · Prepared for ${esc(data.companyName)}</div>
+<div class="footer-copy">Ã‚Â© ${new Date().getFullYear()} AuraAI Ã‚Â· Confidential Ã‚Â· Prepared for ${esc(data.companyName)}</div>
 </div></div>
 </body></html>`;
 }
-// ── HTML sanitizer ──────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ HTML sanitizer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 /**
  * Strips all HTML from an AI-generated string except <strong> and <em> tags.
  * Prevents XSS while preserving the intentional bold/italic formatting that

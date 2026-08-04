@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { Loader2, CheckCircle, XCircle, Clock, Lock } from "lucide-react";
-const GRAD = "linear-gradient(135deg, #1A3D2B 0%, #5C1A8C 100%)";
+const GRAD = "linear-gradient(135deg, #A4285E 0%, #8E1F54 100%)";
 export default function Verify({ onSuccess }) {
     const [status, setStatus] = useState("checking");
     const [errorMsg, setErrorMsg] = useState("");
@@ -65,25 +65,25 @@ export default function Verify({ onSuccess }) {
             setResending(false);
         }
     }
-    return (<div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#F5F3FF", fontFamily: "'Inter', -apple-system, sans-serif" }}>
+    return (<div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#FBE9F1", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <div className="w-full max-w-sm text-center">
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-base" style={{ background: GRAD }}>
-            ⚡
+            Ã¢Å¡Â¡
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#111827", letterSpacing: "-0.025em" }}>
             AuraAI
           </span>
         </div>
 
-        <div className="rounded-2xl p-8 shadow-sm" style={{ background: "#fff", border: "1px solid #EDE9FE" }}>
+        <div className="rounded-2xl p-8 shadow-sm" style={{ background: "#fff", border: "1px solid #FBE9F1" }}>
 
           {status === "checking" && (<>
-              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#F5F3FF" }}>
-                <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#7C3AED" }}/>
+              <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#FBE9F1" }}>
+                <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#CB3273" }}/>
               </div>
               <h1 style={{ fontSize: 20, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
-                Verifying your email…
+                Verifying your emailÃ¢â‚¬Â¦
               </h1>
               <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
                 Please wait while we verify your account.
@@ -98,7 +98,7 @@ export default function Verify({ onSuccess }) {
                 Email verified!
               </h1>
               <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
-                Your account is active. Taking you to the dashboard…
+                Your account is active. Taking you to the dashboardÃ¢â‚¬Â¦
               </p>
             </>)}
 
@@ -116,7 +116,7 @@ export default function Verify({ onSuccess }) {
             }}>
                 <Lock size={16} style={{ color: "#16a34a", flexShrink: 0, marginTop: 2 }}/>
                 <p style={{ fontSize: 13, color: "#15803d", lineHeight: 1.6, margin: 0 }}>
-                  <strong>One more step:</strong> set a password so you can also sign in with your email. Taking you to Settings…
+                  <strong>One more step:</strong> set a password so you can also sign in with your email. Taking you to SettingsÃ¢â‚¬Â¦
                 </p>
               </div>
             </>)}
@@ -139,7 +139,7 @@ export default function Verify({ onSuccess }) {
                     color: "white", fontSize: 14, fontWeight: 700,
                     cursor: resending ? "not-allowed" : "pointer",
                 }}>
-                  {resending ? "Sending…" : "Send a new link"}
+                  {resending ? "SendingÃ¢â‚¬Â¦" : "Send a new link"}
                 </button>)}
             </>)}
 

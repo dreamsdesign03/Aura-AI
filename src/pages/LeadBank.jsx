@@ -5,13 +5,13 @@ import { useIsAdmin } from "@/contexts/AuthContext";
 import { Database, Search, Download, Globe, Building2, Users, Zap, FileSpreadsheet, UserPlus, MapPin, RefreshCw, Loader2, Upload, X, CheckCircle2, Lock, } from "lucide-react";
 const BASE = "/api";
 const SOURCE_META = {
-    manual: { label: "Manual", color: "#1A3D2B", bg: "#E6F4EC", Icon: UserPlus },
+    manual: { label: "Manual", color: "#A4285E", bg: "#E6F4EC", Icon: UserPlus },
     csv_import: { label: "CSV Import", color: "#0369A1", bg: "#E0F2FE", Icon: FileSpreadsheet },
-    paste_import: { label: "AI Parse", color: "#7C3AED", bg: "#F3E8FF", Icon: Zap },
+    paste_import: { label: "AI Parse", color: "#CB3273", bg: "#F3E8FF", Icon: Zap },
     google_maps: { label: "Google Maps", color: "#DC2626", bg: "#FEE2E2", Icon: MapPin },
     apify: { label: "Apify", color: "#EA580C", bg: "#FFEDD5", Icon: RefreshCw },
     apollo: { label: "Apollo.io", color: "#0891B2", bg: "#CFFAFE", Icon: Globe },
-    ai_generated: { label: "AI Generated", color: "#7C3AED", bg: "#F3E8FF", Icon: Zap },
+    ai_generated: { label: "AI Generated", color: "#CB3273", bg: "#F3E8FF", Icon: Zap },
     lead_bank: { label: "Lead Bank", color: "#0F766E", bg: "#CCFBF1", Icon: Database },
 };
 const defaultMeta = { label: "Other", color: "#6B7280", bg: "#F3F4F6", Icon: Database };
@@ -179,7 +179,7 @@ export default function LeadBank() {
               <h1 className="text-lg font-bold text-gray-900">Lead Bank</h1>
               <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={{ background: "#CCFBF1", color: "#0F766E" }}>Admin Only</span>
             </div>
-            <p className="text-xs text-gray-500 mt-0.5">Private master database — Apollo-like lead repository for Dreamsdesign</p>
+            <p className="text-xs text-gray-500 mt-0.5">Private master database Ã¢â‚¬â€ Apollo-like lead repository for Dreamsdesign</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -211,11 +211,11 @@ export default function LeadBank() {
           <div className="flex items-center gap-3">
             <button onClick={handleBulkImport} disabled={importing || !importText.trim()} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-bold text-white transition-colors disabled:opacity-50" style={{ background: "#0F766E" }}>
               {importing ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Upload className="w-3.5 h-3.5"/>}
-              {importing ? "Importing…" : "Import Now"}
+              {importing ? "ImportingÃ¢â‚¬Â¦" : "Import Now"}
             </button>
             {importResult && (<div className="flex items-center gap-1.5 text-xs text-teal-800">
                 <CheckCircle2 className="w-3.5 h-3.5 text-green-600"/>
-                <span><strong>{importResult.inserted}</strong> added · <strong>{importResult.skipped}</strong> skipped (duplicates)</span>
+                <span><strong>{importResult.inserted}</strong> added Ã‚Â· <strong>{importResult.skipped}</strong> skipped (duplicates)</span>
               </div>)}
           </div>
         </div>)}
@@ -224,8 +224,8 @@ export default function LeadBank() {
       <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3">
         {[
             { label: "Total in Bank", value: statsData?.total ?? 0, icon: <Users className="w-4 h-4 text-white"/>, bg: "#0F766E" },
-            { label: "Fresh (not fetched)", value: statsData?.fresh ?? 0, icon: <Zap className="w-4 h-4 text-white"/>, bg: "#1A3D2B" },
-            { label: "Imported to Leads", value: statsData?.imported ?? 0, icon: <CheckCircle2 className="w-4 h-4 text-white"/>, bg: "#7C3AED" },
+            { label: "Fresh (not fetched)", value: statsData?.fresh ?? 0, icon: <Zap className="w-4 h-4 text-white"/>, bg: "#A4285E" },
+            { label: "Imported to Leads", value: statsData?.imported ?? 0, icon: <CheckCircle2 className="w-4 h-4 text-white"/>, bg: "#CB3273" },
         ].map(({ label, value, icon, bg }) => (<div key={label} className="col-span-1 rounded-xl border border-gray-200 bg-white shadow-sm px-4 py-3 flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
               {icon}
@@ -254,7 +254,7 @@ export default function LeadBank() {
       <div className="flex flex-wrap gap-2">
         <div className="relative flex items-center flex-1 min-w-[220px]">
           {isFetching && search ? (<Loader2 className="absolute left-2.5 w-3.5 h-3.5 text-indigo-500 animate-spin pointer-events-none"/>) : (<Search className="absolute left-2.5 w-3.5 h-3.5 text-gray-400 pointer-events-none"/>)}
-          <input type="text" placeholder="Search name, company, email, phone, city…" className={inputCls + " w-full pl-8 pr-7"} value={search} onChange={e => setSearch(e.target.value)}/>
+          <input type="text" placeholder="Search name, company, email, phone, cityÃ¢â‚¬Â¦" className={inputCls + " w-full pl-8 pr-7"} value={search} onChange={e => setSearch(e.target.value)}/>
           {search && (<button onClick={() => setSearch("")} className="absolute right-2 text-gray-400 hover:text-gray-600">
               <X className="w-3.5 h-3.5"/>
             </button>)}
@@ -264,7 +264,7 @@ export default function LeadBank() {
           {ALL_SOURCES.map(s => (<option key={s} value={s}>{s === "all" ? "All Sources" : (SOURCE_META[s]?.label ?? s)}</option>))}
         </select>
 
-        <input type="text" placeholder="Filter by intent…" className={inputCls + " w-40"} value={filterIntent} onChange={e => setFilterIntent(e.target.value)}/>
+        <input type="text" placeholder="Filter by intentÃ¢â‚¬Â¦" className={inputCls + " w-40"} value={filterIntent} onChange={e => setFilterIntent(e.target.value)}/>
 
         <button onClick={() => setOnlyFresh(p => !p)} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border transition-colors" style={onlyFresh ? { background: "#0F766E", color: "#fff", borderColor: "#0F766E" } : { background: "#fff", color: "#374151", borderColor: "#E5E7EB" }}>
           <Zap className="w-3 h-3"/>
@@ -299,7 +299,7 @@ export default function LeadBank() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50">
-              {isLoading && allLeads.length === 0 && (<tr><td colSpan={9} className="px-4 py-16 text-center text-gray-400 text-sm">Loading Lead Bank…</td></tr>)}
+              {isLoading && allLeads.length === 0 && (<tr><td colSpan={9} className="px-4 py-16 text-center text-gray-400 text-sm">Loading Lead BankÃ¢â‚¬Â¦</td></tr>)}
               {!isLoading && filteredLeads.length === 0 && (<tr>
                   <td colSpan={9} className="px-4 py-16 text-center">
                     <Database className="w-8 h-8 text-gray-200 mx-auto mb-2"/>
@@ -308,7 +308,7 @@ export default function LeadBank() {
                   </td>
                 </tr>)}
               {filteredLeads.map((lead, idx) => {
-            const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || "—";
+            const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || "Ã¢â‚¬â€";
             const initials = [lead.firstName?.[0], lead.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
             const isImported = !!lead.importedToLeadsAt;
             return (<tr key={lead.id} className="hover:bg-gray-50/70 transition-colors" style={{ opacity: isImported ? 0.65 : 1 }}>
@@ -322,27 +322,27 @@ export default function LeadBank() {
                           <div className="font-semibold text-gray-900 text-[12px]">{fullName}</div>
                           <div className="text-[11px] text-gray-400 flex items-center gap-1">
                             {lead.company && (<><Building2 className="w-2.5 h-2.5 flex-shrink-0"/><span className="truncate max-w-[150px]">{lead.company}</span></>)}
-                            {lead.designation && lead.company && <span>·</span>}
+                            {lead.designation && lead.company && <span>Ã‚Â·</span>}
                             {lead.designation && <span className="truncate max-w-[120px]">{lead.designation}</span>}
                           </div>
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-gray-600 max-w-[180px]">
-                      <span className="truncate block">{lead.email ?? "—"}</span>
+                      <span className="truncate block">{lead.email ?? "Ã¢â‚¬â€"}</span>
                     </td>
                     <td className="px-4 py-2.5"><SourceBadge source={lead.source}/></td>
                     <td className="px-4 py-2.5 text-gray-500 max-w-[130px]">
-                      <span className="truncate block">{lead.industry || "—"}</span>
+                      <span className="truncate block">{lead.industry || "Ã¢â‚¬â€"}</span>
                     </td>
                     <td className="px-4 py-2.5 max-w-[180px]">
                       <div className="flex flex-wrap gap-1">
-                        {(lead.intentKeywords ?? []).slice(0, 3).map(k => (<span key={k} className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap" style={{ background: "#F3F0FF", color: "#6D28D9" }}>{k}</span>))}
-                        {!(lead.intentKeywords ?? []).length && <span className="text-gray-300 text-[11px]">—</span>}
+                        {(lead.intentKeywords ?? []).slice(0, 3).map(k => (<span key={k} className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium whitespace-nowrap" style={{ background: "#F3F0FF", color: "#A4285E" }}>{k}</span>))}
+                        {!(lead.intentKeywords ?? []).length && <span className="text-gray-300 text-[11px]">Ã¢â‚¬â€</span>}
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-gray-500">
-                      {lead.city || lead.country ? [lead.city, lead.country].filter(Boolean).join(", ") : "—"}
+                      {lead.city || lead.country ? [lead.city, lead.country].filter(Boolean).join(", ") : "Ã¢â‚¬â€"}
                     </td>
                     <td className="px-4 py-2.5">
                       {isImported ? (<span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold" style={{ background: "#F0FDF4", color: "#166534" }}>
@@ -352,7 +352,7 @@ export default function LeadBank() {
                         </span>)}
                     </td>
                     <td className="px-4 py-2.5 text-gray-400 whitespace-nowrap">
-                      {lead.createdAt ? formatDate(lead.createdAt) : "—"}
+                      {lead.createdAt ? formatDate(lead.createdAt) : "Ã¢â‚¬â€"}
                     </td>
                   </tr>);
         })}
@@ -364,7 +364,7 @@ export default function LeadBank() {
 
         {isFetching && allLeads.length > 0 && (<div className="px-4 py-4 flex items-center justify-center gap-2 text-xs text-gray-400">
             <Loader2 className="w-3.5 h-3.5 animate-spin"/>
-            Loading more leads…
+            Loading more leadsÃ¢â‚¬Â¦
           </div>)}
 
         {!hasMore && filteredLeads.length > 0 && (<div className="px-4 py-3 border-t border-gray-100 text-center text-[11px] text-gray-400">

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Brain, Zap } from "lucide-react";
-// ── Shared keyframes injected once ───────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Shared keyframes injected once Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const CSS = `
 @keyframes ai-pulse-ring {
   0%   { transform: scale(0.9); opacity: 0.7; }
@@ -25,11 +25,11 @@ const CSS = `
   to   { transform: rotate(360deg); }
 }
 @keyframes ai-glow-pulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(124,58,237,0.4); }
-  50%       { box-shadow: 0 0 0 8px rgba(124,58,237,0); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(203,50,115,0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(203,50,115,0); }
 }
 .ai-sweep-bg {
-  background: linear-gradient(270deg, #7C3AED, #6D28D9, #4C1D95, #7C3AED);
+  background: linear-gradient(270deg, #CB3273, #A4285E, #8E1F54, #CB3273);
   background-size: 300% 300%;
   animation: ai-sweep 3s ease infinite;
 }
@@ -51,7 +51,7 @@ function injectCss() {
     document.head.appendChild(style);
     cssInjected = true;
 }
-// ── Cycling messages helper ───────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Cycling messages helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function useCyclingMessage(messages, intervalMs = 2200) {
     const [idx, setIdx] = useState(0);
     useEffect(() => {
@@ -94,10 +94,10 @@ export function AiPanelOverlay({ message, subMessages = [], icon = "sparkles" })
     return (<div className="absolute inset-0 z-50 flex flex-col items-center justify-center rounded-lg ai-slide-up" style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(3px)" }}>
       {/* Glow orb */}
       <div className="relative flex items-center justify-center w-16 h-16 mb-4">
-        <div className="ai-ring absolute inset-0 rounded-full" style={{ border: "2px solid rgba(167,139,250,0.5)" }}/>
-        <div className="ai-ring absolute inset-2 rounded-full" style={{ border: "2px solid rgba(124,58,237,0.6)", animationDelay: "0.6s" }}/>
-        <div className="ai-spin-slow absolute inset-0 rounded-full" style={{ borderTop: "2px solid #A78BFA", borderRight: "2px solid transparent", borderBottom: "2px solid transparent", borderLeft: "2px solid transparent" }}/>
-        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7C3AED, #4C1D95)" }}>
+        <div className="ai-ring absolute inset-0 rounded-full" style={{ border: "2px solid rgba(229,139,181,0.5)" }}/>
+        <div className="ai-ring absolute inset-2 rounded-full" style={{ border: "2px solid rgba(203,50,115,0.6)", animationDelay: "0.6s" }}/>
+        <div className="ai-spin-slow absolute inset-0 rounded-full" style={{ borderTop: "2px solid #E58BB5", borderRight: "2px solid transparent", borderBottom: "2px solid transparent", borderLeft: "2px solid transparent" }}/>
+        <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "linear-gradient(135deg, #CB3273, #8E1F54)" }}>
           <Icon className="w-5 h-5 text-white"/>
         </div>
       </div>
@@ -107,37 +107,37 @@ export function AiPanelOverlay({ message, subMessages = [], icon = "sparkles" })
 
       {/* Dots */}
       <div className="flex gap-1.5 mt-3">
-        {[1, 2, 3].map(n => (<div key={n} className={`ai-dot ai-dot-${n} w-2 h-2 rounded-full`} style={{ background: "#A78BFA" }}/>))}
+        {[1, 2, 3].map(n => (<div key={n} className={`ai-dot ai-dot-${n} w-2 h-2 rounded-full`} style={{ background: "#E58BB5" }}/>))}
       </div>
     </div>);
 }
 const DEFAULT_THINKING = [
-    "Thinking…",
-    "Searching your data…",
-    "Analysing leads…",
-    "Crafting a response…",
+    "ThinkingÃ¢â‚¬Â¦",
+    "Searching your dataÃ¢â‚¬Â¦",
+    "Analysing leadsÃ¢â‚¬Â¦",
+    "Crafting a responseÃ¢â‚¬Â¦",
 ];
 export function AiThinkingBubble({ messages = DEFAULT_THINKING }) {
     injectCss();
     const text = useCyclingMessage(messages, 1800);
     return (<div className="flex justify-start mb-3 ai-slide-up">
       {/* Avatar */}
-      <div className="w-6 h-6 rounded-full flex-shrink-0 mr-2 flex items-center justify-center mt-0.5 ai-glow" style={{ background: "linear-gradient(135deg,#7C3AED,#4F35A8)" }}>
+      <div className="w-6 h-6 rounded-full flex-shrink-0 mr-2 flex items-center justify-center mt-0.5 ai-glow" style={{ background: "linear-gradient(135deg,#CB3273,#A4285E)" }}>
         <Sparkles className="w-3 h-3 text-white"/>
       </div>
 
       {/* Bubble */}
       <div className="px-4 py-3 rounded-2xl rounded-tl-sm flex items-center gap-3" style={{
-            background: "linear-gradient(135deg,#1E1A30,#161225)",
-            border: "1px solid rgba(124,58,237,0.35)",
-            boxShadow: "0 0 14px rgba(124,58,237,0.18)",
+            background: "linear-gradient(135deg,#2A0A18,#2A0A18)",
+            border: "1px solid rgba(203,50,115,0.35)",
+            boxShadow: "0 0 14px rgba(203,50,115,0.18)",
             minWidth: 170,
         }}>
         {/* Animated dots */}
         <div className="flex gap-1">
-          {[1, 2, 3].map(n => (<div key={n} className={`ai-dot ai-dot-${n} w-2 h-2 rounded-full`} style={{ background: "#A78BFA" }}/>))}
+          {[1, 2, 3].map(n => (<div key={n} className={`ai-dot ai-dot-${n} w-2 h-2 rounded-full`} style={{ background: "#E58BB5" }}/>))}
         </div>
-        <span className="text-[12px] font-medium ai-slide-up" key={text} style={{ color: "#A78BFA" }}>
+        <span className="text-[12px] font-medium ai-slide-up" key={text} style={{ color: "#E58BB5" }}>
           {text}
         </span>
       </div>

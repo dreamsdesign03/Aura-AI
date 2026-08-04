@@ -16,7 +16,7 @@ function formatRelative(iso) {
         return `${Math.round(diff / 86400000)}d ago`;
     }
     catch {
-        return "—";
+        return "Ã¢â‚¬â€";
     }
 }
 const AUTONOMOUS_AGENTS = [
@@ -39,8 +39,8 @@ const AUTONOMOUS_AGENTS = [
         tagline: "Brand Audit + First-Touch Outreach",
         desc: "Generates a personalised AI brand audit for each live-website lead and sends it via email. Creates HubSpot contact + deal automatically.",
         icon: Brain,
-        color: "#7C3AED",
-        bg: "#F5F3FF",
+        color: "#CB3273",
+        bg: "#FBE9F1",
         skills: ["Google Gemini AI brand audit", "Brevo email delivery", "HubSpot CRM sync", "Booking link injection"],
         href: "/agents/control",
         activeKey: "salesActive",
@@ -49,7 +49,7 @@ const AUTONOMOUS_AGENTS = [
     {
         key: "followup",
         name: "Follow-Up Agent",
-        tagline: "D2 · D7 · D10 Outreach Sequences",
+        tagline: "D2 Ã‚Â· D7 Ã‚Â· D10 Outreach Sequences",
         desc: "Tracks every lead in the audit_sent stage and fires Day 2, Day 7, and Day 10 follow-up emails automatically until they reply or book a call.",
         icon: RefreshCw,
         color: "#10B981",
@@ -81,7 +81,7 @@ export default function Agents() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2.5 mb-1">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #7C3AED, #4F35A8)" }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg, #CB3273, #A4285E)" }}>
             <Bot className="w-5 h-5 text-white"/>
           </div>
           <h1 className="text-xl font-bold text-gray-900">AI Agents</h1>
@@ -91,15 +91,15 @@ export default function Agents() {
             </span>)}
         </div>
         <p className="text-sm text-gray-500 ml-11.5">
-          5 autonomous agents running 24×7 — hunting leads, auditing brands, sending outreach, and booking calls for Dreamsdesign.
+          5 autonomous agents running 24Ãƒâ€”7 Ã¢â‚¬â€ hunting leads, auditing brands, sending outreach, and booking calls for Dreamsdesign.
         </p>
       </div>
 
-      {/* ── Stats bar ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Stats bar Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {orchStatus && pipeline && (<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-                { label: "Total Leads", value: pipeline.total ?? 0, icon: Users, color: "#4F35A8" },
-                { label: "Audits Sent", value: orchStatus.totalAuditsSent ?? 0, icon: Mail, color: "#7C3AED" },
+                { label: "Total Leads", value: pipeline.total ?? 0, icon: Users, color: "#A4285E" },
+                { label: "Audits Sent", value: orchStatus.totalAuditsSent ?? 0, icon: Mail, color: "#CB3273" },
                 { label: "Follow-Ups", value: orchStatus.totalFollowupsSent ?? 0, icon: Send, color: "#10B981" },
                 { label: "Calls Booked", value: pipeline.stageCount["call_booked"] ?? 0, icon: BarChart3, color: "#C9A84C" },
             ].map(({ label, value, icon: Icon, color }) => (<div key={label} className="rounded-xl p-4 border text-center" style={{ background: "#FAFAFA", borderColor: "hsl(220 13% 91%)" }}>
@@ -111,24 +111,24 @@ export default function Agents() {
             </div>))}
         </div>)}
 
-      {/* ── ACTIVE AGENTS ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ ACTIVE AGENTS Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Active Agents</span>
           <div className="h-px flex-1" style={{ background: "hsl(220 13% 91%)" }}/>
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white" style={{ background: "#059669" }}>● 4 Online</span>
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white" style={{ background: "#059669" }}>Ã¢â€”Â 4 Online</span>
         </div>
 
         {/* Lead Hunter */}
         <div className="mb-4">
           <Link href="/agents/lead-hunter">
-            <div className="rounded-2xl border overflow-hidden cursor-pointer group transition-all hover:shadow-lg" style={{ background: "#ffffff", borderColor: hunterStatus?.active ? "#7C3AED" : "hsl(220 13% 91%)" }}>
-              <div className="h-1.5 w-full" style={{ background: hunterStatus?.active ? "linear-gradient(90deg, #7C3AED, #4F35A8, #7C3AED)" : "#E5E7EB", backgroundSize: "200% 100%", animation: hunterStatus?.active ? "shimmer 2s linear infinite" : "none" }}/>
+            <div className="rounded-2xl border overflow-hidden cursor-pointer group transition-all hover:shadow-lg" style={{ background: "#ffffff", borderColor: hunterStatus?.active ? "#CB3273" : "hsl(220 13% 91%)" }}>
+              <div className="h-1.5 w-full" style={{ background: hunterStatus?.active ? "linear-gradient(90deg, #CB3273, #A4285E, #CB3273)" : "#E5E7EB", backgroundSize: "200% 100%", animation: hunterStatus?.active ? "shimmer 2s linear infinite" : "none" }}/>
               <div className="p-5">
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex items-center gap-3.5">
                     <div className="relative flex-shrink-0">
-                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, #7C3AED 0%, #4F35A8 100%)" }}>
+                      <div className="w-14 h-14 rounded-2xl flex items-center justify-center shadow-lg" style={{ background: "linear-gradient(135deg, #CB3273 0%, #A4285E 100%)" }}>
                         <Target className="w-7 h-7 text-white"/>
                       </div>
                       {hunterStatus?.active && (<span className="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-white" style={{ background: "#059669" }}>
@@ -140,10 +140,10 @@ export default function Agents() {
                       <div className="flex items-center gap-2 mb-0.5">
                         <h2 className="text-[17px] font-bold text-gray-900">Lead Hunter Agent</h2>
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={hunterStatus?.active ? { background: "#D1FAE5", color: "#065F46" } : { background: "#F3F4F6", color: "#6B7280" }}>
-                          {hunterStatus?.active ? "● Hunting" : "Idle"}
+                          {hunterStatus?.active ? "Ã¢â€”Â Hunting" : "Idle"}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-500">Virtual BDR — hunts ICP-matched leads from Apollo, qualifies with BANT scoring</p>
+                      <p className="text-sm text-gray-500">Virtual BDR Ã¢â‚¬â€ hunts ICP-matched leads from Apollo, qualifies with BANT scoring</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
@@ -152,9 +152,9 @@ export default function Agents() {
                 </div>
                 <div className="grid grid-cols-3 gap-3 mb-4">
                   {[
-            { label: "Leads Found", value: cfg?.totalLeadsFound ?? 0, icon: <Users className="w-3.5 h-3.5"/>, color: "#7C3AED" },
+            { label: "Leads Found", value: cfg?.totalLeadsFound ?? 0, icon: <Users className="w-3.5 h-3.5"/>, color: "#CB3273" },
             { label: "Qualified", value: cfg?.totalQualified ?? 0, icon: <CheckCircle2 className="w-3.5 h-3.5"/>, color: "#059669" },
-            { label: "In Pipeline", value: cfg?.totalPipelineAdded ?? 0, icon: <Activity className="w-3.5 h-3.5"/>, color: "#4F35A8" },
+            { label: "In Pipeline", value: cfg?.totalPipelineAdded ?? 0, icon: <Activity className="w-3.5 h-3.5"/>, color: "#A4285E" },
         ].map(({ label, value, icon, color }) => (<div key={label} className="rounded-xl p-3" style={{ background: "#FAFAFA", border: "1px solid hsl(220 13% 93%)" }}>
                       <div className="flex items-center gap-1.5 mb-1" style={{ color }}>
                         {icon}
@@ -164,12 +164,12 @@ export default function Agents() {
                     </div>))}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {["ICP-aware hunting", "Apollo.io integration", "BANT scoring", "Anti-duplicate guard", "24×7 automation"].map(skill => (<span key={skill} className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "#F5F3FF", color: "#7C3AED" }}>{skill}</span>))}
+                  {["ICP-aware hunting", "Apollo.io integration", "BANT scoring", "Anti-duplicate guard", "24Ãƒâ€”7 automation"].map(skill => (<span key={skill} className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "#FBE9F1", color: "#CB3273" }}>{skill}</span>))}
                 </div>
                 <div className="flex items-center justify-between text-[12px]" style={{ color: "#9CA3AF" }}>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5"/>
-                    Last run: <span className="font-medium text-gray-600 ml-0.5">{cfg ? formatRelative(cfg.lastRunAt) : "—"}</span>
+                    Last run: <span className="font-medium text-gray-600 ml-0.5">{cfg ? formatRelative(cfg.lastRunAt) : "Ã¢â‚¬â€"}</span>
                   </span>
                   <span className="flex items-center gap-1">
                     <Zap className="w-3.5 h-3.5"/>
@@ -198,7 +198,7 @@ export default function Agents() {
                         <div>
                           <div className="text-[14px] font-bold text-gray-900">{name}</div>
                           <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={isActive ? { background: color + "18", color } : { background: "#F3F4F6", color: "#9CA3AF" }}>
-                            {isActive ? "● Online" : "Paused"}
+                            {isActive ? "Ã¢â€”Â Online" : "Paused"}
                           </span>
                         </div>
                       </div>
@@ -223,7 +223,7 @@ export default function Agents() {
         </div>
       </section>
 
-      {/* ── SALES BRAIN ORCHESTRATOR ── */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ SALES BRAIN ORCHESTRATOR Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Sales Brain Orchestrator</span>
@@ -231,7 +231,7 @@ export default function Agents() {
         </div>
 
         <Link href="/agents/control">
-          <div className="rounded-2xl overflow-hidden cursor-pointer group transition-all hover:shadow-xl" style={{ background: "linear-gradient(135deg, #0A0818 0%, #1A1040 100%)", border: "1px solid #2D1F5E" }}>
+          <div className="rounded-2xl overflow-hidden cursor-pointer group transition-all hover:shadow-xl" style={{ background: "linear-gradient(135deg, #2A0A18 0%, #4A1030 100%)", border: "1px solid #5A1232" }}>
             <div className="p-6">
               <div className="flex items-start justify-between mb-5">
                 <div className="flex items-center gap-3">
@@ -242,11 +242,11 @@ export default function Agents() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[17px] font-bold text-white">Sales Brain</span>
                       <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={orchStatus?.brainActive ? { background: "rgba(16,185,129,0.2)", color: "#34D399" } : { background: "rgba(255,255,255,0.08)", color: "#9CA3AF" }}>
-                        {orchStatus?.brainActive ? "● Orchestrating" : "Paused"}
+                        {orchStatus?.brainActive ? "Ã¢â€”Â Orchestrating" : "Paused"}
                       </span>
                     </div>
                     <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                      Runs every 30 min · Sends daily report at 08:30 AM IST to dreamsdesign.in@gmail.com
+                      Runs every 30 min Ã‚Â· Sends daily report at 08:30 AM IST to dreamsdesign.in@gmail.com
                     </p>
                   </div>
                 </div>
@@ -258,9 +258,9 @@ export default function Agents() {
               {/* Agent network */}
               <div className="grid grid-cols-4 gap-3 mb-5">
                 {[
-            { label: "Lead Hunter", icon: Target, color: "#7C3AED", activeKey: null, desc: "Finds & qualifies" },
+            { label: "Lead Hunter", icon: Target, color: "#CB3273", activeKey: null, desc: "Finds & qualifies" },
             { label: "Scout", icon: Radar, color: "#3B82F6", activeKey: "scoutActive", desc: "Checks websites" },
-            { label: "Sales Agent", icon: Brain, color: "#A78BFA", activeKey: "salesActive", desc: "Sends audits" },
+            { label: "Sales Agent", icon: Brain, color: "#E58BB5", activeKey: "salesActive", desc: "Sends audits" },
             { label: "Follow-Up", icon: RefreshCw, color: "#34D399", activeKey: "followupActive", desc: "Nurtures pipeline" },
         ].map(({ label, icon: Icon, color, activeKey, desc }) => {
             const isOn = activeKey ? (orchStatus ? Boolean(orchStatus[activeKey]) : false) : (hunterStatus?.active ?? false);
