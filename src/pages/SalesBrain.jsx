@@ -88,7 +88,7 @@ function LeadBrainTab() {
     }, [chatHistory]);
     const filtered = leads.filter(l => {
         const q = search.toLowerCase();
-        return !q || `${l.firstName} ${l.lastName} ${l.company} ${l.email}`.toLowerCase().includes(q);
+        return !q || `${l.firstName || ""} ${l.lastName || ""} ${l.company || ""} ${l.email || ""}`.toLowerCase().includes(q);
     });
     const sel = selectedId ? leads.find(l => l.id === selectedId) ?? null : null;
     async function refreshMemory() {

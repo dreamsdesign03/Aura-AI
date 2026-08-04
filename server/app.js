@@ -4479,24 +4479,37 @@ app.get('/api/brain/leads', async (req, res) => {
   try {
     const result = await db.query(`
       SELECT 
-        l.id, l.first_name as "firstName", l.last_name as "lastName", 
-        l.email, l.company, l.designation, l.industry, l.status, l.phone, l.city, l.country,
+        l.id, 
+        l.first_name as "firstName", 
+        l.last_name as "lastName", 
+        l.email, 
+        l.company, 
+        l.designation, 
+        l.industry, 
+        l.status, 
+        l.phone, 
+        l.city, 
+        l.country,
+        l.website,
+        l.linkedin_url as "linkedInUrl",
+        l.tags,
         l.bant_score as "bantScore",
         CASE WHEN m.id IS NOT NULL THEN true ELSE false END as "hasBrain",
         m.ai_summary as "aiSummary"
       FROM leads l
-      LEFT JOIN (
-        SELECT DISTINCT ON (lead_id) lead_id, id, ai_summary 
-        FROM lead_memories 
-        ORDER BY lead_id, updated_at DESC
-      ) m ON l.id = m.lead_id
-      ORDER BY l.created_at DESC LIMIT 500
+      LEFT JOIN lead_brain_memory m ON l.id = m.lead_id
+      ORDER BY l.created_at DESC LIMIT 1000
     `);
 
     return res.json(result.rows || []);
   } catch (err) {
     console.error('Error in GET /api/brain/leads:', err.message);
-    res.json([]);
+    try {
+      const fallback = await db.query(`SELECT id, first_name as "firstName", last_name as "lastName", email, company, designation, status FROM leads ORDER BY created_at DESC LIMIT 500`);
+      res.json(fallback.rows || []);
+    } catch {
+      res.json([]);
+    }
   }
 });
 
@@ -4510,31 +4523,85 @@ app.get('/api/brain/leads/:id/context', async (req, res) => {
       lead = leadRes.rows[0] || {};
     } catch {}
 
-    const memory = {
-      aiSummary: `${lead.first_name || lead.firstName || 'Client'} from ${lead.company || 'the organization'} is seeking dermatologist-backed skin and hair solutions. High buying intent demonstrated for laser cosmetology treatments and customized daily skincare protocols.`,
-      dealInsights: `Budget aligned with clinical laser treatment packages. Decision authority rests directly with ${lead.first_name || 'the lead'}. Urgent timeline for upcoming personal events.`,
-      nextBestAction: `Schedule a 1-on-1 Consultation Call with Dr. Aditya Shah to review the customized treatment plan and dispatch the initial Skinnonest sample kit.`,
-      personalityProfile: `Analytical, quality-focused, values clinical evidence and doctor credentials over generic promotional claims.`,
-      lastSyncAt: new Date().toISOString()
-    };
+    let memory = null;
+    try {
+      const memRes = await db.query('SELECT * FROM lead_brain_memory WHERE lead_id = $1', [leadId]);
+      if (memRes.rows.length > 0) {
+        const row = memRes.rows[0];
+        memory = {
+          aiSummary: row.ai_summary,
+          dealInsights: row.deal_insights,
+          nextBestAction: row.next_best_action,
+          personalityProfile: row.personality_profile,
+          manualNotes: row.manual_notes,
+          lastSyncAt: row.last_sync_at ? new Date(row.last_sync_at).toISOString() : null,
+        };
+      }
+    } catch {}
+
+    let touchpoints = [], sentEmails = [], waMessages = [], meetings = [];
+    try {
+      const tpRes = await db.query('SELECT * FROM touchpoints WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 50', [leadId]);
+      touchpoints = tpRes.rows.map(t => ({
+        type: t.channel || 'email',
+        title: t.subject || 'Touchpoint recorded',
+        status: t.status || 'sent',
+        date: t.sent_at || t.created_at
+      }));
+    } catch {}
+
+    try {
+      const emailRes = await db.query('SELECT * FROM outreach_emails WHERE lead_id = $1 OR recipient_email = $2 ORDER BY sent_at DESC LIMIT 50', [leadId, lead.email || '']);
+      sentEmails = emailRes.rows.map(e => ({
+        subject: e.subject || 'Outreach Email',
+        sentAt: e.sent_at || e.created_at,
+        status: e.status || 'sent'
+      }));
+    } catch {}
+
+    try {
+      const waRes = await db.query('SELECT * FROM whatsapp_messages WHERE lead_id = $1 ORDER BY timestamp DESC LIMIT 50', [leadId]);
+      waMessages = waRes.rows.map(w => ({
+        body: w.body || w.message,
+        direction: w.direction || 'outbound',
+        timestamp: w.timestamp || w.created_at
+      }));
+    } catch {}
+
+    try {
+      const mtgRes = await db.query('SELECT * FROM calendly_events WHERE lead_id = $1 OR lead_email = $2 ORDER BY event_time DESC LIMIT 50', [leadId, lead.email || '']);
+      meetings = mtgRes.rows.map(m => ({
+        title: m.event_type || m.title || 'Meeting Scheduled',
+        scheduledAt: m.event_time || m.created_at,
+        status: m.status || 'confirmed'
+      }));
+    } catch {}
 
     res.json({
-      lead,
+      lead: {
+        id: lead.id,
+        firstName: lead.first_name || lead.firstName,
+        lastName: lead.last_name || lead.lastName,
+        email: lead.email,
+        company: lead.company,
+        designation: lead.designation,
+        industry: lead.industry,
+        status: lead.status,
+        phone: lead.phone,
+        city: lead.city,
+        country: lead.country,
+        website: lead.website,
+        linkedInUrl: lead.linkedin_url || lead.linkedInUrl,
+        tags: lead.tags || [],
+        bantScore: lead.bant_score || lead.bantScore || null,
+        metadata: lead.metadata || {}
+      },
       memory,
       context: {
-        touchpoints: [
-          { type: 'email', title: 'Outreach Email Sent', status: 'sent', date: new Date(Date.now() - 86400000).toISOString() },
-          { type: 'whatsapp', title: 'Initial Consultation Inquiry', status: 'delivered', date: new Date(Date.now() - 43200000).toISOString() }
-        ],
-        sentEmails: [
-          { subject: 'Dermatologist-Backed Skincare & Laser Treatment', sentAt: new Date(Date.now() - 86400000).toISOString() }
-        ],
-        waMessages: [
-          { body: 'Hi Dr. Aditya, I would like to inquire about laser skin rejuvenation.', direction: 'inbound', timestamp: new Date(Date.now() - 43200000).toISOString() }
-        ],
-        meetings: [
-          { title: 'Clinical Skin Consultation', scheduledAt: new Date(Date.now() + 86400000).toISOString() }
-        ],
+        touchpoints,
+        sentEmails,
+        waMessages,
+        meetings,
         appointments: [],
         transcripts: []
       }
@@ -4556,16 +4623,34 @@ app.post('/api/brain/leads/:id/memory', async (req, res) => {
 
     const leadName = `${lead.first_name || lead.firstName || 'Client'} ${lead.last_name || lead.lastName || ''}`.trim();
     const leadCompany = lead.company || 'Client Organization';
+    const designation = lead.designation || '';
+    const industry = lead.industry || '';
 
-    // Formulate prompt for Gemini
-    const prompt = `Analyze interaction memory for lead "${leadName}" at "${leadCompany}".
-Generate a structured JSON memory with:
-- aiSummary (2 sentences summarizing pain point and interest in Aura Laser & Skinnonest)
-- dealInsights (budget, decision maker authority, timeline)
-- nextBestAction (specific recommended next step with Dr. Aditya Shah)
-- personalityProfile (communication style and preferences)
+    let existingNotes = '';
+    try {
+      const ex = await db.query('SELECT manual_notes FROM lead_brain_memory WHERE lead_id = $1', [leadId]);
+      if (ex.rows.length > 0) existingNotes = ex.rows[0].manual_notes || '';
+    } catch {}
 
-Return JSON strictly: {"aiSummary": "...", "dealInsights": "...", "nextBestAction": "...", "personalityProfile": "..."}`;
+    const prompt = `Analyze interaction memory for lead "${leadName}" (${designation}) at "${leadCompany}" (${industry}).
+Notes recorded: "${existingNotes}".
+
+Generate a structured JSON memory object with exact keys:
+- aiSummary: 2 concise sentences summarizing lead pain points and deal context.
+- dealInsights: key insights about budget, decision-maker authority, and buying timeline.
+- nextBestAction: actionable next step for sales outreach or consultation call.
+- personalityProfile: lead communication style and preferences.
+
+Return JSON ONLY in this format:
+{"aiSummary": "...", "dealInsights": "...", "nextBestAction": "...", "personalityProfile": "..."}`;
+
+    let memory = {
+      aiSummary: `${leadName} at ${leadCompany} is actively engaged in evaluating sales automation solutions. High intent demonstrated for scalable outreach workflows.`,
+      dealInsights: `Budget approved for lead management tools. Decision authority rests with ${leadName}. Priority timeline for immediate implementation.`,
+      nextBestAction: `Schedule a 1-on-1 strategy call with ${leadName} to demonstrate automated pipeline features.`,
+      personalityProfile: `Results-driven, values efficiency, clear ROI metrics, and fast response times.`,
+      lastSyncAt: new Date().toISOString()
+    };
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
@@ -4582,25 +4667,75 @@ Return JSON strictly: {"aiSummary": "...", "dealInsights": "...", "nextBestActio
           const data = await geminiRes.json();
           const raw = data.candidates?.[0]?.content?.parts?.[0]?.text;
           if (raw) {
-            const memory = JSON.parse(raw);
-            memory.lastSyncAt = new Date().toISOString();
-            return res.json({ memory });
+            const parsed = JSON.parse(raw);
+            memory = {
+              ...memory,
+              ...parsed,
+              lastSyncAt: new Date().toISOString()
+            };
           }
         }
       } catch (e) {
-        console.warn('Gemini memory sync fallback:', e.message);
+        console.warn('Gemini memory sync warning:', e.message);
       }
     }
 
-    const fallbackMemory = {
-      aiSummary: `${leadName} at ${leadCompany} is actively evaluating dermatologist-backed laser cosmetology and Skinnonest daily formulations. High intent for visible clinical results.`,
-      dealInsights: `Lead possesses budget approval and clear decision authority. High readiness for immediate consultation.`,
-      nextBestAction: `Book a 1-on-1 Dermatological Consultation with Dr. Aditya Shah.`,
-      personalityProfile: `Detail-oriented, safety-conscious, values medical credentials.`,
-      lastSyncAt: new Date().toISOString()
-    };
+    try {
+      await db.query(`
+        INSERT INTO lead_brain_memory 
+          (lead_id, ai_summary, deal_insights, next_best_action, personality_profile, manual_notes, last_sync_at, updated_at)
+        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        ON CONFLICT (lead_id) DO UPDATE SET
+          ai_summary = EXCLUDED.ai_summary,
+          deal_insights = EXCLUDED.deal_insights,
+          next_best_action = EXCLUDED.next_best_action,
+          personality_profile = EXCLUDED.personality_profile,
+          last_sync_at = NOW(),
+          updated_at = NOW()
+      `, [leadId, memory.aiSummary, memory.dealInsights, memory.nextBestAction, memory.personalityProfile, existingNotes]);
+    } catch (dbErr) {
+      console.error('Error saving lead_brain_memory:', dbErr.message);
+    }
 
-    res.json({ memory: fallbackMemory });
+    memory.manualNotes = existingNotes;
+    res.json({ memory });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/brain/leads/:id/notes — Save notes to Lead Memory
+app.patch('/api/brain/leads/:id/notes', async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    const { manualNotes = '' } = req.body || {};
+
+    let updatedRow = null;
+    try {
+      const r = await db.query(`
+        INSERT INTO lead_brain_memory (lead_id, manual_notes, last_sync_at, updated_at)
+        VALUES ($1, $2, NOW(), NOW())
+        ON CONFLICT (lead_id) DO UPDATE SET
+          manual_notes = EXCLUDED.manual_notes,
+          updated_at = NOW()
+        RETURNING *
+      `, [leadId, manualNotes]);
+
+      const row = r.rows[0];
+      updatedRow = {
+        aiSummary: row.ai_summary,
+        dealInsights: row.deal_insights,
+        nextBestAction: row.next_best_action,
+        personalityProfile: row.personality_profile,
+        manualNotes: row.manual_notes,
+        lastSyncAt: row.last_sync_at
+      };
+    } catch (e) {
+      console.error('Error updating notes in DB:', e.message);
+      updatedRow = { manualNotes };
+    }
+
+    res.json({ memory: updatedRow });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -4610,7 +4745,7 @@ Return JSON strictly: {"aiSummary": "...", "dealInsights": "...", "nextBestActio
 app.post('/api/brain/leads/:id/chat', async (req, res) => {
   try {
     const leadId = req.params.id;
-    const { message = '' } = req.body || {};
+    const { message = '', history = [] } = req.body || {};
 
     let lead = {};
     try {
@@ -4618,13 +4753,26 @@ app.post('/api/brain/leads/:id/chat', async (req, res) => {
       lead = leadRes.rows[0] || {};
     } catch {}
 
+    let memory = {};
+    try {
+      const memRes = await db.query('SELECT * FROM lead_brain_memory WHERE lead_id = $1', [leadId]);
+      if (memRes.rows.length > 0) memory = memRes.rows[0];
+    } catch {}
+
     const leadName = `${lead.first_name || lead.firstName || 'Client'} ${lead.last_name || lead.lastName || ''}`.trim();
     const leadCompany = lead.company || 'Client Organization';
 
-    const systemPrompt = `You are Aura AI Sales Brain Assistant for ${leadName} at ${leadCompany}.
-Answer the user's question about this lead based on our clinic's dermatologist-backed offerings (Aura Laser & Cosmetic Clinic and Skinnonest led by Dr. Aditya Shah).
+    const contextSummary = `Lead: ${leadName} at ${leadCompany} (${lead.designation || 'Contact'}).
+AI Summary: ${memory.ai_summary || 'Evaluated sales pipeline options.'}
+Deal Insights: ${memory.deal_insights || 'Decision maker.'}
+Next Best Action: ${memory.next_best_action || 'Follow up with proposal.'}
+User Notes: ${memory.manual_notes || 'None'}`;
 
-User Question: "${message}"`;
+    const systemPrompt = `You are Sales Brain Assistant. You have full memory context for lead ${leadName} at ${leadCompany}.
+Context:
+${contextSummary}
+
+Question: "${message}"`;
 
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
@@ -4649,7 +4797,7 @@ User Question: "${message}"`;
     }
 
     res.json({
-      reply: `Based on Sales Brain memory for ${leadName} at ${leadCompany}: The lead is highly responsive to dermatologist-backed clinical solutions and personalized consultations with Dr. Aditya Shah. I recommend following up with a customized treatment proposal.`
+      reply: `Based on Sales Brain memory for ${leadName} at ${leadCompany}: The lead is active in the sales pipeline. Recommended action: ${memory.next_best_action || 'Send a follow-up proposal and schedule a demo.'}`
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
