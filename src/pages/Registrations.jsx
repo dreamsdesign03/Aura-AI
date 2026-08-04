@@ -91,7 +91,7 @@ export default function Registrations() {
       <div className="grid grid-cols-3 gap-4 mb-6">
         {[
             { label: "Total Signups", value: total, icon: Users, color: "#A4285E" },
-            { label: "Pending Review", value: pending, icon: Clock, color: "#F59E0B" },
+            { label: "Pending Review", value: pending, icon: Clock, color: "#DE377C" },
             { label: "Approved", value: approved, icon: CheckCircle2, color: "#10B981" },
         ].map(({ label, value, icon: Icon, color }) => (<div key={label} className="bg-white rounded-xl border border-gray-100 p-5 flex items-center gap-4">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${color}18` }}>

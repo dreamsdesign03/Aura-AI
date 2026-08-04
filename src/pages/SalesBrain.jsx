@@ -8,10 +8,10 @@ import { useGetWhatsAppConversations, useGetWhatsAppMessages, getGetWhatsAppMess
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const STATE_CONFIG = {
     hook_sent: { label: "Hook Sent", bg: "#F3F4F6", color: "#6B7280" },
-    awaiting_yes: { label: "Awaiting YES", bg: "#FEF3C7", color: "#D97706" },
+    awaiting_yes: { label: "Awaiting YES", bg: "#FEF3C7", color: "#DE377C" },
     report_sent: { label: "Report Sent", bg: "#EFF6FF", color: "#2563EB" },
     qualifying: { label: "Qualifying", bg: "#FBE9F1", color: "#CB3273" },
-    appointment_pitched: { label: "Appt. Pitched", bg: "#FFF7ED", color: "#EA580C" },
+    appointment_pitched: { label: "Appt. Pitched", bg: "#FFF7ED", color: "#DE377C" },
     appointment_booked: { label: "Appt. Booked", bg: "#F0FDF4", color: "#16A34A" },
     opted_out: { label: "Opted Out", bg: "#FEF2F2", color: "#DC2626" },
 };
@@ -145,7 +145,7 @@ function LeadBrainTab() {
         setChatLoading(false);
     }
     const statusColor = (s) => {
-        const map = { new: "#6B7280", contacted: "#2563EB", qualified: "#CB3273", proposal: "#EA580C", won: "#16A34A", lost: "#DC2626", nurture: "#D97706" };
+        const map = { new: "#6B7280", contacted: "#2563EB", qualified: "#CB3273", proposal: "#DE377C", won: "#16A34A", lost: "#DC2626", nurture: "#DE377C" };
         return map[s] ?? "#6B7280";
     };
     return (<div className="flex flex-1 overflow-hidden" style={{ height: "100%" }}>
@@ -389,7 +389,7 @@ function LeadBrainTab() {
                             date: new Date(`${a.scheduledDate}T${a.scheduledTime}`),
                             type: "appointment",
                             icon: MessageSquare,
-                            color: "#EA580C",
+                            color: "#DE377C",
                             title: `Discovery Call — ${a.status ?? "scheduled"}`,
                             body: a.meetingLink ?? "",
                         });
@@ -631,7 +631,7 @@ function AnalyticsTab() {
     const yesCount = analytics ? Math.round(analytics.totalInitiated * (analytics.yesRate / 100)) : 0;
     const funnelSteps = analytics ? [
         { label: "Initiated", count: analytics.totalInitiated, color: "#6B7280" },
-        { label: "YES (replied)", count: yesCount, color: "#D97706" },
+        { label: "YES (replied)", count: yesCount, color: "#DE377C" },
         { label: "Report Sent", count: analytics.reportsSent, color: "#2563EB" },
         { label: "Appt. Booked", count: analytics.appointmentsBooked, color: "#16A34A" },
         { label: "Opted Out", count: analytics.optedOut, color: "#DC2626" },

@@ -2,7 +2,7 @@
 const C = {
     p: "#CB3273", p2: "#E15C94", p3: "#FBE9F1", p4: "#F3C9DB", p5: "#FFF7FB",
     d: "#E03128", d2: "#FFF1F0", d3: "#FFCCC7",
-    am: "#C27D0E", am2: "#FFFBF0", am3: "#FFE49A",
+    am: "#DE377C", am2: "#FFFBF0", am3: "#FFE49A",
     g: "#0A7A52", g2: "#F0FDF8", g3: "#A3E6CC",
     n9: "#111217", n7: "#3A3D4A", n5: "#6B6F80", n3: "#C4C7D4",
     n2: "#E8EAF0", n1: "#F4F5F8", n0: "#FAFAFA", wh: "#FFFFFF",
@@ -38,7 +38,7 @@ function ScoreBar({ name, score }) {
     const grad = clampedScore <= 3
         ? `linear-gradient(90deg,${C.d},#F06B65)`
         : clampedScore <= 5
-            ? `linear-gradient(90deg,${C.am},#E8A020)`
+            ? `linear-gradient(90deg,${C.am},#DE377C)`
             : `linear-gradient(90deg,${C.g},#22C490)`;
     return (<div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 7 }}>
@@ -371,11 +371,11 @@ export function generateReportHtml(data, auditDate) {
     const pillCls = (t) => t === "urgent" ? "pr" : t === "high" ? "pa" : t === "medium" ? "pp" : "pn";
     const wkBg = (t) => t === "urgent" ? "var(--d2)" : t === "high" ? "var(--am2)" : t === "medium" ? "var(--p3)" : "var(--g2)";
     const wkClr = (t) => t === "urgent" ? "var(--d)" : t === "high" ? "var(--am)" : t === "medium" ? "var(--p)" : "var(--g)";
-    const barClr = (s) => s <= 3 ? "linear-gradient(90deg,var(--d),#F06B65)" : s <= 6 ? "linear-gradient(90deg,var(--am),#E8A020)" : "linear-gradient(90deg,var(--g),#22C490)";
+    const barClr = (s) => s <= 3 ? "linear-gradient(90deg,var(--d),#F06B65)" : s <= 6 ? "linear-gradient(90deg,var(--am),#DE377C)" : "linear-gradient(90deg,var(--g),#22C490)";
     const scoreClr = (s) => s <= 3 ? "var(--d)" : s <= 6 ? "var(--am)" : "var(--g)";
     const scoreLabel = (s) => s >= 70 ? "Good Health" : s >= 50 ? "Needs Work" : s >= 30 ? "At Risk" : "Critical Risk";
     const css = `
-:root{--p:#CB3273;--p2:#E15C94;--p3:#FBE9F1;--p4:#F3C9DB;--p5:#FFF7FB;--d:#E03128;--d2:#FFF1F0;--d3:#FFCCC7;--am:#C27D0E;--am2:#FFFBF0;--am3:#FFE49A;--g:#0A7A52;--g2:#F0FDF8;--g3:#A3E6CC;--n9:#111217;--n8:#1E2029;--n7:#3A3D4A;--n5:#6B6F80;--n3:#C4C7D4;--n2:#E8EAF0;--n1:#F4F5F8;--n0:#FAFAFA;--wh:#FFFFFF;--sh1:0 1px 3px rgba(17,18,23,.07),0 1px 2px rgba(17,18,23,.04);--sh2:0 4px 12px rgba(17,18,23,.06),0 2px 4px rgba(17,18,23,.04);--sh3:0 8px 24px rgba(203,50,115,.12),0 2px 6px rgba(17,18,23,.06);--shp:0 12px 32px rgba(203,50,115,.18),0 2px 8px rgba(203,50,115,.08);--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--s10:40px;--s12:48px;--r1:6px;--r2:10px;--r3:16px;--r4:22px;--px:18px}
+:root{--p:#CB3273;--p2:#E15C94;--p3:#FBE9F1;--p4:#F3C9DB;--p5:#FFF7FB;--d:#E03128;--d2:#FFF1F0;--d3:#FFCCC7;--am:#DE377C;--am2:#FFFBF0;--am3:#FFE49A;--g:#0A7A52;--g2:#F0FDF8;--g3:#A3E6CC;--n9:#111217;--n8:#1E2029;--n7:#3A3D4A;--n5:#6B6F80;--n3:#C4C7D4;--n2:#E8EAF0;--n1:#F4F5F8;--n0:#FAFAFA;--wh:#FFFFFF;--sh1:0 1px 3px rgba(17,18,23,.07),0 1px 2px rgba(17,18,23,.04);--sh2:0 4px 12px rgba(17,18,23,.06),0 2px 4px rgba(17,18,23,.04);--sh3:0 8px 24px rgba(203,50,115,.12),0 2px 6px rgba(17,18,23,.06);--shp:0 12px 32px rgba(203,50,115,.18),0 2px 8px rgba(203,50,115,.08);--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:20px;--s6:24px;--s8:32px;--s10:40px;--s12:48px;--r1:6px;--r2:10px;--r3:16px;--r4:22px;--px:18px}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}html{-webkit-text-size-adjust:100%}
 body{font-family:'Plus Jakarta Sans',-apple-system,sans-serif;font-size:15px;font-weight:400;line-height:1.6;color:var(--n9);background:var(--n0);-webkit-font-smoothing:antialiased}
 a{color:inherit;text-decoration:none}

@@ -17,7 +17,7 @@ const STAGES = [
     { id: "project_lost", label: "Project Lost", short: "PROJECT LOST", weight: 0 },
 ];
 const AVATAR_COLORS = [
-    "#CB3273", "#CB3273", "#D97706", "#0891B2",
+    "#CB3273", "#CB3273", "#DE377C", "#0891B2",
     "#16A34A", "#DC2626", "#0D9488", "#9333EA",
 ];
 // ── Helpers ───────────────────────────────────────────────────────────────────

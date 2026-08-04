@@ -380,7 +380,7 @@ export default function LeadHunter() {
             { label: "Total Found", value: cfg?.totalLeadsFound ?? 87, icon: Users, color: "#E58BB5" },
             { label: "Qualified", value: cfg?.totalQualified ?? 34, icon: CheckCircle2, color: "#34D399" },
             { label: "In Pipeline", value: cfg?.totalPipelineAdded ?? 28, icon: Send, color: "#60A5FA" },
-            { label: "Success Rate", value: `${successRate}%`, icon: TrendingUp, color: "#FBBF24" },
+            { label: "Success Rate", value: `${successRate}%`, icon: TrendingUp, color: "#DE377C" },
         ].map(({ label, value, icon: Icon, color }) => (<div key={label} className="rounded-xl p-3.5" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)" }}>
               <div className="flex items-center gap-1.5 mb-1.5" style={{ color }}>
                 <Icon className="w-3.5 h-3.5"/>
@@ -540,7 +540,7 @@ export default function LeadHunter() {
                 {[
                 { name: "Apollo.io", desc: "B2B contacts & emails", enabled: cfg?.sources.includes("apollo") ?? true, color: "#0891B2", bg: "#CFFAFE" },
                 { name: "Google Maps", desc: "Local Indian businesses", enabled: cfg?.sources.includes("google_maps") ?? true, color: "#DC2626", bg: "#FEE2E2" },
-                { name: "Apify Scraper", desc: "LinkedIn-style profiles", enabled: cfg?.sources.includes("apify") ?? false, color: "#EA580C", bg: "#FFEDD5" },
+                { name: "Apify Scraper", desc: "LinkedIn-style profiles", enabled: cfg?.sources.includes("apify") ?? false, color: "#DE377C", bg: "#FFEDD5" },
                 { name: "Manual Import", desc: "CSV / paste leads", enabled: true, color: "#CB3273", bg: "#FBE9F1" },
             ].map(({ name, desc, enabled, color, bg }) => (<div key={name} className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: bg, opacity: enabled ? 1 : 0.5 }}>
                     <div className="flex items-center gap-1.5">

@@ -360,10 +360,10 @@ export default function AgentHub() {
                 { icon: <Users size={14}/>, label: "Leads Fetched Today", value: today?.leadsHuntedToday ?? 0, color: "#CB3273" },
                 { icon: <Clock size={14}/>, label: "Meetings Booked", value: today?.meetingsBookedToday ?? 0, color: GREEN },
                 { icon: <Mail size={14}/>, label: "Emails Sent", value: today?.emailsSent ?? 0, color: "#0891B2" },
-                { icon: <RefreshCw size={14}/>, label: "Follow-Ups", value: today?.followupsSent ?? 0, color: "#D97706" },
+                { icon: <RefreshCw size={14}/>, label: "Follow-Ups", value: today?.followupsSent ?? 0, color: "#DE377C" },
                 { icon: <MessageSquare size={14}/>, label: "WhatsApp Sent", value: today?.whatsappSent ?? 0, color: "#25D366" },
                 { icon: <Globe size={14}/>, label: "Sites Scanned", value: today?.websitesScanned ?? 0, color: "#0891B2" },
-                { icon: <Search size={14}/>, label: "Audits Generated", value: today?.auditsGenerated ?? 0, color: "#D97706" },
+                { icon: <Search size={14}/>, label: "Audits Generated", value: today?.auditsGenerated ?? 0, color: "#DE377C" },
                 { icon: <AlertTriangle size={14}/>, label: "Errors Today", value: today?.errors ?? 0, color: "#DC2626" },
             ].map(s => (<div key={s.label} style={{
                     background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12,
@@ -383,7 +383,7 @@ export default function AgentHub() {
             {[
                 { icon: <Mail size={15}/>, label: "Total Audits Sent (all-time)", value: status?.totalAuditsSent ?? 0, color: PURPLE },
                 { icon: <RefreshCw size={15}/>, label: "Total Follow-Ups (all-time)", value: status?.totalFollowupsSent ?? 0, color: GREEN },
-                { icon: <TrendingUp size={15}/>, label: "Leads Added by Hunter", value: lhStatus?.config.totalPipelineAdded ?? 0, color: "#D97706" },
+                { icon: <TrendingUp size={15}/>, label: "Leads Added by Hunter", value: lhStatus?.config.totalPipelineAdded ?? 0, color: "#DE377C" },
             ].map(s => (<div key={s.label} style={{
                     background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12,
                     padding: "14px 16px", display: "flex", alignItems: "center", gap: 12,
@@ -401,21 +401,21 @@ export default function AgentHub() {
                     background: emailHealth.limitCritical ? "#FEF2F2"
                         : emailHealth.limitWarning ? "#FFFBEB"
                             : "#F0FDF4",
-                    border: `1px solid ${emailHealth.limitCritical ? "#FECACA" : emailHealth.limitWarning ? "#FDE68A" : "#BBF7D0"}`,
+                    border: `1px solid ${emailHealth.limitCritical ? "#FECACA" : emailHealth.limitWarning ? "#FBE9F1" : "#BBF7D0"}`,
                     borderRadius: 14,
                     padding: "16px 20px",
                     marginBottom: 20,
                 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <Mail size={16} style={{ color: emailHealth.limitCritical ? "#DC2626" : emailHealth.limitWarning ? "#D97706" : "#059669" }}/>
+                  <Mail size={16} style={{ color: emailHealth.limitCritical ? "#DC2626" : emailHealth.limitWarning ? "#DE377C" : "#059669" }}/>
                   <span style={{ fontSize: 13, fontWeight: 700, color: emailHealth.limitCritical ? "#DC2626" : emailHealth.limitWarning ? "#92400E" : "#065F46" }}>
                     Gmail Send Health
                   </span>
                   {emailHealth.limitCritical && (<span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#DC2626", color: "#fff" }}>
                       LIMIT REACHED
                     </span>)}
-                  {!emailHealth.limitCritical && emailHealth.limitWarning && (<span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#D97706", color: "#fff" }}>
+                  {!emailHealth.limitCritical && emailHealth.limitWarning && (<span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#DE377C", color: "#fff" }}>
                       ⚠ APPROACHING LIMIT
                     </span>)}
                 </div>
@@ -439,7 +439,7 @@ export default function AgentHub() {
               <div>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
                   <span style={{ fontSize: 11, color: "#6B7280", fontWeight: 600 }}>Daily quota used</span>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: emailHealth.limitCritical ? "#DC2626" : emailHealth.limitWarning ? "#D97706" : "#374151" }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: emailHealth.limitCritical ? "#DC2626" : emailHealth.limitWarning ? "#DE377C" : "#374151" }}>
                     {emailHealth.sentToday} / {emailHealth.gmailDailyLimit} ({emailHealth.usagePct}%)
                   </span>
                 </div>
@@ -449,7 +449,7 @@ export default function AgentHub() {
                     borderRadius: 99,
                     width: `${emailHealth.usagePct}%`,
                     background: emailHealth.limitCritical ? "#DC2626"
-                        : emailHealth.limitWarning ? "#D97706"
+                        : emailHealth.limitWarning ? "#DE377C"
                             : "#059669",
                     transition: "width 0.4s ease",
                 }}/>
@@ -487,7 +487,7 @@ export default function AgentHub() {
                         marginTop: 16,
                         background: "#fff",
                         border: `1px solid ${emailFailureHealth.consecutiveFailures >= emailFailureHealth.threshold ? "#FECACA"
-                            : emailFailureHealth.consecutiveFailures > 0 ? "#FDE68A"
+                            : emailFailureHealth.consecutiveFailures > 0 ? "#FBE9F1"
                                 : "#D1FAE5"}`,
                         borderRadius: 10,
                         padding: "12px 14px",
@@ -576,7 +576,7 @@ export default function AgentHub() {
                 transition: "all 0.3s",
             }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <Zap size={22} style={{ color: status?.brainActive ? "#FCD34D" : "#9CA3AF" }}/>
+              <Zap size={22} style={{ color: status?.brainActive ? "#FBE9F1" : "#9CA3AF" }}/>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 800, color: status?.brainActive ? "#fff" : "#374151" }}>
                   Sales Brain Master Switch
@@ -590,7 +590,7 @@ export default function AgentHub() {
             </div>
             <button onClick={() => toggleAgent("brain")} style={{ background: "none", border: "none", cursor: "pointer" }}>
               {status?.brainActive
-                ? <ToggleRight size={38} style={{ color: "#FCD34D" }}/>
+                ? <ToggleRight size={38} style={{ color: "#FBE9F1" }}/>
                 : <ToggleLeft size={38} style={{ color: "#D1D5DB" }}/>}
             </button>
           </div>
@@ -604,7 +604,7 @@ export default function AgentHub() {
                 { label: "Leads Found", value: lhStatus?.config.totalLeadsFound ?? 0 },
                 { label: "Qualified", value: lhStatus?.config.totalQualified ?? 0 },
                 { label: "Added to Pipeline", value: lhStatus?.config.totalPipelineAdded ?? 0 },
-            ]} onToggle={() => toggleAgent("lead_hunter")} onRun={() => runAgent("lead_hunter", "lead_hunter")} running={running["lead_hunter"] ?? false} accentColor="#D97706"/>
+            ]} onToggle={() => toggleAgent("lead_hunter")} onRun={() => runAgent("lead_hunter", "lead_hunter")} running={running["lead_hunter"] ?? false} accentColor="#DE377C"/>
           </div>
 
           {/* ── Toggle History ────────────────────────────────────────── */}
@@ -830,7 +830,7 @@ export default function AgentHub() {
               </div>
             </div>
             <div style={{
-                background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "14px 16px",
+                background: "#FFFBEB", border: "1px solid #FBE9F1", borderRadius: 12, padding: "14px 16px",
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#92400E", marginBottom: 6 }}>
                 🎯 Lead Hunter Schedule

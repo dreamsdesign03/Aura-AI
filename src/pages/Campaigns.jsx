@@ -10,7 +10,7 @@ const SEGMENT_LABELS = {
 };
 const SEGMENT_COLORS = {
     new_leads: "#A4285E",
-    no_response: "#F59E0B",
+    no_response: "#DE377C",
     proposal_sent: "#3B82F6",
     won_customers: "#10B981",
     old_leads: "#CB3273",
@@ -18,7 +18,7 @@ const SEGMENT_COLORS = {
 const STATUS_CONFIG = {
     draft: { label: "Draft", color: "#6B7280", bg: "#F3F4F6" },
     active: { label: "Active", color: "#059669", bg: "#D1FAE5" },
-    paused: { label: "Paused", color: "#D97706", bg: "#FEF3C7" },
+    paused: { label: "Paused", color: "#DE377C", bg: "#FEF3C7" },
     completed: { label: "Completed", color: "#6B7280", bg: "#F3F4F6" },
 };
 const TEMPLATES = [
@@ -33,7 +33,7 @@ const TEMPLATE_ICONS = {
     reminder: Clock, offer: TrendingUp, reactivation: RotateCcw, testimonial: Star, review: ThumbsUp,
 };
 const TEMPLATE_COLORS = {
-    reminder: "#A4285E", offer: "#10B981", reactivation: "#CB3273", testimonial: "#F59E0B", review: "#3B82F6",
+    reminder: "#A4285E", offer: "#10B981", reactivation: "#CB3273", testimonial: "#DE377C", review: "#3B82F6",
 };
 function pct(n, total) {
     if (!total)
@@ -74,7 +74,7 @@ function CampaignRow({ campaign, onToggle, toggling }) {
             {campaign.scheduledAt && (<span className="text-[11px]" style={{ color: "#6B7280" }}>
                 {new Date(campaign.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
               </span>)}
-            {(campaign.status === "active" || campaign.status === "paused") && (<button onClick={() => onToggle(campaign.id)} disabled={toggling} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-60" style={{ background: campaign.status === "active" ? "#FEF3C7" : "#D1FAE5", color: campaign.status === "active" ? "#D97706" : "#059669" }} title={campaign.status === "active" ? "Pause campaign" : "Resume campaign"}>
+            {(campaign.status === "active" || campaign.status === "paused") && (<button onClick={() => onToggle(campaign.id)} disabled={toggling} className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors disabled:opacity-60" style={{ background: campaign.status === "active" ? "#FEF3C7" : "#D1FAE5", color: campaign.status === "active" ? "#DE377C" : "#059669" }} title={campaign.status === "active" ? "Pause campaign" : "Resume campaign"}>
                 {toggling ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : campaign.status === "active" ? <Pause className="w-3.5 h-3.5"/> : <Play className="w-3.5 h-3.5"/>}
               </button>)}
           </div>
@@ -355,7 +355,7 @@ export default function Campaigns() {
         {[
             { label: "Active Campaigns", value: activeCampaigns, color: "#059669" },
             { label: "Total Sent", value: totalSent.toLocaleString(), color: "#A4285E" },
-            { label: "Meetings Booked", value: totalBooked, color: "#D97706" },
+            { label: "Meetings Booked", value: totalBooked, color: "#DE377C" },
         ].map(({ label, value, color }) => (<div key={label} className="rounded-xl border p-3 text-center" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
             <div className="text-[20px] font-black" style={{ color }}>{value}</div>
             <div className="text-[11px] font-medium mt-0.5" style={{ color: "#9CA3AF" }}>{label}</div>

@@ -78,7 +78,7 @@ export default function Dashboard() {
     };
     const stageColors = {
         New: "#3B82F6", Audited: "#EAB308", Qualified: "#1A7A45",
-        Meeting: "#A855F7", Proposal: "#F97316", Closed: "#22C55E",
+        Meeting: "#A855F7", Proposal: "#DE377C", Closed: "#22C55E",
     };
     return (<div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}

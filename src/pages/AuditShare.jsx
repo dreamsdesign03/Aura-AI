@@ -134,7 +134,7 @@ export default function AuditShare() {
             </div>
             {[
             { label: "Critical", count: data.criticalCount, color: "#ef4444" },
-            { label: "High", count: data.highCount, color: "#f97316" },
+            { label: "High", count: data.highCount, color: "#DE377C" },
             { label: "Medium", count: data.mediumCount, color: "#eab308" },
         ].map((item) => (<div key={item.label} className="p-4 flex flex-col items-center">
                 <div className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">{item.label} Issues</div>

@@ -60,7 +60,7 @@ function Title({ raw }) {
     const parts = raw.split(/<g>|<\/g>/);
     return (<h2 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "clamp(22px,4vw,30px)", lineHeight: 1.22, color: "#fff", marginBottom: 10 }}>
       {parts.map((p, i) => i % 2 === 1
-            ? <span key={i} style={{ background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{p}</span>
+            ? <span key={i} style={{ background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{p}</span>
             : p)}
     </h2>);
 }
@@ -188,14 +188,14 @@ export default function GrowthQuestForm() {
         .gq-opt:hover{border-color:rgba(255,107,53,.38)!important;color:#fff!important;transform:translateY(-2px);box-shadow:0 8px 30px rgba(255,107,53,.1)}
         .gq-opt.sel{border-color:rgba(255,107,53,.65)!important;color:#fff!important;background:rgba(255,107,53,.1)!important;box-shadow:0 4px 22px rgba(255,107,53,.15)}
         .gq-svc:hover{border-color:rgba(255,107,53,.38)!important;color:#fff!important;transform:translateY(-2px)}
-        .gq-svc.sel{border-color:#FF6B35!important;background:rgba(255,107,53,.12)!important;color:#fff!important}
+        .gq-svc.sel{border-color:#DE377C!important;background:rgba(255,107,53,.12)!important;color:#fff!important}
         .gq-fi{width:100%;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.09);border-radius:14px;padding:15px 18px;font-size:15px;font-family:'DM Sans',sans-serif;color:#fff;outline:none;transition:border-color .2s,background .2s,box-shadow .2s;margin-bottom:12px;box-sizing:border-box}
         .gq-fi::placeholder{color:rgba(255,255,255,.22)}
         .gq-fi:focus{border-color:rgba(255,107,53,.55);background:rgba(255,107,53,.04);box-shadow:0 0 0 3px rgba(255,107,53,.07)}
-        .gq-cta{width:100%;padding:18px;border-radius:16px;border:none;background:linear-gradient(135deg,#FF6B35,#CB3273,#E15C94);color:#fff;font-family:'Sora',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .25s;box-shadow:0 8px 36px rgba(255,107,53,.32);position:relative;overflow:hidden}
+        .gq-cta{width:100%;padding:18px;border-radius:16px;border:none;background:linear-gradient(135deg,#DE377C,#CB3273,#E15C94);color:#fff;font-family:'Sora',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .25s;box-shadow:0 8px 36px rgba(255,107,53,.32);position:relative;overflow:hidden}
         .gq-cta:hover:not(:disabled){transform:translateY(-3px);box-shadow:0 14px 44px rgba(255,107,53,.48)}
         .gq-cta:disabled{opacity:.3;cursor:not-allowed;transform:none!important}
-        .gq-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#14141E;border:1px solid rgba(255,107,53,.38);border-radius:50px;padding:13px 26px;font-family:'Sora',sans-serif;font-weight:600;font-size:13px;color:#FF6B35;z-index:9998;display:flex;align-items:center;gap:10px;white-space:nowrap;box-shadow:0 10px 40px rgba(0,0,0,.6);animation:toastIn .3s ease}
+        .gq-toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%);background:#14141E;border:1px solid rgba(255,107,53,.38);border-radius:50px;padding:13px 26px;font-family:'Sora',sans-serif;font-weight:600;font-size:13px;color:#DE377C;z-index:9998;display:flex;align-items:center;gap:10px;white-space:nowrap;box-shadow:0 10px 40px rgba(0,0,0,.6);animation:toastIn .3s ease}
         select.gq-fi{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' fill='%23FF6B35' opacity='0.7' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:calc(100% - 16px) center;padding-right:44px}
         select.gq-fi option{background:#14141E;color:#fff}
         @media(max-width:600px){.gq-opts-grid{grid-template-columns:1fr 1fr!important}.gq-svcs-grid{grid-template-columns:repeat(3,1fr)!important}.gq-row{grid-template-columns:1fr!important}}
@@ -205,7 +205,7 @@ export default function GrowthQuestForm() {
         {/* ── Background ── */}
         <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
           {[
-            { size: 700, color: "#FF6B35", top: "-250px", right: "-150px", delay: "0s" },
+            { size: 700, color: "#DE377C", top: "-250px", right: "-150px", delay: "0s" },
             { size: 600, color: "#7B2FF7", bottom: "-200px", left: "-150px", delay: "-4s" },
             { size: 400, color: "#E15C94", top: "35%", left: "45%", delay: "-7s" },
             { size: 300, color: "#CB3273", top: "60%", right: "10%", delay: "-2s" },
@@ -231,14 +231,14 @@ export default function GrowthQuestForm() {
           {/* ── Nav ── */}
           <nav style={{ maxWidth: 780, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 0 18px" }}>
             <a href="https://dreamsdesign.in" target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
-              <div style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16, color: "#fff" }}>DD</div>
+              <div style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16, color: "#fff" }}>DD</div>
               <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 17, color: "#fff" }}>
-                Dreams<span style={{ background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>design</span>
+                Dreams<span style={{ background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>design</span>
               </span>
             </a>
             <div style={{ display: "flex", alignItems: "center", gap: 9, background: "rgba(255,107,53,.08)", border: "1px solid rgba(255,107,53,.3)", borderRadius: 50, padding: "9px 18px" }}>
               <span style={{ fontSize: 17 }}>🪙</span>
-              <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 17, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{coins}</span>
+              <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 17, background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{coins}</span>
               <span style={{ fontSize: 11, color: "rgba(240,239,255,.45)", fontFamily: "'Sora',sans-serif" }}>/ 1000 coins</span>
             </div>
           </nav>
@@ -252,8 +252,8 @@ export default function GrowthQuestForm() {
               <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: "rgba(240,239,255,.45)" }}>{pct}%</span>
             </div>
             <div style={{ height: 4, background: "rgba(255,255,255,.07)", borderRadius: 2, position: "relative" }}>
-              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", transition: "width .6s cubic-bezier(.4,0,.2,1)", position: "relative" }}>
-                <div style={{ position: "absolute", right: -7, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, borderRadius: "50%", background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", boxShadow: "0 0 16px rgba(255,107,53,.9),0 0 32px rgba(255,107,53,.4)" }}/>
+              <div style={{ width: `${pct}%`, height: "100%", borderRadius: 2, background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", transition: "width .6s cubic-bezier(.4,0,.2,1)", position: "relative" }}>
+                <div style={{ position: "absolute", right: -7, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, borderRadius: "50%", background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", boxShadow: "0 0 16px rgba(255,107,53,.9),0 0 32px rgba(255,107,53,.4)" }}/>
               </div>
             </div>
           </div>
@@ -278,10 +278,10 @@ function QuestionCard({ step, answers, setAnswers, onAdvance }) {
     const canAdvance = checkCanAdvance(s.id, s.type, answers);
     function update(patch) { setAnswers({ ...answers, ...patch }); }
     const card = (<div className="gq-card" style={{ maxWidth: 780, margin: "0 auto", background: "#14141E", border: "1px solid rgba(255,107,53,.2)", borderRadius: 26, padding: "clamp(24px,5vw,44px) clamp(20px,5vw,40px)", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)" }}/>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)" }}/>
 
       {/* Header */}
-      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,107,53,.1)", border: "1px solid rgba(255,107,53,.28)", borderRadius: 50, padding: "5px 15px", fontFamily: "'Sora',sans-serif", fontSize: 11, fontWeight: 700, color: "#FF6B35", letterSpacing: 1, textTransform: "uppercase", marginBottom: 20 }}>
+      <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,107,53,.1)", border: "1px solid rgba(255,107,53,.28)", borderRadius: 50, padding: "5px 15px", fontFamily: "'Sora',sans-serif", fontSize: 11, fontWeight: 700, color: "#DE377C", letterSpacing: 1, textTransform: "uppercase", marginBottom: 20 }}>
         🪙 +{s.reward} gold coins this round
       </div>
       <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "10.5px", fontWeight: 700, letterSpacing: "2.5px", color: "rgba(255,107,53,.45)", textTransform: "uppercase", marginBottom: 10 }}>{s.ql}</div>
@@ -321,7 +321,7 @@ function NameStep({ answers, update, onAdvance }) {
       {answers.name && (<div style={{ background: "rgba(255,107,53,.06)", border: "1px solid rgba(255,107,53,.22)", borderRadius: 14, padding: "14px 18px", marginBottom: 16, animation: "fadeScale .35s ease" }}>
           <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,.8)" }}>
             The Hero's name is{" "}
-            <span style={{ background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontSize: 19 }}>{answers.name}</span>
+            <span style={{ background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontSize: 19 }}>{answers.name}</span>
             {" "}— ready to build something legendary 🔥
           </span>
         </div>)}
@@ -365,7 +365,7 @@ function SingleStep({ stepId, opts, answers, update, onAdvance }) {
       {opts.map(o => (<button key={o.l} className={`gq-opt${sel === o.l ? " sel" : ""}`} style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 14, padding: "15px 16px", display: "flex", alignItems: "center", gap: 12, cursor: "pointer", textAlign: "left", color: "rgba(255,255,255,.6)", fontSize: 13.5, fontWeight: 500, fontFamily: "'DM Sans',sans-serif", transition: "all .22s", position: "relative", overflow: "hidden" }} onClick={() => { update({ [stepId]: o.l }); setTimeout(onAdvance, 250); }}>
           <span style={{ fontSize: 22, flexShrink: 0, lineHeight: 1 }}>{o.i}</span>
           <span style={{ flex: 1, lineHeight: 1.35 }}>{o.l}</span>
-          <span style={{ width: 19, height: 19, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${sel === o.l ? "transparent" : "rgba(255,255,255,.18)"}`, display: "flex", alignItems: "center", justifyContent: "center", background: sel === o.l ? "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)" : "transparent", transition: "all .2s" }}>
+          <span style={{ width: 19, height: 19, borderRadius: "50%", flexShrink: 0, border: `1.5px solid ${sel === o.l ? "transparent" : "rgba(255,255,255,.18)"}`, display: "flex", alignItems: "center", justifyContent: "center", background: sel === o.l ? "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)" : "transparent", transition: "all .2s" }}>
             {sel === o.l && <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", display: "block" }}/>}
           </span>
         </button>))}
@@ -405,21 +405,21 @@ function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsAp
     const svcList = answers.services.slice(0, 4).join(", ") || "Digital Marketing";
     const pills = [answers.role, answers.goal, answers.stage, answers.budget, answers.timeline, answers.decider].filter(Boolean);
     return (<div className="gq-final" style={{ maxWidth: 780, margin: "0 auto", background: "#14141E", border: "1px solid rgba(255,107,53,.2)", borderRadius: 26, padding: "clamp(32px,6vw,52px) clamp(22px,5vw,44px)", textAlign: "center", position: "relative", overflow: "hidden" }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)" }}/>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 2, background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)" }}/>
 
       {/* Trophy */}
       <div style={{ width: 136, height: 136, margin: "0 auto 28px", borderRadius: "50%", background: "#14141E", border: "2px solid rgba(255,107,53,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60, position: "relative", animation: "trophyPulse 2.5s ease-in-out infinite" }}>
-        <div style={{ position: "absolute", inset: -5, borderRadius: "50%", background: "conic-gradient(#FF6B35 0%,#CB3273 25%,#E15C94 50%,#7B2FF7 75%,#FF6B35 100%)", zIndex: -1, animation: "ringRotate 3.5s linear infinite", WebkitMask: "radial-gradient(farthest-side,transparent calc(100% - 5px),#fff 0)", mask: "radial-gradient(farthest-side,transparent calc(100% - 5px),#fff 0)" }}/>
+        <div style={{ position: "absolute", inset: -5, borderRadius: "50%", background: "conic-gradient(#DE377C 0%,#CB3273 25%,#E15C94 50%,#7B2FF7 75%,#DE377C 100%)", zIndex: -1, animation: "ringRotate 3.5s linear infinite", WebkitMask: "radial-gradient(farthest-side,transparent calc(100% - 5px),#fff 0)", mask: "radial-gradient(farthest-side,transparent calc(100% - 5px),#fff 0)" }}/>
         🏆
       </div>
 
-      <div style={{ display: "inline-block", background: "rgba(255,107,53,.1)", border: "1px solid rgba(255,107,53,.28)", borderRadius: 50, padding: "6px 22px", fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "#FF6B35", textTransform: "uppercase", fontFamily: "'Sora',sans-serif", marginBottom: 16 }}>
+      <div style={{ display: "inline-block", background: "rgba(255,107,53,.1)", border: "1px solid rgba(255,107,53,.28)", borderRadius: 50, padding: "6px 22px", fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "#DE377C", textTransform: "uppercase", fontFamily: "'Sora',sans-serif", marginBottom: 16 }}>
         Quest Complete — You Did It!
       </div>
 
       <h1 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "clamp(24px,5vw,34px)", color: "#fff", lineHeight: 1.2, marginBottom: 14 }}>
         You've earned{" "}
-        <span style={{ background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>1000 Gold Coins,</span>
+        <span style={{ background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>1000 Gold Coins,</span>
         <br />{hero}!
       </h1>
 
@@ -431,7 +431,7 @@ function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsAp
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginBottom: 28 }}>
         <span style={{ fontSize: 36 }}>🪙</span>
         <div>
-          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 44, background: "linear-gradient(135deg,#FFD200,#FF8C00,#FF6B35)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1 }}>1,000</div>
+          <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 44, background: "linear-gradient(135deg,#FFD200,#DE377C,#DE377C)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1 }}>1,000</div>
           <div style={{ fontSize: 13, color: "rgba(240,239,255,.45)", fontFamily: "'Sora',sans-serif", textAlign: "left", lineHeight: 1.4 }}>Gold Coins in your vault</div>
         </div>
       </div>
@@ -444,7 +444,7 @@ function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsAp
       {/* Coupon */}
       <div style={{ background: "rgba(255,107,53,.05)", border: "1.5px dashed rgba(255,107,53,.38)", borderRadius: 22, padding: "28px 26px", marginBottom: 28, position: "relative", overflow: "hidden" }}>
         <div style={{ fontSize: 10, letterSpacing: "2.5px", color: "rgba(255,107,53,.55)", textTransform: "uppercase", fontFamily: "'Sora',sans-serif", marginBottom: 12 }}>Your Exclusive Redemption Code</div>
-        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "clamp(24px,6vw,38px)", background: "linear-gradient(135deg,#FFD200,#FF8C00,#FF6B35,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 6 }}>{code}</div>
+        <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "clamp(24px,6vw,38px)", background: "linear-gradient(135deg,#FFD200,#DE377C,#DE377C,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", letterSpacing: 6 }}>{code}</div>
         <p style={{ fontSize: 12.5, color: "rgba(240,239,255,.45)", marginTop: 12, lineHeight: 1.6 }}>
           Redeem this code with Dreamsdesign on your first campaign. Valid for 30 days.<br />
           Call or WhatsApp: <strong style={{ color: "rgba(255,107,53,.85)" }}>+91 9377756660</strong> &nbsp;|&nbsp; Email: <strong style={{ color: "rgba(255,107,53,.85)" }}>krishna@dreamsdesign.in</strong>
@@ -453,7 +453,7 @@ function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsAp
 
       {/* Buttons */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        <button style={{ width: "100%", padding: 19, borderRadius: 16, border: "none", background: submitted ? "rgba(255,107,53,.2)" : "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", color: submitted ? "#FF6B35" : "#fff", fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, cursor: submitted ? "default" : "pointer", boxShadow: submitted ? "none" : "0 8px 36px rgba(255,107,53,.32)", transition: "all .2s", opacity: submitting ? 0.6 : 1 }} onClick={() => !submitted && !submitting && onSubmit()} disabled={submitting}>
+        <button style={{ width: "100%", padding: 19, borderRadius: 16, border: "none", background: submitted ? "rgba(255,107,53,.2)" : "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", color: submitted ? "#DE377C" : "#fff", fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, cursor: submitted ? "default" : "pointer", boxShadow: submitted ? "none" : "0 8px 36px rgba(255,107,53,.32)", transition: "all .2s", opacity: submitting ? 0.6 : 1 }} onClick={() => !submitted && !submitting && onSubmit()} disabled={submitting}>
           {submitted ? "✅ Submitted! Our team will reach out within 24 hrs." : submitting ? "Submitting…" : `🚀 Submit My Quest & Claim 1000 Coins · ${svcList.substring(0, 40)}`}
         </button>
         <button style={{ width: "100%", padding: 17, borderRadius: 16, border: "1px solid rgba(37,211,102,.28)", background: "rgba(37,211,102,.06)", color: "#25D366", fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all .2s" }} onClick={onWhatsApp}>

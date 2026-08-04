@@ -46,7 +46,7 @@ const PLAN_ICONS = {
 const PLAN_COLORS = {
     solo: { main: "#3B82F6", bg: "#EFF6FF", gradient: "linear-gradient(135deg,#1D4ED8,#3B82F6)" },
     growth: { main: "#CB3273", bg: "#FBE9F1", gradient: "linear-gradient(135deg,#A4285E,#CB3273)" },
-    agency: { main: "#C2410C", bg: "#FFF7ED", gradient: "linear-gradient(135deg,#9A3412,#EA580C)" },
+    agency: { main: "#C2410C", bg: "#FFF7ED", gradient: "linear-gradient(135deg,#9A3412,#DE377C)" },
 };
 function PlanCard({ plan, isCurrent, isDowngrade, onUpgrade, upgrading, interval, currency, }) {
     const colors = PLAN_COLORS[plan.key] ?? PLAN_COLORS.solo;
@@ -280,7 +280,7 @@ export default function Billing() {
         </div>) : null}
 
       {/* Upgrade CTA if trial expired */}
-      {isTrialExpired && (<div className="rounded-2xl p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, #FEF3C7, #FFFBEB)", border: "1px solid #FDE68A" }}>
+      {isTrialExpired && (<div className="rounded-2xl p-5 flex items-center gap-4" style={{ background: "linear-gradient(135deg, #FEF3C7, #FFFBEB)", border: "1px solid #FBE9F1" }}>
           <AlertTriangle className="w-6 h-6 text-amber-500 flex-shrink-0"/>
           <div className="flex-1">
             <div className="text-sm font-bold text-amber-900">Your trial has ended</div>

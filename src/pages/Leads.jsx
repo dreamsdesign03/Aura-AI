@@ -39,12 +39,12 @@ const STATUS_DISPLAY = {
 };
 const STATUS_DOT = {
     all: "#9CA3AF", new_enquiry: "#3B82F6", enquiry_qualified: "#CB3273",
-    discovery_call: "#0D9488", quote_sent: "#F59E0B", follow_up: "#F97316",
+    discovery_call: "#0D9488", quote_sent: "#DE377C", follow_up: "#DE377C",
     project_won: "#16A34A", project_lost: "#EF4444",
 };
 const MOBILE_AVATAR_COLORS = [
     "#6C63FF", "#3B82F6", "#0D9488", "#CB3273",
-    "#DC2626", "#0891B2", "#D97706", "#A4285E",
+    "#DC2626", "#0891B2", "#DE377C", "#A4285E",
 ];
 export default function Leads() {
     const [, navigate] = useLocation();
@@ -2148,9 +2148,9 @@ function LeadDrawer({ leadId, onClose }) {
         if (s === "discovery_call")
             return { bg: "#051A18", text: "#2DD4BF", dot: "#0D9488" };
         if (s === "quote_sent")
-            return { bg: "#2D1F06", text: "#FCD34D", dot: "#F59E0B" };
+            return { bg: "#2D1F06", text: "#FBE9F1", dot: "#DE377C" };
         if (s === "follow_up")
-            return { bg: "#2D1006", text: "#FCA572", dot: "#F97316" };
+            return { bg: "#2D1006", text: "#FCA572", dot: "#DE377C" };
         if (s === "project_won")
             return { bg: "#0D3320", text: "#34D399", dot: "#16A34A" };
         if (s === "project_lost")
@@ -2217,7 +2217,7 @@ function LeadDrawer({ leadId, onClose }) {
               {[
                 { label: "Audit", icon: "🔍", onClick: handleRunAudit, glow: D.accent },
                 { label: "Email", icon: "✉️", onClick: handleGenerateEmail, glow: "#60A5FA" },
-                { label: "Meeting", icon: "📅", onClick: handleBookMeeting, glow: "#FBBF24" },
+                { label: "Meeting", icon: "📅", onClick: handleBookMeeting, glow: "#DE377C" },
                 { label: "Proposal", icon: "📄", onClick: handleCreateProposal, glow: "#E58BB5" },
             ].map(({ label, icon, onClick, glow }) => (<button key={label} onClick={onClick} className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95" style={{ background: D.card, border: `1px solid ${D.cardBorder}`, color: D.textMuted }} onMouseEnter={e => { e.currentTarget.style.color = glow; e.currentTarget.style.borderColor = glow + "44"; }} onMouseLeave={e => { e.currentTarget.style.color = D.textMuted; e.currentTarget.style.borderColor = D.cardBorder; }}>
                   <span className="text-lg leading-none">{icon}</span>
@@ -2265,13 +2265,13 @@ function LeadDrawer({ leadId, onClose }) {
                 const lx = lead;
                 const beliefScore = lx.beliefScore ?? 0;
                 const bantbTotal = lx.bantbTotal ?? (lead.bantScore != null ? lead.bantScore + beliefScore : null);
-                const beliefColor = beliefScore >= 18 ? "#059669" : beliefScore >= 9 ? "#D97706" : "#DC2626";
+                const beliefColor = beliefScore >= 18 ? "#059669" : beliefScore >= 9 ? "#DE377C" : "#DC2626";
                 return lead.bantScore != null || bantbTotal != null ? (<>
                       {/* BANTB total + BANT + Belief breakdown */}
                       <div className="flex items-center gap-3 mb-3">
                         <div>
                           <div className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: D.textDim }}>BANTB Total</div>
-                          <div className="text-4xl font-black leading-none" style={{ color: bantbTotal != null && bantbTotal >= 100 ? "#D97706" : bantbTotal != null && bantbTotal >= 80 ? "#0D9488" : bantbTotal != null && bantbTotal >= 50 ? "#3B82F6" : "#6B7280" }}>
+                          <div className="text-4xl font-black leading-none" style={{ color: bantbTotal != null && bantbTotal >= 100 ? "#DE377C" : bantbTotal != null && bantbTotal >= 80 ? "#0D9488" : bantbTotal != null && bantbTotal >= 50 ? "#3B82F6" : "#6B7280" }}>
                             {bantbTotal ?? "—"}
                           </div>
                           <div className="text-[10px]" style={{ color: D.textDim }}>out of 125</div>
@@ -2446,16 +2446,16 @@ function LeadDrawer({ leadId, onClose }) {
                   {tp.sentAt && <div className="text-[10px] mt-1.5" style={{ color: D.textDim }}>{formatDate(tp.sentAt)}</div>}
                 </DarkCard>))}
             </div>) : activeTab === "meetings" ? (<div className="p-4 space-y-2">
-              {lead.meetings?.length === 0 ? (<DarkEmptyState icon="📅" title="No meetings yet" desc="Book a discovery call to move forward" d={D} action={<button onClick={handleBookMeeting} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#2D1B06", color: "#FCD34D", border: "1px solid #4A2E10" }}>Book Discovery Call</button>}/>) : (lead.meetings ?? []).map((m) => (<DarkCard key={m.id} d={D}>
+              {lead.meetings?.length === 0 ? (<DarkEmptyState icon="📅" title="No meetings yet" desc="Book a discovery call to move forward" d={D} action={<button onClick={handleBookMeeting} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#2D1B06", color: "#FBE9F1", border: "1px solid #4A2E10" }}>Book Discovery Call</button>}/>) : (lead.meetings ?? []).map((m) => (<DarkCard key={m.id} d={D}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold capitalize" style={{ color: D.textPrimary }}>{m.type}</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: m.status === "completed" ? "#0D3320" : "#2D1B06", color: m.status === "completed" ? D.accent : "#FBBF24" }}>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: m.status === "completed" ? "#0D3320" : "#2D1B06", color: m.status === "completed" ? D.accent : "#DE377C" }}>
                       {m.status}
                     </span>
                   </div>
                   <div className="text-[11px]" style={{ color: D.textMuted }}>{formatDate(m.scheduledAt)} · {m.duration} min</div>
                   {m.notes && <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: D.textDim }}>{m.notes}</p>}
-                  {m.nextAction && <div className="text-[11px] font-semibold mt-1.5" style={{ color: "#FBBF24" }}>→ {m.nextAction}</div>}
+                  {m.nextAction && <div className="text-[11px] font-semibold mt-1.5" style={{ color: "#DE377C" }}>→ {m.nextAction}</div>}
                 </DarkCard>))}
             </div>) : (<div className="p-4 space-y-2">
               {lead.proposals?.length === 0 ? (<DarkEmptyState icon="📄" title="No proposals yet" desc="Create a tailored proposal for this lead" d={D} action={<button onClick={handleCreateProposal} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#1E0D3A", color: "#F3C9DB", border: "1px solid #3D1F6E" }}>Create Proposal</button>}/>) : (lead.proposals ?? []).map((p) => (<DarkCard key={p.id} d={D}>
@@ -2500,7 +2500,7 @@ function DarkEmptyState({ icon, title, desc, action, d }) {
 /* ──────────────────────────────────────────────────────────
    LEAD LISTS PANEL
 ──────────────────────────────────────────────────────────── */
-const LIST_COLORS = ["#6366F1", "#CB3273", "#CB3273", "#F59E0B", "#10B981", "#3B82F6", "#EF4444", "#F97316", "#06B6D4"];
+const LIST_COLORS = ["#6366F1", "#CB3273", "#CB3273", "#DE377C", "#10B981", "#3B82F6", "#EF4444", "#DE377C", "#06B6D4"];
 function LeadListsPanel({ BASE, toast }) {
     const [lists, setLists] = useState([]);
     const [loading, setLoading] = useState(true);

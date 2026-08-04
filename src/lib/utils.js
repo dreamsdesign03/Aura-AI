@@ -122,7 +122,7 @@ export function bandHexFromKey(key, accentHex) {
     switch (key) {
         case "hot":
         case "qualified": return green;
-        case "nurture": return "#FBBF24";
+        case "nurture": return "#DE377C";
         default: return "#F87171";
     }
 }
@@ -131,7 +131,7 @@ export function bandGradientFromKey(key, accentHex) {
     switch (key) {
         case "hot":
         case "qualified": return `linear-gradient(90deg, #1B4D36, ${green})`;
-        case "nurture": return "linear-gradient(90deg, #4A2800, #FBBF24)";
+        case "nurture": return "linear-gradient(90deg, #4A2800, #DE377C)";
         default: return "linear-gradient(90deg, #3D0A0A, #F87171)";
     }
 }
@@ -139,7 +139,7 @@ export function auditScoreHex(score) {
     if (score >= 70)
         return "#22C55E";
     if (score >= 50)
-        return "#F59E0B";
+        return "#DE377C";
     return "#EF4444";
 }
 export function auditScoreLabel(score) {
@@ -160,21 +160,21 @@ export function auditScoreColors(score) {
     if (score >= 70)
         return { text: "#16a34a", bg: "#dcfce7", bar: "#16a34a" };
     if (score >= 50)
-        return { text: "#d97706", bg: "#fef3c7", bar: "#f59e0b" };
+        return { text: "#DE377C", bg: "#fef3c7", bar: "#DE377C" };
     return { text: "#dc2626", bg: "#fee2e2", bar: "#ef4444" };
 }
 export function healthScoreColor(score) {
     if (score >= 75)
         return "#16a34a";
     if (score >= 50)
-        return "#d97706";
+        return "#DE377C";
     return "#dc2626";
 }
 export function bantSubScoreColor(pct) {
     if (pct >= 70)
         return "#16a34a";
     if (pct >= 40)
-        return "#d97706";
+        return "#DE377C";
     return "#dc2626";
 }
 export function bantBandMeta(score) {
@@ -207,7 +207,7 @@ export function bantBandDarkColor(score, accentColor) {
     if (key === "hot" || key === "qualified")
         return accentColor;
     if (key === "nurture")
-        return "#FBBF24";
+        return "#DE377C";
     return "#F87171";
 }
 export function bantBandDarkGradient(score, accentColor) {
@@ -215,6 +215,6 @@ export function bantBandDarkGradient(score, accentColor) {
     if (key === "hot" || key === "qualified")
         return `linear-gradient(90deg, #1B4D36, ${accentColor})`;
     if (key === "nurture")
-        return "linear-gradient(90deg, #4A2800, #FBBF24)";
+        return "linear-gradient(90deg, #4A2800, #DE377C)";
     return "linear-gradient(90deg, #3D0A0A, #F87171)";
 }

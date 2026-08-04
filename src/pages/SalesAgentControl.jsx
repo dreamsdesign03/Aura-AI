@@ -28,8 +28,8 @@ const STAGE_LABELS = {
 };
 const STAGE_COLORS = {
     new: "#9CA3AF", contacted: "#60A5FA", audit_sent: "#E58BB5",
-    engaged: "#34D399", call_booked: "#FBBF24", show_up_confirmed: "#10B981",
-    no_show: "#F87171", proposal_sent: "#FB923C", won: "#22C55E", lost: "#EF4444",
+    engaged: "#34D399", call_booked: "#DE377C", show_up_confirmed: "#10B981",
+    no_show: "#F87171", proposal_sent: "#DE377C", won: "#22C55E", lost: "#EF4444",
     unsubscribed: "#D1D5DB",
 };
 const AGENT_META = [
@@ -50,7 +50,7 @@ const RUN_ENDPOINTS = {
 };
 function BounceRateBar({ rate }) {
     const pct = Math.min(Math.round(rate * 100), 100);
-    const color = pct > 5 ? "#EF4444" : pct > 3 ? "#F59E0B" : "#10B981";
+    const color = pct > 5 ? "#EF4444" : pct > 3 ? "#DE377C" : "#10B981";
     const label = pct > 5 ? "CRITICAL — auto-paused" : pct > 3 ? "Warning" : "Healthy";
     return (<div>
       <div className="flex justify-between text-[11px] mb-1">
@@ -65,7 +65,7 @@ function BounceRateBar({ rate }) {
 }
 function RampBar({ sentToday, dailyCap }) {
     const pct = Math.min(Math.round((sentToday / Math.max(dailyCap, 1)) * 100), 100);
-    const color = pct >= 100 ? "#EF4444" : pct >= 80 ? "#F59E0B" : "#A4285E";
+    const color = pct >= 100 ? "#EF4444" : pct >= 80 ? "#DE377C" : "#A4285E";
     return (<div>
       <div className="flex justify-between text-[11px] mb-1">
         <span className="font-semibold text-gray-700">{sentToday} sent today</span>

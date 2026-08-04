@@ -1,6 +1,6 @@
 const colorMap = {
     teal: { icon: "#0D9488", bg: "#ECFDF5", badge: "#0D9488" },
-    amber: { icon: "#D97706", bg: "#FFFBEB", badge: "#D97706" },
+    amber: { icon: "#DE377C", bg: "#FFFBEB", badge: "#DE377C" },
     blue: { icon: "#2563EB", bg: "#EFF6FF", badge: "#2563EB" },
     green: { icon: "#16A34A", bg: "#F0FDF4", badge: "#16A34A" },
     red: { icon: "#DC2626", bg: "#FEF2F2", badge: "#DC2626" },

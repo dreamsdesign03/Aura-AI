@@ -18,8 +18,8 @@ const STATUS_DOT = {
     new_enquiry: "#3B82F6",
     enquiry_qualified: "#CB3273",
     discovery_call: "#0D9488",
-    quote_sent: "#F59E0B",
-    follow_up: "#F97316",
+    quote_sent: "#DE377C",
+    follow_up: "#DE377C",
     project_won: "#16A34A",
     project_lost: "#EF4444",
 };
@@ -34,7 +34,7 @@ const STATUS_BG = {
 };
 const TIER_META = {
     HOT: { icon: "🔥", bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
-    WARM: { icon: "☀️", bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" },
+    WARM: { icon: "☀️", bg: "#FFFBEB", color: "#DE377C", border: "#FBE9F1" },
     COOL: { icon: "💧", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
     COLD: { icon: "❄️", bg: "#F9FAFB", color: "#6B7280", border: "#E5E7EB" },
 };
@@ -53,7 +53,7 @@ function TierBadge({ tier }) {
 function BANTBar({ label, score, max = 3 }) {
     const s = Math.min(max, Math.max(0, score ?? 0));
     const pct = (s / max) * 100;
-    const color = pct >= 80 ? "#DC2626" : pct >= 50 ? "#D97706" : pct >= 25 ? "#2563EB" : "#9CA3AF";
+    const color = pct >= 80 ? "#DC2626" : pct >= 50 ? "#DE377C" : pct >= 25 ? "#2563EB" : "#9CA3AF";
     return (<div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
       <span style={{ fontSize: 11, fontWeight: 700, color: "#6B7280", width: 12, flexShrink: 0 }}>{label[0]}</span>
       <div style={{ flex: 1, height: 6, background: "#F3F4F6", borderRadius: 3, overflow: "hidden" }}>
@@ -317,7 +317,7 @@ function LeadCard({ lead, onViewTranscript, onStatusUpdate }) {
           <TierBadge tier={tier}/>
 
           <div style={{ textAlign: "center", minWidth: 40 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: tier === "HOT" ? "#DC2626" : tier === "WARM" ? "#D97706" : "#9CA3AF" }}>
+            <span style={{ fontSize: 17, fontWeight: 800, color: tier === "HOT" ? "#DC2626" : tier === "WARM" ? "#DE377C" : "#9CA3AF" }}>
               {lead.bantScore ?? "—"}
             </span>
             <span style={{ fontSize: 11, color: "#9CA3AF" }}>/12</span>
@@ -699,7 +699,7 @@ export default function ChatbotLeads() {
                 { label: "Unchecked", value: newCount, icon: <Clock className="w-4 h-4"/>, color: "#3B82F6" },
                 { label: "This Week", value: weekCount, icon: <TrendingUp className="w-4 h-4"/>, color: "#CB3273" },
                 { label: "HOT Leads", value: hotCount, icon: <Flame className="w-4 h-4"/>, color: "#EF4444" },
-                { label: "Today", value: todayCount, icon: <Star className="w-4 h-4"/>, color: "#F59E0B" },
+                { label: "Today", value: todayCount, icon: <Star className="w-4 h-4"/>, color: "#DE377C" },
             ].map(stat => (<div key={stat.label} style={{ background: "#fff", border: "1px solid #F3F4F6", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: `${stat.color}18`, display: "flex", alignItems: "center", justifyContent: "center", color: stat.color, flexShrink: 0 }}>
               {stat.icon}

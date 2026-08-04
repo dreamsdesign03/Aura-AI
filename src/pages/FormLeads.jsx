@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback } from "react";
 import { FileText, TrendingUp, Flame, ChevronDown, ChevronUp, Search, X, BarChart2, Clock, Phone, Globe, MapPin, Building2, User, Target, AlertTriangle, CheckCircle2, ExternalLink, } from "lucide-react";
 const LEAD_STATUSES = ["new_enquiry", "enquiry_qualified", "discovery_call", "quote_sent", "follow_up", "project_won", "project_lost"];
 const STATUS_LABELS = { new_enquiry: "New Enquiry", enquiry_qualified: "Enquiry Qualified", discovery_call: "Discovery Call", quote_sent: "Quote / Estimation Sent", follow_up: "Follow Up / Negotiation", project_won: "Project Won", project_lost: "Project Lost" };
-const STATUS_DOT = { new_enquiry: "#3B82F6", enquiry_qualified: "#CB3273", discovery_call: "#0D9488", quote_sent: "#F59E0B", follow_up: "#F97316", project_won: "#16A34A", project_lost: "#EF4444" };
+const STATUS_DOT = { new_enquiry: "#3B82F6", enquiry_qualified: "#CB3273", discovery_call: "#0D9488", quote_sent: "#DE377C", follow_up: "#DE377C", project_won: "#16A34A", project_lost: "#EF4444" };
 const STATUS_BG = { new_enquiry: "#EFF6FF", enquiry_qualified: "#FBE9F1", discovery_call: "#F0FDFA", quote_sent: "#FFFBEB", follow_up: "#FFF7ED", project_won: "#F0FDF4", project_lost: "#FEF2F2" };
 const TIER_META = {
     HOT: { icon: "🔥", bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
-    WARM: { icon: "☀️", bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" },
+    WARM: { icon: "☀️", bg: "#FFFBEB", color: "#DE377C", border: "#FBE9F1" },
     COOL: { icon: "💧", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
     COLD: { icon: "❄️", bg: "#F9FAFB", color: "#6B7280", border: "#E5E7EB" },
 };
@@ -131,15 +131,15 @@ function LeadCard({ lead, onViewTranscript, onStatusUpdate }) {
             return `${Math.floor(diff / 86400000)}d ago`;
         return new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
     }
-    return (<div style={{ background: isUnseen ? "#fff" : "#FAFAFA", border: `1px solid ${isUnseen ? "#DBEAFE" : "#E5E7EB"}`, borderLeft: `4px solid ${isUnseen ? "#FF6B35" : "#E5E7EB"}`, borderRadius: 14, overflow: "hidden", boxShadow: isUnseen ? "0 2px 8px rgba(255,107,53,0.09)" : "none", opacity: currentStatus === "project_lost" ? 0.65 : 1 }}>
+    return (<div style={{ background: isUnseen ? "#fff" : "#FAFAFA", border: `1px solid ${isUnseen ? "#DBEAFE" : "#E5E7EB"}`, borderLeft: `4px solid ${isUnseen ? "#DE377C" : "#E5E7EB"}`, borderRadius: 14, overflow: "hidden", boxShadow: isUnseen ? "0 2px 8px rgba(255,107,53,0.09)" : "none", opacity: currentStatus === "project_lost" ? 0.65 : 1 }}>
       <div onClick={() => setExpanded(e => !e)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "13px 16px", cursor: "pointer" }}>
-        <div style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: isUnseen ? "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)" : "linear-gradient(135deg,#9CA3AF,#6B7280)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 15 }}>
+        <div style={{ width: 38, height: 38, borderRadius: "50%", flexShrink: 0, background: isUnseen ? "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)" : "linear-gradient(135deg,#9CA3AF,#6B7280)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 15 }}>
           {lead.firstName[0]?.toUpperCase() ?? "?"}
         </div>
         <div style={{ flex: "0 0 210px", minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{ fontWeight: 700, fontSize: 14, color: isUnseen ? "#111827" : "#374151", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.firstName} {lead.lastName}</span>
-            {isUnseen && <span style={{ fontSize: 9, fontWeight: 800, background: "#FF6B35", color: "#fff", padding: "1px 6px", borderRadius: 10, letterSpacing: "0.04em", flexShrink: 0 }}>NEW</span>}
+            {isUnseen && <span style={{ fontSize: 9, fontWeight: 800, background: "#DE377C", color: "#fff", padding: "1px 6px", borderRadius: 10, letterSpacing: "0.04em", flexShrink: 0 }}>NEW</span>}
           </div>
           <div style={{ fontSize: 12, color: "#6B7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.email}</div>
           {lead.phone && <div style={{ fontSize: 11, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}><Phone className="w-3 h-3"/> {lead.phone}</div>}
@@ -152,11 +152,11 @@ function LeadCard({ lead, onViewTranscript, onStatusUpdate }) {
           <StatusSelect leadId={lead.id} current={currentStatus} onUpdate={onStatusUpdate}/>
           <TierBadge tier={tier}/>
           <div style={{ textAlign: "center", minWidth: 40 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: tier === "HOT" ? "#DC2626" : tier === "WARM" ? "#D97706" : "#9CA3AF" }}>{lead.bantScore ?? "—"}</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: tier === "HOT" ? "#DC2626" : tier === "WARM" ? "#DE377C" : "#9CA3AF" }}>{lead.bantScore ?? "—"}</span>
             <span style={{ fontSize: 11, color: "#9CA3AF" }}>/12</span>
           </div>
           <div style={{ fontSize: 12, color: "#9CA3AF", minWidth: 50, textAlign: "right" }}>{fmt(lead.createdAt)}</div>
-          <button onClick={e => { e.stopPropagation(); onViewTranscript(); }} style={{ fontSize: 11, fontWeight: 700, color: "#FF6B35", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "5px 11px", cursor: "pointer", whiteSpace: "nowrap" }}>Details</button>
+          <button onClick={e => { e.stopPropagation(); onViewTranscript(); }} style={{ fontSize: 11, fontWeight: 700, color: "#DE377C", background: "#FFF7ED", border: "1px solid #FED7AA", borderRadius: 8, padding: "5px 11px", cursor: "pointer", whiteSpace: "nowrap" }}>Details</button>
         </div>
         <div onClick={() => setExpanded(e => !e)} style={{ cursor: "pointer", flexShrink: 0 }}>
           {expanded ? <ChevronUp className="w-4 h-4 text-gray-400"/> : <ChevronDown className="w-4 h-4 text-gray-400"/>}
@@ -251,7 +251,7 @@ export default function FormLeads() {
 
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 24 }}>
-        <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 42, height: 42, borderRadius: 12, background: "linear-gradient(135deg,#DE377C,#CB3273,#E15C94)", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <FileText className="w-5 h-5 text-white"/>
         </div>
         <div>
@@ -259,7 +259,7 @@ export default function FormLeads() {
           <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>Leads captured via the interactive Growth Quest qualification form</p>
         </div>
         <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <a href="/aura-ai/form-quest" target="_blank" style={{ display: "flex", alignItems: "center", gap: 5, background: "linear-gradient(135deg,#FF6B35,#CB3273)", color: "#fff", padding: "8px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
+          <a href="/aura-ai/form-quest" target="_blank" style={{ display: "flex", alignItems: "center", gap: 5, background: "linear-gradient(135deg,#DE377C,#CB3273)", color: "#fff", padding: "8px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
             <ExternalLink className="w-3.5 h-3.5"/> Open Form
           </a>
           <button onClick={() => fetchLeads(true)} style={{ background: "#FFF7ED", border: "1px solid #FED7AA", color: "#C2410C", padding: "8px 14px", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Refresh</button>
@@ -269,10 +269,10 @@ export default function FormLeads() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 12, marginBottom: 24 }}>
         {[
-            { label: "Unchecked", value: newCount, icon: <Clock className="w-4 h-4"/>, color: "#FF6B35" },
+            { label: "Unchecked", value: newCount, icon: <Clock className="w-4 h-4"/>, color: "#DE377C" },
             { label: "This Week", value: weekCount, icon: <TrendingUp className="w-4 h-4"/>, color: "#CB3273" },
             { label: "HOT Leads", value: hotCount, icon: <Flame className="w-4 h-4"/>, color: "#EF4444" },
-            { label: "Today", value: todayCount, icon: <FileText className="w-4 h-4"/>, color: "#F59E0B" },
+            { label: "Today", value: todayCount, icon: <FileText className="w-4 h-4"/>, color: "#DE377C" },
         ].map(s => (<div key={s.label} style={{ background: "#fff", border: "1px solid #F3F4F6", borderRadius: 14, padding: "14px 16px", display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: `${s.color}18`, display: "flex", alignItems: "center", justifyContent: "center", color: s.color, flexShrink: 0 }}>{s.icon}</div>
             <div>
@@ -288,7 +288,7 @@ export default function FormLeads() {
             const cnt = s === "all" ? leads.length : leads.filter(l => (l.status ?? "new_enquiry") === s).length;
             const active = filterStatus === s;
             const dot = STATUS_DOT[s];
-            return (<button key={s} onClick={() => setFilterStatus(s)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: active ? (dot ?? "#FF6B35") : "#F3F4F6", color: active ? "#fff" : "#6B7280", transition: "all .15s" }}>
+            return (<button key={s} onClick={() => setFilterStatus(s)} style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 20, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "none", background: active ? (dot ?? "#DE377C") : "#F3F4F6", color: active ? "#fff" : "#6B7280", transition: "all .15s" }}>
               {dot && !active && <span style={{ width: 7, height: 7, borderRadius: "50%", background: dot, display: "inline-block", flexShrink: 0 }}/>}
               {s === "all" ? "All" : STATUS_LABELS[s]} <span style={{ fontSize: 11, fontWeight: 700, opacity: .75 }}>({cnt})</span>
             </button>);
@@ -302,7 +302,7 @@ export default function FormLeads() {
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, phone, company…" style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 9, paddingBottom: 9, border: "1px solid #E5E7EB", borderRadius: 10, fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }}/>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
-          {["all", "HOT", "WARM", "COOL", "COLD"].map(t => (<button key={t} onClick={() => setFilterTier(t)} style={{ padding: "7px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none", background: filterTier === t ? "#FF6B35" : "#F3F4F6", color: filterTier === t ? "#fff" : "#6B7280", transition: "all .15s" }}>
+          {["all", "HOT", "WARM", "COOL", "COLD"].map(t => (<button key={t} onClick={() => setFilterTier(t)} style={{ padding: "7px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none", background: filterTier === t ? "#DE377C" : "#F3F4F6", color: filterTier === t ? "#fff" : "#6B7280", transition: "all .15s" }}>
               {t === "all" ? "All Tiers" : t}
             </button>))}
         </div>
@@ -313,7 +313,7 @@ export default function FormLeads() {
 
       {!loading && filtered.length > 0 && (<div style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 10, fontWeight: 500 }}>
           {filtered.length} lead{filtered.length !== 1 ? "s" : ""}
-          {newCount > 0 && filterStatus === "all" && <span style={{ marginLeft: 8, color: "#FF6B35", fontWeight: 700 }}>· {newCount} unchecked</span>}
+          {newCount > 0 && filterStatus === "all" && <span style={{ marginLeft: 8, color: "#DE377C", fontWeight: 700 }}>· {newCount} unchecked</span>}
         </div>)}
 
       {loading ? (<div style={{ textAlign: "center", padding: "60px 0", color: "#9CA3AF", fontSize: 15 }}>Loading leads…</div>) : filtered.length === 0 ? (<div style={{ textAlign: "center", padding: "60px 0", background: "#FAFAFA", borderRadius: 16, border: "1px solid #F3F4F6" }}>
@@ -321,7 +321,7 @@ export default function FormLeads() {
           <div style={{ fontSize: 15, fontWeight: 600, color: "#374151" }}>No form leads yet</div>
           <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 4 }}>
             {leads.length === 0
-                ? <span>Share the form link with customers to start collecting leads. <a href="/aura-ai/form-quest" target="_blank" style={{ color: "#FF6B35", fontWeight: 600 }}>Open Form →</a></span>
+                ? <span>Share the form link with customers to start collecting leads. <a href="/aura-ai/form-quest" target="_blank" style={{ color: "#DE377C", fontWeight: 600 }}>Open Form →</a></span>
                 : "Try adjusting your search or filter"}
           </div>
         </div>) : (<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -330,9 +330,9 @@ export default function FormLeads() {
 
       {/* Standalone link box */}
       <div style={{ marginTop: 32, padding: "18px 20px", background: "linear-gradient(135deg,#1A0A00,#0F0A00)", borderRadius: 16, border: "1px solid rgba(255,107,53,.25)" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B35", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>🔗 Standalone Public Link</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#DE377C", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>🔗 Standalone Public Link</div>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,.5)", marginBottom: 10 }}>Share this link with your customers — they can fill out the Growth Quest form and their responses will automatically appear here as leads.</p>
-        <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 10, padding: "11px 16px", fontFamily: "monospace", fontSize: 13, color: "#FF6B35", letterSpacing: .5 }}>
+        <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 10, padding: "11px 16px", fontFamily: "monospace", fontSize: 13, color: "#DE377C", letterSpacing: .5 }}>
           {window.location.origin}/aura-ai/form-quest
         </div>
       </div>

@@ -40,7 +40,7 @@ export function planLabel(plan) {
 }
 export function planBadgeStyle(plan) {
     switch (plan) {
-        case "trial": return { bg: "#FEF3C7", text: "#B45309", border: "#FDE68A" };
+        case "trial": return { bg: "#FEF3C7", text: "#B45309", border: "#FBE9F1" };
         case "solo": return { bg: "#EFF6FF", text: "#1D4ED8", border: "#BFDBFE" };
         case "growth": return { bg: "#FBE9F1", text: "#A4285E", border: "#F3C9DB" };
         case "agency": return { bg: "#FFF7ED", text: "#C2410C", border: "#FED7AA" };

@@ -366,7 +366,7 @@ function ChangePasswordForm() {
             setPwPend(false);
         }
     }
-    return (<SectionCard title={hasPassword ? "Change Password" : "Set a Password"} subtitle={hasPassword ? "Keep your account secure" : "Add a password so you can sign in with your email"} icon={Lock} iconBg="#FEF3C7" iconColor="#D97706">
+    return (<SectionCard title={hasPassword ? "Change Password" : "Set a Password"} subtitle={hasPassword ? "Keep your account secure" : "Add a password so you can sign in with your email"} icon={Lock} iconBg="#FEF3C7" iconColor="#DE377C">
       {!hasPassword && (<div className="flex items-start gap-2 text-xs text-teal-700 bg-teal-50 rounded-lg px-3 py-2 border border-teal-100 mb-4">
           <CheckCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"/>
           <span>Your email is verified! Set a password below to sign in with email &amp; password in addition to your phone.</span>
@@ -1296,7 +1296,7 @@ function IntegrationsTab({ onSwitchTab }) {
         {
             name: "HubSpot CRM",
             description: "Two-way sync of leads, contacts, and deals.",
-            icon: Building2, iconBg: "#FFF0EB", iconColor: "#FF7A59",
+            icon: Building2, iconBg: "#FFF0EB", iconColor: "#DE377C",
             status: hubspotStatus,
             managedBy: "Replit connector",
             connectHref: "/hubspot",
@@ -1384,7 +1384,7 @@ function IntegrationsTab({ onSwitchTab }) {
 }
 const ROLE_LABELS = { owner: "Owner", admin: "Admin", member: "Member" };
 const ROLE_COLORS = {
-    owner: { bg: "#FEF3C7", color: "#D97706" },
+    owner: { bg: "#FEF3C7", color: "#DE377C" },
     admin: { bg: "#FBE9F1", color: "#CB3273" },
     member: { bg: "#F0FDF4", color: "#1A7A45" },
 };
@@ -1568,7 +1568,7 @@ function TeamTab() {
         </SectionCard>)}
 
       {/* Pending invites */}
-      {canManage && pendingInvites.length > 0 && (<SectionCard title="Pending Invitations" subtitle="Invites awaiting acceptance" icon={Mail} iconBg="#FEF3C7" iconColor="#D97706">
+      {canManage && pendingInvites.length > 0 && (<SectionCard title="Pending Invitations" subtitle="Invites awaiting acceptance" icon={Mail} iconBg="#FEF3C7" iconColor="#DE377C">
           <div>
             {pendingInvites.map(inv => (<div key={inv.id} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
                 <div className="flex-1 min-w-0">
@@ -1674,7 +1674,7 @@ function AiSpendThresholdSection() {
             <div className="h-2 w-full rounded-full bg-gray-200 overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500" style={{
                 width: `${pct}%`,
-                background: isOver ? "#DC2626" : isWarning ? "#F59E0B" : "#10B981",
+                background: isOver ? "#DC2626" : isWarning ? "#DE377C" : "#10B981",
             }}/>
             </div>
             <div className="flex justify-between mt-1">

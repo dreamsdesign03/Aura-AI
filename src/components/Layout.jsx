@@ -56,7 +56,7 @@ const navGroups = [
             { href: "/outreach", label: "Outreach Engine", icon: Mail },
             { href: "/pipeline", label: "Sales Pipeline", icon: KanbanSquare },
             { href: "/meetings", label: "Meetings", icon: Calendar },
-            { href: "/hubspot", label: "HubSpot Sync", icon: Building2, accent: "#FF7A59", comingSoon: true },
+            { href: "/hubspot", label: "HubSpot Sync", icon: Building2, accent: "#DE377C", comingSoon: true },
         ],
     },
     {
@@ -104,7 +104,7 @@ const FEEDBACK_CATEGORIES = [
     { value: "bug", label: "🐛 Bug Report", color: "#EF4444" },
     { value: "feature", label: "✨ Feature Request", color: "#CB3273" },
     { value: "general", label: "💬 General Feedback", color: "#3B82F6" },
-    { value: "complaint", label: "⚠️ Complaint", color: "#F59E0B" },
+    { value: "complaint", label: "⚠️ Complaint", color: "#DE377C" },
 ];
 function FeedbackModal({ onClose }) {
     const [category, setCategory] = useState("general");
@@ -187,7 +187,7 @@ function FeedbackModal({ onClose }) {
                 {["low", "medium", "high"].map(p => (<button key={p} type="button" onClick={() => setPriority(p)} className="flex-1 py-1.5 rounded-lg text-[11px] font-bold capitalize transition-all border" style={{
                     background: priority === p ? (p === "high" ? "#FEE2E2" : p === "medium" ? "#FEF3C7" : "#F0FDF4") : "#fff",
                     color: priority === p ? (p === "high" ? "#991B1B" : p === "medium" ? "#92400E" : "#166534") : "#9CA3AF",
-                    borderColor: priority === p ? (p === "high" ? "#FCA5A5" : p === "medium" ? "#FCD34D" : "#86EFAC") : "hsl(220 13% 91%)",
+                    borderColor: priority === p ? (p === "high" ? "#FCA5A5" : p === "medium" ? "#FBE9F1" : "#86EFAC") : "hsl(220 13% 91%)",
                 }}>
                     {p}
                   </button>))}
@@ -257,7 +257,7 @@ function SidebarUsageMeter() {
         if (pct >= 100)
             return "#EF4444";
         if (pct >= 80)
-            return "#F59E0B";
+            return "#DE377C";
         return "#CB3273";
     }
     return (<Link href="/billing">
@@ -461,7 +461,7 @@ function TrialBanner() {
     const isUrgent = trialDaysLeft <= 3;
     const color = trialDaysLeft <= 1 ? "#B91C1C" : trialDaysLeft <= 2 ? "#C2410C" : trialDaysLeft <= 3 ? "#B45309" : "#A4285E";
     const bgColor = trialDaysLeft <= 1 ? "#FEE2E2" : trialDaysLeft <= 2 ? "#FFF7ED" : trialDaysLeft <= 3 ? "#FEF3C7" : "#FBE9F1";
-    const border = trialDaysLeft <= 1 ? "#FECACA" : trialDaysLeft <= 2 ? "#FED7AA" : trialDaysLeft <= 3 ? "#FDE68A" : "#F3C9DB";
+    const border = trialDaysLeft <= 1 ? "#FECACA" : trialDaysLeft <= 2 ? "#FED7AA" : trialDaysLeft <= 3 ? "#FBE9F1" : "#F3C9DB";
     const dayStr = trialDaysLeft === 0 ? "ends today" : trialDaysLeft === 1 ? "1 day left" : `${trialDaysLeft} days left`;
     const leadsRem = (data.usage?.leads?.max === -1 || !data.usage?.leads) ? null : Math.max(0, data.usage.leads.max - (data.usage.leads.used ?? 0));
     const auditsRem = (data.usage?.audits?.max === -1 || !data.usage?.audits) ? null : Math.max(0, data.usage.audits.max - (data.usage.audits.used ?? 0));
@@ -579,10 +579,10 @@ function EmailVerificationBanner() {
     }
     return (<div className="flex-shrink-0 flex items-center gap-3 px-4 py-2.5 text-sm flex-wrap" style={{
             background: "linear-gradient(90deg, #FEF3C7 0%, #FFF8E6 100%)",
-            borderBottom: "1px solid #FDE68A",
+            borderBottom: "1px solid #FBE9F1",
         }}>
       <div className="flex items-center gap-2 flex-1 min-w-0">
-        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#F59E0B22" }}>
+        <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "#DE377C22" }}>
           <Mail className="w-3.5 h-3.5" style={{ color: "#B45309" }}/>
         </div>
         <span className="text-[12px] font-medium truncate" style={{ color: "#78350F" }}>
@@ -596,11 +596,11 @@ function EmailVerificationBanner() {
             <MailCheck className="w-3.5 h-3.5"/> Sent!
           </span>)}
 
-        <button onClick={handleResend} disabled={resendSecs > 0 || resending} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50" style={{ borderColor: "#F59E0B", background: "#FFFBEB", color: "#B45309" }}>
+        <button onClick={handleResend} disabled={resendSecs > 0 || resending} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50" style={{ borderColor: "#DE377C", background: "#FFFBEB", color: "#B45309" }}>
           {resending ? "Sending…" : resendSecs > 0 ? `Resend in ${resendSecs}s` : "Resend email"}
         </button>
 
-        <button onClick={handleCheck} disabled={checking} className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all" style={{ background: "#F59E0B", color: "#fff" }}>
+        <button onClick={handleCheck} disabled={checking} className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all" style={{ background: "#DE377C", color: "#fff" }}>
           {checking
             ? <Loader2 className="w-3 h-3 animate-spin"/>
             : <RefreshCw className="w-3 h-3"/>}

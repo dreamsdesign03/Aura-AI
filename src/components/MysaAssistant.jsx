@@ -11,7 +11,7 @@ const EXAMPLE_PROMPTS = [
     { icon: Search, text: "Find 30 IT companies in Mumbai", color: "#CB3273" },
     { icon: Globe, text: "Check which leads have dead websites", color: "#0EA5E9" },
     { icon: BarChart2, text: "How many meetings did I book this month?", color: "#10B981" },
-    { icon: Zap, text: "Start outreach — 25 emails a day", color: "#F59E0B" },
+    { icon: Zap, text: "Start outreach — 25 emails a day", color: "#DE377C" },
     { icon: Bot, text: "Audit the top 5 newest leads", color: "#CB3273" },
     { icon: Users, text: "Search my leads in healthcare", color: "#CB3273" },
 ];
@@ -111,7 +111,7 @@ function LeadsCard({ data }) {
 }
 function LeadsImportedCard({ data }) {
     const sourceLabel = data.source === "google_maps" ? "Google Maps" : data.source === "apollo" ? "Apollo" : data.source;
-    const sourceColor = data.source === "google_maps" ? "#0EA5E9" : data.source === "apollo" ? "#F59E0B" : "#6B7280";
+    const sourceColor = data.source === "google_maps" ? "#0EA5E9" : data.source === "apollo" ? "#DE377C" : "#6B7280";
     const leadsToShow = data.leads.slice(0, 12);
     return (<div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: DARK3 }}>
       {/* Header */}
@@ -167,7 +167,7 @@ function StatsCard({ data }) {
         { label: "Total Leads", value: data.totalLeads, color: "#CB3273" },
         { label: "Qualified", value: data.qualifiedLeads, color: "#10B981" },
         { label: "Meetings This Week", value: data.meetingsThisWeek, color: "#0EA5E9" },
-        { label: "Emails Today", value: data.emailsSentToday, color: "#F59E0B" },
+        { label: "Emails Today", value: data.emailsSentToday, color: "#DE377C" },
         { label: "Proposals Sent", value: data.proposalsSent, color: "#CB3273" },
         { label: "Deals Won (mo)", value: data.dealsWonThisMonth, color: "#34D399" },
     ];
@@ -193,7 +193,7 @@ function HealthCard({ data }) {
       <div className="flex gap-2">
         {[
             { label: "Working", value: data.working, color: "#34D399", bg: "#064E3B" },
-            { label: "Down", value: data.down, color: "#F59E0B", bg: "#451A03" },
+            { label: "Down", value: data.down, color: "#DE377C", bg: "#451A03" },
             { label: "Dead", value: data.dead, color: "#F87171", bg: "#450A0A" },
         ].map(s => (<div key={s.label} className="flex-1 rounded-lg p-2 text-center" style={{ background: s.bg }}>
             <div className="text-[16px] font-black" style={{ color: s.color }}>{s.value}</div>
@@ -203,7 +203,7 @@ function HealthCard({ data }) {
       {total > 0 && (<div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: DARK }}>
           <div className="h-full flex">
             {data.working > 0 && <div style={{ width: `${(data.working / total) * 100}%`, background: "#34D399" }}/>}
-            {data.down > 0 && <div style={{ width: `${(data.down / total) * 100}%`, background: "#F59E0B" }}/>}
+            {data.down > 0 && <div style={{ width: `${(data.down / total) * 100}%`, background: "#DE377C" }}/>}
             {data.dead > 0 && <div style={{ width: `${(data.dead / total) * 100}%`, background: "#F87171" }}/>}
           </div>
         </div>)}
@@ -211,7 +211,7 @@ function HealthCard({ data }) {
 }
 function AuditCard({ data }) {
     const score = data.brandScore ?? 0;
-    const color = score >= 70 ? "#34D399" : score >= 45 ? "#F59E0B" : "#F87171";
+    const color = score >= 70 ? "#34D399" : score >= 45 ? "#DE377C" : "#F87171";
     return (<div className="mt-2 rounded-xl p-3" style={{ border: `1px solid ${BORDER}`, background: DARK3 }}>
       <div className="text-[11px] font-bold mb-2" style={{ color: PURPLE_L }}>Brand Audit Complete</div>
       <div className="flex items-center gap-3">
@@ -271,10 +271,10 @@ function ResultCard({ card }) {
     return null;
 }
 function ConfirmCard({ preview, onConfirm, onCancel, loading, }) {
-    return (<div className="mt-2 rounded-xl p-3" style={{ border: `1px solid #F59E0B44`, background: "#451A0315" }}>
+    return (<div className="mt-2 rounded-xl p-3" style={{ border: `1px solid #DE377C44`, background: "#451A0315" }}>
       <div className="flex items-start gap-2 mb-3">
         <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5"/>
-        <p className="text-[11px] leading-relaxed" style={{ color: "#FCD34D" }}>{preview.preview}</p>
+        <p className="text-[11px] leading-relaxed" style={{ color: "#FBE9F1" }}>{preview.preview}</p>
       </div>
       <div className="flex gap-2">
         <button onClick={onConfirm} disabled={loading} className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[12px] font-bold transition-all" style={{ background: PURPLE, color: "#fff", opacity: loading ? 0.6 : 1 }}>

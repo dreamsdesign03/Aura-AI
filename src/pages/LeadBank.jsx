@@ -9,7 +9,7 @@ const SOURCE_META = {
     csv_import: { label: "CSV Import", color: "#0369A1", bg: "#E0F2FE", Icon: FileSpreadsheet },
     paste_import: { label: "AI Parse", color: "#CB3273", bg: "#F3E8FF", Icon: Zap },
     google_maps: { label: "Google Maps", color: "#DC2626", bg: "#FEE2E2", Icon: MapPin },
-    apify: { label: "Apify", color: "#EA580C", bg: "#FFEDD5", Icon: RefreshCw },
+    apify: { label: "Apify", color: "#DE377C", bg: "#FFEDD5", Icon: RefreshCw },
     apollo: { label: "Apollo.io", color: "#0891B2", bg: "#CFFAFE", Icon: Globe },
     ai_generated: { label: "AI Generated", color: "#CB3273", bg: "#F3E8FF", Icon: Zap },
     lead_bank: { label: "Lead Bank", color: "#0F766E", bg: "#CCFBF1", Icon: Database },

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw, Loader2, AlertTriangle, ExternalLink, CheckCircle2, ArrowLeftRight, ArrowDownToLine, ArrowUpFromLine, Zap, Users, Download, ArrowUpRight, Check, UserPlus, Shield, AlertCircle, Activity, MessageSquare, Inbox, } from "lucide-react";
-const HUBSPOT_ORANGE = "#FF7A59";
+const HUBSPOT_ORANGE = "#DE377C";
 const API_BASE = "/api";
 class HsScopeError extends Error {
     scope;
@@ -48,7 +48,7 @@ const ACTION_COLOR = {
     created: "#16a34a",
     updated: "#2563eb",
     skipped: "#9ca3af",
-    conflict: "#d97706",
+    conflict: "#DE377C",
     error: "#dc2626",
 };
 const ACTION_BG = {
@@ -235,13 +235,13 @@ function SyncDashboard({ onRefresh }) {
           <StatCard label="Created" value={fmt(t.created)} color="#16a34a"/>
           <StatCard label="Updated" value={fmt(t.updated)} color="#2563eb"/>
           <StatCard label="Skipped" value={fmt(t.skipped)} color="#9ca3af"/>
-          <StatCard label="Conflicts" value={fmt(t.conflicts)} color="#d97706" sub="HubSpot won"/>
+          <StatCard label="Conflicts" value={fmt(t.conflicts)} color="#DE377C" sub="HubSpot won"/>
           <StatCard label="Errors" value={fmt(t.errors)} color="#dc2626"/>
         </div>)}
 
       {/* Live conflict / error counts */}
       {status && (status.liveConflicts > 0 || status.liveErrors > 0) && (<div className="flex gap-3 flex-wrap">
-          {status.liveConflicts > 0 && (<div className="flex items-center gap-2 p-3 rounded-xl border flex-1 min-w-[200px]" style={{ background: "#FFFBEB", borderColor: "#FDE68A" }}>
+          {status.liveConflicts > 0 && (<div className="flex items-center gap-2 p-3 rounded-xl border flex-1 min-w-[200px]" style={{ background: "#FFFBEB", borderColor: "#FBE9F1" }}>
               <AlertCircle className="w-4 h-4 text-amber-500 flex-shrink-0"/>
               <div>
                 <p className="text-sm font-semibold text-amber-800">{fmt(status.liveConflicts)} conflict{status.liveConflicts !== 1 ? "s" : ""}</p>

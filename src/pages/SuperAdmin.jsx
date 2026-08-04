@@ -179,7 +179,7 @@ export default function SuperAdmin() {
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
-            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#C9A84C,#F59E0B)" }}>
+            <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#C9A84C,#DE377C)" }}>
               <Crown className="w-5 h-5 text-white"/>
             </div>
             <div>
@@ -411,7 +411,7 @@ export default function SuperAdmin() {
               {[
                     { label: "Total", value: feedbackList.length, color: "#6B7280", bg: "#F9FAFB" },
                     { label: "New", value: feedbackList.filter(f => f.status === "new").length, color: "#EF4444", bg: "#FEF2F2" },
-                    { label: "Bugs", value: feedbackList.filter(f => f.category === "bug").length, color: "#F59E0B", bg: "#FFFBEB" },
+                    { label: "Bugs", value: feedbackList.filter(f => f.category === "bug").length, color: "#DE377C", bg: "#FFFBEB" },
                     { label: "Fixed", value: feedbackList.filter(f => f.status === "fixed").length, color: "#10B981", bg: "#ECFDF5" },
                 ].map(({ label, value, color, bg }) => (<div key={label} className="rounded-xl border px-4 py-3" style={{ background: bg, borderColor: "hsl(220 13% 91%)" }}>
                   <div className="text-[10px] font-bold uppercase tracking-wide mb-1" style={{ color: "#9CA3AF" }}>{label}</div>
@@ -440,10 +440,10 @@ export default function SuperAdmin() {
                         bug: { bg: "#FEF2F2", text: "#DC2626", icon: <Bug className="w-3 h-3"/> },
                         feature: { bg: "#FBE9F1", text: "#CB3273", icon: <Sparkles className="w-3 h-3"/> },
                         general: { bg: "#EFF6FF", text: "#2563EB", icon: <MessageCircle className="w-3 h-3"/> },
-                        complaint: { bg: "#FFFBEB", text: "#D97706", icon: <AlertCircle className="w-3 h-3"/> },
+                        complaint: { bg: "#FFFBEB", text: "#DE377C", icon: <AlertCircle className="w-3 h-3"/> },
                     };
                     const statusColors = {
-                        new: "#EF4444", discussing: "#CB3273", fixing: "#F59E0B", fixed: "#10B981", closed: "#9CA3AF",
+                        new: "#EF4444", discussing: "#CB3273", fixing: "#DE377C", fixed: "#10B981", closed: "#9CA3AF",
                     };
                     const cat = catColors[item.category] ?? catColors.general;
                     const isActive = activeFeedbackId === item.id;
@@ -467,7 +467,7 @@ export default function SuperAdmin() {
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{ background: cat.bg, color: cat.text }}>{item.category}</span>
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full capitalize" style={{
                             background: item.priority === "high" ? "#FEF2F2" : item.priority === "medium" ? "#FFFBEB" : "#F0FDF4",
-                            color: item.priority === "high" ? "#DC2626" : item.priority === "medium" ? "#D97706" : "#16A34A",
+                            color: item.priority === "high" ? "#DC2626" : item.priority === "medium" ? "#DE377C" : "#16A34A",
                         }}>{item.priority}</span>
                               <span className="text-[9px] text-gray-300 ml-auto">{fmtRelative(item.createdAt)}</span>
                             </div>
@@ -489,7 +489,7 @@ export default function SuperAdmin() {
                 if (!item)
                     return null;
                 const statusColors = {
-                    new: "#EF4444", discussing: "#CB3273", fixing: "#F59E0B", fixed: "#10B981", closed: "#9CA3AF",
+                    new: "#EF4444", discussing: "#CB3273", fixing: "#DE377C", fixed: "#10B981", closed: "#9CA3AF",
                 };
                 return (<div className="flex flex-col h-full overflow-y-auto">
                     {/* Detail header */}
@@ -600,7 +600,7 @@ export default function SuperAdmin() {
                     { label: "All-time AI Cost", value: `$${fmt(apiUsageData.summary.totalCostUsd, 4)}`, icon: DollarSign, color: "#CB3273", bg: "#FBE9F1" },
                     { label: "Total API Calls", value: fmt(apiUsageData.summary.totalApiCalls), icon: Zap, color: "#3B82F6", bg: "#EFF6FF" },
                     { label: "Input Tokens", value: fmt(apiUsageData.summary.totalInputTokens), icon: Activity, color: "#10B981", bg: "#ECFDF5" },
-                    { label: "Output Tokens", value: fmt(apiUsageData.summary.totalOutputTokens), icon: TrendingUp, color: "#F59E0B", bg: "#FFFBEB" },
+                    { label: "Output Tokens", value: fmt(apiUsageData.summary.totalOutputTokens), icon: TrendingUp, color: "#DE377C", bg: "#FFFBEB" },
                 ].map(({ label, value, icon: Icon, color, bg }) => (<div key={label} className="rounded-2xl border px-4 py-4" style={{ background: bg, borderColor: "hsl(220 13% 91%)" }}>
                     <div className="flex items-center gap-2 mb-2">
                       <Icon className="w-4 h-4" style={{ color }}/>
@@ -629,7 +629,7 @@ export default function SuperAdmin() {
                     const pct = org.limitUsd ? Math.min(100, (org.todaySpend / org.limitUsd) * 100) : 0;
                     const isOver = org.limitUsd !== null && org.todaySpend >= org.limitUsd;
                     const isWarning = !isOver && pct >= 80;
-                    const barColor = isOver ? "#DC2626" : isWarning ? "#F59E0B" : "#10B981";
+                    const barColor = isOver ? "#DC2626" : isWarning ? "#DE377C" : "#10B981";
                     return (<div key={org.id} className="px-5 py-3">
                           <div className="flex items-center justify-between mb-1.5">
                             <div className="flex items-center gap-2 min-w-0">

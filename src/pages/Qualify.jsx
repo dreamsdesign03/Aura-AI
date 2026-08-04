@@ -24,7 +24,7 @@ const ROUTING_ACTIONS = {
     priority_believer: {
         label: "Assign to Krishna",
         icon: <Star className="w-4 h-4"/>,
-        color: "#D97706",
+        color: "#DE377C",
         bg: "rgba(217,119,6,0.12)",
         description: "PRIORITY BELIEVER — assign directly and book discovery call",
     },
@@ -45,7 +45,7 @@ const ROUTING_ACTIONS = {
     nurture_belief: {
         label: "Belief-Building Content",
         icon: <Clock className="w-4 h-4"/>,
-        color: "#F59E0B",
+        color: "#DE377C",
         bg: "rgba(245,158,11,0.12)",
         description: "NURTURE — send belief-building content over 30 days",
     },
@@ -67,7 +67,7 @@ const ROUTING_ACTIONS = {
     send_booking_email: {
         label: "Send Booking Email",
         icon: <Mail className="w-4 h-4"/>,
-        color: "#F59E0B",
+        color: "#DE377C",
         bg: "rgba(245,158,11,0.1)",
         description: "Send a meeting booking email to this qualified lead",
     },
@@ -90,7 +90,7 @@ function beliefBadgeColor(score) {
     if (score >= 18)
         return { text: "#059669", bg: "#ECFDF5", border: "#6EE7B7" };
     if (score >= 9)
-        return { text: "#D97706", bg: "#FFFBEB", border: "#FCD34D" };
+        return { text: "#DE377C", bg: "#FFFBEB", border: "#FBE9F1" };
     return { text: "#DC2626", bg: "#FEF2F2", border: "#FCA5A5" };
 }
 function beliefLabel(score) {
@@ -350,7 +350,7 @@ export default function Qualify() {
                     <Brain className="w-3.5 h-3.5"/>
                     {beliefLoading ? "Scoring..." : "AI Score Belief"}
                   </button>
-                  <button onClick={() => aiScore.mutate({ leadId: activeLead.id })} disabled={aiScore.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium disabled:opacity-50" style={{ background: "#F59E0B", color: "#1E293B" }}>
+                  <button onClick={() => aiScore.mutate({ leadId: activeLead.id })} disabled={aiScore.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium disabled:opacity-50" style={{ background: "#DE377C", color: "#1E293B" }}>
                     <Zap className="w-3.5 h-3.5"/>
                     {aiScore.isPending ? "Scoring..." : "AI Auto-Score"}
                   </button>
@@ -461,7 +461,7 @@ export default function Qualify() {
                     <span className="text-gray-300">=</span>
                     <div>
                       <span className="text-xs font-semibold text-muted-foreground">BANTB: </span>
-                      <span className="text-xl font-black ml-0.5" style={{ color: bantbTotal >= 100 ? "#D97706" : bantbTotal >= 80 ? "#0D9488" : bantbTotal >= 50 ? "#3B82F6" : "#6B7280" }}>{bantbTotal}</span>
+                      <span className="text-xl font-black ml-0.5" style={{ color: bantbTotal >= 100 ? "#DE377C" : bantbTotal >= 80 ? "#0D9488" : bantbTotal >= 50 ? "#3B82F6" : "#6B7280" }}>{bantbTotal}</span>
                       <span className="text-[10px] text-muted-foreground">/125</span>
                     </div>
                   </div>

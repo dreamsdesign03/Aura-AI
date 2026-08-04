@@ -123,7 +123,7 @@ export default function Verify({ onSuccess }) {
 
           {status === "expired" && (<>
               <div className="w-14 h-14 rounded-full flex items-center justify-center mx-auto mb-4" style={{ background: "#FEF3C7" }}>
-                <Clock className="w-7 h-7" style={{ color: "#D97706" }}/>
+                <Clock className="w-7 h-7" style={{ color: "#DE377C" }}/>
               </div>
               <h1 style={{ fontSize: 20, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
                 Link expired

@@ -50,10 +50,33 @@
   --color-sidebar-accent-foreground: hsl(var(--sidebar-accent-foreground));
 
   --color-teal: #0D9488;
-  --color-amber: #F59E0B;
+  --color-amber: #DE377C;
   --color-pink: #CB3273;
   --color-pink-deep: #A4285E;
   --color-navy: #1E293B;
+
+  --color-orange-50: #FDF3F8;
+  --color-orange-100: #FBE9F1;
+  --color-orange-200: #F7D6E4;
+  --color-orange-300: #F0B8CE;
+  --color-orange-400: #E58BB5;
+  --color-orange-500: #DE377C;
+  --color-orange-600: #DE377C;
+  --color-orange-700: #B02861;
+  --color-orange-800: #8E1F54;
+  --color-orange-900: #5A1232;
+  --color-orange-950: #3A0C20;
+  --color-amber-50: #FDF3F8;
+  --color-amber-100: #FBE9F1;
+  --color-amber-200: #F7D6E4;
+  --color-amber-300: #F0B8CE;
+  --color-amber-400: #E58BB5;
+  --color-amber-500: #DE377C;
+  --color-amber-600: #DE377C;
+  --color-amber-700: #B02861;
+  --color-amber-800: #8E1F54;
+  --color-amber-900: #5A1232;
+  --color-amber-950: #3A0C20;
 
   --color-violet-50: #FDF3F8;
   --color-violet-100: #FBE9F1;

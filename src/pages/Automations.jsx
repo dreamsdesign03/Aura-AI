@@ -47,7 +47,7 @@ const TRIGGER_ICONS = {
 const TRIGGER_COLORS = {
     new_lead_meta_ad: "#A4285E",
     missed_booking: "#EF4444",
-    no_response: "#F59E0B",
+    no_response: "#DE377C",
     call_booked: "#3B82F6",
     proposal_sent: "#CB3273",
     lead_lost: "#6B7280",
@@ -60,7 +60,7 @@ const STEP_BG = {
 };
 const STEP_LABEL_COLORS = {
     trigger: "#A4285E",
-    condition: "#D97706",
+    condition: "#DE377C",
     action: "#059669",
     delay: "#6B7280",
 };
@@ -150,7 +150,7 @@ function AutomationCard({ automation, onToggle, onDelete, onExpand, expanded, to
               </div>
 
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                <button onClick={() => onToggle(automation.id)} disabled={toggling} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-60" style={automation.active ? { background: "#FEF3C7", color: "#D97706" } : { background: "#D1FAE5", color: "#059669" }} title={automation.active ? "Pause automation" : "Activate automation"}>
+                <button onClick={() => onToggle(automation.id)} disabled={toggling} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors disabled:opacity-60" style={automation.active ? { background: "#FEF3C7", color: "#DE377C" } : { background: "#D1FAE5", color: "#059669" }} title={automation.active ? "Pause automation" : "Activate automation"}>
                   {toggling ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : automation.active ? <Pause className="w-3.5 h-3.5"/> : <Play className="w-3.5 h-3.5"/>}
                 </button>
                 <button onClick={() => onExpand(automation.id)} className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors" style={{ background: "#F3F4F6", color: "#6B7280" }}>
@@ -410,7 +410,7 @@ export default function Automations() {
         {[
             { label: "Active Automations", value: activeCount, color: "#059669" },
             { label: "Total Runs", value: totalRuns.toLocaleString(), color: "#A4285E" },
-            { label: "Conversions", value: totalConversions, color: "#D97706" },
+            { label: "Conversions", value: totalConversions, color: "#DE377C" },
         ].map(({ label, value, color }) => (<div key={label} className="rounded-xl border p-3 text-center" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
             <div className="text-[20px] font-black" style={{ color }}>{value}</div>
             <div className="text-[11px] font-medium mt-0.5" style={{ color: "#9CA3AF" }}>{label}</div>

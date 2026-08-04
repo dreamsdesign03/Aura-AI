@@ -11,7 +11,7 @@ const pdfStyles = StyleSheet.create({
     header: { backgroundColor: "#1A7A45", padding: 24, borderRadius: 6, marginBottom: 24 },
     headerTitle: { color: "#ffffff", fontSize: 18, fontWeight: "bold", fontFamily: "Helvetica-Bold" },
     headerSub: { color: "rgba(255,255,255,0.8)", fontSize: 11, marginTop: 6 },
-    investment: { color: "#F59E0B", fontSize: 14, fontWeight: "bold", fontFamily: "Helvetica-Bold", marginTop: 8 },
+    investment: { color: "#DE377C", fontSize: 14, fontWeight: "bold", fontFamily: "Helvetica-Bold", marginTop: 8 },
     section: { marginBottom: 16 },
     sectionTitle: { fontSize: 9, color: "#6b7280", textTransform: "uppercase", letterSpacing: 1, marginBottom: 6, fontFamily: "Helvetica-Bold" },
     sectionBody: { fontSize: 11, color: "#374151", lineHeight: 1.5 },
@@ -70,7 +70,7 @@ const PROPOSAL_STATUSES = ["draft", "sent", "viewed", "negotiating", "closed_won
 const KANBAN_COLUMNS = [
     { status: "draft", label: "Draft", color: "#6B7280" },
     { status: "sent", label: "Sent", color: "#3B82F6" },
-    { status: "viewed", label: "Viewed", color: "#F59E0B" },
+    { status: "viewed", label: "Viewed", color: "#DE377C" },
     { status: "negotiating", label: "Negotiating", color: "#CB3273" },
     { status: "closed_won", label: "Closed Won", color: "#1A7A45" },
     { status: "closed_lost", label: "Closed Lost", color: "#EF4444" },
@@ -81,7 +81,7 @@ function ProposalCard({ proposal, isDragging }) {
     return (<div ref={setNodeRef} style={{ ...(style ?? {}), }} {...listeners} {...attributes} className={cn("rounded border border-gray-200 p-2.5 cursor-grab active:cursor-grabbing transition-colors", isDragging ? "opacity-50" : "hover:border-gray-200/60")}>
       <div className="text-[11px] font-medium text-foreground truncate mb-1">{proposal.title}</div>
       <div className="text-[10px] text-muted-foreground truncate">{proposal.lead?.company}</div>
-      <div className="text-[11px] font-bold mt-1.5" style={{ color: "#F59E0B" }}>{formatCurrency(proposal.investment ?? 0)}</div>
+      <div className="text-[11px] font-bold mt-1.5" style={{ color: "#DE377C" }}>{formatCurrency(proposal.investment ?? 0)}</div>
       <div className="text-[10px] text-gray-400 mt-0.5">{formatDate(proposal.createdAt)}</div>
     </div>);
 }
@@ -180,7 +180,7 @@ export default function Proposals() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-foreground">Proposal Engine</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{proposals.length} proposals · Pipeline: <span className="font-semibold" style={{ color: "#F59E0B" }}>{formatCurrency(pipelineValue)}</span></p>
+          <p className="text-xs text-muted-foreground mt-0.5">{proposals.length} proposals · Pipeline: <span className="font-semibold" style={{ color: "#DE377C" }}>{formatCurrency(pipelineValue)}</span></p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1 border border-gray-200 rounded p-0.5">
@@ -210,7 +210,7 @@ export default function Proposals() {
             {draggingProposal ? (<div className="rounded border border-teal-300 p-2.5 shadow-xl" style={{ width: "160px" }}>
                 <div className="text-[11px] font-medium text-foreground truncate mb-1">{draggingProposal.title}</div>
                 <div className="text-[10px] text-muted-foreground truncate">{draggingProposal.lead?.company}</div>
-                <div className="text-[11px] font-bold mt-1.5" style={{ color: "#F59E0B" }}>{formatCurrency(draggingProposal.investment ?? 0)}</div>
+                <div className="text-[11px] font-bold mt-1.5" style={{ color: "#DE377C" }}>{formatCurrency(draggingProposal.investment ?? 0)}</div>
               </div>) : null}
           </DragOverlay>
         </DndContext>) : (<div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -225,7 +225,7 @@ export default function Proposals() {
                   <div className="text-[11px] text-muted-foreground">{p.lead?.firstName} {p.lead?.lastName} · {p.lead?.company}</div>
                   <div className="flex items-center gap-2 mt-1">
                     <StatusBadge status={p.status}/>
-                    <span className="text-[11px] font-bold" style={{ color: "#F59E0B" }}>{formatCurrency(p.investment ?? 0)}</span>
+                    <span className="text-[11px] font-bold" style={{ color: "#DE377C" }}>{formatCurrency(p.investment ?? 0)}</span>
                   </div>
                   <div className="text-[10px] text-gray-400 mt-1">{formatDate(p.createdAt)}</div>
                 </button>))}
@@ -244,7 +244,7 @@ export default function Proposals() {
                       <div className="text-xs text-muted-foreground mt-0.5">{activeProposal.lead?.firstName} {activeProposal.lead?.lastName} — {activeProposal.lead?.company}</div>
                       <div className="flex items-center gap-3 mt-2">
                         <StatusBadge status={activeProposal.status}/>
-                        <span className="text-sm font-black" style={{ color: "#F59E0B" }}>{formatCurrency(activeProposal.investment ?? 0)}</span>
+                        <span className="text-sm font-black" style={{ color: "#DE377C" }}>{formatCurrency(activeProposal.investment ?? 0)}</span>
                       </div>
                     </div>
                     <select value={activeProposal.status} onChange={(e) => updateProposalStatus.mutate({ id: activeProposal.id, data: { status: e.target.value } })} className="text-xs rounded border border-gray-200 bg-white text-gray-900 px-2 py-1 focus:outline-none">

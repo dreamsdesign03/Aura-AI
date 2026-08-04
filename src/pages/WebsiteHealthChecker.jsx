@@ -283,7 +283,7 @@ export default function WebsiteHealthChecker() {
                 { label: "Live", value: counts.live ?? 0, icon: CheckCircle2, color: "#059669", bg: "#ECFDF5", filter: "live" },
                 { label: "Down / Dead", value: counts.dead ?? 0, icon: XCircle, color: "#DC2626", bg: "#FEF2F2", filter: "dead" },
                 { label: "No Website", value: counts.no_website ?? 0, icon: HelpCircle, color: "#6B7280", bg: "#F3F4F6", filter: "no_website" },
-                { label: "Unchecked", value: counts.unchecked ?? 0, icon: Clock, color: "#D97706", bg: "#FEF3C7", filter: "unchecked" },
+                { label: "Unchecked", value: counts.unchecked ?? 0, icon: Clock, color: "#DE377C", bg: "#FEF3C7", filter: "unchecked" },
             ].map(({ label, value, icon: Icon, color, bg, filter }) => {
                 const isActive = activeFilter === filter && filter !== null;
                 const isClickable = filter !== null;
@@ -320,7 +320,7 @@ export default function WebsiteHealthChecker() {
                 {activeFilter === "live" ? "✅ Live Websites" : activeFilter === "dead" ? "❌ Dead Websites" : activeFilter === "no_website" ? "⬜ No Website" : "🕐 Unchecked Leads"}
               </span>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white" style={{
-                background: activeFilter === "live" ? "#059669" : activeFilter === "dead" ? "#DC2626" : activeFilter === "no_website" ? "#6B7280" : "#D97706"
+                background: activeFilter === "live" ? "#059669" : activeFilter === "dead" ? "#DC2626" : activeFilter === "no_website" ? "#6B7280" : "#DE377C"
             }}>
                 {filteredTotal.toLocaleString()}
               </span>
