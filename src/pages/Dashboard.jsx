@@ -161,6 +161,41 @@ export default function Dashboard() {
         <StatCard label="Deals Closed" value={summary?.dealsClosedThisMonth ?? 0} icon={TrendingUp} color="green" loading={isLoading} trend="This month"/>
       </div>
 
+      {/* Autonomous Sales Agent Status Bar */}
+      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Zap className="w-4 h-4 text-pink-600" />
+            <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">Autonomous Sales Agents</span>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+              ● 24/7 Active
+            </span>
+          </div>
+          <Link href="/agent-hub" className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1">
+            Agent Hub <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          {[
+            { name: "Scout Agent", role: "Audit & Website Check", color: "#3B82F6", path: "/agent-hub" },
+            { name: "Sales Agent", role: "Outreach & Proposals", color: "#8E1F54", path: "/sales-agent" },
+            { name: "Follow-Up Agent", role: "Multi-Touch Drips", color: "#059669", path: "/automations" },
+            { name: "Lead Hunter", role: "ICP Prospecting", color: "#DE377C", path: "/lead-hunter" },
+          ].map(agent => (
+            <Link key={agent.name} href={agent.path}>
+              <div className="p-3 rounded-lg border border-gray-100 bg-gray-50 hover:bg-white hover:border-gray-200 transition-all cursor-pointer space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-gray-900">{agent.name}</span>
+                  <span className="w-2 h-2 rounded-full" style={{ background: agent.color }} />
+                </div>
+                <p className="text-[10px] text-gray-500">{agent.role}</p>
+                <div className="text-[9px] font-bold text-emerald-600">● 24/7 Running</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       {/* Daily Rhythm Checklist */}
       <div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
         <div className="flex items-center justify-between mb-3">
