@@ -1220,6 +1220,12 @@ async function ensureOutreachAndProposalsTables() {
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
     `);
+    await db.query(`ALTER TABLE proposals ADD COLUMN IF NOT EXISTS user_id INT`);
+    await db.query(`ALTER TABLE proposals ADD COLUMN IF NOT EXISTS content JSONB DEFAULT '{}'`);
+    await db.query(`ALTER TABLE proposals ALTER COLUMN services DROP DEFAULT`);
+    await db.query(`ALTER TABLE proposals ALTER COLUMN services TYPE JSONB USING to_jsonb(services)`);
+    await db.query(`ALTER TABLE proposals ALTER COLUMN services SET DEFAULT '[]'`);
+    await db.query(`ALTER TABLE proposals ALTER COLUMN investment TYPE NUMERIC`);
   } catch (e) {
     console.error('[ensureOutreachAndProposalsTables] Schema:', e.message);
   }
