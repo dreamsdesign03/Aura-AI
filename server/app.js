@@ -2437,9 +2437,13 @@ Find EXACTLY ${count} REAL, active D2C Skincare & Cosmeceutical Brands matching 
 EXAMPLES OF RELEVANT TARGET BRANDS: Minimalist Cosmeceuticals (beminimalist.co), The Derma Co (thedermaco.com), Dr. Sheth's Skincare (drsheths.com), Dot & Key (dotandkey.com), Fixderma (fixderma.com), Foxtale (foxtale.in), Re'equil (reequil.com), Chemist at Play (chemistatplay.com), Plum Goodness (plumgoodness.com).
 
 CRITICAL RULES:
-1. ONLY return REAL D2C Skincare, Personal Care, and Cosmeceutical Brands.
-2. DO NOT return banks, universities, IT companies, conglomerates, or clinics.
-3. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
+1. ONLY return REAL D2C Skincare, Personal Care, and Cosmeceutical Brands that EXACTLY match the ICP above (industry, decision-maker role, location).
+2. DO NOT return banks, universities, IT companies, conglomerates, clinics, or any brand that does not match the ICP.
+3. DO NOT invent, guess, or fabricate any brand or person — only real, verifiable brands with their real founder/owner names.
+4. company MUST be the SHORT brand name only (e.g. "Minimalist", "Dot & Key") — NEVER a tagline, service list, SEO title, or anything containing "—", "|", "Best", or a location like "in Mumbai".
+5. firstName and lastName MUST be the real person's name (Founder/Brand Manager), NOT the brand name.
+6. designation: real job title (e.g. Co-Founder & CEO, Brand Manager, E-commerce Head).
+7. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
 [
   {
     "company": "Brand Name (e.g. Minimalist Cosmeceuticals)",
@@ -2463,9 +2467,13 @@ Find EXACTLY ${count} REAL, active Multi-Branch Dermatology & Cosmetic Clinics m
 EXAMPLES OF RELEVANT TARGET CLINICS: Cutis Skin & Laser Clinic (cutisskinclinic.com), Kaya Skin Clinic (kayaskinclinic.com), Sakhiya Skin Clinic (sakhiyaskinclinic.com), Radiance Aesthetics Center, Twacha Skin Clinic.
 
 CRITICAL RULES:
-1. ONLY return REAL Dermatology, Cosmetic, Aesthetic, or Hair Restoration Clinics.
-2. DO NOT return banks, universities, IT companies, conglomerates, or media.
-3. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
+1. ONLY return REAL Dermatology, Cosmetic, Aesthetic, or Hair Restoration Clinics that EXACTLY match the ICP above (industry, decision-maker role, location).
+2. DO NOT return banks, universities, IT companies, conglomerates, media, or any clinic that does not match the ICP.
+3. DO NOT invent, guess, or fabricate any clinic or person — only real, verifiable clinics with their real doctor/owner names.
+4. company MUST be the SHORT clinic brand name only (e.g. "Cutis Skin & Laser Clinic", "Sakhiya Skin Clinic") — NEVER a tagline, service list, SEO title, or anything containing "—", "|", "Best", or a location like "in Bodakdev, Ahmedabad".
+5. firstName and lastName MUST be the real doctor/owner person's name, NOT the clinic name.
+6. designation: real job title (e.g. Dermatologist, Medical Director, Clinic Owner).
+7. Output MUST be valid JSON Array only with NO markdown formatting, matching this exact schema:
 [
   {
     "company": "Clinic Name (e.g. Cutis Skin & Laser Clinic)",
