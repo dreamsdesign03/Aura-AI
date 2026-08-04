@@ -69,7 +69,7 @@ function PlanCard({ plan, isCurrent, isDowngrade, onUpgrade, upgrading, interval
             boxShadow: plan.highlight ? `0 0 0 1.5px ${colors.main}40` : undefined,
         }}>
       {plan.highlight && (<div className="text-center py-1.5 text-[11px] font-bold text-white" style={{ background: colors.gradient }}>
-          Ã¢Ëœâ€¦ Most Popular
+          ★ Most Popular
         </div>)}
 
       <div className={`p-6 flex-1 flex flex-col ${plan.highlight ? "" : ""}`}>
@@ -85,16 +85,16 @@ function PlanCard({ plan, isCurrent, isDowngrade, onUpgrade, upgrading, interval
 
         <div className="flex items-baseline gap-1 mb-1">
           <span className="text-3xl font-black text-gray-900">
-            {currency === "USD" ? `$${monthlyUSD}` : `Ã¢â€šÂ¹${monthlyINR.toLocaleString("en-IN")}`}
+            {currency === "USD" ? `$${monthlyUSD}` : `₹${monthlyINR.toLocaleString("en-IN")}`}
           </span>
           <span className="text-sm text-gray-400">/month</span>
         </div>
         <div className="text-[11px] text-gray-400 mb-4">
           {currency === "USD"
-            ? <span className="text-blue-500 font-medium">USD pricing Ã¢â‚¬â€ contact us to subscribe</span>
+            ? <span className="text-blue-500 font-medium">USD pricing — contact us to subscribe</span>
             : interval === "yearly"
-                ? <>Ã¢â€šÂ¹{plan.priceINRYearly.toLocaleString("en-IN")}/year Ã‚Â· <span className="text-green-600 font-bold">20% off</span></>
-                : <>Or Ã¢â€šÂ¹{plan.priceINRYearly.toLocaleString("en-IN")}/year Ã‚Â· save 20%</>}
+                ? <>₹{plan.priceINRYearly.toLocaleString("en-IN")}/year · <span className="text-green-600 font-bold">20% off</span></>
+                : <>Or ₹{plan.priceINRYearly.toLocaleString("en-IN")}/year · save 20%</>}
         </div>
 
         <div className="space-y-2 flex-1 mb-5">
@@ -109,14 +109,14 @@ function PlanCard({ plan, isCurrent, isDowngrade, onUpgrade, upgrading, interval
         </div>
 
         {isCurrent ? (<div className="w-full py-2.5 rounded-xl text-sm font-bold text-center" style={{ background: colors.bg, color: colors.main }}>
-            Ã¢Å“â€œ Current Plan
+            ✓ Current Plan
           </div>) : isDowngrade ? (<button disabled className="w-full py-2.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed" style={{ background: "#F3F4F6" }}>
-            Downgrade Ã¢â‚¬â€ contact support
-          </button>) : currency === "USD" ? (<a href={`mailto:sales@mysaai.in?subject=${encodeURIComponent(`AuraAI ${plan.name} Plan Ã¢â‚¬â€ USD Pricing`)}&body=${encodeURIComponent(`Hi,\n\nI'd like to subscribe to the AuraAI ${plan.name} plan with USD pricing.\n\nPlease share payment details.\n\nThanks`)}`} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 flex items-center justify-center gap-2 text-white no-underline" style={{ background: colors.gradient, display: "flex" }}>
+            Downgrade — contact support
+          </button>) : currency === "USD" ? (<a href={`mailto:sales@mysaai.in?subject=${encodeURIComponent(`AuraAI ${plan.name} Plan — USD Pricing`)}&body=${encodeURIComponent(`Hi,\n\nI'd like to subscribe to the AuraAI ${plan.name} plan with USD pricing.\n\nPlease share payment details.\n\nThanks`)}`} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 flex items-center justify-center gap-2 text-white no-underline" style={{ background: colors.gradient, display: "flex" }}>
             Contact Us for USD
           </a>) : (<button onClick={() => onUpgrade(plan)} disabled={upgrading} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 text-white" style={{ background: colors.gradient }}>
             {upgrading ? <Loader2 className="w-4 h-4 animate-spin"/> : null}
-            {upgrading ? "ProcessingÃ¢â‚¬Â¦" : `Upgrade to ${plan.name}`}
+            {upgrading ? "Processing…" : `Upgrade to ${plan.name}`}
           </button>)}
       </div>
     </div>);
@@ -163,7 +163,7 @@ export default function Billing() {
                     amount: order.amount,
                     currency: order.currency ?? "INR",
                     name: "AuraAI",
-                    description: `${plan.name} Plan Ã¢â‚¬â€ ${billingInterval === "yearly" ? "Annual" : "Monthly"}`,
+                    description: `${plan.name} Plan — ${billingInterval === "yearly" ? "Annual" : "Monthly"}`,
                     order_id: order.id,
                     theme: { color: "#CB3273" },
                     prefill: {},
@@ -184,7 +184,7 @@ export default function Billing() {
                             if (!verifyRes.ok || !verifyData.success)
                                 throw new Error(verifyData.error ?? "Payment verification failed");
                             await qc.invalidateQueries({ queryKey: ["billing-current-plan"] });
-                            setSuccessMsg(`Ã°Å¸Å½â€° You're now on the ${plan.name} plan! RedirectingÃ¢â‚¬Â¦`);
+                            setSuccessMsg(`🎉 You're now on the ${plan.name} plan! Redirecting…`);
                             setTimeout(() => navigate("/?upgraded=true"), 1800);
                             resolve();
                         }
@@ -236,13 +236,13 @@ export default function Billing() {
           <div className="flex-1">
             <span className="text-sm font-medium text-red-800">{errorMsg}</span>
           </div>
-          <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-600">Ã¢Å“â€¢</button>
+          <button onClick={() => setErrorMsg(null)} className="text-red-400 hover:text-red-600">✕</button>
         </div>)}
 
       {/* Current plan + usage */}
       {planLoading ? (<div className="rounded-2xl border p-6 flex items-center gap-3" style={{ borderColor: "hsl(220 13% 91%)" }}>
           <Loader2 className="w-5 h-5 animate-spin text-violet-500"/>
-          <span className="text-sm text-gray-500">Loading plan detailsÃ¢â‚¬Â¦</span>
+          <span className="text-sm text-gray-500">Loading plan details…</span>
         </div>) : planData ? (<div className="rounded-2xl border overflow-hidden" style={{ borderColor: "hsl(220 13% 91%)" }}>
           {/* Plan header */}
           <div className="px-6 py-4 border-b flex items-center justify-between" style={{ borderColor: "hsl(220 13% 91%)" }}>
@@ -257,7 +257,7 @@ export default function Billing() {
                 {isTrialPlan && !isTrialExpired && (<p className="text-xs text-gray-500 mt-0.5">
                     {trialDaysLeft > 0 ? `${trialDaysLeft} day${trialDaysLeft !== 1 ? "s" : ""} remaining in your free trial` : "Trial ends today"}
                   </p>)}
-                {isTrialExpired && (<p className="text-xs text-red-600 font-medium mt-0.5">Your trial has expired Ã¢â‚¬â€ upgrade to continue</p>)}
+                {isTrialExpired && (<p className="text-xs text-red-600 font-medium mt-0.5">Your trial has expired — upgrade to continue</p>)}
                 {!isTrialPlan && planData.currentPeriodEnd && (<p className="text-xs text-gray-500 mt-0.5">
                     Renews {new Date(planData.currentPeriodEnd).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                   </p>)}
@@ -297,7 +297,7 @@ export default function Billing() {
               <button onClick={() => setCurrency("INR")} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all" style={currency === "INR"
             ? { background: "#fff", color: "#1F2937", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
             : { color: "#6B7280" }}>
-                Ã¢â€šÂ¹ INR
+                ₹ INR
               </button>
               <button onClick={() => setCurrency("USD")} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all" style={currency === "USD"
             ? { background: "#fff", color: "#1F2937", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
@@ -320,7 +320,7 @@ export default function Billing() {
           </div>
         </div>
         {plansLoading ? (<div className="flex items-center gap-2 text-sm text-gray-500">
-            <Loader2 className="w-4 h-4 animate-spin"/> Loading plansÃ¢â‚¬Â¦
+            <Loader2 className="w-4 h-4 animate-spin"/> Loading plans…
           </div>) : (<div className="grid md:grid-cols-3 gap-4">
             {plans.map(plan => {
                 const currentIdx = PLAN_ORDER.indexOf(currentPlanKey);
@@ -332,7 +332,7 @@ export default function Billing() {
 
       {/* GST note */}
       <p className="text-[11px] text-gray-400">
-        All prices are in Indian Rupees (Ã¢â€šÂ¹) and exclusive of GST (18%). Payments are processed securely via Razorpay.
+        All prices are in Indian Rupees (₹) and exclusive of GST (18%). Payments are processed securely via Razorpay.
         Annual billing saves 20%. Contact{" "}
         <a href="mailto:support@mysaai.in" className="underline hover:text-gray-600">support@mysaai.in</a>{" "}
         to switch plans or for invoicing.

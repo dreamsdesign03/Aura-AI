@@ -26,35 +26,35 @@ const ROUTING_ACTIONS = {
         icon: <Star className="w-4 h-4"/>,
         color: "#D97706",
         bg: "rgba(217,119,6,0.12)",
-        description: "PRIORITY BELIEVER â€” assign directly and book discovery call",
+        description: "PRIORITY BELIEVER — assign directly and book discovery call",
     },
     qualified_believer: {
         label: "WHY-First Email",
         icon: <Brain className="w-4 h-4"/>,
         color: "#0D9488",
         bg: "rgba(13,148,136,0.12)",
-        description: "QUALIFIED BELIEVER â€” send belief-aligned outreach email",
+        description: "QUALIFIED BELIEVER — send belief-aligned outreach email",
     },
     qualified_standard: {
         label: "Standard Outreach",
         icon: <Mail className="w-4 h-4"/>,
         color: "#3B82F6",
         bg: "rgba(59,130,246,0.12)",
-        description: "QUALIFIED STANDARD â€” send standard booking email",
+        description: "QUALIFIED STANDARD — send standard booking email",
     },
     nurture_belief: {
         label: "Belief-Building Content",
         icon: <Clock className="w-4 h-4"/>,
         color: "#F59E0B",
         bg: "rgba(245,158,11,0.12)",
-        description: "NURTURE â€” send belief-building content over 30 days",
+        description: "NURTURE — send belief-building content over 30 days",
     },
     cold: {
         label: "Newsletter Only",
         icon: <Mail className="w-4 h-4"/>,
         color: "#6B7280",
         bg: "rgba(107,114,128,0.12)",
-        description: "COLD â€” add to newsletter list only",
+        description: "COLD — add to newsletter list only",
     },
     // legacy keys kept for backward compat
     assign_to_krishna: {
@@ -83,7 +83,7 @@ const ROUTING_ACTIONS = {
         icon: <Mail className="w-4 h-4"/>,
         color: "#6B7280",
         bg: "rgba(107,114,128,0.1)",
-        description: "Move to newsletter list â€” not ready for pipeline",
+        description: "Move to newsletter list — not ready for pipeline",
     },
 };
 function beliefBadgeColor(score) {
@@ -115,7 +115,7 @@ export default function Qualify() {
     const onBantbComplete = useCallback(({ scored }) => {
         setBulkResult({ scored });
         qc.invalidateQueries({ queryKey: getGetQualifyQueueQueryKey() });
-        toast.success(`Batch complete â€” ${scored} leads scored`, {
+        toast.success(`Batch complete — ${scored} leads scored`, {
             description: "BANTB scores and routing updated. Refresh the queue to see results.",
         });
     }, [qc]);
@@ -271,14 +271,14 @@ export default function Qualify() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-lg font-bold text-foreground">BANTB Qualifier</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">{queue.length} leads in qualification queue â€” BANT + Belief Alignment (max 125)</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{queue.length} leads in qualification queue — BANT + Belief Alignment (max 125)</p>
         </div>
         <div className="flex items-center gap-2">
           {bantbPoller.isPolling && (<span className="text-[11px] text-violet-700 bg-violet-50 border border-violet-200 px-2 py-1 rounded flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-violet-500 animate-ping"/>
-              Batch scoring {bantbPoller.batchState.leadsCount} leadsâ€¦ auto-updates every 30s
+              Batch scoring {bantbPoller.batchState.leadsCount} leads… auto-updates every 30s
             </span>)}
-          {bulkResult && !bantbPoller.isPolling && (<span className="text-[11px] text-teal-600 bg-teal-50 border border-teal-200 px-2 py-1 rounded">âœ“ {bulkResult.scored} leads scored</span>)}
+          {bulkResult && !bantbPoller.isPolling && (<span className="text-[11px] text-teal-600 bg-teal-50 border border-teal-200 px-2 py-1 rounded">✓ {bulkResult.scored} leads scored</span>)}
           <button onClick={() => bulkScore.mutate()} disabled={bulkScore.isPending || bantbPoller.isPolling || queue.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium disabled:opacity-50" style={{ background: "#1A7A45", color: "white" }}>
             <Layers className="w-3.5 h-3.5"/>
             {bulkScore.isPending ? "Submitting..." : bantbPoller.isPolling ? "Batch in Progress..." : `Bulk AI Score All (${queue.length})`}
@@ -289,14 +289,14 @@ export default function Qualify() {
       {routingResult && (<div className="rounded-lg border p-4 flex items-start gap-4" style={{ borderColor: routingResult.color + "40", background: routingResult.bg }}>
           <div className="flex-1">
             <div className="text-xs text-muted-foreground mb-1">
-              Lead scored â€” <span className="text-foreground font-medium">{routingResult.leadName}</span>
-              <span className="ml-2 text-[11px]">BANT: <b>{routingResult.total}</b>/100 Â· Belief: <b>{routingResult.bantbTotal - routingResult.total}</b>/25 Â· BANTB: <b>{routingResult.bantbTotal}</b>/125</span>
+              Lead scored — <span className="text-foreground font-medium">{routingResult.leadName}</span>
+              <span className="ml-2 text-[11px]">BANT: <b>{routingResult.total}</b>/100 · Belief: <b>{routingResult.bantbTotal - routingResult.total}</b>/25 · BANTB: <b>{routingResult.bantbTotal}</b>/125</span>
             </div>
             <div className="text-sm font-semibold mb-3" style={{ color: routingResult.color }}>{routingResult.message}</div>
             <div className="flex flex-wrap gap-2">
               {Object.entries(ROUTING_ACTIONS).filter(([key]) => ["priority_believer", "qualified_believer", "qualified_standard", "nurture_belief", "cold"].includes(key)).map(([key, ra]) => (<button key={key} onClick={dismissRouting} className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium border transition-colors", routingResult.action === key ? "opacity-100" : "opacity-35 hover:opacity-60")} style={{ color: ra.color, background: routingResult.action === key ? ra.bg : "transparent", borderColor: ra.color + "40" }} title={ra.description}>
                   {ra.icon}{ra.label}
-                  {routingResult.action === key && <span className="ml-1 text-[10px] font-bold">â† Recommended</span>}
+                  {routingResult.action === key && <span className="ml-1 text-[10px] font-bold">← Recommended</span>}
                 </button>))}
             </div>
           </div>
@@ -304,12 +304,12 @@ export default function Qualify() {
         </div>)}
 
       <div className="grid grid-cols-5 gap-4" style={{ height: "calc(100vh - 200px)" }}>
-        {/* â”€â”€ Lead queue â”€â”€ */}
+        {/* ── Lead queue ── */}
         <div className="col-span-2 rounded-lg border border-gray-200 overflow-hidden flex flex-col">
           <div className="px-3 py-2.5 border-b border-gray-200 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Qualification Queue</div>
           <div className="flex-1 overflow-y-auto">
             {isLoading ? (<div className="p-4 space-y-2">{[1, 2, 3].map((i) => <div key={i} className="h-12 rounded animate-pulse"/>)}</div>) : queue.length === 0 ? (<div className="p-8 text-center text-xs text-muted-foreground">
-                <CheckSquare className="w-8 h-8 mx-auto mb-2 opacity-40"/>Queue is empty â€” all leads scored
+                <CheckSquare className="w-8 h-8 mx-auto mb-2 opacity-40"/>Queue is empty — all leads scored
               </div>) : queue.map((lead) => {
             const lExt = lead;
             const bs = lExt.beliefScore ?? 0;
@@ -317,10 +317,10 @@ export default function Qualify() {
             return (<button key={lead.id} onClick={() => selectLead(lead)} className={cn("w-full text-left px-3 py-2.5 border-b border-gray-200 hover:bg-gray-50 transition-colors flex items-center justify-between", active === lead.id && "bg-teal-50 border-l-2 border-teal-500")}>
                   <div className="flex-1 min-w-0">
                     <div className="text-xs font-medium text-foreground">{lead.firstName} {lead.lastName}</div>
-                    <div className="text-[11px] text-muted-foreground">{lead.company} Â· {lead.designation}</div>
+                    <div className="text-[11px] text-muted-foreground">{lead.company} · {lead.designation}</div>
                     <div className="flex items-center gap-2 mt-0.5">
-                      <span className="text-[10px] text-gray-400">{lead.industry} Â· {lead.country}</span>
-                      {lExt.auditHealthScore != null && (<span className={cn("text-[10px] font-semibold", auditScoreTextClass(lExt.auditHealthScore))}>â—† {lExt.auditHealthScore}</span>)}
+                      <span className="text-[10px] text-gray-400">{lead.industry} · {lead.country}</span>
+                      {lExt.auditHealthScore != null && (<span className={cn("text-[10px] font-semibold", auditScoreTextClass(lExt.auditHealthScore))}>◆ {lExt.auditHealthScore}</span>)}
                       {bs > 0 && (<span className="text-[9px] font-bold px-1 rounded" style={{ color: bc.text, background: bc.bg, border: `1px solid ${bc.border}` }}>B:{bs}</span>)}
                     </div>
                   </div>
@@ -330,9 +330,9 @@ export default function Qualify() {
           </div>
         </div>
 
-        {/* â”€â”€ Scoring panel â”€â”€ */}
+        {/* ── Scoring panel ── */}
         <div className="col-span-3 rounded-lg border border-gray-200 flex flex-col relative">
-          {(aiScore.isPending || beliefLoading) && activeLead && (<AiPanelOverlay icon={beliefLoading ? "brain" : "zap"} message={beliefLoading ? "Scoring Belief Alignmentâ€¦" : "AI Auto-Scoring BANTâ€¦"} subMessages={beliefLoading
+          {(aiScore.isPending || beliefLoading) && activeLead && (<AiPanelOverlay icon={beliefLoading ? "brain" : "zap"} message={beliefLoading ? "Scoring Belief Alignment…" : "AI Auto-Scoring BANT…"} subMessages={beliefLoading
                 ? ["Evaluating WHY alignment", "Checking shared values & urgency", "Assessing belief strength"]
                 : ["Evaluating Budget signals", "Checking Authority & decision power", "Assessing Need & pain points", "Analysing Timeline urgency"]}/>)}
           {!activeLead ? (<div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
@@ -358,7 +358,7 @@ export default function Qualify() {
               </div>
 
               <div className="flex-1 p-4 space-y-4 overflow-y-auto">
-                {/* â”€â”€ 4 BANT dimensions â”€â”€ */}
+                {/* ── 4 BANT dimensions ── */}
                 {BANT_DIMS.map(({ key, label, desc }) => {
                 const score = scores[key];
                 const reason = aiReasons?.[key]?.reason;
@@ -371,12 +371,12 @@ export default function Qualify() {
                         <span className={cn("text-sm font-bold", bandColorFromKey(scoreToBandKey(score * 4)))}>{score}<span className="text-[10px] text-muted-foreground">/25</span></span>
                       </div>
                       <input type="range" min={0} max={25} step={1} value={score} onChange={(e) => setScores((s) => ({ ...s, [key]: Number(e.target.value) }))} className="w-full h-1.5 rounded appearance-none cursor-pointer" style={{ accentColor: "#1A7A45" }}/>
-                      <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5"><span>0 â€” None</span><span>25 â€” Confirmed</span></div>
+                      <div className="flex justify-between text-[10px] text-muted-foreground mt-0.5"><span>0 — None</span><span>25 — Confirmed</span></div>
                       {reason && (<div className="mt-1 text-[11px] text-amber-600/80 bg-amber-50 border border-amber-500/20 rounded px-2 py-1">{reason}</div>)}
                     </div>);
             })}
 
-                {/* â”€â”€ 5th card: Belief Alignment â”€â”€ */}
+                {/* ── 5th card: Belief Alignment ── */}
                 <div className="rounded-lg border-2 p-3 space-y-3" style={{ borderColor: "#CB3273", background: "#FBE9F1" }}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -396,8 +396,8 @@ export default function Qualify() {
 
                   <input type="range" min={0} max={25} step={1} value={belief.score} onChange={(e) => setBelief((b) => ({ ...b, score: Number(e.target.value) }))} className="w-full h-1.5 rounded appearance-none cursor-pointer" style={{ accentColor: "#0D9488" }}/>
                   <div className="flex justify-between text-[10px] text-teal-500/60">
-                    <span>0 â€” Purely transactional</span>
-                    <span>25 â€” Clear mission, clear WHY</span>
+                    <span>0 — Purely transactional</span>
+                    <span>25 — Clear mission, clear WHY</span>
                   </div>
 
                   {/* Signal chips */}
@@ -408,7 +408,7 @@ export default function Qualify() {
                 return (<button key={sig} onClick={() => setBelief((b) => ({ ...b, signals: { ...b.signals, [sig]: !b.signals[sig] } }))} className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border transition-all" style={active
                         ? { color: "#059669", background: "#ECFDF5", borderColor: "#6EE7B7" }
                         : { color: "#9CA3AF", background: "#F9FAFB", borderColor: "#E5E7EB" }}>
-                          <span>{active ? "âœ“" : "âœ—"}</span>
+                          <span>{active ? "✓" : "✗"}</span>
                           {labels[sig]}
                         </button>);
             })}
@@ -427,7 +427,7 @@ export default function Qualify() {
                     <Sparkles className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5"/>
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-semibold text-blue-700 mb-0.5">No AI reasoning on file</div>
-                      <p className="text-[11px] text-blue-600/80 leading-relaxed mb-2">This lead was scored before AI reasoning was added. Click below to generate explanations â€” scores won't change.</p>
+                      <p className="text-[11px] text-blue-600/80 leading-relaxed mb-2">This lead was scored before AI reasoning was added. Click below to generate explanations — scores won't change.</p>
                       <button onClick={() => activeLead && explainScores.mutate({ leadId: activeLead.id })} disabled={explainScores.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[11px] font-medium disabled:opacity-50 border border-blue-400/40" style={{ background: "rgba(59,130,246,0.12)", color: "#2563EB" }}>
                         <Sparkles className="w-3 h-3"/>
                         {explainScores.isPending ? "Generating..." : "Explain Scores"}
@@ -443,7 +443,7 @@ export default function Qualify() {
                   </div>)}
               </div>
 
-              {/* â”€â”€ Footer: totals + save â”€â”€ */}
+              {/* ── Footer: totals + save ── */}
               <div className="px-4 py-3 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
@@ -497,10 +497,10 @@ export default function Qualify() {
         </div>
       </div>
 
-      {/* â”€â”€ AI processing banner (fixed floating) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
-      {bantbPoller.isPolling && (<AiBanner icon="zap" message={`Batch scoring ${bantbPoller.batchState.leadsCount} leadsâ€¦`} subMessages={[
+      {/* ── AI processing banner (fixed floating) ─────────────── */}
+      {bantbPoller.isPolling && (<AiBanner icon="zap" message={`Batch scoring ${bantbPoller.batchState.leadsCount} leads…`} subMessages={[
                 "Running BANTB analysis via Google Gemini AI Engine",
-                "Budget Â· Authority Â· Need Â· Timeline Â· Belief",
+                "Budget · Authority · Need · Timeline · Belief",
                 "Auto-updates every 30 seconds",
             ]}/>)}
     </div>);

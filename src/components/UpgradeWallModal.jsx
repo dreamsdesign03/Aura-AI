@@ -6,9 +6,9 @@ const RESOURCE_LABELS = {
     emails: "Outreach Emails",
 };
 const RESOURCE_ICONS = {
-    leads: "Ã°Å¸â€˜Â¥",
-    audits: "Ã°Å¸â€Â",
-    emails: "Ã¢Å“â€°Ã¯Â¸Â",
+    leads: "👥",
+    audits: "🔍",
+    emails: "✉️",
 };
 function resourceLabel(detail) {
     if (detail.resource)
@@ -19,8 +19,8 @@ function resourceLabel(detail) {
 }
 function resourceIcon(detail) {
     if (detail.resource)
-        return RESOURCE_ICONS[detail.resource] ?? "Ã°Å¸Å¡Â«";
-    return "Ã¢Å¡Â¡";
+        return RESOURCE_ICONS[detail.resource] ?? "🚫";
+    return "⚡";
 }
 function isTrialExpired(detail) {
     return detail.errorCode === "TRIAL_EXPIRED";
@@ -41,7 +41,7 @@ function markWallSeen(detail) {
         sessionStorage.setItem(sessionKey(detail), "1");
     }
     catch {
-        // sessionStorage unavailable Ã¢â‚¬â€ degrade gracefully
+        // sessionStorage unavailable — degrade gracefully
     }
 }
 export function UpgradeWallModal() {
@@ -56,7 +56,7 @@ export function UpgradeWallModal() {
                 return;
             }
             if (hasSeenWall(e.detail)) {
-                // Already showed the full modal this session Ã¢â‚¬â€ use a toast instead
+                // Already showed the full modal this session — use a toast instead
                 setToast(e.detail);
                 if (toastTimer.current)
                     clearTimeout(toastTimer.current);
@@ -145,7 +145,7 @@ export function UpgradeWallModal() {
                 lineHeight: 1,
                 padding: 0,
             }}>
-            Ãƒâ€”
+            ×
           </button>
         </div>)}
 
@@ -194,7 +194,7 @@ export function UpgradeWallModal() {
                 fontSize: 16,
                 lineHeight: 1,
             }} aria-label="Dismiss">
-                Ãƒâ€”
+                ×
               </button>
 
               <div style={{
@@ -245,7 +245,7 @@ export function UpgradeWallModal() {
                 alignItems: "flex-start",
                 gap: 10,
             }}>
-                <span style={{ fontSize: 16, marginTop: 1 }}>Ã°Å¸â€ºâ€˜</span>
+                <span style={{ fontSize: 16, marginTop: 1 }}>🛑</span>
                 <div>
                   <p style={{ fontSize: 13, color: "#991B1B", fontWeight: 600, margin: "0 0 2px" }}>
                     Action blocked
@@ -289,7 +289,7 @@ export function UpgradeWallModal() {
                     justifyContent: "center",
                     flexShrink: 0,
                 }}>
-                      <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>Ã¢Å“â€œ</span>
+                      <span style={{ color: "#fff", fontSize: 10, fontWeight: 700 }}>✓</span>
                     </div>
                     <span style={{ fontSize: 12, color: "#15803D" }}>{item}</span>
                   </div>))}
@@ -309,7 +309,7 @@ export function UpgradeWallModal() {
                 letterSpacing: "-0.01em",
                 marginBottom: 10,
             }}>
-                View Plans &amp; Upgrade Ã¢â€ â€™
+                View Plans &amp; Upgrade →
               </button>
 
               <button onClick={dismiss} style={{

@@ -12,39 +12,39 @@ const INDUSTRIES = [
     "Professional Services", "Non-Profit / NGO", "Other",
 ];
 const SVCS = [
-    { i: "Ã°Å¸â€œÂ±", l: "Social Media Marketing" }, { i: "Ã°Å¸â€Â", l: "SEO / Search Marketing" },
-    { i: "Ã°Å¸â€™Â»", l: "Website Design & Dev" }, { i: "Ã°Å¸Å½Â¨", l: "Branding & Identity" },
-    { i: "Ã°Å¸â€œÂ£", l: "Paid Ads (Google/Meta)" }, { i: "Ã°Å¸Â¤â€“", l: "AI & Automation" },
-    { i: "Ã°Å¸Å½Â¬", l: "Video Production" }, { i: "Ã°Å¸â€œÂ§", l: "Email & WhatsApp Mktg" },
-    { i: "Ã°Å¸ÂÂ¥", l: "Healthcare Marketing" }, { i: "Ã°Å¸â€œÂ¦", l: "Product Packaging Design" },
-    { i: "Ã¢Å“ÂÃ¯Â¸Â", l: "Content Marketing" }, { i: "Ã°Å¸â€œÂ", l: "Local SEO / GMB" },
+    { i: "📱", l: "Social Media Marketing" }, { i: "🔍", l: "SEO / Search Marketing" },
+    { i: "💻", l: "Website Design & Dev" }, { i: "🎨", l: "Branding & Identity" },
+    { i: "📣", l: "Paid Ads (Google/Meta)" }, { i: "🤖", l: "AI & Automation" },
+    { i: "🎬", l: "Video Production" }, { i: "📧", l: "Email & WhatsApp Mktg" },
+    { i: "🏥", l: "Healthcare Marketing" }, { i: "📦", l: "Product Packaging Design" },
+    { i: "✍️", l: "Content Marketing" }, { i: "📍", l: "Local SEO / GMB" },
 ];
 const STEPS = [
-    { id: "name", type: "name", ql: "QUEST 01 Ã¢â‚¬â€ THE HERO", reward: 50, title: "What shall we call you, <g>Hero?</g>", hint: "Every legendary brand story begins with a name. What is yours?" },
-    { id: "contact", type: "contact", ql: "QUEST 02 Ã¢â‚¬â€ YOUR SIGNAL", reward: 80, title: "How do we <g>reach you?</g>", hint: "Your coordinates Ã¢â‚¬â€ our growth squad will connect with you personally within 24 hours." },
-    { id: "company", type: "company", ql: "QUEST 03 Ã¢â‚¬â€ YOUR KINGDOM", reward: 80, title: "Tell us about your <g>business.</g>", hint: "Your company name, industry, and website if you have one." },
-    { id: "role", type: "single", ql: "QUEST 04 Ã¢â‚¬â€ YOUR POWER", reward: 80, title: "What is your <g>role?</g>", hint: "Who are you within your organisation?",
-        opts: [{ i: "Ã°Å¸â€˜â€˜", l: "Founder / Co-Founder" }, { i: "Ã°Å¸â€™Â¼", l: "CEO / MD / Director" }, { i: "Ã°Å¸â€œÅ ", l: "Marketing Head" }, { i: "Ã°Å¸Â§â€˜Ã¢â‚¬ÂÃ°Å¸â€™Â»", l: "Operations / Manager" }, { i: "Ã°Å¸â€ºâ€™", l: "Sales / Business Dev" }, { i: "Ã°Å¸Å½â€œ", l: "Student / Fresher" }] },
-    { id: "goal", type: "single", ql: "QUEST 05 Ã¢â‚¬â€ THE MISSION", reward: 80, title: "What is your <g>#1 goal?</g>", hint: "What challenge are you here to conquer with digital marketing?",
-        opts: [{ i: "Ã°Å¸Å¡â‚¬", l: "Launch a brand online" }, { i: "Ã°Å¸â€œË†", l: "Generate more leads" }, { i: "Ã°Å¸Å’Â", l: "Grow brand awareness" }, { i: "Ã°Å¸â€ºÂÃ¯Â¸Â", l: "Boost online sales" }, { i: "Ã°Å¸ÂÂ¥", l: "Healthcare brand growth" }, { i: "Ã¢Å¡â„¢Ã¯Â¸Â", l: "Automate marketing & ops" }] },
-    { id: "services", type: "services", ql: "QUEST 06 Ã¢â‚¬â€ YOUR ARSENAL", reward: 100, title: "Which services are you <g>exploring?</g>", hint: "Pick all that apply Ã¢â‚¬â€ build your perfect Dreamsdesign growth arsenal." },
-    { id: "stage", type: "single", ql: "QUEST 07 Ã¢â‚¬â€ BATTLE STAGE", reward: 80, title: "Where is your business <g>right now?</g>", hint: "Every great brand has a current chapter. Identify yours.",
-        opts: [{ i: "Ã°Å¸â€™Â¡", l: "Idea / Pre-Launch" }, { i: "Ã°Å¸Å’Â±", l: "Early Stage (0Ã¢â‚¬â€œ1 yr)" }, { i: "Ã°Å¸â€œÂ¦", l: "Growing (1Ã¢â‚¬â€œ3 yrs)" }, { i: "Ã¢Å¡Â¡", l: "Scaling (3Ã¢â‚¬â€œ7 yrs)" }, { i: "Ã°Å¸ÂÂ°", l: "Established (7+ yrs)" }] },
-    { id: "budget", type: "single", ql: "QUEST 08 Ã¢â‚¬â€ THE TREASURY", reward: 100, title: "What is your monthly <g>marketing budget?</g>", hint: "This helps us build the perfect strategy for your brand. No judgment here.",
-        opts: [{ i: "Ã°Å¸Å’Â¿", l: "Under Ã¢â€šÂ¹25,000" }, { i: "Ã°Å¸â€Â¥", l: "Ã¢â€šÂ¹25,000 Ã¢â‚¬â€œ Ã¢â€šÂ¹75,000" }, { i: "Ã°Å¸â€™Å½", l: "Ã¢â€šÂ¹75,000 Ã¢â‚¬â€œ Ã¢â€šÂ¹2 Lakhs" }, { i: "Ã°Å¸â€˜â€˜", l: "Ã¢â€šÂ¹2 Lakhs Ã¢â‚¬â€œ Ã¢â€šÂ¹5 Lakhs" }, { i: "Ã°Å¸Å¡â‚¬", l: "Ã¢â€šÂ¹5 Lakhs+" }] },
-    { id: "timeline", type: "single", ql: "QUEST 09 Ã¢â‚¬â€ LAUNCH CLOCK", reward: 80, title: "When do you want to <g>start?</g>", hint: "Knowing your timeline helps us prioritise your mission at Dreamsdesign.",
-        opts: [{ i: "Ã¢Å¡Â¡", l: "ASAP Ã¢â‚¬â€ This week" }, { i: "Ã°Å¸â€œâ€¦", l: "This month" }, { i: "Ã°Å¸â€”â€œÃ¯Â¸Â", l: "Next 1Ã¢â‚¬â€œ3 months" }, { i: "Ã°Å¸â€Â­", l: "Just exploring for now" }] },
-    { id: "tried", type: "single", ql: "QUEST 10 Ã¢â‚¬â€ PAST BATTLES", reward: 80, title: "Have you worked with an <g>agency before?</g>", hint: "Tell us about your history with marketing partners.",
-        opts: [{ i: "Ã°Å¸Å¡Â«", l: "No Ã¢â‚¬â€ this is my first time" }, { i: "Ã°Å¸Ëœâ€¢", l: "Yes, but results were poor" }, { i: "Ã°Å¸ËœÂ", l: "Yes, average experience" }, { i: "Ã¢Å“â€¦", l: "Yes, ready for serious growth" }] },
-    { id: "decider", type: "single", ql: "QUEST 11 Ã¢â‚¬â€ DECISION POWER", reward: 100, title: "Are you the <g>decision maker?</g>", hint: "This helps us tailor our proposal to the right stakeholders.",
-        opts: [{ i: "Ã¢Å“â€¦", l: "Yes, I decide alone" }, { i: "Ã°Å¸Â¤Â", l: "Yes, with a business partner" }, { i: "Ã°Å¸â€˜Â¥", l: "I influence, team decides" }, { i: "Ã°Å¸â€œÂ¨", l: "I am referring someone" }] },
-    { id: "extra", type: "textarea", ql: "QUEST 12 Ã¢â‚¬â€ FINAL SCROLL", reward: 90, title: "Any message for our <g>team?</g>", hint: "Your vision, your challenge, or anything else. Our founders personally read every single word." },
+    { id: "name", type: "name", ql: "QUEST 01 — THE HERO", reward: 50, title: "What shall we call you, <g>Hero?</g>", hint: "Every legendary brand story begins with a name. What is yours?" },
+    { id: "contact", type: "contact", ql: "QUEST 02 — YOUR SIGNAL", reward: 80, title: "How do we <g>reach you?</g>", hint: "Your coordinates — our growth squad will connect with you personally within 24 hours." },
+    { id: "company", type: "company", ql: "QUEST 03 — YOUR KINGDOM", reward: 80, title: "Tell us about your <g>business.</g>", hint: "Your company name, industry, and website if you have one." },
+    { id: "role", type: "single", ql: "QUEST 04 — YOUR POWER", reward: 80, title: "What is your <g>role?</g>", hint: "Who are you within your organisation?",
+        opts: [{ i: "👑", l: "Founder / Co-Founder" }, { i: "💼", l: "CEO / MD / Director" }, { i: "📊", l: "Marketing Head" }, { i: "🧑‍💻", l: "Operations / Manager" }, { i: "🛒", l: "Sales / Business Dev" }, { i: "🎓", l: "Student / Fresher" }] },
+    { id: "goal", type: "single", ql: "QUEST 05 — THE MISSION", reward: 80, title: "What is your <g>#1 goal?</g>", hint: "What challenge are you here to conquer with digital marketing?",
+        opts: [{ i: "🚀", l: "Launch a brand online" }, { i: "📈", l: "Generate more leads" }, { i: "🌍", l: "Grow brand awareness" }, { i: "🛍️", l: "Boost online sales" }, { i: "🏥", l: "Healthcare brand growth" }, { i: "⚙️", l: "Automate marketing & ops" }] },
+    { id: "services", type: "services", ql: "QUEST 06 — YOUR ARSENAL", reward: 100, title: "Which services are you <g>exploring?</g>", hint: "Pick all that apply — build your perfect Dreamsdesign growth arsenal." },
+    { id: "stage", type: "single", ql: "QUEST 07 — BATTLE STAGE", reward: 80, title: "Where is your business <g>right now?</g>", hint: "Every great brand has a current chapter. Identify yours.",
+        opts: [{ i: "💡", l: "Idea / Pre-Launch" }, { i: "🌱", l: "Early Stage (0–1 yr)" }, { i: "📦", l: "Growing (1–3 yrs)" }, { i: "⚡", l: "Scaling (3–7 yrs)" }, { i: "🏰", l: "Established (7+ yrs)" }] },
+    { id: "budget", type: "single", ql: "QUEST 08 — THE TREASURY", reward: 100, title: "What is your monthly <g>marketing budget?</g>", hint: "This helps us build the perfect strategy for your brand. No judgment here.",
+        opts: [{ i: "🌿", l: "Under ₹25,000" }, { i: "🔥", l: "₹25,000 – ₹75,000" }, { i: "💎", l: "₹75,000 – ₹2 Lakhs" }, { i: "👑", l: "₹2 Lakhs – ₹5 Lakhs" }, { i: "🚀", l: "₹5 Lakhs+" }] },
+    { id: "timeline", type: "single", ql: "QUEST 09 — LAUNCH CLOCK", reward: 80, title: "When do you want to <g>start?</g>", hint: "Knowing your timeline helps us prioritise your mission at Dreamsdesign.",
+        opts: [{ i: "⚡", l: "ASAP — This week" }, { i: "📅", l: "This month" }, { i: "🗓️", l: "Next 1–3 months" }, { i: "🔭", l: "Just exploring for now" }] },
+    { id: "tried", type: "single", ql: "QUEST 10 — PAST BATTLES", reward: 80, title: "Have you worked with an <g>agency before?</g>", hint: "Tell us about your history with marketing partners.",
+        opts: [{ i: "🚫", l: "No — this is my first time" }, { i: "😕", l: "Yes, but results were poor" }, { i: "😐", l: "Yes, average experience" }, { i: "✅", l: "Yes, ready for serious growth" }] },
+    { id: "decider", type: "single", ql: "QUEST 11 — DECISION POWER", reward: 100, title: "Are you the <g>decision maker?</g>", hint: "This helps us tailor our proposal to the right stakeholders.",
+        opts: [{ i: "✅", l: "Yes, I decide alone" }, { i: "🤝", l: "Yes, with a business partner" }, { i: "👥", l: "I influence, team decides" }, { i: "📨", l: "I am referring someone" }] },
+    { id: "extra", type: "textarea", ql: "QUEST 12 — FINAL SCROLL", reward: 90, title: "Any message for our <g>team?</g>", hint: "Your vision, your challenge, or anything else. Our founders personally read every single word." },
 ];
 const TOTAL = STEPS.length;
 const REWARDS = STEPS.map(s => s.reward);
 function scoreLead(a) {
-    const budget = { "Under Ã¢â€šÂ¹25,000": 5, "Ã¢â€šÂ¹25,000 Ã¢â‚¬â€œ Ã¢â€šÂ¹75,000": 15, "Ã¢â€šÂ¹75,000 Ã¢â‚¬â€œ Ã¢â€šÂ¹2 Lakhs": 30, "Ã¢â€šÂ¹2 Lakhs Ã¢â‚¬â€œ Ã¢â€šÂ¹5 Lakhs": 45, "Ã¢â€šÂ¹5 Lakhs+": 55 };
-    const timeline = { "ASAP Ã¢â‚¬â€ This week": 25, "This month": 15, "Next 1Ã¢â‚¬â€œ3 months": 8, "Just exploring for now": 2 };
+    const budget = { "Under ₹25,000": 5, "₹25,000 – ₹75,000": 15, "₹75,000 – ₹2 Lakhs": 30, "₹2 Lakhs – ₹5 Lakhs": 45, "₹5 Lakhs+": 55 };
+    const timeline = { "ASAP — This week": 25, "This month": 15, "Next 1–3 months": 8, "Just exploring for now": 2 };
     const decider = { "Yes, I decide alone": 20, "Yes, with a business partner": 15, "I influence, team decides": 8, "I am referring someone": 2 };
     const raw = (budget[a.budget] ?? 5) + (timeline[a.timeline] ?? 5) + (decider[a.decider] ?? 5);
     const tier = raw >= 75 ? "HOT" : raw >= 45 ? "WARM" : raw >= 20 ? "COOL" : "COLD";
@@ -55,7 +55,7 @@ function genCode(name) {
     const y = new Date().getFullYear().toString().slice(-2);
     return `DD${y}-${n}-${Math.floor(1000 + Math.random() * 9000)}`;
 }
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Inline title renderer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Inline title renderer ───────────────────────────────────────────── */
 function Title({ raw }) {
     const parts = raw.split(/<g>|<\/g>/);
     return (<h2 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "clamp(22px,4vw,30px)", lineHeight: 1.22, color: "#fff", marginBottom: 10 }}>
@@ -64,7 +64,7 @@ function Title({ raw }) {
             : p)}
     </h2>);
 }
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Main component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Main component ──────────────────────────────────────────────────── */
 export default function GrowthQuestForm() {
     const [step, setStep] = useState(0);
     const [coins, setCoins] = useState(0);
@@ -78,7 +78,7 @@ export default function GrowthQuestForm() {
     const coinIdRef = useRef(0);
     const toastIdRef = useRef(0);
     useEffect(() => { setRedemptionCode(genCode(answers.name)); }, []);
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Coin spawner Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ── Coin spawner ── */
     const spawnCoins = useCallback((n = 5) => {
         const batch = Array.from({ length: n }, () => ({
             id: ++coinIdRef.current,
@@ -96,7 +96,7 @@ export default function GrowthQuestForm() {
         setToasts(p => [...p, { id, msg }]);
         setTimeout(() => setToasts(p => p.filter(t => t.id !== id)), 2200);
     }, []);
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Advance step Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ── Advance step ── */
     function advance() {
         const reward = REWARDS[step];
         spawnCoins(5);
@@ -110,7 +110,7 @@ export default function GrowthQuestForm() {
             setStep(s => s + 1);
         }
     }
-    /* Ã¢â€â‚¬Ã¢â€â‚¬ Submit to API Ã¢â€â‚¬Ã¢â€â‚¬ */
+    /* ── Submit to API ── */
     async function submitLead() {
         setSubmitting(true);
         const { leadScore, tier } = scoreLead(answers);
@@ -149,11 +149,11 @@ export default function GrowthQuestForm() {
             }
             setSubmitted(true);
             spawnCoins(15);
-            showToast("Welcome to the Dreamsdesign family! Ã°Å¸Å½â€°");
+            showToast("Welcome to the Dreamsdesign family! 🎉");
         }
         catch (err) {
             const msg = err instanceof Error ? err.message : "Submission failed. Please try again.";
-            showToast(`Ã¢Å¡Â Ã¯Â¸Â ${msg}`);
+            showToast(`⚠️ ${msg}`);
         }
         finally {
             setSubmitting(false);
@@ -161,16 +161,16 @@ export default function GrowthQuestForm() {
     }
     function sendWhatsApp() {
         const svc = answers.services.slice(0, 4).join(", ") || "Digital Marketing";
-        const msg = encodeURIComponent(`Hi Dreamsdesign! Ã°Å¸â„¢Â\n\nI just completed your Growth Quest.\n\n` +
-            `Ã°Å¸â€˜Â¤ Name: ${answers.name}\nÃ°Å¸ÂÂ¢ Company: ${answers.company.name || "Ã¢â‚¬â€"}\n` +
-            `Ã°Å¸Å½Â¯ Services: ${svc}\nÃ°Å¸â€™Â° Budget: ${answers.budget || "Ã¢â‚¬â€"}\n` +
-            `Ã¢ÂÂ° Timeline: ${answers.timeline || "Ã¢â‚¬â€"}\nÃ°Å¸Âªâ„¢ Code: ${redemptionCode}\n\n` +
-            `Looking forward to building something amazing together! Ã°Å¸Å¡â‚¬`);
+        const msg = encodeURIComponent(`Hi Dreamsdesign! 🙏\n\nI just completed your Growth Quest.\n\n` +
+            `👤 Name: ${answers.name}\n🏢 Company: ${answers.company.name || "—"}\n` +
+            `🎯 Services: ${svc}\n💰 Budget: ${answers.budget || "—"}\n` +
+            `⏰ Timeline: ${answers.timeline || "—"}\n🪙 Code: ${redemptionCode}\n\n` +
+            `Looking forward to building something amazing together! 🚀`);
         window.open(`https://wa.me/919377756660?text=${msg}`, "_blank");
     }
     const pct = isComplete ? 100 : Math.round(step / TOTAL * 100);
     return (<>
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Keyframe CSS Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Keyframe CSS ── */}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap');
         .gq-body{font-family:'DM Sans',sans-serif;background:#0A0A0F;color:#F0EFFF;min-height:100vh;overflow-x:hidden;margin:0}
@@ -202,7 +202,7 @@ export default function GrowthQuestForm() {
       `}</style>
 
       <div className="gq-body">
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Background Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Background ── */}
         <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0, overflow: "hidden" }}>
           {[
             { size: 700, color: "#FF6B35", top: "-250px", right: "-150px", delay: "0s" },
@@ -221,14 +221,14 @@ export default function GrowthQuestForm() {
           <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(255,107,53,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,107,53,.03) 1px,transparent 1px)", backgroundSize: "64px 64px" }}/>
         </div>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Floating coins Ã¢â€â‚¬Ã¢â€â‚¬ */}
-        {floatCoins.map(c => (<div key={c.id} style={{ position: "fixed", right: `${c.x}%`, top: `${c.y}%`, fontSize: 26, zIndex: 9999, animation: "coinFly 1.3s ease-out forwards", pointerEvents: "none" }}>Ã°Å¸Âªâ„¢</div>))}
+        {/* ── Floating coins ── */}
+        {floatCoins.map(c => (<div key={c.id} style={{ position: "fixed", right: `${c.x}%`, top: `${c.y}%`, fontSize: 26, zIndex: 9999, animation: "coinFly 1.3s ease-out forwards", pointerEvents: "none" }}>🪙</div>))}
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Toasts Ã¢â€â‚¬Ã¢â€â‚¬ */}
-        {toasts.slice(-1).map(t => (<div key={t.id} className="gq-toast">Ã°Å¸Âªâ„¢ {t.msg}</div>))}
+        {/* ── Toasts ── */}
+        {toasts.slice(-1).map(t => (<div key={t.id} className="gq-toast">🪙 {t.msg}</div>))}
 
         <div style={{ position: "relative", zIndex: 1, minHeight: "100vh", padding: "0 16px 100px" }}>
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Nav Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Nav ── */}
           <nav style={{ maxWidth: 780, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "22px 0 18px" }}>
             <a href="https://dreamsdesign.in" target="_blank" rel="noreferrer" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none" }}>
               <div style={{ width: 40, height: 40, borderRadius: 11, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 16, color: "#fff" }}>DD</div>
@@ -237,17 +237,17 @@ export default function GrowthQuestForm() {
               </span>
             </a>
             <div style={{ display: "flex", alignItems: "center", gap: 9, background: "rgba(255,107,53,.08)", border: "1px solid rgba(255,107,53,.3)", borderRadius: 50, padding: "9px 18px" }}>
-              <span style={{ fontSize: 17 }}>Ã°Å¸Âªâ„¢</span>
+              <span style={{ fontSize: 17 }}>🪙</span>
               <span style={{ fontFamily: "'Sora',sans-serif", fontWeight: 700, fontSize: 17, background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>{coins}</span>
               <span style={{ fontSize: 11, color: "rgba(240,239,255,.45)", fontFamily: "'Sora',sans-serif" }}>/ 1000 coins</span>
             </div>
           </nav>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Progress bar Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Progress bar ── */}
           <div style={{ maxWidth: 780, margin: "0 auto 28px" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
               <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 11, fontWeight: 600, letterSpacing: 2, color: "rgba(255,107,53,.55)", textTransform: "uppercase" }}>
-                {isComplete ? "QUEST COMPLETE Ã¢Å“Â¦" : `QUEST ${step + 1} OF ${TOTAL}`}
+                {isComplete ? "QUEST COMPLETE ✦" : `QUEST ${step + 1} OF ${TOTAL}`}
               </span>
               <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 12, fontWeight: 700, color: "rgba(240,239,255,.45)" }}>{pct}%</span>
             </div>
@@ -258,21 +258,21 @@ export default function GrowthQuestForm() {
             </div>
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Content area Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Content area ── */}
           {isComplete
             ? <FinalScreen answers={answers} code={redemptionCode} coins={coins} submitted={submitted} submitting={submitting} onSubmit={submitLead} onWhatsApp={sendWhatsApp}/>
             : <QuestionCard step={step} answers={answers} setAnswers={setAnswers} onAdvance={advance}/>}
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Footer Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Footer ── */}
           <footer style={{ maxWidth: 780, margin: "40px auto 0", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,.18)", fontFamily: "'Sora',sans-serif" }}>
-            <p>Ã‚Â© 2025 Dreamsdesign Ã‚Â· <a href="https://dreamsdesign.in" target="_blank" rel="noreferrer" style={{ color: "rgba(255,107,53,.45)", textDecoration: "none" }}>dreamsdesign.in</a> Ã‚Â· <a href="mailto:krishna@dreamsdesign.in" style={{ color: "rgba(255,107,53,.45)", textDecoration: "none" }}>krishna@dreamsdesign.in</a> Ã‚Â· <a href="tel:+919377756660" style={{ color: "rgba(255,107,53,.45)", textDecoration: "none" }}>+91 9377756660</a></p>
+            <p>© 2025 Dreamsdesign · <a href="https://dreamsdesign.in" target="_blank" rel="noreferrer" style={{ color: "rgba(255,107,53,.45)", textDecoration: "none" }}>dreamsdesign.in</a> · <a href="mailto:krishna@dreamsdesign.in" style={{ color: "rgba(255,107,53,.45)", textDecoration: "none" }}>krishna@dreamsdesign.in</a> · <a href="tel:+919377756660" style={{ color: "rgba(255,107,53,.45)", textDecoration: "none" }}>+91 9377756660</a></p>
             <p style={{ marginTop: 6 }}>608 Sterling Center, RC Dutt Rd, Alkapuri, Vadodara, Gujarat 390020</p>
           </footer>
         </div>
       </div>
     </>);
 }
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Question Card Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Question Card ─────────────────────────────────────────────────── */
 function QuestionCard({ step, answers, setAnswers, onAdvance }) {
     const s = STEPS[step];
     const canAdvance = checkCanAdvance(s.id, s.type, answers);
@@ -282,7 +282,7 @@ function QuestionCard({ step, answers, setAnswers, onAdvance }) {
 
       {/* Header */}
       <div style={{ display: "inline-flex", alignItems: "center", gap: 7, background: "rgba(255,107,53,.1)", border: "1px solid rgba(255,107,53,.28)", borderRadius: 50, padding: "5px 15px", fontFamily: "'Sora',sans-serif", fontSize: 11, fontWeight: 700, color: "#FF6B35", letterSpacing: 1, textTransform: "uppercase", marginBottom: 20 }}>
-        Ã°Å¸Âªâ„¢ +{s.reward} gold coins this round
+        🪙 +{s.reward} gold coins this round
       </div>
       <div style={{ fontFamily: "'Sora',sans-serif", fontSize: "10.5px", fontWeight: 700, letterSpacing: "2.5px", color: "rgba(255,107,53,.45)", textTransform: "uppercase", marginBottom: 10 }}>{s.ql}</div>
       <Title raw={s.title}/>
@@ -298,7 +298,7 @@ function QuestionCard({ step, answers, setAnswers, onAdvance }) {
 
       {/* CTA (for non-input steps that need it) */}
       {(s.type !== "name" && s.type !== "contact" && s.type !== "company" && s.type !== "textarea") && (<button className="gq-cta" disabled={!canAdvance} onClick={onAdvance}>
-          Confirm & Continue Ã¢â€ â€™
+          Confirm & Continue →
         </button>)}
     </div>);
     return card;
@@ -322,12 +322,12 @@ function NameStep({ answers, update, onAdvance }) {
           <span style={{ fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 600, color: "rgba(255,255,255,.8)" }}>
             The Hero's name is{" "}
             <span style={{ background: "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", fontSize: 19 }}>{answers.name}</span>
-            {" "}Ã¢â‚¬â€ ready to build something legendary Ã°Å¸â€Â¥
+            {" "}— ready to build something legendary 🔥
           </span>
         </div>)}
       <input className="gq-fi" type="text" placeholder="Enter your full name..." value={answers.name} onChange={e => update({ name: e.target.value })} onKeyDown={e => e.key === "Enter" && answers.name.trim() && onAdvance()} autoFocus/>
       <button className="gq-cta" disabled={!answers.name.trim()} onClick={onAdvance}>
-        Begin the Quest Ã¢â€ â€™
+        Begin the Quest →
       </button>
     </>);
 }
@@ -341,7 +341,7 @@ function ContactStep({ answers, update, onAdvance }) {
       </div>
       <input className="gq-fi" style={{ marginTop: 12 }} type="text" placeholder="Your city / location" value={answers.contact.city} onChange={e => upC({ city: e.target.value })}/>
       <button className="gq-cta" disabled={!canGo} onClick={onAdvance} style={{ marginTop: 4 }}>
-        Lock In Coordinates Ã¢â€ â€™
+        Lock In Coordinates →
       </button>
     </>);
 }
@@ -353,9 +353,9 @@ function CompanyStep({ answers, update, onAdvance }) {
         <option value="">Select your industry...</option>
         {INDUSTRIES.map(ind => <option key={ind} value={ind}>{ind}</option>)}
       </select>
-      <input className="gq-fi" type="url" placeholder="Website URL (optional Ã¢â‚¬â€ e.g. yoursite.com)" value={answers.company.website} onChange={e => upC({ website: e.target.value })}/>
+      <input className="gq-fi" type="url" placeholder="Website URL (optional — e.g. yoursite.com)" value={answers.company.website} onChange={e => upC({ website: e.target.value })}/>
       <button className="gq-cta" disabled={!answers.company.name.trim()} onClick={onAdvance} style={{ marginTop: 8 }}>
-        Claim Your Kingdom Ã¢â€ â€™
+        Claim Your Kingdom →
       </button>
     </>);
 }
@@ -379,7 +379,7 @@ function ServicesStep({ answers, update, onAdvance }) {
     }
     return (<>
       <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "1.5px", color: "rgba(255,255,255,.25)", textTransform: "uppercase", marginBottom: 10, fontFamily: "'Sora',sans-serif" }}>
-        Select all that apply Ã¢â‚¬â€ {answers.services.length} service{answers.services.length !== 1 ? "s" : ""} selected
+        Select all that apply — {answers.services.length} service{answers.services.length !== 1 ? "s" : ""} selected
       </div>
       <div className="gq-svcs-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 9, marginBottom: 28 }}>
         {SVCS.map(sv => (<button key={sv.l} className={`gq-svc${answers.services.includes(sv.l) ? " sel" : ""}`} style={{ background: "rgba(255,255,255,.03)", border: "1px solid rgba(255,255,255,.08)", borderRadius: 13, padding: "14px 10px", cursor: "pointer", textAlign: "center", color: "rgba(255,255,255,.55)", fontSize: 12.5, fontWeight: 500, fontFamily: "'DM Sans',sans-serif", display: "flex", flexDirection: "column", alignItems: "center", gap: 7, transition: "all .2s", lineHeight: 1.3 }} onClick={() => toggleSvc(sv.l)}>
@@ -388,18 +388,18 @@ function ServicesStep({ answers, update, onAdvance }) {
           </button>))}
       </div>
       <button className="gq-cta" disabled={answers.services.length === 0} onClick={onAdvance}>
-        Forge the Arsenal Ã¢â€ â€™
+        Forge the Arsenal →
       </button>
     </>);
 }
 function TextareaStep({ answers, update, onAdvance }) {
     return (<>
       <textarea className="gq-fi" rows={5} placeholder="Your vision, goals, challenges, or anything you want our founders to know..." value={answers.extra} onChange={e => update({ extra: e.target.value })} style={{ resize: "vertical", minHeight: 108 }}/>
-      <button className="gq-cta" onClick={onAdvance}>Complete the Quest Ã°Å¸Ââ€ </button>
-      <p onClick={onAdvance} style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "rgba(255,255,255,.2)", cursor: "pointer", textDecoration: "underline" }}>Skip Ã¢â‚¬â€ I'm all set</p>
+      <button className="gq-cta" onClick={onAdvance}>Complete the Quest 🏆</button>
+      <p onClick={onAdvance} style={{ textAlign: "center", marginTop: 14, fontSize: 12, color: "rgba(255,255,255,.2)", cursor: "pointer", textDecoration: "underline" }}>Skip — I'm all set</p>
     </>);
 }
-/* Ã¢â€â‚¬Ã¢â€â‚¬ Final Screen Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+/* ── Final Screen ──────────────────────────────────────────────────── */
 function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsApp }) {
     const hero = answers.name || "Champion";
     const svcList = answers.services.slice(0, 4).join(", ") || "Digital Marketing";
@@ -410,11 +410,11 @@ function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsAp
       {/* Trophy */}
       <div style={{ width: 136, height: 136, margin: "0 auto 28px", borderRadius: "50%", background: "#14141E", border: "2px solid rgba(255,107,53,.2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 60, position: "relative", animation: "trophyPulse 2.5s ease-in-out infinite" }}>
         <div style={{ position: "absolute", inset: -5, borderRadius: "50%", background: "conic-gradient(#FF6B35 0%,#CB3273 25%,#E15C94 50%,#7B2FF7 75%,#FF6B35 100%)", zIndex: -1, animation: "ringRotate 3.5s linear infinite", WebkitMask: "radial-gradient(farthest-side,transparent calc(100% - 5px),#fff 0)", mask: "radial-gradient(farthest-side,transparent calc(100% - 5px),#fff 0)" }}/>
-        Ã°Å¸Ââ€ 
+        🏆
       </div>
 
       <div style={{ display: "inline-block", background: "rgba(255,107,53,.1)", border: "1px solid rgba(255,107,53,.28)", borderRadius: 50, padding: "6px 22px", fontSize: 11, fontWeight: 700, letterSpacing: 2, color: "#FF6B35", textTransform: "uppercase", fontFamily: "'Sora',sans-serif", marginBottom: 16 }}>
-        Quest Complete Ã¢â‚¬â€ You Did It!
+        Quest Complete — You Did It!
       </div>
 
       <h1 style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: "clamp(24px,5vw,34px)", color: "#fff", lineHeight: 1.2, marginBottom: 14 }}>
@@ -424,12 +424,12 @@ function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsAp
       </h1>
 
       <p style={{ fontSize: 15, color: "rgba(240,239,255,.45)", lineHeight: 1.72, marginBottom: 30, maxWidth: 530, marginLeft: "auto", marginRight: "auto" }}>
-        Thank you for investing your time and sharing your vision with us. Dreamsdesign gifts you 1000 Gold Coins Ã¢â‚¬â€ redeemable on your first engagement. Our founders personally review every submission and will reach out within 24 hours.
+        Thank you for investing your time and sharing your vision with us. Dreamsdesign gifts you 1000 Gold Coins — redeemable on your first engagement. Our founders personally review every submission and will reach out within 24 hours.
       </p>
 
       {/* Coins big display */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, marginBottom: 28 }}>
-        <span style={{ fontSize: 36 }}>Ã°Å¸Âªâ„¢</span>
+        <span style={{ fontSize: 36 }}>🪙</span>
         <div>
           <div style={{ fontFamily: "'Sora',sans-serif", fontWeight: 800, fontSize: 44, background: "linear-gradient(135deg,#FFD200,#FF8C00,#FF6B35)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1 }}>1,000</div>
           <div style={{ fontSize: 13, color: "rgba(240,239,255,.45)", fontFamily: "'Sora',sans-serif", textAlign: "left", lineHeight: 1.4 }}>Gold Coins in your vault</div>
@@ -454,19 +454,19 @@ function FinalScreen({ answers, code, submitted, submitting, onSubmit, onWhatsAp
       {/* Buttons */}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         <button style={{ width: "100%", padding: 19, borderRadius: 16, border: "none", background: submitted ? "rgba(255,107,53,.2)" : "linear-gradient(135deg,#FF6B35,#CB3273,#E15C94)", color: submitted ? "#FF6B35" : "#fff", fontFamily: "'Sora',sans-serif", fontSize: 15, fontWeight: 700, cursor: submitted ? "default" : "pointer", boxShadow: submitted ? "none" : "0 8px 36px rgba(255,107,53,.32)", transition: "all .2s", opacity: submitting ? 0.6 : 1 }} onClick={() => !submitted && !submitting && onSubmit()} disabled={submitting}>
-          {submitted ? "Ã¢Å“â€¦ Submitted! Our team will reach out within 24 hrs." : submitting ? "SubmittingÃ¢â‚¬Â¦" : `Ã°Å¸Å¡â‚¬ Submit My Quest & Claim 1000 Coins Ã‚Â· ${svcList.substring(0, 40)}`}
+          {submitted ? "✅ Submitted! Our team will reach out within 24 hrs." : submitting ? "Submitting…" : `🚀 Submit My Quest & Claim 1000 Coins · ${svcList.substring(0, 40)}`}
         </button>
         <button style={{ width: "100%", padding: 17, borderRadius: 16, border: "1px solid rgba(37,211,102,.28)", background: "rgba(37,211,102,.06)", color: "#25D366", fontFamily: "'Sora',sans-serif", fontSize: 14, fontWeight: 700, cursor: "pointer", transition: "all .2s" }} onClick={onWhatsApp}>
-          Ã°Å¸â€™Â¬ Connect Instantly on WhatsApp
+          💬 Connect Instantly on WhatsApp
         </button>
       </div>
 
       {/* Contact strip */}
       <div style={{ marginTop: 24, paddingTop: 24, borderTop: "1px solid rgba(255,255,255,.07)", display: "flex", flexWrap: "wrap", gap: 16, justifyContent: "center", fontSize: 12.5, color: "rgba(240,239,255,.45)" }}>
-        <span>Ã°Å¸â€œÂ 608 Sterling Center, Alkapuri, Vadodara</span>
-        <a href="tel:+919377756660" style={{ color: "rgba(255,107,53,.8)", textDecoration: "none" }}>Ã°Å¸â€œÅ¾ +91 9377756660</a>
-        <a href="mailto:krishna@dreamsdesign.in" style={{ color: "rgba(255,107,53,.8)", textDecoration: "none" }}>Ã¢Å“â€°Ã¯Â¸Â krishna@dreamsdesign.in</a>
-        <a href="https://dreamsdesign.in" target="_blank" rel="noreferrer" style={{ color: "rgba(255,107,53,.8)", textDecoration: "none" }}>Ã°Å¸Å’Â dreamsdesign.in</a>
+        <span>📍 608 Sterling Center, Alkapuri, Vadodara</span>
+        <a href="tel:+919377756660" style={{ color: "rgba(255,107,53,.8)", textDecoration: "none" }}>📞 +91 9377756660</a>
+        <a href="mailto:krishna@dreamsdesign.in" style={{ color: "rgba(255,107,53,.8)", textDecoration: "none" }}>✉️ krishna@dreamsdesign.in</a>
+        <a href="https://dreamsdesign.in" target="_blank" rel="noreferrer" style={{ color: "rgba(255,107,53,.8)", textDecoration: "none" }}>🌐 dreamsdesign.in</a>
       </div>
     </div>);
 }

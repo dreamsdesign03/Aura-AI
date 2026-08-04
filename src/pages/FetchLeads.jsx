@@ -76,7 +76,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
             if (prev.includes(s)) {
                 return prev.length > 1 ? prev.filter((x) => x !== s) : prev;
             }
-            // mysa_leads is exclusive Ã¢â‚¬â€ deselect others; selecting a non-exclusive source deselects mysa_leads
+            // mysa_leads is exclusive — deselect others; selecting a non-exclusive source deselects mysa_leads
             if (srcDef?.exclusive)
                 return [s];
             return [...prev.filter(x => !SOURCES.find(src => src.id === x)?.exclusive), s];
@@ -116,7 +116,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
         setErrorMsg("");
         setDone(false);
         setSkipped(0);
-        setStatusMsg("Starting fetchÃ¢â‚¬Â¦");
+        setStatusMsg("Starting fetch…");
         try {
             const email = sessionStorage.getItem("aura_user_email") || localStorage.getItem("aura_user_email") || "";
             console.log("[FetchLeads] Starting fetch, email:", email);
@@ -144,7 +144,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
             // Step 2: Poll until all runs complete
             let allDone = false;
             let pollCount = 0;
-            const maxPolls = 60; // max 60 polls Ãƒâ€” 3s = 180s
+            const maxPolls = 60; // max 60 polls × 3s = 180s
 
             while (!allDone && pollCount < maxPolls) {
                 await new Promise(r => setTimeout(r, 3000));
@@ -189,10 +189,10 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
                 if (running.length === 0) {
                     allDone = true;
                     setDone(true);
-                    setStatusMsg(`Done Ã¢â‚¬â€ ${pollData.totalImported || 0} leads imported`);
+                    setStatusMsg(`Done — ${pollData.totalImported || 0} leads imported`);
                     qc.invalidateQueries();
                 } else {
-                    setStatusMsg(`ScanningÃ¢â‚¬Â¦ ${pollData.totalImported || 0} found so far`);
+                    setStatusMsg(`Scanning… ${pollData.totalImported || 0} found so far`);
                 }
 
                 // Report errors
@@ -202,7 +202,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
             }
 
             if (!allDone) {
-                setStatusMsg(`Timeout Ã¢â‚¬â€ ${streamedLeads.length} leads imported so far`);
+                setStatusMsg(`Timeout — ${streamedLeads.length} leads imported so far`);
             }
         } catch (err) {
             setErrorMsg(String(err));
@@ -210,7 +210,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
             setStreaming(false);
         }
     };
-    const formatDate = (d) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "Ã¢â‚¬â€";
+    const formatDate = (d) => d ? new Date(d).toLocaleString("en-GB", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }) : "—";
     return (<div className="fixed inset-0 z-50 flex items-stretch justify-end bg-black/40" onClick={onClose}>
       <div className="relative w-full max-w-xl bg-white h-full shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -269,7 +269,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
               Target ICP
             </label>
             <select value={icpId ?? ""} onChange={(e) => setIcpId(e.target.value ? Number(e.target.value) : null)} className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-300">
-              <option value="">Ã¢â‚¬â€ No specific ICP (all industries) Ã¢â‚¬â€</option>
+              <option value="">— No specific ICP (all industries) —</option>
               {icps.map((icp) => (<option key={icp.id} value={icp.id}>
                   {icp.name} {icp.industries?.length ? `(${icp.industries.slice(0, 2).join(", ")})` : ""}
                 </option>))}
@@ -303,7 +303,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
             </div>)}
 
 
-          {/* Autopilot Ã¢â‚¬â€ hidden in Mysa Leads mode */}
+          {/* Autopilot — hidden in Mysa Leads mode */}
           {!isMysaLeadsMode && <div className={cn("rounded-xl border p-4 transition-all", autopilot ? "border-green-200 bg-green-50" : "border-gray-200 bg-gray-50")}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -338,11 +338,11 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
                 {done && <CheckCircle2 className="w-3.5 h-3.5 text-green-600"/>}
                 {errorMsg && <AlertCircle className="w-3.5 h-3.5 text-red-500"/>}
                 <span className="text-[11px] text-gray-600 font-medium">
-                  {statusMsg || (streaming ? "GeneratingÃ¢â‚¬Â¦" : "")}
+                  {statusMsg || (streaming ? "Generating…" : "")}
                 </span>
                 <span className="ml-auto text-[11px] text-green-700 font-bold">
                   {streamedLeads.length} added
-                  {skipped > 0 && <span className="text-gray-400 font-normal"> Ã‚Â· {skipped} skipped</span>}
+                  {skipped > 0 && <span className="text-gray-400 font-normal"> · {skipped} skipped</span>}
                 </span>
               </div>
               <div ref={feedRef} className="max-h-52 overflow-y-auto divide-y divide-gray-50" style={{ scrollbarWidth: "thin" }}>
@@ -351,7 +351,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
                       {l.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-medium text-gray-900 truncate">{l.name} Ã‚Â· {l.company}</div>
+                      <div className="text-[11px] font-medium text-gray-900 truncate">{l.name} · {l.company}</div>
                       <div className="text-[10px] text-gray-400 truncate">{l.email}</div>
                     </div>
                     <div className="text-[10px] text-gray-400 text-right flex-shrink-0">
@@ -361,7 +361,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
                   </div>))}
                 {streaming && streamedLeads.length === 0 && (<div className="px-4 py-6 text-center text-[11px] text-gray-400 flex flex-col items-center gap-2">
                     <Loader2 className="w-5 h-5 animate-spin text-green-500"/>
-                    Scanning sourcesÃ¢â‚¬Â¦
+                    Scanning sources…
                   </div>)}
               </div>
               {errorMsg && (<div className="px-4 py-2 bg-red-50 border-t border-red-100 text-[11px] text-red-600 flex items-center gap-1">
@@ -377,7 +377,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
                 : saveMsg === "error"
                     ? "border-red-200 bg-red-50 text-red-600"
                     : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"} disabled:opacity-50 disabled:cursor-not-allowed`}>
-              {saving ? "SavingÃ¢â‚¬Â¦" : saveMsg === "saved" ? "Ã¢Å“â€œ Saved!" : saveMsg === "error" ? "Ã¢Å“â€¢ Save failed" : autopilot ? "Save & Schedule" : "Save Settings"}
+              {saving ? "Saving…" : saveMsg === "saved" ? "✓ Saved!" : saveMsg === "error" ? "✕ Save failed" : autopilot ? "Save & Schedule" : "Save Settings"}
             </button>)}
           <button type="button" onClick={fetchNow} disabled={selectedSources.length === 0} className="flex-1 py-2 text-xs font-bold rounded-lg text-white flex items-center justify-center gap-2 transition-all hover:bg-[#A4285E] disabled:opacity-40" style={{ background: streaming ? "#B91C1C" : "#CB3273" }}>
             {streaming ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> Stop</>) : isMysaLeadsMode ? (<><Database className="w-3.5 h-3.5"/> Import from Bank</>) : (<><Zap className="w-3.5 h-3.5"/> Fetch Now</>)}

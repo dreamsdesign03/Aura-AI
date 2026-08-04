@@ -129,7 +129,7 @@ export default function Dashboard() {
                     <div className="flex justify-between items-baseline">
                       <span className="text-[10px] font-semibold text-gray-500">{item.label}</span>
                       <span className="text-[10px] font-bold tabular-nums" style={{ color: warn ? "#EF4444" : "#374151" }}>
-                        {unlimited ? "Ã¢Ë†Å¾" : `${item.used}/${item.max}`}
+                        {unlimited ? "∞" : `${item.used}/${item.max}`}
                       </span>
                     </div>
                     {!unlimited && (<div className="h-1 rounded-full bg-gray-100 overflow-hidden">
@@ -151,7 +151,7 @@ export default function Dashboard() {
           </div>);
         })()}
 
-      {/* KPI Grid Ã¢â‚¬â€ 2 cols mobile, 3 cols desktop */}
+      {/* KPI Grid — 2 cols mobile, 3 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
         <StatCard label="Leads This Month" value={summary?.totalLeadsThisMonth ?? 0} icon={Users} color="teal" loading={isLoading} trend="New prospects"/>
         <StatCard label="Qualified" value={summary?.qualifiedLeads ?? 0} icon={Award} color="green" loading={isLoading} trend="Ready to close"/>
@@ -174,11 +174,11 @@ export default function Dashboard() {
             </button>))}
         </div>
         {checked.size === DAILY_CHECKLIST.length && (<div className="mt-3 px-3 py-2 rounded border border-amber-200 bg-amber-50 text-[11px] text-amber-600 text-center">
-            Ã°Å¸Å½Â¯ All done! Great sales rhythm today.
+            🎯 All done! Great sales rhythm today.
           </div>)}
       </div>
 
-      {/* Pipeline Funnel + Activity Ã¢â‚¬â€ stack on mobile, side-by-side on desktop */}
+      {/* Pipeline Funnel + Activity — stack on mobile, side-by-side on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pipeline Funnel */}
         <div className="md:col-span-2 rounded-xl border border-gray-200 p-4 bg-white shadow-sm">

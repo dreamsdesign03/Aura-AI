@@ -65,14 +65,14 @@ function RedirectTo({ to }) {
     useEffect(() => { navigate(to); }, []);
     return null;
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Onboarding Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Onboarding Modal ──────────────────────────────────────────────────────────
 const AUDIT_STEPS = [
-    "Fetching website metadataÃ¢â‚¬Â¦",
-    "Analysing SEO signalsÃ¢â‚¬Â¦",
-    "Scanning trust indicatorsÃ¢â‚¬Â¦",
-    "Scoring messaging clarityÃ¢â‚¬Â¦",
-    "Evaluating social proofÃ¢â‚¬Â¦",
-    "Generating AI health scoreÃ¢â‚¬Â¦",
+    "Fetching website metadata…",
+    "Analysing SEO signals…",
+    "Scanning trust indicators…",
+    "Scoring messaging clarity…",
+    "Evaluating social proof…",
+    "Generating AI health score…",
 ];
 function OnboardingModal({ user, onComplete }) {
     const [step, setStep] = useState(1);
@@ -145,12 +145,12 @@ function OnboardingModal({ user, onComplete }) {
         <div style={{ background: "linear-gradient(135deg, #A4285E 0%, #CB3273 100%)", padding: "24px 28px 20px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
             <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <span style={{ fontSize: 18 }}>Ã¢Å¡Â¡</span>
+              <span style={{ fontSize: 18 }}>⚡</span>
             </div>
-            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }}>AuraAI Ã¢â‚¬â€ Laser &amp; Cosmetic Clinic</span>
+            <span style={{ color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 700, letterSpacing: "0.04em" }}>AuraAI — Laser &amp; Cosmetic Clinic</span>
           </div>
           <h2 style={{ color: "#fff", fontSize: 22, fontWeight: 800, margin: 0, lineHeight: 1.2 }}>
-            Welcome, {firstName}! Ã°Å¸â€˜â€¹
+            Welcome, {firstName}! 👋
           </h2>
           <p style={{ color: "rgba(255,255,255,0.7)", fontSize: 13, marginTop: 6, marginBottom: 0 }}>
             Let's run a free audit on your website in 30 seconds.
@@ -164,10 +164,10 @@ function OnboardingModal({ user, onComplete }) {
         {/* Body */}
         <div style={{ padding: "24px 28px 28px" }}>
 
-          {/* Ã¢â€â‚¬ Step 1: URL Input Ã¢â€â‚¬ */}
+          {/* ─ Step 1: URL Input ─ */}
           {step === 1 && (<div>
               <p style={{ fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 1.6 }}>
-                AuraAI will audit your website's brand health, SEO signals, and trust score Ã¢â‚¬â€ then show you a sample AI-written outreach email personalised to your business.
+                AuraAI will audit your website's brand health, SEO signals, and trust score — then show you a sample AI-written outreach email personalised to your business.
               </p>
               <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#6B7280", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>
                 Your Website URL
@@ -186,21 +186,21 @@ function OnboardingModal({ user, onComplete }) {
                 color: "#fff", border: "none", borderRadius: 12, padding: "13px 20px",
                 fontSize: 15, fontWeight: 700, cursor: "pointer", letterSpacing: "-0.01em",
             }}>
-                Run My Free Audit Ã¢â€ â€™
+                Run My Free Audit →
               </button>
               <p style={{ textAlign: "center", fontSize: 11, color: "#9CA3AF", marginTop: 10 }}>
-                Takes about 30 seconds Ã‚Â· No credit card needed
+                Takes about 30 seconds · No credit card needed
               </p>
             </div>)}
 
-          {/* Ã¢â€â‚¬ Step 2: Audit Progress Ã¢â€â‚¬ */}
+          {/* ─ Step 2: Audit Progress ─ */}
           {step === 2 && (<div style={{ textAlign: "center" }}>
               <div style={{ marginBottom: 20 }}>
                 <div style={{ width: 64, height: 64, borderRadius: "50%", background: "linear-gradient(135deg, #FBE9F1, #F3C9DB)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-                  <span style={{ fontSize: 28 }}>Ã°Å¸â€Â</span>
+                  <span style={{ fontSize: 28 }}>🔍</span>
                 </div>
-                <h3 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>Auditing your websiteÃ¢â‚¬Â¦</h3>
-                <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>This usually takes 20Ã¢â‚¬â€œ30 seconds</p>
+                <h3 style={{ fontSize: 18, fontWeight: 700, color: "#111827", margin: "0 0 4px" }}>Auditing your website…</h3>
+                <p style={{ fontSize: 13, color: "#6B7280", margin: 0 }}>This usually takes 20–30 seconds</p>
               </div>
 
               {/* Progress bar */}
@@ -218,14 +218,14 @@ function OnboardingModal({ user, onComplete }) {
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "background 0.3s",
                 }}>
-                      {i < stepIdx ? (<span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>Ã¢Å“â€œ</span>) : i === stepIdx ? (<div style={{ width: 8, height: 8, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>) : null}
+                      {i < stepIdx ? (<span style={{ color: "#fff", fontSize: 11, fontWeight: 700 }}>✓</span>) : i === stepIdx ? (<div style={{ width: 8, height: 8, border: "2px solid #fff", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 0.8s linear infinite" }}/>) : null}
                     </div>
                     <span style={{ fontSize: 13, color: i <= stepIdx ? "#111827" : "#9CA3AF", fontWeight: i === stepIdx ? 600 : 400 }}>{s}</span>
                   </div>))}
               </div>
             </div>)}
 
-          {/* Ã¢â€â‚¬ Step 3: Results Ã¢â€â‚¬ */}
+          {/* ─ Step 3: Results ─ */}
           {step === 3 && (<div>
               {/* Score */}
               <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
@@ -246,17 +246,17 @@ function OnboardingModal({ user, onComplete }) {
               {/* Sample email */}
               <div style={{ border: "1.5px solid #E5E7EB", borderRadius: 12, overflow: "hidden", marginBottom: 20 }}>
                 <div style={{ background: "#A4285E", padding: "8px 14px", display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>Ã¢Å“â€° Sample AI-Written Outreach Email</span>
+                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", fontWeight: 600 }}>✉ Sample AI-Written Outreach Email</span>
                   <span style={{ marginLeft: "auto", fontSize: 10, color: "#FBE9F1", fontWeight: 700 }}>PERSONALISED</span>
                 </div>
                 <div style={{ padding: "14px 16px", background: "#FAFAFA" }}>
                   <p style={{ fontSize: 12, color: "#374151", lineHeight: 1.65, margin: 0 }}>
                     <strong>Subject:</strong> Quick question about your growth plans, {firstName}<br /><br />
                     Hi [Prospect Name],<br /><br />
-                    I came across <em>{url || "your company"}</em> and noticed you're doing some great things in your space Ã¢â‚¬â€ but your brand score of <strong>74/100</strong> suggests there are a few quick wins that could meaningfully improve your pipeline.<br /><br />
-                    We've helped companies like yours increase qualified meetings by 3Ãƒâ€” in 90 days using AI-driven prospect auditing and personalised outreach.<br /><br />
+                    I came across <em>{url || "your company"}</em> and noticed you're doing some great things in your space — but your brand score of <strong>74/100</strong> suggests there are a few quick wins that could meaningfully improve your pipeline.<br /><br />
+                    We've helped companies like yours increase qualified meetings by 3× in 90 days using AI-driven prospect auditing and personalised outreach.<br /><br />
                     Worth a 15-minute call this week?<br /><br />
-                    Ã¢â‚¬â€ {firstName}
+                    — {firstName}
                   </p>
                 </div>
               </div>
@@ -267,7 +267,7 @@ function OnboardingModal({ user, onComplete }) {
                 fontSize: 15, fontWeight: 700, cursor: saving ? "not-allowed" : "pointer",
                 opacity: saving ? 0.7 : 1,
             }}>
-                {saving ? "SavingÃ¢â‚¬Â¦" : "Add your first prospect to get started Ã¢â€ â€™"}
+                {saving ? "Saving…" : "Add your first prospect to get started →"}
               </button>
               <p style={{ textAlign: "center", fontSize: 11, color: "#9CA3AF", marginTop: 10 }}>
                 Your full audit report is waiting in the Audit tab
@@ -377,7 +377,7 @@ function App() {
             } else if (authSuccess) {
                 apiUrl = `/api/auth/me`;
             } else {
-                // No email, no auth param Ã¢â€ â€™ show Register (new visitor)
+                // No email, no auth param → show Register (new visitor)
                 setAuthUser(null);
                 setAuth("unauthenticated");
                 return;
@@ -422,7 +422,7 @@ function App() {
         return (<div className="min-h-screen flex items-center justify-center" style={{ background: "linear-gradient(135deg, #2A0A18 0%, #A4285E 45%, #3A0C20 100%)" }}>
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin"/>
-          <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>LoadingÃ¢â‚¬Â¦</span>
+          <span className="text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>Loading…</span>
         </div>
       </div>);
     }

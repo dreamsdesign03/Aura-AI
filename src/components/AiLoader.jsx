@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Sparkles, Brain, Zap } from "lucide-react";
-// Ã¢â€â‚¬Ã¢â€â‚¬ Shared keyframes injected once Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Shared keyframes injected once ───────────────────────────────────────────
 const CSS = `
 @keyframes ai-pulse-ring {
   0%   { transform: scale(0.9); opacity: 0.7; }
@@ -51,7 +51,7 @@ function injectCss() {
     document.head.appendChild(style);
     cssInjected = true;
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Cycling messages helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Cycling messages helper ───────────────────────────────────────────────────
 function useCyclingMessage(messages, intervalMs = 2200) {
     const [idx, setIdx] = useState(0);
     useEffect(() => {
@@ -112,10 +112,10 @@ export function AiPanelOverlay({ message, subMessages = [], icon = "sparkles" })
     </div>);
 }
 const DEFAULT_THINKING = [
-    "ThinkingÃ¢â‚¬Â¦",
-    "Searching your dataÃ¢â‚¬Â¦",
-    "Analysing leadsÃ¢â‚¬Â¦",
-    "Crafting a responseÃ¢â‚¬Â¦",
+    "Thinking…",
+    "Searching your data…",
+    "Analysing leads…",
+    "Crafting a response…",
 ];
 export function AiThinkingBubble({ messages = DEFAULT_THINKING }) {
     injectCss();

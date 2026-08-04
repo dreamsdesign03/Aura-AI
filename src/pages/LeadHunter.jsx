@@ -4,12 +4,12 @@ import { Link } from "wouter";
 import { Target, Zap, Play, Pause, Activity, CheckCircle2, AlertCircle, Users, TrendingUp, MessageCircle, Brain, Globe, Settings, FileText, Loader2, ChevronRight, Sparkles, ArrowLeft, Bot, Save, RefreshCw, ToggleLeft, ToggleRight, Shield, BookOpen, GitBranch, Database, Send, Download, } from "lucide-react";
 import { cn, bantBandChipStyle } from "@/lib/utils";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
-const DEFAULT_SKILLS_DOC = `# Lead Hunter Agent Ã¢â‚¬â€ Skills & Operating Manual
+const DEFAULT_SKILLS_DOC = `# Lead Hunter Agent — Skills & Operating Manual
 
 ## Identity & Mission
 I am the **Lead Hunter Agent** for Dreamsdesign. My mission is to operate as a tireless virtual Business Development Representative (BDR), hunting for high-fit B2B prospects 24 hours a day, 7 days a week.
 
-My end objective: deliver well-qualified, pipeline-ready leads directly into Dreamsdesign's sales pipeline Ã¢â‚¬â€ enriched with research and a personalised first-touch message.
+My end objective: deliver well-qualified, pipeline-ready leads directly into Dreamsdesign's sales pipeline — enriched with research and a personalised first-touch message.
 
 ---
 
@@ -34,12 +34,12 @@ For each prospect I find, I research:
 
 ### Phase 4: Qualification via Sales Brain
 I score every lead against BANT criteria in collaboration with Sales Brain:
-- **Budget**: Does the company profile match Dreamsdesign's Ã¢â€šÂ¹50KÃ¢â‚¬â€œ5L project range?
+- **Budget**: Does the company profile match Dreamsdesign's ₹50K–5L project range?
 - **Authority**: Is the contact a Founder, C-Suite, or Director?
 - **Need**: Do they show signals of needing branding, web design, or digital marketing?
 - **Timeline**: Are there signals of active buying intent or urgency?
 
-Leads scoring **Ã¢â€°Â¥ 60** are approved for pipeline entry. Leads scoring **Ã¢â€°Â¥ 85** are flagged for immediate human attention.
+Leads scoring **≥ 60** are approved for pipeline entry. Leads scoring **≥ 85** are flagged for immediate human attention.
 
 ### Phase 5: Marketing Brain Collaboration
 After BANT qualification, I collaborate with Marketing Brain to craft a personalised WhatsApp first-touch message for each lead. The message:
@@ -61,7 +61,7 @@ Qualified leads are added to the active pipeline with:
 
 ### Sales Brain Sync
 Before marking a lead as qualified, I present the full lead profile to Sales Brain. Sales Brain provides:
-- BANT qualification verdict with score 0Ã¢â‚¬â€œ100
+- BANT qualification verdict with score 0–100
 - One-sentence reason for accept/reject
 - Recommended next step for the sales team
 
@@ -86,10 +86,10 @@ After qualification, Marketing Brain crafts the personalised opener using:
 
 ## Target Persona (from ICP Manager)
 I read this dynamically before each cycle. Examples of what I look for:
-- Founders and CEOs of D2C brands (Ã¢â€šÂ¹1CrÃ¢â‚¬â€œ50Cr revenue)
-- Marketing Heads at SaaS startups (10Ã¢â‚¬â€œ200 employees)
+- Founders and CEOs of D2C brands (₹1Cr–50Cr revenue)
+- Marketing Heads at SaaS startups (10–200 employees)
 - Business owners in hospitality, healthcare, retail needing digital presence
-- E-commerce entrepreneurs scaling from Ã¢â€šÂ¹10L to Ã¢â€šÂ¹1Cr+ monthly GMV
+- E-commerce entrepreneurs scaling from ₹10L to ₹1Cr+ monthly GMV
 
 ---
 
@@ -106,7 +106,7 @@ const ACTIVITY_META = {
     brain_sync: { color: "#25D366", bg: "#F0FDF4", Icon: Brain, label: "Brain Sync" },
     lead_qualified: { color: "#059669", bg: "#ECFDF5", Icon: CheckCircle2, label: "Qualified" },
     lead_rejected: { color: "#EF4444", bg: "#FEF2F2", Icon: AlertCircle, label: "Rejected" },
-    pipeline_added: { color: "#10B981", bg: "#D1FAE5", Icon: Send, label: "Ã¢â€ â€™ Pipeline" },
+    pipeline_added: { color: "#10B981", bg: "#D1FAE5", Icon: Send, label: "→ Pipeline" },
     hunt_completed: { color: "#A4285E", bg: "#F0FDF4", Icon: Activity, label: "Cycle Done" },
     paused: { color: "#6B7280", bg: "#F3F4F6", Icon: Pause, label: "Paused" },
     error: { color: "#EF4444", bg: "#FEF2F2", Icon: AlertCircle, label: "Error" },
@@ -123,7 +123,7 @@ function formatRelative(iso) {
         return `${Math.round(diff / 86400000)}d ago`;
     }
     catch {
-        return "Ã¢â‚¬â€";
+        return "—";
     }
 }
 function formatDate(iso) {
@@ -131,7 +131,7 @@ function formatDate(iso) {
         return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     }
     catch {
-        return "Ã¢â‚¬â€";
+        return "—";
     }
 }
 export default function LeadHunter() {
@@ -282,7 +282,7 @@ export default function LeadHunter() {
                             setSkipped(p => p + 1);
                         if (event === "done") {
                             setHuntDone(true);
-                            setStatusMsg(`Hunt complete Ã¢â‚¬â€ ${payload.imported ?? 0} added Ã‚Â· ${payload.skipped ?? 0} skipped`);
+                            setStatusMsg(`Hunt complete — ${payload.imported ?? 0} added · ${payload.skipped ?? 0} skipped`);
                             refetchActivity();
                             refetchStatus();
                         }
@@ -317,7 +317,7 @@ export default function LeadHunter() {
     ];
     return (<div className="min-h-screen" style={{ background: "hsl(138 25% 96%)" }}>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Agent Hero Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Agent Hero Header ─────────────────────────────────────────────────── */}
       <div className="px-6 pt-6 pb-5" style={{ background: "linear-gradient(135deg, #2A0A18 0%, #4A1030 60%, #5A1232 100%)" }}>
         {/* Back */}
         <Link href="/agents">
@@ -345,11 +345,11 @@ export default function LeadHunter() {
                 <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={status?.active
             ? { background: "rgba(5,150,105,0.25)", color: "#34D399", border: "1px solid rgba(52,211,153,0.3)" }
             : { background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
-                  {status?.active ? "Ã¢â€”Â Hunting" : "Idle"}
+                  {status?.active ? "● Hunting" : "Idle"}
                 </span>
               </div>
               <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>
-                Virtual BDR Ã‚Â· hunts leads 24Ãƒâ€”7 based on your ICPs Ã‚Â· synced with Sales Brain & Marketing Brain
+                Virtual BDR · hunts leads 24×7 based on your ICPs · synced with Sales Brain & Marketing Brain
               </p>
               <div className="flex items-center gap-4 mt-2.5 text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>
                 <span>Last run: <span style={{ color: "rgba(255,255,255,0.7)" }}>{cfg ? formatRelative(cfg.lastRunAt) : "14h ago"}</span></span>
@@ -391,7 +391,7 @@ export default function LeadHunter() {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Tabs Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Tabs ─────────────────────────────────────────────────────────────── */}
       <div className="px-6 bg-white border-b border-gray-200">
         <div className="flex gap-0">
           {TABS.map(({ id, label, icon: Icon }) => (<button key={id} onClick={() => setTab(id)} className={cn("flex items-center gap-1.5 px-4 py-3 text-[13px] font-semibold border-b-2 transition-all", tab === id
@@ -403,10 +403,10 @@ export default function LeadHunter() {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Tab Content Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Tab Content ───────────────────────────────────────────────────────── */}
       <div className="p-6 space-y-5">
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ OVERVIEW Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ─── OVERVIEW ────────────────────────────────────────────────────── */}
         {tab === "overview" && (<>
             {/* Live Hunt Feed */}
             {(streaming || streamedLeads.length > 0 || huntDone || huntError) && (<div className="rounded-xl border border-violet-200 overflow-hidden">
@@ -428,7 +428,7 @@ export default function LeadHunter() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[13px] font-semibold text-gray-900">{l.name}</span>
-                          <span className="text-[11px] text-gray-500">{l.designation} Ã‚Â· {l.company}</span>
+                          <span className="text-[11px] text-gray-500">{l.designation} · {l.company}</span>
                           <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full" style={bantBandChipStyle(l.bantScore)}>
                             BANT {l.bantScore}
                           </span>
@@ -465,14 +465,14 @@ export default function LeadHunter() {
                 </div>
                 {activeIcps.length === 0 ? (<div className="py-6 text-center text-[12px] text-gray-400">
                     <Target className="w-6 h-6 mx-auto mb-2 text-gray-200"/>
-                    No active ICPs. <Link href="/icp"><span className="text-violet-600 cursor-pointer hover:underline">Create one Ã¢â€ â€™</span></Link>
+                    No active ICPs. <Link href="/icp"><span className="text-violet-600 cursor-pointer hover:underline">Create one →</span></Link>
                   </div>) : (<div className="space-y-2">
                     {activeIcps.map(icp => (<div key={icp.id} className="rounded-lg px-3 py-2.5 flex items-start gap-2.5" style={{ background: "#FAFAFA", border: "1px solid hsl(220 13% 93%)" }}>
                         <div className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5" style={{ background: "#CB3273" }}/>
                         <div className="flex-1 min-w-0">
                           <div className="text-[13px] font-semibold text-gray-900">{icp.name}</div>
                           <div className="text-[11px] text-gray-500 mt-0.5">
-                            {[icp.industries?.slice(0, 2).join(", "), icp.companySize, icp.markets?.slice(0, 1).join(", ")].filter(Boolean).join(" Ã‚Â· ")}
+                            {[icp.industries?.slice(0, 2).join(", "), icp.companySize, icp.markets?.slice(0, 1).join(", ")].filter(Boolean).join(" · ")}
                           </div>
                           {icp.roles?.length > 0 && (<div className="flex flex-wrap gap-1 mt-1">
                               {icp.roles.slice(0, 3).map(r => (<span key={r} className="text-[10px] px-1.5 py-0.5 rounded-full" style={{ background: "#FBE9F1", color: "#CB3273" }}>{r}</span>))}
@@ -564,9 +564,9 @@ export default function LeadHunter() {
               <div className="grid md:grid-cols-3 gap-2.5">
                 {[
                 { text: "No duplicate leads ever added to pipeline", ok: true },
-                { text: `Only BANT Ã¢â€°Â¥ ${cfg?.minQualScore ?? 60} leads reach the pipeline`, ok: true },
+                { text: `Only BANT ≥ ${cfg?.minQualScore ?? 60} leads reach the pipeline`, ok: true },
                 { text: "Every decision logged in Activity Log", ok: true },
-                { text: "BANT Ã¢â€°Â¥ 85 flagged for immediate human review", ok: true },
+                { text: "BANT ≥ 85 flagged for immediate human review", ok: true },
                 { text: "Rate limits respected on all external APIs", ok: true },
                 { text: `Max ${cfg?.dailyTarget ?? 10} leads hunted per cycle`, ok: true },
             ].map(({ text, ok }) => (<div key={text} className="flex items-start gap-2 text-[12px] text-gray-600">
@@ -577,13 +577,13 @@ export default function LeadHunter() {
             </div>
           </>)}
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ SKILLS DOCUMENT Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ─── SKILLS DOCUMENT ─────────────────────────────────────────────── */}
         {tab === "skills" && (<div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100" style={{ background: "#FAFAFA" }}>
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-violet-600"/>
                 <span className="text-[13px] font-bold text-gray-900">Skills Document</span>
-                <span className="text-[11px] text-gray-400">Ã¢â‚¬â€ editable agent constitution Ã‚Â· stored locally</span>
+                <span className="text-[11px] text-gray-400">— editable agent constitution · stored locally</span>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={resetSkills} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
@@ -598,13 +598,13 @@ export default function LeadHunter() {
             <div className="p-4">
               <div className="mb-3 text-[12px] text-gray-500 bg-violet-50 border border-violet-100 rounded-lg px-3 py-2 flex items-start gap-2">
                 <Bot className="w-3.5 h-3.5 text-violet-500 flex-shrink-0 mt-0.5"/>
-                This document defines the agent's objectives, strategy, and behaviour. Edit any section and save Ã¢â‚¬â€ the agent reads this before every hunt cycle.
+                This document defines the agent's objectives, strategy, and behaviour. Edit any section and save — the agent reads this before every hunt cycle.
               </div>
               <textarea value={skillsDoc} onChange={e => setSkillsDoc(e.target.value)} className="w-full rounded-xl border border-gray-200 bg-gray-50 text-[13px] leading-relaxed text-gray-800 focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 font-mono resize-none p-4 transition-colors" rows={40} placeholder="Enter agent skills and instructions..."/>
             </div>
           </div>)}
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ACTIVITY LOG Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ─── ACTIVITY LOG ────────────────────────────────────────────────── */}
         {tab === "activity" && (<div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-gray-100" style={{ background: "#FAFAFA" }}>
@@ -612,7 +612,7 @@ export default function LeadHunter() {
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-violet-600"/>
                   <span className="text-[13px] font-bold text-gray-900">Activity Log</span>
-                  <span className="text-[11px] text-gray-400 ml-1">Ã¢â‚¬â€ every decision the agent makes</span>
+                  <span className="text-[11px] text-gray-400 ml-1">— every decision the agent makes</span>
                   {(activityData ?? []).length > 0 && (<span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-600 ml-1">
                       {activityData.length} events
                     </span>)}
@@ -704,7 +704,7 @@ export default function LeadHunter() {
                             current.completed = true;
                     }
                     else {
-                        // Entries before any hunt_started Ã¢â‚¬â€ put in an "uncategorised" cycle
+                        // Entries before any hunt_started — put in an "uncategorised" cycle
                         if (!cycles[cycles.length - 1] || cycles[cycles.length - 1].cycleIdx !== -1) {
                             cycles.push({ cycleIdx: -1, startEntry: entry, entries: [entry], completed: false });
                         }
@@ -782,7 +782,7 @@ export default function LeadHunter() {
             </div>
           </div>)}
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ SETTINGS Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ─── SETTINGS ────────────────────────────────────────────────────── */}
         {tab === "settings" && (<div className="max-w-2xl space-y-4">
             <div className="rounded-xl border border-gray-200 bg-white p-5 space-y-5">
               <h2 className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
@@ -802,12 +802,12 @@ export default function LeadHunter() {
               {/* Min BANT Score */}
               <div>
                 <label className="block text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-2.5">
-                  Minimum BANT Score Ã¢â‚¬â€ <span className="text-violet-600">{localScore}</span>
+                  Minimum BANT Score — <span className="text-violet-600">{localScore}</span>
                 </label>
                 <input type="range" min={40} max={90} step={5} value={localScore} onChange={e => setLocalScore(Number(e.target.value))} className="w-full accent-violet-600"/>
                 <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                  <span>40 Ã¢â‚¬â€ permissive</span>
-                  <span>90 Ã¢â‚¬â€ very strict</span>
+                  <span>40 — permissive</span>
+                  <span>90 — very strict</span>
                 </div>
               </div>
 
@@ -856,7 +856,7 @@ export default function LeadHunter() {
             {/* Danger zone */}
             <div className="rounded-xl border border-red-100 bg-white p-4">
               <div className="text-[12px] font-bold text-red-600 mb-1">Agent Controls</div>
-              <p className="text-[11px] text-gray-500 mb-3">Activate or pause the 24Ãƒâ€”7 automation. "Hunt Now" always triggers a one-time immediate cycle regardless of schedule.</p>
+              <p className="text-[11px] text-gray-500 mb-3">Activate or pause the 24×7 automation. "Hunt Now" always triggers a one-time immediate cycle regardless of schedule.</p>
               <div className="flex gap-2">
                 <button onClick={() => toggleMutation.mutate()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-[12px] font-semibold border transition-all" style={status?.active ? { borderColor: "#FCA5A5", color: "#DC2626", background: "#FEF2F2" } : { borderColor: "#BBF7D0", color: "#059669", background: "#F0FDF4" }}>
                   {status?.active ? <><Pause className="w-3.5 h-3.5"/> Pause Automation</> : <><Play className="w-3.5 h-3.5"/> Activate Automation</>}

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useId } from "react";
 import { Sparkles, X, Send, Loader2, ChevronRight, RefreshCw, Users, BarChart2, Globe, Zap, Bot, CheckCircle2, AlertTriangle, ArrowRight, Search, Phone, } from "lucide-react";
-// Ã¢â€â‚¬Ã¢â€â‚¬ Constants Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Constants ─────────────────────────────────────────────────────────────────
 const DARK = "#0D0B18";
 const DARK2 = "#2A0A18";
 const DARK3 = "#2A0A18";
@@ -11,11 +11,11 @@ const EXAMPLE_PROMPTS = [
     { icon: Search, text: "Find 30 IT companies in Mumbai", color: "#CB3273" },
     { icon: Globe, text: "Check which leads have dead websites", color: "#0EA5E9" },
     { icon: BarChart2, text: "How many meetings did I book this month?", color: "#10B981" },
-    { icon: Zap, text: "Start outreach Ã¢â‚¬â€ 25 emails a day", color: "#F59E0B" },
+    { icon: Zap, text: "Start outreach — 25 emails a day", color: "#F59E0B" },
     { icon: Bot, text: "Audit the top 5 newest leads", color: "#CB3273" },
     { icon: Users, text: "Search my leads in healthcare", color: "#CB3273" },
 ];
-// Ã¢â€â‚¬Ã¢â€â‚¬ SSE stream reader Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── SSE stream reader ─────────────────────────────────────────────────────────
 async function readSSEStream(response, onEvent) {
     const reader = response.body?.getReader();
     if (!reader)
@@ -50,33 +50,33 @@ async function readSSEStream(response, onEvent) {
         reader.releaseLock();
     }
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Tool-start text Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Tool-start text ───────────────────────────────────────────────────────────
 function getToolStartText(tool, params) {
     switch (tool) {
         case "find_leads": {
             const kw = String(params["keyword"] ?? params["industry"] ?? "businesses");
             const loc = String(params["location"] ?? "India");
-            return `Ã°Å¸â€”ÂºÃ¯Â¸Â Starting search for ${kw} in ${loc}Ã¢â‚¬Â¦`;
+            return `🗺️ Starting search for ${kw} in ${loc}…`;
         }
         case "run_brand_audit":
-            return `Ã°Å¸â€Â Starting brand audit${params["website_url"] ? ` for ${params["website_url"]}` : ""}Ã¢â‚¬Â¦`;
+            return `🔍 Starting brand audit${params["website_url"] ? ` for ${params["website_url"]}` : ""}…`;
         case "check_website_health":
-            return "Ã°Å¸Å’Â Scanning lead websites for health issuesÃ¢â‚¬Â¦";
+            return "🌐 Scanning lead websites for health issues…";
         case "start_autopilot":
-            return "Ã°Å¸Å¡â‚¬ Enabling outreach automationÃ¢â‚¬Â¦";
+            return "🚀 Enabling outreach automation…";
         case "stop_autopilot":
-            return "Ã¢ÂÂ¹Ã¯Â¸Â Pausing outreach automationÃ¢â‚¬Â¦";
+            return "⏹️ Pausing outreach automation…";
         case "create_icp":
-            return "Ã¢Å“Â¨ Generating Ideal Customer ProfileÃ¢â‚¬Â¦";
+            return "✨ Generating Ideal Customer Profile…";
         case "search_my_leads":
-            return "Ã°Å¸â€Å½ Searching your lead databaseÃ¢â‚¬Â¦";
+            return "🔎 Searching your lead database…";
         case "get_stats":
-            return "Ã°Å¸â€œÅ  Fetching pipeline statsÃ¢â‚¬Â¦";
+            return "📊 Fetching pipeline stats…";
         default:
-            return `Ã¢Å¡â„¢Ã¯Â¸Â Running ${tool}Ã¢â‚¬Â¦`;
+            return `⚙️ Running ${tool}…`;
     }
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Inline result cards Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Inline result cards ───────────────────────────────────────────────────────
 function LeadsCard({ data }) {
     return (<div className="mt-2 rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: DARK3 }}>
       <div className="px-3 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${BORDER}` }}>
@@ -91,7 +91,7 @@ function LeadsCard({ data }) {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[12px] font-semibold truncate" style={{ color: "#E2E8F0" }}>{l.company || l.name}</div>
-              <div className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>{l.industry} Ã‚Â· {l.country}</div>
+              <div className="text-[10px] truncate" style={{ color: "#9CA3AF" }}>{l.industry} · {l.country}</div>
             </div>
             <div className="flex-shrink-0 flex flex-col items-end gap-1">
               {l.bantScore > 0 && (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: l.bantScore >= 65 ? "#064E3B" : "#1C1917", color: l.bantScore >= 65 ? "#34D399" : "#9CA3AF" }}>
@@ -182,14 +182,14 @@ function StatsCard({ data }) {
           </div>))}
       </div>
       {data.bounceRatePercent > 0 && (<div className="px-3 py-2 text-[10px]" style={{ color: data.bounceRatePercent > 5 ? "#F87171" : "#9CA3AF" }}>
-          Bounce rate: {data.bounceRatePercent}%{data.bounceRatePercent > 5 ? " Ã¢Å¡Â Ã¯Â¸Â Ã¢â‚¬â€ autopilot paused" : ""}
+          Bounce rate: {data.bounceRatePercent}%{data.bounceRatePercent > 5 ? " ⚠️ — autopilot paused" : ""}
         </div>)}
     </div>);
 }
 function HealthCard({ data }) {
     const total = data.working + data.down + data.dead;
     return (<div className="mt-2 rounded-xl p-3" style={{ border: `1px solid ${BORDER}`, background: DARK3 }}>
-      <div className="text-[11px] font-bold mb-2" style={{ color: PURPLE_L }}><Globe className="w-3 h-3 inline mr-1"/>Website Health Ã¢â‚¬â€ {data.totalChecked} checked</div>
+      <div className="text-[11px] font-bold mb-2" style={{ color: PURPLE_L }}><Globe className="w-3 h-3 inline mr-1"/>Website Health — {data.totalChecked} checked</div>
       <div className="flex gap-2">
         {[
             { label: "Working", value: data.working, color: "#34D399", bg: "#064E3B" },
@@ -287,7 +287,7 @@ function ConfirmCard({ preview, onConfirm, onCancel, loading, }) {
       </div>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Live activity bubble (streams in real-time) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Live activity bubble (streams in real-time) ───────────────────────────────
 function ActivityBubble({ activity, onConfirm, onCancel, confirmLoading, }) {
     const hasContent = activity.content.length > 0;
     return (<div className="flex justify-start mb-3">
@@ -307,7 +307,7 @@ function ActivityBubble({ activity, onConfirm, onCancel, confirmLoading, }) {
       </div>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Message bubble Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Message bubble ────────────────────────────────────────────────────────────
 function MessageBubble({ msg, onConfirm, onCancel, confirmLoading, }) {
     const isUser = msg.role === "user";
     return (<div className={`flex ${isUser ? "justify-end" : "justify-start"} mb-3`}>
@@ -330,7 +330,7 @@ function MessageBubble({ msg, onConfirm, onCancel, confirmLoading, }) {
       </div>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Main component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Main component ────────────────────────────────────────────────────────────
 export default function MysaAssistant({ open, onClose, }) {
     const uid = useId();
     const sessionId = useRef(`mysa-${uid}-${Date.now()}`);
@@ -470,8 +470,8 @@ export default function MysaAssistant({ open, onClose, }) {
         // Remove confirm card from last message
         setMessages(prev => prev.map(m => m.needsConfirmation?.actionId === preview.actionId ? { ...m, needsConfirmation: undefined } : m));
         // Show activity bubble for the executing action
-        liveRef.current = { content: "ExecutingÃ¢â‚¬Â¦", toolResults: [] };
-        setLiveActivity({ content: "ExecutingÃ¢â‚¬Â¦", toolResults: [] });
+        liveRef.current = { content: "Executing…", toolResults: [] };
+        setLiveActivity({ content: "Executing…", toolResults: [] });
         setLoading(true);
         try {
             const res = await fetch("/api/assistant/confirm", {
@@ -616,7 +616,7 @@ export default function MysaAssistant({ open, onClose, }) {
             </button>
           </div>
           <p className="text-[9px] text-center mt-2" style={{ color: "#374151" }}>
-            Aura only uses tools it was given Ã¢â‚¬â€ no hallucinations, no rogue actions.
+            Aura only uses tools it was given — no hallucinations, no rogue actions.
           </p>
         </div>
       </div>

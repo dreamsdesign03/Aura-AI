@@ -117,7 +117,7 @@ export default function Leads() {
     const [waMsg, setWaMsg] = useState(null);
     const [showExportModal, setShowExportModal] = useState(false);
     const headerCheckboxRef = useRef(null);
-    // Debounce search Ã¢â‚¬â€ fires API only after 350ms of inactivity
+    // Debounce search — fires API only after 350ms of inactivity
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(search), 350);
         return () => clearTimeout(t);
@@ -236,7 +236,7 @@ export default function Leads() {
                 setImporting(false);
             },
             onError: () => {
-                setImportResult({ imported: 0, skipped: 0, errors: ["Failed to add lead Ã¢â‚¬â€ email may already exist"] });
+                setImportResult({ imported: 0, skipped: 0, errors: ["Failed to add lead — email may already exist"] });
                 setImporting(false);
             },
         });
@@ -641,7 +641,7 @@ export default function Leads() {
         else {
             const wsData = [EXPORT_HEADERS, ...rows.map(buildExportRow)];
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            // Style header row Ã¢â‚¬â€ bold + green background
+            // Style header row — bold + green background
             const headerRange = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
             for (let c = headerRange.s.c; c <= headerRange.e.c; c++) {
                 const cellAddr = XLSX.utils.encode_cell({ r: 0, c });
@@ -749,7 +749,7 @@ export default function Leads() {
         setUnqualifiedTotal(prev => Math.max(0, prev - 1));
         toast({ title: "Lead restored", description: "Lead moved back to main list." });
     };
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Website Health Checker helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Website Health Checker helpers ────────────────────────────────────────
     const fetchWhcStatus = async () => {
         try {
             const res = await fetch("/api/leads/website-check/status", { credentials: "include" });
@@ -778,7 +778,7 @@ export default function Leads() {
                     toast({ title: "Health check already running", description: "Check progress is shown below." });
                 }
                 else {
-                    toast({ title: "Website health check started", description: "Checking all lead websites in the backgroundÃ¢â‚¬Â¦" });
+                    toast({ title: "Website health check started", description: "Checking all lead websites in the background…" });
                 }
                 await fetchWhcStatus();
             }
@@ -813,7 +813,7 @@ export default function Leads() {
             const res = await fetch("/api/leads/dead-pool/recheck", { method: "POST", credentials: "include" });
             const data = await res.json();
             if (data.started) {
-                toast({ title: "Rechecking dead websitesÃ¢â‚¬Â¦" });
+                toast({ title: "Rechecking dead websites…" });
                 await fetchWhcStatus();
             }
             else {
@@ -869,7 +869,7 @@ export default function Leads() {
     };
     return (<div className="flex flex-col" style={{ height: "calc(100vh - 56px)" }}>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Top bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Top bar ─────────────────────────────────────────────── */}
       <div className="flex-shrink-0 border-b border-gray-200 bg-white">
         {/* Title + action buttons */}
         <div className="px-5 pt-3 pb-0 flex items-center justify-between">
@@ -890,7 +890,7 @@ export default function Leads() {
             <button onClick={() => { if (!whcStatus?.running && !whcStarting)
         startWebsiteCheck();
     else
-        fetchWhcStatus(); }} disabled={whcStarting} title={whcStatus?.running ? `CheckingÃ¢â‚¬Â¦ ${whcStatus.checked}/${whcStatus.total}` : "Check all lead websites for dead domains"} className={cn("hidden md:flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-md border transition-colors", whcStatus?.running
+        fetchWhcStatus(); }} disabled={whcStarting} title={whcStatus?.running ? `Checking… ${whcStatus.checked}/${whcStatus.total}` : "Check all lead websites for dead domains"} className={cn("hidden md:flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-md border transition-colors", whcStatus?.running
             ? "border-amber-300 bg-amber-50 text-amber-700 cursor-default"
             : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50")}>
               {(whcStatus?.running || whcStarting) ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Activity className="w-3.5 h-3.5"/>}
@@ -926,7 +926,7 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Mobile filter bar (< md) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Mobile filter bar (< md) ───────────────────────────── */}
       {viewTab === "leads" && (<div className="flex-shrink-0 md:hidden bg-white px-3 pt-2.5 pb-2 border-b border-gray-100 space-y-2.5">
           {/* Search pill */}
           <div className="flex items-center gap-2">
@@ -942,7 +942,7 @@ export default function Leads() {
             </button>
           </div>
 
-          {/* Filter chips Ã¢â‚¬â€ horizontally scrollable */}
+          {/* Filter chips — horizontally scrollable */}
           <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             <button onClick={() => { setStatus("all"); setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); }} className={cn("flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-[12px] rounded-full border font-medium whitespace-nowrap", status === "all" && !filterIndustry && !filterCountry && !filterSource
                 ? "bg-violet-600 border-violet-600 text-white"
@@ -996,14 +996,14 @@ export default function Leads() {
           </div>
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Filters row (desktop only) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Filters row (desktop only) ─────────────────────────── */}
       <div className="flex-shrink-0 border-b border-gray-200 bg-white hidden md:block" style={{ display: viewTab === "leads" ? undefined : "none" }}>
         {/* Row 1: search + filter dropdowns */}
         <div className="px-5 py-2.5 flex items-center gap-2 border-b border-gray-100">
           {/* Search */}
           <div className="relative w-64">
             {isFetching && search ? (<Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-violet-500 animate-spin"/>) : (<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"/>)}
-            <input type="text" placeholder="Search name, company, emailÃ¢â‚¬Â¦" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-7 py-1.5 text-[12px] rounded-md border border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 transition-all"/>
+            <input type="text" placeholder="Search name, company, email…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-7 py-1.5 text-[12px] rounded-md border border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 transition-all"/>
             {search && (<button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                 <X className="w-3 h-3"/>
               </button>)}
@@ -1011,23 +1011,23 @@ export default function Leads() {
           {/* Filter pills */}
           <div className="flex items-center gap-1.5 flex-1 flex-wrap">
             <select value={filterIndustry} onChange={(e) => setFilterIndustry(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterIndustry ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
-              <option value="">Industry Ã¢â€“Â¾</option>
+              <option value="">Industry ▾</option>
               {uniqueIndustries.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
             </select>
             <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterCountry ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
-              <option value="">Location Ã¢â€“Â¾</option>
+              <option value="">Location ▾</option>
               {uniqueCountries.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterSource ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
-              <option value="">Source Ã¢â€“Â¾</option>
+              <option value="">Source ▾</option>
               {uniqueSources.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
             {icpsData && icpsData.length > 0 && (<select value={filterIcp} onChange={(e) => setFilterIcp(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterIcp ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
-                <option value="">ICP Ã¢â€“Â¾</option>
+                <option value="">ICP ▾</option>
                 {icpsData.map((icp) => <option key={icp.id} value={String(icp.id)}>{icp.name}</option>)}
               </select>)}
             <select value={filterAssignedTo} onChange={(e) => setFilterAssignedTo(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterAssignedTo ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
-              <option value="">Contact Owner Ã¢â€“Â¾</option>
+              <option value="">Contact Owner ▾</option>
               <option value="me">Assigned to me</option>
               {(teamMembers ?? []).map((m) => {
             const name = `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim() || m.email;
@@ -1063,7 +1063,7 @@ export default function Leads() {
       </div>
 
       {/* Bulk actions */}
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Bulk actions bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Bulk actions bar ─────────────────────────────────────── */}
       {selected.length > 0 && (<div className="flex-shrink-0 flex items-center gap-2 px-5 py-2 border-b border-violet-200 bg-violet-50 flex-wrap">
           <span className="text-[12px] text-violet-700 font-semibold">{selected.length} selected</span>
           <div className="w-px h-4 bg-violet-200"/>
@@ -1103,11 +1103,11 @@ export default function Leads() {
                 }
             }} className="flex items-center gap-1 text-[11px] text-teal-700 hover:text-teal-800 underline disabled:opacity-50">
             {enrichBatchPoller.isPolling ? <Loader2 className="w-3 h-3 animate-spin"/> : <Sparkles className="w-3 h-3"/>}
-            {enrichBatchPoller.isPolling ? `Enriching (${enrichBatchPoller.batchState.leadsCount})Ã¢â‚¬Â¦` : "Enrich"}
+            {enrichBatchPoller.isPolling ? `Enriching (${enrichBatchPoller.batchState.leadsCount})…` : "Enrich"}
           </button>
-          {enrichBatchResult && !enrichBatchPoller.isPolling && (<span className="text-[11px] text-teal-600 font-medium">Ã¢Å“â€œ {enrichBatchResult.enriched} enriched</span>)}
+          {enrichBatchResult && !enrichBatchPoller.isPolling && (<span className="text-[11px] text-teal-600 font-medium">✓ {enrichBatchResult.enriched} enriched</span>)}
           {sequences.length > 0 && (<div className="relative">
-              <button onClick={() => setShowAssignSeq((p) => !p)} className="text-[11px] text-purple-700 hover:text-purple-800 underline">Assign Seq Ã¢â€“Â¾</button>
+              <button onClick={() => setShowAssignSeq((p) => !p)} className="text-[11px] text-purple-700 hover:text-purple-800 underline">Assign Seq ▾</button>
               {showAssignSeq && (<div className="absolute top-6 left-0 z-20 rounded border border-gray-200 bg-white shadow-xl w-48 overflow-hidden">
                   {sequences.map((seq) => (<button key={seq.id} onClick={async () => {
                             const base = "/api";
@@ -1119,7 +1119,7 @@ export default function Leads() {
                 </div>)}
             </div>)}
           <button disabled={bantBatchPoller.isPolling} onClick={async () => {
-                if (!confirm(`Submit BANTB async scoring for ${selected.length} lead(s)? Results arrive via Google Gemini AI Engine (~30sÃ¢â‚¬â€œfew min).`))
+                if (!confirm(`Submit BANTB async scoring for ${selected.length} lead(s)? Results arrive via Google Gemini AI Engine (~30s–few min).`))
                     return;
                 try {
                     const r = await fetch(`/api/bantb/batch`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ leadIds: selected }) });
@@ -1137,9 +1137,9 @@ export default function Leads() {
                 }
             }} className="flex items-center gap-1 text-[11px] text-violet-700 hover:text-violet-800 underline disabled:opacity-50">
             {bantBatchPoller.isPolling ? <Loader2 className="w-3 h-3 animate-spin"/> : <Zap className="w-3 h-3"/>}
-            {bantBatchPoller.isPolling ? `Scoring (${bantBatchPoller.batchState.leadsCount})Ã¢â‚¬Â¦` : "BANT Score"}
+            {bantBatchPoller.isPolling ? `Scoring (${bantBatchPoller.batchState.leadsCount})…` : "BANT Score"}
           </button>
-          {bantBatchResult && !bantBatchPoller.isPolling && (<span className="text-[11px] text-violet-600 font-medium">Ã¢Å“â€œ {bantBatchResult.scored} scored</span>)}
+          {bantBatchResult && !bantBatchPoller.isPolling && (<span className="text-[11px] text-violet-600 font-medium">✓ {bantBatchResult.scored} scored</span>)}
           <button disabled={generatingReports} onClick={async () => {
                 if (!confirm(`Generate brand reports for ${selected.length} lead(s)?`))
                     return;
@@ -1149,17 +1149,17 @@ export default function Leads() {
                     const base = "/api";
                     const r = await fetch(`${base}/audit/bulk-run`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ leadIds: selected }) });
                     const result = await r.json();
-                    setReportsMsg(r.ok ? `Ã¢Å“â€œ ${result.completed} reports generated` : "Ã¢Å“â€¢ Failed");
+                    setReportsMsg(r.ok ? `✓ ${result.completed} reports generated` : "✕ Failed");
                 }
                 catch {
-                    setReportsMsg("Ã¢Å“â€¢ Network error");
+                    setReportsMsg("✕ Network error");
                 }
                 finally {
                     setGeneratingReports(false);
                 }
             }} className="flex items-center gap-1 text-[11px] text-emerald-700 hover:text-emerald-800 underline disabled:opacity-50">
             {generatingReports ? <Loader2 className="w-3 h-3 animate-spin"/> : <BarChart2 className="w-3 h-3"/>}
-            {generatingReports ? "GeneratingÃ¢â‚¬Â¦" : "Brand Reports"}
+            {generatingReports ? "Generating…" : "Brand Reports"}
           </button>
           {reportsMsg && <span className="text-[11px] text-emerald-700 font-medium">{reportsMsg}</span>}
           <button disabled={waInitiating} onClick={() => {
@@ -1168,13 +1168,13 @@ export default function Leads() {
                 setWaInitiating(true);
                 setWaMsg(null);
                 initiateWaBulk.mutate({ data: { leadIds: selected } }, {
-                    onSuccess: (res) => { const s = res.succeeded ?? selected.length; const f = res.failed ?? 0; setWaMsg(f > 0 ? `Ã¢Å“â€œ ${s} sent, ${f} failed` : `Ã¢Å“â€œ ${s} sent`); setSelected([]); },
-                    onError: () => setWaMsg("Ã¢Å“â€¢ Failed"),
+                    onSuccess: (res) => { const s = res.succeeded ?? selected.length; const f = res.failed ?? 0; setWaMsg(f > 0 ? `✓ ${s} sent, ${f} failed` : `✓ ${s} sent`); setSelected([]); },
+                    onError: () => setWaMsg("✕ Failed"),
                     onSettled: () => setWaInitiating(false),
                 });
             }} className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 underline disabled:opacity-50">
             {waInitiating ? <Loader2 className="w-3 h-3 animate-spin"/> : <MessageCircle className="w-3 h-3"/>}
-            {waInitiating ? "SendingÃ¢â‚¬Â¦" : "WA Hook"}
+            {waInitiating ? "Sending…" : "WA Hook"}
           </button>
           {waMsg && <span className="text-[11px] text-green-700 font-medium">{waMsg}</span>}
           <button onClick={() => setShowListModal(true)} className="flex items-center gap-1 text-[11px] text-indigo-700 hover:text-indigo-800 underline">
@@ -1183,16 +1183,16 @@ export default function Leads() {
           <button onClick={() => setSelected([])} className="text-[11px] text-gray-400 hover:text-gray-700 underline ml-auto">Clear</button>
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Website Health Check progress bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Website Health Check progress bar ─────────────────────────── */}
       {whcStatus?.running && (<div className="flex-shrink-0 bg-amber-50 border-b border-amber-200 px-5 py-2 flex items-center gap-3">
           <Activity className="w-3.5 h-3.5 text-amber-600 animate-pulse flex-shrink-0"/>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
               <span className="text-[11px] font-semibold text-amber-700">
-                Checking websitesÃ¢â‚¬Â¦ {whcStatus.checked} / {whcStatus.total}
+                Checking websites… {whcStatus.checked} / {whcStatus.total}
               </span>
               <span className="text-[11px] text-amber-600">
-                Ã¢Å“â€œ {whcStatus.working} live Ã‚Â· Ã¢Å“â€¢ {whcStatus.dead} dead
+                ✓ {whcStatus.working} live · ✕ {whcStatus.dead} dead
               </span>
             </div>
             <div className="w-full h-1.5 rounded-full bg-amber-200 overflow-hidden">
@@ -1204,16 +1204,16 @@ export default function Leads() {
       {whcStatus && !whcStatus.running && whcStatus.finishedAt && (<div className="flex-shrink-0 bg-emerald-50 border-b border-emerald-100 px-5 py-1.5 flex items-center gap-3 text-[11px]">
           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0"/>
           <span className="text-emerald-700 font-medium">Website check complete:</span>
-          <span className="text-emerald-600">Ã¢Å“â€œ {whcStatus.counts?.working ?? 0} live</span>
-          <span className="text-red-600">Ã¢Å“â€¢ {whcStatus.counts?.dead ?? 0} dead</span>
+          <span className="text-emerald-600">✓ {whcStatus.counts?.working ?? 0} live</span>
+          <span className="text-red-600">✕ {whcStatus.counts?.dead ?? 0} dead</span>
           <span className="text-gray-400">{whcStatus.counts?.no_website ?? 0} no website</span>
           {(whcStatus.counts?.dead ?? 0) > 0 && (<button onClick={() => { setViewTab("dead-pool"); loadDeadPool(); }} className="ml-1 text-[11px] text-red-600 hover:text-red-700 font-semibold underline">
-              View Dead Pool Ã¢â€ â€™
+              View Dead Pool →
             </button>)}
           <button onClick={() => setWhcStatus(null)} className="ml-auto text-gray-400 hover:text-gray-600"><X className="w-3 h-3"/></button>
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ "Select all X leads" banner (HubSpot-style) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── "Select all X leads" banner (HubSpot-style) ──────────────── */}
       {(() => {
             const pageIds = pagedLeads.map((l) => l.id);
             const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.includes(id));
@@ -1229,16 +1229,16 @@ export default function Leads() {
                 <button onClick={selectAll} className="text-blue-700 underline hover:text-blue-900 font-semibold">
                   Select all {filteredLeads.length.toLocaleString()} leads
                 </button>
-                <span className="text-blue-400">Ã‚Â·</span>
+                <span className="text-blue-400">·</span>
                 <button onClick={() => setSelected([])} className="text-blue-700 underline hover:text-blue-900 font-medium">Clear selection</button>
               </>)}
           </div>);
         })()}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ SCROLLABLE CONTENT AREA (fills remaining height) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── SCROLLABLE CONTENT AREA (fills remaining height) ───────── */}
       <div className="flex-1 min-h-0 overflow-auto bg-white" style={{ scrollbarWidth: "thin", scrollbarColor: "#cbd5e1 #f1f5f9", display: viewTab === "leads" ? undefined : "none" }}>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Mobile cards (< md) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Mobile cards (< md) ─────────────────────────────────── */}
         <div className="flex flex-col md:hidden bg-white">
           {isLoading ? (Array.from({ length: 5 }).map((_, i) => (<div key={i} className="px-4 py-3.5 flex gap-3 border-b border-gray-100 animate-pulse">
                 <div className="w-11 h-11 rounded-full bg-gray-200 flex-shrink-0"/>
@@ -1347,14 +1347,14 @@ export default function Leads() {
               </div>);
         })}
 
-          {/* FAB Ã¢â‚¬â€ Add Lead */}
+          {/* FAB — Add Lead */}
           <button className="fixed bottom-6 right-5 z-40 w-14 h-14 rounded-full bg-violet-600 shadow-xl flex flex-col items-center justify-center text-white" onClick={() => setShowAdd(true)}>
             <Plus className="w-5 h-5"/>
             <span className="text-[9px] leading-none mt-0.5 font-semibold">Add Lead</span>
           </button>
         </div>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Desktop table (Ã¢â€°Â¥ md) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Desktop table (≥ md) ───────────────────────────────── */}
         <div className="hidden md:block">
           <table className="w-full text-xs border-collapse" style={{ minWidth: "1200px" }}>
             <thead className="sticky top-0 z-10">
@@ -1407,7 +1407,7 @@ export default function Leads() {
                         <span className="font-medium text-violet-700 hover:text-violet-900 hover:underline truncate text-[12px]">{leadNameStr}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-gray-500 truncate" style={{ maxWidth: "130px" }}>{lead.designation ?? <span className="text-gray-300">Ã¢â‚¬â€</span>}</td>
+                    <td className="px-3 py-2 text-gray-500 truncate" style={{ maxWidth: "130px" }}>{lead.designation ?? <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2" style={{ maxWidth: "150px" }}>
                       <div className="flex items-center gap-1.5">
                         {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0"/>}
@@ -1420,29 +1420,29 @@ export default function Leads() {
                     <td className="px-3 py-2" style={{ maxWidth: "150px" }} onClick={e => e.stopPropagation()}>
                       {phoneDisplay ? (<div className="flex items-center gap-1">
                           <span className="text-gray-500 truncate text-[11px]" style={{ maxWidth: "80px" }}>{phoneDisplay}</span>
-                          <a href={`tel:${lead.phone ?? l.whatsapp}`} className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-[11px]" title="Call" onClick={e => e.stopPropagation()}>Ã°Å¸â€œÅ¾</a>
-                          {waNum && <a href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-green-100 text-[11px]" title="WhatsApp" onClick={e => e.stopPropagation()}>Ã°Å¸â€™Â¬</a>}
-                        </div>) : <span className="text-gray-300">Ã¢â‚¬â€</span>}
+                          <a href={`tel:${lead.phone ?? l.whatsapp}`} className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-[11px]" title="Call" onClick={e => e.stopPropagation()}>📞</a>
+                          {waNum && <a href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-green-100 text-[11px]" title="WhatsApp" onClick={e => e.stopPropagation()}>💬</a>}
+                        </div>) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-2 text-[11px]" style={{ maxWidth: "130px" }} onClick={e => e.stopPropagation()}>
                       {lead.website ? (<a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate block" title={lead.website}>
                           {lead.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
-                        </a>) : <span className="text-gray-300">Ã¢â‚¬â€</span>}
+                        </a>) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-2">
-                      {l.emailSent ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700"><Mail className="w-2.5 h-2.5"/> Email Sent</span>) : <span className="text-gray-300 text-[10px]">Ã¢â‚¬â€</span>}
+                      {l.emailSent ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700"><Mail className="w-2.5 h-2.5"/> Email Sent</span>) : <span className="text-gray-300 text-[10px]">—</span>}
                     </td>
                     <td className="px-3 py-2 text-gray-500 truncate text-[11px]" style={{ maxWidth: "120px" }}>
                       {lead.country || l.city
                     ? <span>{[l.city, lead.country].filter(Boolean).join(", ")}</span>
-                    : <span className="text-gray-300">Ã¢â‚¬â€</span>}
+                    : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-2"><StatusBadge status={lead.status}/></td>
-                    <td className="px-3 py-2 text-gray-400 capitalize truncate text-[11px]" style={{ maxWidth: "100px" }}>{lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">Ã¢â‚¬â€</span>}</td>
+                    <td className="px-3 py-2 text-gray-400 capitalize truncate text-[11px]" style={{ maxWidth: "100px" }}>{lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2">
-                      {l.websiteStatus === "live" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">Ã¢Å“â€œ Live</span>) : l.websiteStatus === "down" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700"><WifiOff className="w-2.5 h-2.5"/> Dead</span>) : l.websiteStatus === "no_website" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">No URL</span>) : lead.website ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-500 border border-amber-200">? Check</span>) : (<span className="text-gray-300 text-[10px]">Ã¢â‚¬â€</span>)}
+                      {l.websiteStatus === "live" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">✓ Live</span>) : l.websiteStatus === "down" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700"><WifiOff className="w-2.5 h-2.5"/> Dead</span>) : l.websiteStatus === "no_website" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">No URL</span>) : lead.website ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-500 border border-amber-200">? Check</span>) : (<span className="text-gray-300 text-[10px]">—</span>)}
                     </td>
-                    <td className="px-3 py-2 text-gray-500 truncate text-[11px]" style={{ maxWidth: "120px" }}>{lead.industry ?? <span className="text-gray-300">Ã¢â‚¬â€</span>}</td>
+                    <td className="px-3 py-2 text-gray-500 truncate text-[11px]" style={{ maxWidth: "120px" }}>{lead.industry ?? <span className="text-gray-300">—</span>}</td>
                     <td className="px-3 py-2 text-gray-400 text-[11px]">{formatDate(lead.createdAt)}</td>
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
@@ -1471,10 +1471,10 @@ export default function Leads() {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Pagination footer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Pagination footer ─────────────────────────────────────── */}
       <div className="flex-shrink-0 flex items-center justify-between px-5 py-2.5 border-t border-gray-200 bg-white">
         <span className="text-[12px] text-gray-500">
-          {filteredLeads.length === 0 ? "No results" : `${((page - 1) * PAGE_SIZE) + 1}Ã¢â‚¬â€œ${Math.min(page * PAGE_SIZE, filteredLeads.length)} of ${filteredLeads.length.toLocaleString()} leads`}
+          {filteredLeads.length === 0 ? "No results" : `${((page - 1) * PAGE_SIZE) + 1}–${Math.min(page * PAGE_SIZE, filteredLeads.length)} of ${filteredLeads.length.toLocaleString()} leads`}
         </span>
         <div className="flex items-center gap-1">
           <button disabled={page <= 1} onClick={() => setPage(1)} className="px-2.5 py-1.5 rounded-md border border-gray-200 text-[12px] text-gray-500 disabled:opacity-30 hover:bg-gray-50 hover:border-gray-300 transition-colors">Prev</button>
@@ -1487,13 +1487,13 @@ export default function Leads() {
         })()}
           <button disabled={page >= totalFilteredPages} onClick={() => setPage(p => p + 1)} className="px-2.5 py-1.5 rounded-md border border-gray-200 text-[12px] text-gray-500 disabled:opacity-30 hover:bg-gray-50 hover:border-gray-300 transition-colors">Next</button>
         </div>
-        <span className="hidden md:inline text-[12px] text-gray-400">{PAGE_SIZE} per page Ã‚Â· {totalFilteredPages} pages</span>
+        <span className="hidden md:inline text-[12px] text-gray-400">{PAGE_SIZE} per page · {totalFilteredPages} pages</span>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Lists panel (shown instead of table when viewTab=lists) Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Lists panel (shown instead of table when viewTab=lists) ── */}
       {viewTab === "lists" && (<LeadListsPanel BASE="" toast={toast}/>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Not Qualified panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Not Qualified panel ──────────────────────────────────── */}
       {viewTab === "unqualified" && (<div className="flex-1 min-h-0 overflow-auto bg-white">
           {/* Header */}
           <div className="sticky top-0 z-10 bg-orange-50 border-b border-orange-100 px-5 py-3 flex items-center justify-between">
@@ -1510,14 +1510,14 @@ export default function Leads() {
 
           {/* Description */}
           <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-amber-700 flex items-start gap-4 flex-wrap">
-            <span><span className="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"/>Email Failed Ã¢â‚¬â€ delivery bounced or address is invalid. Contact details may be incorrect.</span>
-            <span><span className="inline-block w-2 h-2 rounded-full bg-orange-400 mr-1"/>Low BANT Ã¢â‚¬â€ scored below 45, not a good fit right now.</span>
+            <span><span className="inline-block w-2 h-2 rounded-full bg-red-400 mr-1"/>Email Failed — delivery bounced or address is invalid. Contact details may be incorrect.</span>
+            <span><span className="inline-block w-2 h-2 rounded-full bg-orange-400 mr-1"/>Low BANT — scored below 45, not a good fit right now.</span>
           </div>
 
           {/* Loading */}
           {unqualifiedLoading && (<div className="flex items-center justify-center py-16 text-gray-400 gap-2">
               <Loader2 className="w-5 h-5 animate-spin"/>
-              <span className="text-sm">LoadingÃ¢â‚¬Â¦</span>
+              <span className="text-sm">Loading…</span>
             </div>)}
 
           {/* Empty state */}
@@ -1576,16 +1576,16 @@ export default function Leads() {
                       <td className="px-4 py-2.5">
                         {bantScore != null && bantScore > 0 ? (<span className="px-1.5 py-0.5 rounded text-[10px] font-bold" style={{ background: bandHexFromKey(scoreToBandKey(bantScore)) + "22", color: bandHexFromKey(scoreToBandKey(bantScore)) }}>
                             {bantScore}
-                          </span>) : <span className="text-gray-400">Ã¢â‚¬â€</span>}
+                          </span>) : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-4 py-2.5">
                         <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600 capitalize">
-                          {(lead.pipelineStage ?? "Ã¢â‚¬â€").replace(/_/g, " ")}
+                          {(lead.pipelineStage ?? "—").replace(/_/g, " ")}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {isEmailFailed && (<button onClick={() => restoreUnqualifiedLead(lead.id)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors" title="Contact details are correct Ã¢â‚¬â€ restore to main list">
+                          {isEmailFailed && (<button onClick={() => restoreUnqualifiedLead(lead.id)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-green-50 text-green-700 border border-green-200 hover:bg-green-100 transition-colors" title="Contact details are correct — restore to main list">
                               <RotateCcw className="w-3 h-3"/> Restore
                             </button>)}
                           <Link href={`/leads/${lead.id}`}>
@@ -1600,7 +1600,7 @@ export default function Leads() {
               </tbody>
             </table>)}
         </div>)}
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Dead Pool panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Dead Pool panel ──────────────────────────────────────── */}
       {viewTab === "dead-pool" && (<div className="flex-1 min-h-0 overflow-auto bg-white">
           {/* Header */}
           <div className="sticky top-0 z-10 bg-red-50 border-b border-red-100 px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
@@ -1627,13 +1627,13 @@ export default function Leads() {
 
           {/* Description */}
           <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 text-[11px] text-amber-700">
-            These leads have websites that returned errors or failed to respond. Review them before deleting Ã¢â‚¬â€ some may just need a URL update.
+            These leads have websites that returned errors or failed to respond. Review them before deleting — some may just need a URL update.
           </div>
 
           {/* Loading */}
           {deadPoolLoading && (<div className="flex items-center justify-center py-16 text-gray-400 gap-2">
               <Loader2 className="w-5 h-5 animate-spin"/>
-              <span className="text-sm">LoadingÃ¢â‚¬Â¦</span>
+              <span className="text-sm">Loading…</span>
             </div>)}
 
           {/* Empty */}
@@ -1643,7 +1643,7 @@ export default function Leads() {
               <p className="text-xs text-gray-400 mt-1">Run a website health check to detect dead leads.</p>
               <button onClick={startWebsiteCheck} disabled={whcStatus?.running || whcStarting} className="mt-4 flex items-center gap-1.5 px-4 py-2 text-[12px] rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 transition-colors">
                 {(whcStatus?.running || whcStarting) ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Activity className="w-3.5 h-3.5"/>}
-                {whcStatus?.running ? "CheckingÃ¢â‚¬Â¦" : "Check Websites Now"}
+                {whcStatus?.running ? "Checking…" : "Check Websites Now"}
               </button>
             </div>)}
 
@@ -1687,7 +1687,7 @@ export default function Leads() {
                     <td className="px-4 py-2.5 max-w-[180px]">
                       {lead.website ? (<a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline text-[11px] truncate block" title={lead.website}>
                           {lead.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
-                        </a>) : <span className="text-gray-400 text-[11px]">Ã¢â‚¬â€</span>}
+                        </a>) : <span className="text-gray-400 text-[11px]">—</span>}
                     </td>
                     <td className="px-4 py-2.5 max-w-[200px]">
                       <span className="text-[11px] text-red-700 truncate block" title={lead.websiteCheckReason ?? ""}>
@@ -1695,19 +1695,19 @@ export default function Leads() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
-                      {lead.websiteHttpCode ? (<span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-red-100 text-red-700">{lead.websiteHttpCode}</span>) : <span className="text-gray-400">Ã¢â‚¬â€</span>}
+                      {lead.websiteHttpCode ? (<span className="px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold bg-red-100 text-red-700">{lead.websiteHttpCode}</span>) : <span className="text-gray-400">—</span>}
                     </td>
                     <td className="px-4 py-2.5 text-[11px] text-gray-400 whitespace-nowrap">
-                      {lead.websiteCheckedAt ? new Date(lead.websiteCheckedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "Ã¢â‚¬â€"}
+                      {lead.websiteCheckedAt ? new Date(lead.websiteCheckedAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"}
                     </td>
                     <td className="px-4 py-2.5">
                       <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600 capitalize">
-                        {(lead.pipelineStage ?? "Ã¢â‚¬â€").replace(/_/g, " ")}
+                        {(lead.pipelineStage ?? "—").replace(/_/g, " ")}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => keepLead(lead.id)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors" title="Mark as live Ã¢â‚¬â€ remove from dead pool">
+                        <button onClick={() => keepLead(lead.id)} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors" title="Mark as live — remove from dead pool">
                           <CheckCircle2 className="w-3 h-3"/> Keep
                         </button>
                         <button onClick={() => setDeleteDeadConfirm({ mode: "selected", ids: [lead.id] })} className="flex items-center gap-1 px-2 py-1 rounded text-[10px] bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 transition-colors">
@@ -1725,10 +1725,10 @@ export default function Leads() {
 
       {showListModal && (<SaveToListModal BASE="" selectedIds={selected} onClose={() => setShowListModal(false)} toast={toast}/>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Export Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Export Modal ─────────────────────────────────────────── */}
       {showExportModal && (<ExportModal rowCount={selected.length > 0 ? selected.length : filteredLeads.length} defaultName={selected.length > 0 ? `${selected.length} leads selected` : "All leads"} onExport={(format, filename) => { exportLeads(format, filename); setShowExportModal(false); }} onClose={() => setShowExportModal(false)}/>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Delete Dead Pool Confirm Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Delete Dead Pool Confirm Modal ───────────────────────── */}
       {deleteDeadConfirm && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-sm mx-4 overflow-hidden">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
@@ -1754,13 +1754,13 @@ export default function Leads() {
               </button>
               <button onClick={confirmDeleteDead} disabled={whcDeleting} className="flex items-center gap-1.5 px-4 py-1.5 text-[12px] rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-colors font-semibold">
                 {whcDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Trash2 className="w-3.5 h-3.5"/>}
-                {whcDeleting ? "DeletingÃ¢â‚¬Â¦" : "Yes, Delete"}
+                {whcDeleting ? "Deleting…" : "Yes, Delete"}
               </button>
             </div>
           </div>
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Status legend Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Status legend ────────────────────────────────────────── */}
       <div className="flex-shrink-0 hidden md:flex items-center gap-3 px-5 py-1.5 border-t border-gray-100 bg-gray-50 text-[10px] text-gray-400" style={{ display: viewTab === "leads" ? undefined : "none" }}>
         <span className="font-semibold uppercase tracking-wider">Legend:</span>
         {[["#E8F1FF", "New Enquiry"], ["#F0ECFF", "Enquiry Qualified"], ["#E0F5F2", "Discovery Call"], ["#FFF3D4", "Quote / Estimation Sent"], ["#FFE8D6", "Follow Up / Negotiation"], ["#E4F0E8", "Project Won"], ["#FEDFDF", "Project Lost"]].map(([c, l]) => (<span key={l} className="flex items-center gap-1">
@@ -1774,11 +1774,11 @@ export default function Leads() {
           <div className="rounded-xl border border-gray-200 w-full max-w-2xl bg-white shadow-sm" style={{ maxHeight: "90vh", overflowY: "auto" }}>
             <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
               <h2 className="text-sm font-bold text-gray-900">Add New Lead</h2>
-              <button type="button" onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">Ãƒâ€”</button>
+              <button type="button" onClick={() => setShowAdd(false)} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
             </div>
             <form onSubmit={handleAddSubmit} className="p-6 space-y-5">
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Contact Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Contact ── */}
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Contact</div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1813,7 +1813,7 @@ export default function Leads() {
                 </div>
               </div>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Company Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Company ── */}
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Company</div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1850,7 +1850,7 @@ export default function Leads() {
                   <div>
                     <label className="block text-[11px] text-gray-500 mb-1">Company Size</label>
                     <select name="companySize" className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-300">
-                      <option value="">SelectÃ¢â‚¬Â¦</option>
+                      <option value="">Select…</option>
                       {["1-10", "11-50", "51-200", "201-500", "501-2000", "2000+"].map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </div>
@@ -1861,7 +1861,7 @@ export default function Leads() {
                 </div>
               </div>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Classification Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Classification ── */}
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">Classification</div>
                 <div className="grid grid-cols-2 gap-3">
@@ -1920,7 +1920,7 @@ export default function Leads() {
                 </div>
 
                 {importTab === "paste" ? (<>
-                    <p className="text-xs text-muted-foreground mb-2">Paste names, emails, LinkedIn URLs, or any structured text Ã¢â‚¬â€ AI will parse it into leads.</p>
+                    <p className="text-xs text-muted-foreground mb-2">Paste names, emails, LinkedIn URLs, or any structured text — AI will parse it into leads.</p>
                     <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={7} placeholder="John Smith, CMO, Acme Corp, john@acme.com, Dubai, Healthcare..." className="w-full px-3 py-2 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-teal-500/50 font-mono resize-none"/>
                     <div className="flex gap-2 mt-3">
                       <button onClick={closeImport} className="flex-1 px-3 py-1.5 rounded text-xs text-muted-foreground bg-gray-50 hover:bg-gray-50 border border-gray-200">Cancel</button>
@@ -1971,7 +1971,7 @@ export default function Leads() {
                     </form>
                   </>) : importTab === "vibe" ? (<>
                     <div className="flex flex-col items-center justify-center py-10 text-center space-y-3">
-                      <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl" style={{ background: "rgba(245,158,11,0.15)" }}>Ã¢Å“Â¨</div>
+                      <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl" style={{ background: "rgba(245,158,11,0.15)" }}>✨</div>
                       <div className="text-sm font-medium text-foreground">Vibe Prospecting</div>
                       <div className="text-xs text-muted-foreground max-w-xs">Describe your ideal customer in plain language and AI will generate a targeted prospect list for you.</div>
                       <div className="px-3 py-1.5 text-[11px] rounded border border-amber-200 text-amber-600 bg-amber-50">Coming in v1.1</div>
@@ -1986,7 +1986,7 @@ export default function Leads() {
                           <div className="text-[10px] text-muted-foreground mt-0.5">Click to replace file</div>
                         </>) : (<>
                           <div className="text-xs font-medium text-gray-800">Drop your file here or click to browse</div>
-                          <div className="text-[10px] text-muted-foreground mt-1">Supports <span className="font-semibold">.xlsx</span>, <span className="font-semibold">.xls</span> and <span className="font-semibold">.csv</span> Ã¢â‚¬â€ any column order, auto-mapped</div>
+                          <div className="text-[10px] text-muted-foreground mt-1">Supports <span className="font-semibold">.xlsx</span>, <span className="font-semibold">.xls</span> and <span className="font-semibold">.csv</span> — any column order, auto-mapped</div>
                         </>)}
                     </div>
                     <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" className="hidden" onChange={(e) => { if (e.target.files?.[0])
@@ -2000,9 +2000,9 @@ export default function Leads() {
                         <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
                           {csvHeaders.map((header) => (<div key={header} className="flex items-center gap-2">
                               <span className="text-[11px] text-gray-700 w-36 truncate font-mono bg-gray-50 px-1.5 py-0.5 rounded border border-gray-200">{header}</span>
-                              <span className="text-muted-foreground text-[10px]">Ã¢â€ â€™</span>
+                              <span className="text-muted-foreground text-[10px]">→</span>
                               <select value={csvMapping[header] ?? ""} onChange={(e) => setCsvMapping((prev) => ({ ...prev, [header]: e.target.value }))} className="flex-1 text-[11px] rounded border border-gray-200 bg-white text-gray-900 px-2 py-1 focus:outline-none">
-                                <option value="">Ã¢â‚¬â€ Skip Ã¢â‚¬â€</option>
+                                <option value="">— Skip —</option>
                                 {CSV_COLUMNS.map((col) => <option key={col} value={col}>{CSV_COLUMN_LABELS[col]}</option>)}
                               </select>
                             </div>))}
@@ -2011,7 +2011,7 @@ export default function Leads() {
 
                     {importProgress && importProgress.total > 1 && (<div className="mt-2">
                         <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                          <span>Uploading batch {importProgress.current} of {importProgress.total}Ã¢â‚¬Â¦</span>
+                          <span>Uploading batch {importProgress.current} of {importProgress.total}…</span>
                           <span>{Math.round((importProgress.current / importProgress.total) * 100)}%</span>
                         </div>
                         <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
@@ -2021,7 +2021,7 @@ export default function Leads() {
                     <div className="flex gap-2 mt-3">
                       <button onClick={closeImport} disabled={importing} className="flex-1 px-3 py-1.5 rounded text-xs text-muted-foreground bg-gray-50 border border-gray-200 disabled:opacity-40">Cancel</button>
                       <button onClick={handleCsvImport} disabled={importing || csvRows.length === 0} className="flex-1 px-3 py-1.5 rounded text-xs text-white font-medium disabled:opacity-50" style={{ background: "#1A7A45" }}>
-                        {importing ? <span className="flex items-center gap-1.5 justify-center"><Loader2 className="w-3 h-3 animate-spin"/>ImportingÃ¢â‚¬Â¦</span> : `Import ${csvRows.length} Rows`}
+                        {importing ? <span className="flex items-center gap-1.5 justify-center"><Loader2 className="w-3 h-3 animate-spin"/>Importing…</span> : `Import ${csvRows.length} Rows`}
                       </button>
                     </div>
                   </>)}
@@ -2035,18 +2035,18 @@ export default function Leads() {
       {/* AI Fetch Leads panel */}
       {showFetch && <FetchLeads initialIcpId={fetchIcpId} onClose={() => { setShowFetch(false); setFetchIcpId(null); }}/>}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ AI processing banners (fixed floating) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
-      {bantBatchPoller.isPolling && (<AiBanner icon="zap" message={`AI scoring ${bantBatchPoller.batchState.leadsCount} leadsÃ¢â‚¬Â¦`} subMessages={[
+      {/* ── AI processing banners (fixed floating) ─────────────── */}
+      {bantBatchPoller.isPolling && (<AiBanner icon="zap" message={`AI scoring ${bantBatchPoller.batchState.leadsCount} leads…`} subMessages={[
                 "Running BANTB analysis via Google Gemini AI Engine",
-                "Budget Ã‚Â· Authority Ã‚Â· Need Ã‚Â· Timeline Ã‚Â· Belief",
+                "Budget · Authority · Need · Timeline · Belief",
                 "Scores will update automatically when ready",
             ]}/>)}
-      {generatingReports && (<AiBanner icon="sparkles" message="Generating brand audit reportsÃ¢â‚¬Â¦" subMessages={[
+      {generatingReports && (<AiBanner icon="sparkles" message="Generating brand audit reports…" subMessages={[
                 "Crawling prospect websites",
                 "Analysing digital presence & trust signals",
                 "Building AI-powered audit report",
             ]}/>)}
-      {enrichBatchPoller.isPolling && (<AiBanner icon="brain" message={`Enriching ${enrichBatchPoller.batchState.leadsCount} leads with AI keywordsÃ¢â‚¬Â¦`} subMessages={[
+      {enrichBatchPoller.isPolling && (<AiBanner icon="brain" message={`Enriching ${enrichBatchPoller.batchState.leadsCount} leads with AI keywords…`} subMessages={[
                 "Extracting behavioural & intent signals",
                 "Processing interest & topic keywords",
             ]}/>)}
@@ -2126,7 +2126,7 @@ function LeadDrawer({ leadId, onClose }) {
     const bantBreakdownEntries = lead?.bantBreakdown
         ? Object.entries(lead.bantBreakdown).filter(([, v]) => typeof v === "number")
         : [];
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Dark theme tokens Ã¢â‚¬â€ violet / indigo palette Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Dark theme tokens — violet / indigo palette ───────────────────────────
     const D = {
         panel: "#0C0A1A",
         header: "#09071A",
@@ -2161,10 +2161,10 @@ function LeadDrawer({ leadId, onClose }) {
       {/* Backdrop */}
       <div className="fixed inset-0 z-40" style={{ background: "rgba(0,0,0,0.65)", backdropFilter: "blur(2px)" }} onClick={onClose}/>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Dark drawer panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Dark drawer panel ── */}
       <div className="fixed right-0 top-0 h-full z-50 flex flex-col" style={{ width: "min(490px, 100vw)", background: D.panel, borderLeft: `1px solid ${D.cardBorder}`, boxShadow: "-8px 0 48px rgba(0,0,0,0.6)" }}>
 
-        {/* Ã¢â€¢ÂÃ¢â€¢Â HERO HEADER Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
+        {/* ══ HERO HEADER ══════════════════════════════════════════════════════ */}
         <div className="flex-shrink-0 relative overflow-hidden px-5 pt-5 pb-4" style={{ background: D.header, borderBottom: `1px solid ${D.divider}` }}>
           {/* Glow blob behind avatar */}
           <div className="absolute top-0 left-0 w-48 h-48 rounded-full opacity-10 pointer-events-none" style={{ background: D.accent, filter: "blur(60px)", transform: "translate(-30%, -30%)" }}/>
@@ -2189,7 +2189,7 @@ function LeadDrawer({ leadId, onClose }) {
                 {lead ? `${lead.firstName} ${lead.lastName}` : "Lead Detail"}
               </div>
               {lead && (<div className="text-[11px] truncate mt-0.5" style={{ color: D.textMuted }}>
-                  {[lead.designation, cleanCompanyName(lead.company)].filter(Boolean).join(" Ã‚Â· ")}
+                  {[lead.designation, cleanCompanyName(lead.company)].filter(Boolean).join(" · ")}
                 </div>)}
               {lead?.status && (() => {
             const sc = statusColor(lead.status);
@@ -2212,13 +2212,13 @@ function LeadDrawer({ leadId, onClose }) {
             </div>
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Action buttons Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Action buttons ── */}
           {lead && (<div className="grid grid-cols-4 gap-2 mt-4">
               {[
-                { label: "Audit", icon: "Ã°Å¸â€Â", onClick: handleRunAudit, glow: D.accent },
-                { label: "Email", icon: "Ã¢Å“â€°Ã¯Â¸Â", onClick: handleGenerateEmail, glow: "#60A5FA" },
-                { label: "Meeting", icon: "Ã°Å¸â€œâ€¦", onClick: handleBookMeeting, glow: "#FBBF24" },
-                { label: "Proposal", icon: "Ã°Å¸â€œâ€ž", onClick: handleCreateProposal, glow: "#E58BB5" },
+                { label: "Audit", icon: "🔍", onClick: handleRunAudit, glow: D.accent },
+                { label: "Email", icon: "✉️", onClick: handleGenerateEmail, glow: "#60A5FA" },
+                { label: "Meeting", icon: "📅", onClick: handleBookMeeting, glow: "#FBBF24" },
+                { label: "Proposal", icon: "📄", onClick: handleCreateProposal, glow: "#E58BB5" },
             ].map(({ label, icon, onClick, glow }) => (<button key={label} onClick={onClick} className="flex flex-col items-center gap-1 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all hover:scale-105 active:scale-95" style={{ background: D.card, border: `1px solid ${D.cardBorder}`, color: D.textMuted }} onMouseEnter={e => { e.currentTarget.style.color = glow; e.currentTarget.style.borderColor = glow + "44"; }} onMouseLeave={e => { e.currentTarget.style.color = D.textMuted; e.currentTarget.style.borderColor = D.cardBorder; }}>
                   <span className="text-lg leading-none">{icon}</span>
                   {label}
@@ -2226,7 +2226,7 @@ function LeadDrawer({ leadId, onClose }) {
             </div>)}
         </div>
 
-        {/* Ã¢â€¢ÂÃ¢â€¢Â TABS Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
+        {/* ══ TABS ═════════════════════════════════════════════════════════════ */}
         <div className="flex flex-shrink-0 px-2 gap-0.5" style={{ background: D.header, borderBottom: `1px solid ${D.divider}` }}>
           {tabs.map((tab) => (<button key={tab.id} onClick={() => setActiveTab(tab.id)} className="px-3 py-2.5 text-[11px] font-semibold transition-all whitespace-nowrap relative" style={{
                 color: activeTab === tab.id ? D.accent : D.textMuted,
@@ -2236,13 +2236,13 @@ function LeadDrawer({ leadId, onClose }) {
             </button>))}
         </div>
 
-        {/* Ã¢â€¢ÂÃ¢â€¢Â SCROLLABLE BODY Ã¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢ÂÃ¢â€¢Â */}
+        {/* ══ SCROLLABLE BODY ══════════════════════════════════════════════════ */}
         <div className="flex-1 overflow-y-auto" style={{ background: D.panel, scrollbarWidth: "thin", scrollbarColor: `${D.divider} transparent` }}>
           {isLoading ? (<div className="p-5 space-y-3">
               {[75, 55, 90, 60].map((w, i) => (<div key={i} className="h-3 rounded-full animate-pulse" style={{ width: `${w}%`, background: D.card }}/>))}
             </div>) : !lead ? (<div className="p-5 text-center pt-16 text-sm" style={{ color: D.textMuted }}>Lead not found.</div>) : activeTab === "overview" ? (<div className="p-4 space-y-3">
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Pipeline Status Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Pipeline Status ── */}
               <DarkCard title="Pipeline Status" d={D}>
                 <select value={lead.status} onChange={(e) => updateLead.mutate({ id: leadId, data: { status: e.target.value } })} className="w-full px-3 py-2 text-xs rounded-lg font-semibold focus:outline-none transition-all" style={{ background: D.accentDim, color: D.accentText, border: `1px solid ${D.cardBorder}` }}>
                   {LEAD_STATUSES.map((s) => (<option key={s} value={s} style={{ background: D.card, color: D.textPrimary }}>
@@ -2259,7 +2259,7 @@ function LeadDrawer({ leadId, onClose }) {
                   </div>)}
               </DarkCard>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ BANTB Score Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── BANTB Score ── */}
               <DarkCard title="BANTB Score" d={D}>
                 {(() => {
                 const lx = lead;
@@ -2272,7 +2272,7 @@ function LeadDrawer({ leadId, onClose }) {
                         <div>
                           <div className="text-[10px] font-semibold uppercase tracking-widest mb-0.5" style={{ color: D.textDim }}>BANTB Total</div>
                           <div className="text-4xl font-black leading-none" style={{ color: bantbTotal != null && bantbTotal >= 100 ? "#D97706" : bantbTotal != null && bantbTotal >= 80 ? "#0D9488" : bantbTotal != null && bantbTotal >= 50 ? "#3B82F6" : "#6B7280" }}>
-                            {bantbTotal ?? "Ã¢â‚¬â€"}
+                            {bantbTotal ?? "—"}
                           </div>
                           <div className="text-[10px]" style={{ color: D.textDim }}>out of 125</div>
                         </div>
@@ -2321,44 +2321,44 @@ function LeadDrawer({ leadId, onClose }) {
                           {lx.beliefSignals && (<div className="flex flex-wrap gap-1 mt-1.5">
                               {Object.entries(lx.beliefSignals).map(([sig, val]) => {
                                 const labels = { linkedin: "LinkedIn", aboutPage: "About Page", founderStory: "Founder Story", mission: "Mission" };
-                                return val ? (<span key={sig} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(13,148,136,0.15)", color: "#059669" }}>Ã¢Å“â€œ {labels[sig] ?? sig}</span>) : null;
+                                return val ? (<span key={sig} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: "rgba(13,148,136,0.15)", color: "#059669" }}>✓ {labels[sig] ?? sig}</span>) : null;
                             })}
                             </div>)}
                         </div>)}
-                    </>) : (<div className="text-xs py-2" style={{ color: D.textDim }}>Not scored yet Ã¢â‚¬â€ use the Qualify page to generate BANTB scores.</div>);
+                    </>) : (<div className="text-xs py-2" style={{ color: D.textDim }}>Not scored yet — use the Qualify page to generate BANTB scores.</div>);
             })()}
               </DarkCard>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Contact Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Contact ── */}
               <DarkCard title="Contact" d={D}>
                 <div className="space-y-2.5">
-                  {lead.email && <DarkInfoRow icon="Ã¢Å“â€°Ã¯Â¸Â" label="Email" value={lead.email} href={`mailto:${lead.email}`} d={D}/>}
-                  {lead.phone && <DarkInfoRow icon="Ã°Å¸â€œÅ¾" label="Phone" value={lead.phone} href={`tel:${lead.phone}`} d={D}/>}
-                  {lead.whatsapp && <DarkInfoRow icon="Ã°Å¸â€™Â¬" label="WhatsApp" value={lead.whatsapp} href={`https://wa.me/${lead.whatsapp.replace(/[^0-9]/g, "")}`} d={D}/>}
-                  {lead.website && <DarkInfoRow icon="Ã°Å¸Å’Â" label="Website" value={lead.website} href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} d={D}/>}
-                  {lead.linkedInUrl && <DarkInfoRow icon="Ã°Å¸â€â€”" label="LinkedIn" value="View Profile" href={lead.linkedInUrl} d={D}/>}
+                  {lead.email && <DarkInfoRow icon="✉️" label="Email" value={lead.email} href={`mailto:${lead.email}`} d={D}/>}
+                  {lead.phone && <DarkInfoRow icon="📞" label="Phone" value={lead.phone} href={`tel:${lead.phone}`} d={D}/>}
+                  {lead.whatsapp && <DarkInfoRow icon="💬" label="WhatsApp" value={lead.whatsapp} href={`https://wa.me/${lead.whatsapp.replace(/[^0-9]/g, "")}`} d={D}/>}
+                  {lead.website && <DarkInfoRow icon="🌐" label="Website" value={lead.website} href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} d={D}/>}
+                  {lead.linkedInUrl && <DarkInfoRow icon="🔗" label="LinkedIn" value="View Profile" href={lead.linkedInUrl} d={D}/>}
                 </div>
               </DarkCard>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Company Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Company ── */}
               <DarkCard title="Company" d={D}>
                 <div className="space-y-2.5">
-                  {lead.company && <DarkInfoRow icon="Ã°Å¸ÂÂ¢" label="Company" value={cleanCompanyName(lead.company)} d={D}/>}
-                  {lead.designation && <DarkInfoRow icon="Ã°Å¸â€˜Â¤" label="Title" value={lead.designation} d={D}/>}
-                  {lead.industry && <DarkInfoRow icon="Ã°Å¸ÂÂ­" label="Industry" value={lead.industry} d={D}/>}
-                  {lead.country && <DarkInfoRow icon="Ã°Å¸Å’Â" label="Location" value={`${lead.city ? lead.city + ", " : ""}${lead.country}`} d={D}/>}
-                  {lead.companySize && <DarkInfoRow icon="Ã°Å¸â€˜Â¥" label="Team Size" value={lead.companySize} d={D}/>}
-                  {lead.annualRevenue && <DarkInfoRow icon="Ã°Å¸â€™Â°" label="Revenue" value={lead.annualRevenue} d={D}/>}
+                  {lead.company && <DarkInfoRow icon="🏢" label="Company" value={cleanCompanyName(lead.company)} d={D}/>}
+                  {lead.designation && <DarkInfoRow icon="👤" label="Title" value={lead.designation} d={D}/>}
+                  {lead.industry && <DarkInfoRow icon="🏭" label="Industry" value={lead.industry} d={D}/>}
+                  {lead.country && <DarkInfoRow icon="🌍" label="Location" value={`${lead.city ? lead.city + ", " : ""}${lead.country}`} d={D}/>}
+                  {lead.companySize && <DarkInfoRow icon="👥" label="Team Size" value={lead.companySize} d={D}/>}
+                  {lead.annualRevenue && <DarkInfoRow icon="💰" label="Revenue" value={lead.annualRevenue} d={D}/>}
                 </div>
               </DarkCard>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Details & Tags Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Details & Tags ── */}
               <DarkCard title="Details" d={D}>
                 <div className="space-y-2.5">
-                  {lead.source && <DarkInfoRow icon="Ã°Å¸â€œÂ¡" label="Source" value={lead.source.replace(/_/g, " ")} d={D}/>}
-                  <DarkInfoRow icon="Ã°Å¸â€”â€œÃ¯Â¸Â" label="Added" value={formatDate(lead.createdAt)} d={D}/>
-                  {lead.lastContactedAt && <DarkInfoRow icon="Ã°Å¸â€œÂ¬" label="Contacted" value={formatDate(lead.lastContactedAt)} d={D}/>}
-                  <DarkInfoRow icon="Ã°Å¸â€â€ž" label="Updated" value={formatDate(lead.updatedAt)} d={D}/>
+                  {lead.source && <DarkInfoRow icon="📡" label="Source" value={lead.source.replace(/_/g, " ")} d={D}/>}
+                  <DarkInfoRow icon="🗓️" label="Added" value={formatDate(lead.createdAt)} d={D}/>
+                  {lead.lastContactedAt && <DarkInfoRow icon="📬" label="Contacted" value={formatDate(lead.lastContactedAt)} d={D}/>}
+                  <DarkInfoRow icon="🔄" label="Updated" value={formatDate(lead.updatedAt)} d={D}/>
                 </div>
                 {lead.tags?.length > 0 && (<div className="flex flex-wrap gap-1.5 mt-3 pt-3" style={{ borderTop: `1px solid ${D.divider}` }}>
                     {lead.tags.map((t) => (<span key={t} className="text-[10px] px-2.5 py-1 rounded-full font-semibold" style={{ background: D.accentDim, color: D.accentText, border: `1px solid ${D.cardBorder}` }}>
@@ -2367,7 +2367,7 @@ function LeadDrawer({ leadId, onClose }) {
                   </div>)}
               </DarkCard>
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ Keywords (search / ICP match) Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── Keywords (search / ICP match) ── */}
               {lead.keywords?.length > 0 && (<DarkCard title="Keywords" d={D}>
                   <div className="flex flex-wrap gap-1.5">
                     {lead.keywords.map((k) => (<span key={k} className="text-[10px] px-2.5 py-0.5 rounded-full font-medium" style={{ background: "#1A1535", color: "#A5B4FC", border: "1px solid #2E2660" }}>
@@ -2376,7 +2376,7 @@ function LeadDrawer({ leadId, onClose }) {
                   </div>
                 </DarkCard>)}
 
-              {/* Ã¢â€â‚¬Ã¢â€â‚¬ AI Intelligence Ã¢â€â‚¬Ã¢â€â‚¬ */}
+              {/* ── AI Intelligence ── */}
               <DarkCard title="AI Intelligence" d={D}>
                 <div className="space-y-3">
                   <div>
@@ -2421,7 +2421,7 @@ function LeadDrawer({ leadId, onClose }) {
                 }
             }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" style={{ background: D.accentDim, color: D.accentText, border: `1px solid ${D.cardBorder}` }}>
                     {enrichingKeywords.has(lead.id) ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Sparkles className="w-3.5 h-3.5"/>}
-                    {enrichingKeywords.has(lead.id) ? "EnrichingÃ¢â‚¬Â¦" : "Enrich with AI"}
+                    {enrichingKeywords.has(lead.id) ? "Enriching…" : "Enrich with AI"}
                   </button>
                 </div>
               </DarkCard>
@@ -2432,11 +2432,11 @@ function LeadDrawer({ leadId, onClose }) {
             </div>) : activeTab === "audit" ? (<div className="p-4 space-y-3">
               {lead.auditData ? (<DarkCard title="Audit Data" d={D}>
                   <pre className="text-[11px] whitespace-pre-wrap break-all" style={{ color: D.accentText }}>{JSON.stringify(lead.auditData, null, 2)}</pre>
-                </DarkCard>) : (<DarkEmptyState icon="Ã°Å¸â€Â" title="No audit run yet" desc="Analyse this lead's brand presence" d={D} action={<button onClick={handleRunAudit} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: D.accentDim, color: D.accentText, border: `1px solid ${D.cardBorder}` }}>Run Brand Audit</button>}/>)}
+                </DarkCard>) : (<DarkEmptyState icon="🔍" title="No audit run yet" desc="Analyse this lead's brand presence" d={D} action={<button onClick={handleRunAudit} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: D.accentDim, color: D.accentText, border: `1px solid ${D.cardBorder}` }}>Run Brand Audit</button>}/>)}
             </div>) : activeTab === "touchpoints" ? (<div className="p-4 space-y-2">
-              {lead.touchpoints?.length === 0 ? (<DarkEmptyState icon="Ã¢Å“â€°Ã¯Â¸Â" title="No outreach yet" desc="Generate a personalised first email" d={D} action={<button onClick={handleGenerateEmail} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#0D1A33", color: "#60A5FA", border: "1px solid #1E3A6E" }}>Generate Email</button>}/>) : (lead.touchpoints ?? []).map((tp) => (<DarkCard key={tp.id} d={D}>
+              {lead.touchpoints?.length === 0 ? (<DarkEmptyState icon="✉️" title="No outreach yet" desc="Generate a personalised first email" d={D} action={<button onClick={handleGenerateEmail} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#0D1A33", color: "#60A5FA", border: "1px solid #1E3A6E" }}>Generate Email</button>}/>) : (lead.touchpoints ?? []).map((tp) => (<DarkCard key={tp.id} d={D}>
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs font-bold" style={{ color: D.textPrimary }}>Day {tp.day} Ã‚Â· {tp.channel}</span>
+                    <span className="text-xs font-bold" style={{ color: D.textPrimary }}>Day {tp.day} · {tp.channel}</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: tp.status === "replied" ? "#0D3320" : "#0D1A2D", color: tp.status === "replied" ? D.accent : "#60A5FA" }}>
                       {tp.status}
                     </span>
@@ -2446,23 +2446,23 @@ function LeadDrawer({ leadId, onClose }) {
                   {tp.sentAt && <div className="text-[10px] mt-1.5" style={{ color: D.textDim }}>{formatDate(tp.sentAt)}</div>}
                 </DarkCard>))}
             </div>) : activeTab === "meetings" ? (<div className="p-4 space-y-2">
-              {lead.meetings?.length === 0 ? (<DarkEmptyState icon="Ã°Å¸â€œâ€¦" title="No meetings yet" desc="Book a discovery call to move forward" d={D} action={<button onClick={handleBookMeeting} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#2D1B06", color: "#FCD34D", border: "1px solid #4A2E10" }}>Book Discovery Call</button>}/>) : (lead.meetings ?? []).map((m) => (<DarkCard key={m.id} d={D}>
+              {lead.meetings?.length === 0 ? (<DarkEmptyState icon="📅" title="No meetings yet" desc="Book a discovery call to move forward" d={D} action={<button onClick={handleBookMeeting} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#2D1B06", color: "#FCD34D", border: "1px solid #4A2E10" }}>Book Discovery Call</button>}/>) : (lead.meetings ?? []).map((m) => (<DarkCard key={m.id} d={D}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold capitalize" style={{ color: D.textPrimary }}>{m.type}</span>
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: m.status === "completed" ? "#0D3320" : "#2D1B06", color: m.status === "completed" ? D.accent : "#FBBF24" }}>
                       {m.status}
                     </span>
                   </div>
-                  <div className="text-[11px]" style={{ color: D.textMuted }}>{formatDate(m.scheduledAt)} Ã‚Â· {m.duration} min</div>
+                  <div className="text-[11px]" style={{ color: D.textMuted }}>{formatDate(m.scheduledAt)} · {m.duration} min</div>
                   {m.notes && <p className="text-[11px] mt-1.5 leading-relaxed" style={{ color: D.textDim }}>{m.notes}</p>}
-                  {m.nextAction && <div className="text-[11px] font-semibold mt-1.5" style={{ color: "#FBBF24" }}>Ã¢â€ â€™ {m.nextAction}</div>}
+                  {m.nextAction && <div className="text-[11px] font-semibold mt-1.5" style={{ color: "#FBBF24" }}>→ {m.nextAction}</div>}
                 </DarkCard>))}
             </div>) : (<div className="p-4 space-y-2">
-              {lead.proposals?.length === 0 ? (<DarkEmptyState icon="Ã°Å¸â€œâ€ž" title="No proposals yet" desc="Create a tailored proposal for this lead" d={D} action={<button onClick={handleCreateProposal} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#1E0D3A", color: "#F3C9DB", border: "1px solid #3D1F6E" }}>Create Proposal</button>}/>) : (lead.proposals ?? []).map((p) => (<DarkCard key={p.id} d={D}>
+              {lead.proposals?.length === 0 ? (<DarkEmptyState icon="📄" title="No proposals yet" desc="Create a tailored proposal for this lead" d={D} action={<button onClick={handleCreateProposal} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#1E0D3A", color: "#F3C9DB", border: "1px solid #3D1F6E" }}>Create Proposal</button>}/>) : (lead.proposals ?? []).map((p) => (<DarkCard key={p.id} d={D}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-bold capitalize" style={{ color: D.textPrimary }}>{p.status}</span>
                     <span className="text-xs font-black" style={{ color: "#E58BB5" }}>
-                      {p.investment ? `AED ${Number(p.investment).toLocaleString()}` : "Ã¢â‚¬â€"}
+                      {p.investment ? `AED ${Number(p.investment).toLocaleString()}` : "—"}
                     </span>
                   </div>
                   <div className="text-[11px]" style={{ color: D.textDim }}>{formatDate(p.createdAt)}</div>
@@ -2497,9 +2497,9 @@ function DarkEmptyState({ icon, title, desc, action, d }) {
       {action}
     </div>);
 }
-/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+/* ──────────────────────────────────────────────────────────
    LEAD LISTS PANEL
-Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+──────────────────────────────────────────────────────────── */
 const LIST_COLORS = ["#6366F1", "#CB3273", "#CB3273", "#F59E0B", "#10B981", "#3B82F6", "#EF4444", "#F97316", "#06B6D4"];
 function LeadListsPanel({ BASE, toast }) {
     const [lists, setLists] = useState([]);
@@ -2571,7 +2571,7 @@ function LeadListsPanel({ BASE, toast }) {
     if (activeList) {
         return (<div className="flex-1 min-h-0 overflow-auto p-4">
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <button onClick={() => setActiveList(null)} className="text-[11px] text-gray-500 hover:text-gray-700 underline">Ã¢â€ Â All Lists</button>
+          <button onClick={() => setActiveList(null)} className="text-[11px] text-gray-500 hover:text-gray-700 underline">← All Lists</button>
           <span className="text-gray-300 text-xs">/</span>
           <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: activeList.color }}/>
           <h2 className="text-sm font-semibold text-gray-800">{activeList.name}</h2>
@@ -2599,7 +2599,7 @@ function LeadListsPanel({ BASE, toast }) {
                       <div className="font-medium text-gray-800">{lead.firstName} {lead.lastName}</div>
                       <div className="text-gray-400">{lead.email}</div>
                     </td>
-                    <td className="px-3 py-2.5 hidden md:table-cell text-gray-600">{cleanCompanyName(lead.company) ?? "Ã¢â‚¬â€"}</td>
+                    <td className="px-3 py-2.5 hidden md:table-cell text-gray-600">{cleanCompanyName(lead.company) ?? "—"}</td>
                     <td className="px-3 py-2.5 hidden md:table-cell">
                       <span className={cn("px-1.5 py-0.5 rounded border text-[10px] font-medium capitalize", statusColor(lead.status))}>
                         {statusLabel(lead.status)}
@@ -2676,16 +2676,16 @@ function LeadListsPanel({ BASE, toast }) {
             <div className="flex gap-2 mt-5">
               <button onClick={() => setShowCreate(false)} className="flex-1 px-3 py-2 text-xs rounded-lg border border-gray-200 text-gray-600">Cancel</button>
               <button onClick={createList} disabled={!newName.trim() || creating} className="flex-1 px-3 py-2 text-xs font-medium text-white rounded-lg disabled:opacity-50" style={{ background: newColor }}>
-                {creating ? "CreatingÃ¢â‚¬Â¦" : "Create List"}
+                {creating ? "Creating…" : "Create List"}
               </button>
             </div>
           </div>
         </div>)}
     </div>);
 }
-/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+/* ──────────────────────────────────────────────────────────
    EXPORT MODAL
-Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+──────────────────────────────────────────────────────────── */
 function ExportModal({ rowCount, defaultName, onExport, onClose, }) {
     const [filename, setFilename] = useState(defaultName);
     const [format, setFormat] = useState("xlsx");
@@ -2704,7 +2704,7 @@ function ExportModal({ rowCount, defaultName, onExport, onClose, }) {
           {/* Row count info */}
           <div className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-50 border border-gray-200 text-[12px] text-gray-600">
             <Download className="w-4 h-4 text-gray-400 flex-shrink-0"/>
-            <span>Exporting <span className="font-semibold text-gray-900">{rowCount.toLocaleString()} leads</span> Ã‚Â· 22 columns Ã‚Â· 1 file</span>
+            <span>Exporting <span className="font-semibold text-gray-900">{rowCount.toLocaleString()} leads</span> · 22 columns · 1 file</span>
           </div>
 
           {/* Export name */}
@@ -2730,7 +2730,7 @@ function ExportModal({ rowCount, defaultName, onExport, onClose, }) {
           <div className="px-3 py-3 rounded-lg bg-green-50 border border-green-100 text-[11px] text-green-800 space-y-1">
             <div className="font-semibold text-green-900 mb-1">Columns included in export</div>
             <div className="text-green-700 leading-relaxed">
-              ID Ã‚Â· First Name Ã‚Â· Last Name Ã‚Â· Email Ã‚Â· Phone Ã‚Â· WhatsApp Ã‚Â· LinkedIn URL Ã‚Â· Company Ã‚Â· Designation Ã‚Â· Industry Ã‚Â· City Ã‚Â· Country Ã‚Â· Website Ã‚Â· Company Size Ã‚Â· Annual Revenue Ã‚Â· Source Ã‚Â· Status Ã‚Â· BANT Score Ã‚Â· Keywords Ã‚Â· Notes Ã‚Â· Assigned To Ã‚Â· Created At
+              ID · First Name · Last Name · Email · Phone · WhatsApp · LinkedIn URL · Company · Designation · Industry · City · Country · Website · Company Size · Annual Revenue · Source · Status · BANT Score · Keywords · Notes · Assigned To · Created At
             </div>
           </div>
         </div>
@@ -2748,9 +2748,9 @@ function ExportModal({ rowCount, defaultName, onExport, onClose, }) {
       </div>
     </div>);
 }
-/* Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+/* ──────────────────────────────────────────────────────────
    SAVE TO LIST MODAL
-Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */
+──────────────────────────────────────────────────────────── */
 function SaveToListModal({ BASE, selectedIds, onClose, toast }) {
     const [lists, setLists] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -2807,19 +2807,19 @@ function SaveToListModal({ BASE, selectedIds, onClose, toast }) {
               {m === "existing" ? "Existing List" : "Create New"}
             </button>))}
         </div>
-        {mode === "existing" ? (loading ? (<div className="py-8 text-center text-xs text-gray-400">Loading listsÃ¢â‚¬Â¦</div>) : lists.length === 0 ? (<div className="py-8 text-center text-xs text-gray-400">No lists yet Ã¢â‚¬â€ create a new one</div>) : (<div className="space-y-1.5 max-h-48 overflow-y-auto">
+        {mode === "existing" ? (loading ? (<div className="py-8 text-center text-xs text-gray-400">Loading lists…</div>) : lists.length === 0 ? (<div className="py-8 text-center text-xs text-gray-400">No lists yet — create a new one</div>) : (<div className="space-y-1.5 max-h-48 overflow-y-auto">
               {lists.map(list => (<button key={list.id} disabled={saving} onClick={() => addToList(list.id)} className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50 transition-all text-left disabled:opacity-50">
                   <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: list.color }}/>
                   <span className="flex-1 text-xs font-medium text-gray-700">{list.name}</span>
                   <span className="text-[10px] text-gray-400">{list.count ?? 0} leads</span>
                 </button>))}
             </div>)) : (<div className="space-y-3">
-            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="List nameÃ¢â‚¬Â¦" className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300" autoFocus/>
+            <input value={newName} onChange={e => setNewName(e.target.value)} placeholder="List name…" className="w-full px-3 py-2 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-indigo-300" autoFocus/>
             <div className="flex gap-1.5 flex-wrap">
               {LIST_COLORS.slice(0, 7).map(c => (<button key={c} onClick={() => setNewColor(c)} className="w-5 h-5 rounded-full border-2 transition-transform hover:scale-110" style={{ background: c, borderColor: newColor === c ? "#374151" : "transparent" }}/>))}
             </div>
             <button onClick={createAndAdd} disabled={!newName.trim() || saving} className="w-full py-2 text-xs font-medium text-white rounded-lg disabled:opacity-50" style={{ background: newColor }}>
-              {saving ? "CreatingÃ¢â‚¬Â¦" : `Create & Add ${selectedIds.length} Lead(s)`}
+              {saving ? "Creating…" : `Create & Add ${selectedIds.length} Lead(s)`}
             </button>
           </div>)}
       </div>

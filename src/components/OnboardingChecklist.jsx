@@ -8,21 +8,21 @@ const STEPS = [
         label: "Run your first Brand Audit",
         description: "Analyse a prospect's website for quick wins",
         href: "/audit",
-        emoji: "Ã°Å¸â€Â",
+        emoji: "🔍",
     },
     {
         key: "lead",
         label: "Add your first Lead",
         description: "Drop a contact into your pipeline",
         href: "/leads",
-        emoji: "Ã°Å¸â€˜Â¤",
+        emoji: "👤",
     },
     {
         key: "outreach",
         label: "Generate an Outreach email",
         description: "Let AI write a personalised cold email",
         href: "/outreach",
-        emoji: "Ã¢Å“â€°Ã¯Â¸Â",
+        emoji: "✉️",
     },
 ];
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;

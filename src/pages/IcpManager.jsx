@@ -58,8 +58,8 @@ function FiltersDisplay({ filters }) {
     const pills = [];
     if (filters.adSpendMin || filters.adSpendMax) {
         const min = filters.adSpendMin ? `$${filters.adSpendMin}` : "$0";
-        const max = filters.adSpendMax ? `$${filters.adSpendMax}` : "Ã¢Ë†Å¾";
-        pills.push(`Ad Spend: ${min}Ã¢â‚¬â€œ${max}/mo`);
+        const max = filters.adSpendMax ? `$${filters.adSpendMax}` : "∞";
+        pills.push(`Ad Spend: ${min}–${max}/mo`);
     }
     if (filters.hasWebsite)
         pills.push("Has Website");
@@ -70,7 +70,7 @@ function FiltersDisplay({ filters }) {
     if (filters.hiringMarketers)
         pills.push("Hiring Marketers");
     if (filters.minBantScore)
-        pills.push(`BANT Ã¢â€°Â¥ ${filters.minBantScore}`);
+        pills.push(`BANT ≥ ${filters.minBantScore}`);
     if (filters.requiresAudit)
         pills.push("Audit Required");
     if (pills.length === 0)
@@ -108,7 +108,7 @@ function IcpFormFields({ form, setForm, qualFilters, setQualFilters, }) {
           </div>
           <div className="flex items-center gap-2">
             <input type="number" placeholder="Min" value={qualFilters.adSpendMin} onChange={(e) => setQualFilters((f) => ({ ...f, adSpendMin: e.target.value }))} className="flex-1 px-2.5 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"/>
-            <span className="text-muted-foreground text-xs">Ã¢â‚¬â€œ</span>
+            <span className="text-muted-foreground text-xs">–</span>
             <input type="number" placeholder="Max" value={qualFilters.adSpendMax} onChange={(e) => setQualFilters((f) => ({ ...f, adSpendMax: e.target.value }))} className="flex-1 px-2.5 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"/>
           </div>
         </div>
@@ -183,7 +183,7 @@ export default function IcpManager() {
     const [editForm, setEditForm] = useState({ name: "", markets: "", industries: "", roles: "", companySize: "" });
     const [editQualFilters, setEditQualFilters] = useState(DEFAULT_FILTERS);
     const [editActive, setEditActive] = useState(true);
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Find ICP state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Find ICP state ───────────────────────────────────────────────────────────
     const [showFindIcp, setShowFindIcp] = useState(false);
     const [findStep, setFindStep] = useState("input");
     const [findWebsite, setFindWebsite] = useState("");
@@ -384,7 +384,7 @@ export default function IcpManager() {
 
               <div className="mt-3 pt-3 border-t border-gray-200 flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Company Size</span>
-                <span className="text-foreground">{icp.companySize || "Ã¢â‚¬â€"}</span>
+                <span className="text-foreground">{icp.companySize || "—"}</span>
               </div>
 
               <FiltersDisplay filters={icp.filters ?? {}}/>
@@ -405,7 +405,7 @@ export default function IcpManager() {
             </div>))}
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Find ICP Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Find ICP Modal ──────────────────────────────────────────────────── */}
       {showFindIcp && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 overflow-y-auto py-6" onClick={closeFindIcp}>
           <div className="rounded-xl border border-gray-200 w-full max-w-2xl bg-white shadow-lg" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
@@ -441,13 +441,13 @@ export default function IcpManager() {
                     Cancel
                   </button>
                   <button type="submit" disabled={generateMutation.isPending || !findDescription.trim()} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs text-white font-medium transition-colors disabled:opacity-60" style={{ background: "#CB3273" }}>
-                    {generateMutation.isPending ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> Analysing with AIÃ¢â‚¬Â¦</>) : (<><Sparkles className="w-3.5 h-3.5"/> Generate 10 ICPs</>)}
+                    {generateMutation.isPending ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> Analysing with AI…</>) : (<><Sparkles className="w-3.5 h-3.5"/> Generate 10 ICPs</>)}
                   </button>
                 </div>
               </form>) : (<div className="p-6 space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="text-xs text-muted-foreground">
-                    AI found <span className="font-semibold text-gray-900">{suggestions.length}</span> ICPs Ã‚Â· <span className="font-semibold text-purple-700">{selected.size} selected</span>
+                    AI found <span className="font-semibold text-gray-900">{suggestions.length}</span> ICPs · <span className="font-semibold text-purple-700">{selected.size} selected</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <button type="button" onClick={() => setSelected(new Set(suggestions.map((_, i) => i)))} className="text-[11px] text-teal-600 hover:underline">
@@ -457,7 +457,7 @@ export default function IcpManager() {
                       Deselect all
                     </button>
                     <button type="button" onClick={() => { setFindStep("input"); generateMutation.reset(); }} className="text-[11px] text-purple-600 hover:underline">
-                      Ã¢â€ Â Edit prompt
+                      ← Edit prompt
                     </button>
                   </div>
                 </div>
@@ -475,7 +475,7 @@ export default function IcpManager() {
                     Cancel
                   </button>
                   <button type="button" onClick={handleImport} disabled={selected.size === 0 || importing} className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs text-white font-medium transition-colors disabled:opacity-60" style={{ background: "#1A7A45" }}>
-                    {importing ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> ImportingÃ¢â‚¬Â¦</>) : (<><Plus className="w-3.5 h-3.5"/> Import {selected.size} ICP{selected.size !== 1 ? "s" : ""}</>)}
+                    {importing ? (<><Loader2 className="w-3.5 h-3.5 animate-spin"/> Importing…</>) : (<><Plus className="w-3.5 h-3.5"/> Import {selected.size} ICP{selected.size !== 1 ? "s" : ""}</>)}
                   </button>
                 </div>
               </div>)}
@@ -507,7 +507,7 @@ export default function IcpManager() {
       {editingIcpId !== null && editingIcp && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 overflow-y-auto py-6" onClick={() => setEditingIcpId(null)}>
           <div className="rounded-xl border border-gray-200 p-6 w-full max-w-lg bg-white shadow-sm" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold text-foreground">Edit ICP Ã¢â‚¬â€ {editingIcp.name}</h2>
+              <h2 className="text-sm font-bold text-foreground">Edit ICP — {editingIcp.name}</h2>
               <button onClick={() => setEditingIcpId(null)} className="text-muted-foreground hover:text-gray-900">
                 <X className="w-4 h-4"/>
               </button>

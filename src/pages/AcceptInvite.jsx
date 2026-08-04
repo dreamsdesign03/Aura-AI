@@ -87,7 +87,7 @@ export default function AcceptInvite() {
         <div className="rounded-2xl bg-white shadow-xl p-8">
           {loading && (<div className="flex flex-col items-center gap-3 py-8">
               <Loader2 className="w-6 h-6 animate-spin text-gray-400"/>
-              <p className="text-sm text-gray-400">Verifying invitationÃ¢â‚¬Â¦</p>
+              <p className="text-sm text-gray-400">Verifying invitation…</p>
             </div>)}
 
           {!loading && inviteError && (<div className="flex flex-col items-center gap-3 py-8 text-center">
@@ -102,7 +102,7 @@ export default function AcceptInvite() {
           {!loading && done && (<div className="flex flex-col items-center gap-3 py-8 text-center">
               <CheckCircle className="w-10 h-10 text-green-500"/>
               <p className="text-sm font-semibold text-gray-900">Account created!</p>
-              <p className="text-xs text-gray-400">Redirecting to your dashboardÃ¢â‚¬Â¦</p>
+              <p className="text-xs text-gray-400">Redirecting to your dashboard…</p>
             </div>)}
 
           {!loading && inviteInfo && !done && (<>
@@ -143,7 +143,7 @@ export default function AcceptInvite() {
 
                 <div>
                   <label className={labelClass}>Confirm password</label>
-                  <input type={showPw ? "text" : "password"} className={inputClass} required value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete="new-password" style={{ borderColor: confirmPw && confirmPw !== password ? "#EF4444" : undefined }}/>
+                  <input type={showPw ? "text" : "password"} className={inputClass} required value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" style={{ borderColor: confirmPw && confirmPw !== password ? "#EF4444" : undefined }}/>
                   {confirmPw && confirmPw !== password && (<p className="mt-1 text-[11px] text-red-500">Passwords do not match</p>)}
                 </div>
 
@@ -153,7 +153,7 @@ export default function AcceptInvite() {
 
                 <button type="submit" disabled={submitting} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#A4285E" }}>
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin"/> : <CheckCircle className="w-4 h-4"/>}
-                  {submitting ? "Creating accountÃ¢â‚¬Â¦" : "Accept invitation"}
+                  {submitting ? "Creating account…" : "Accept invitation"}
                 </button>
 
                 <p className="text-center text-[11px] text-gray-400">

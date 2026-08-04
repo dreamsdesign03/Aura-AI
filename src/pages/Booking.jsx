@@ -21,7 +21,7 @@ export default function Booking() {
           </div>
           <div>
             <div className="text-white font-bold text-[15px] leading-tight">Aura Laser &amp; Cosmetic Clinic</div>
-            <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>aurai.clinic Ã‚Â· Skinnonest</div>
+            <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>aurai.clinic · Skinnonest</div>
           </div>
         </div>
         <button onClick={copyLink} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-medium transition-all" style={{ background: "rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.12)" }}>
@@ -41,11 +41,11 @@ export default function Booking() {
                 <User className="w-6 h-6 text-white"/>
               </div>
               <div className="text-white font-bold text-[18px] leading-snug mb-1">Dr. Aditya Shah</div>
-              <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Founder Ã‚Â· Aura Laser &amp; Cosmetic Clinic</div>
-              <div className="text-[13px] mb-5 font-semibold" style={{ color: "#CB3273" }}>Dermatologist-backed Ã‚Â· Skinnonest</div>
+              <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Founder · Aura Laser &amp; Cosmetic Clinic</div>
+              <div className="text-[13px] mb-5 font-semibold" style={{ color: "#CB3273" }}>Dermatologist-backed · Skinnonest</div>
 
               <div className="text-[13px] mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
-                Book a free 30-minute consultation with Dr. Aditya Shah to discuss your skin, hair &amp; laser treatment needs Ã¢â‚¬â€ personalised care, visible results.
+                Book a free 30-minute consultation with Dr. Aditya Shah to discuss your skin, hair &amp; laser treatment needs — personalised care, visible results.
               </div>
 
               <div className="space-y-3">
@@ -64,12 +64,12 @@ export default function Booking() {
               </div>
             </div>
 
-            {/* Right panel Ã¢â‚¬â€ Calendly embed */}
+            {/* Right panel — Calendly embed */}
             <div className="flex-1 p-6 md:p-8 flex flex-col min-w-0">
               <div className="mb-4">
                 <div className="text-[17px] font-bold" style={{ color: "#111827" }}>Schedule your call</div>
                 <div className="text-[13px] mt-0.5" style={{ color: "#6B7280" }}>
-                  Pick a time that works for you Ã¢â‚¬â€ confirmation &amp; calendar invite are sent automatically.
+                  Pick a time that works for you — confirmation &amp; calendar invite are sent automatically.
                 </div>
               </div>
               <CalendlyEmbed height={750}/>
@@ -80,7 +80,7 @@ export default function Booking() {
 
       {/* Footer */}
       <div className="py-4 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-        Powered by Aura AI Ã‚Â· Aura Laser &amp; Cosmetic Clinic Ã‚Â· auriai.clinic
+        Powered by Aura AI · Aura Laser &amp; Cosmetic Clinic · auriai.clinic
       </div>
     </div>);
 }

@@ -4,23 +4,23 @@ import { RecaptchaVerifier, signInWithPhoneNumber, } from "firebase/auth";
 import { getFirebaseAuth, firebaseConfigured } from "../lib/firebase";
 import { useAuthUser } from "@/contexts/AuthContext";
 const COUNTRY_CODES = [
-    { code: "+91", flag: "Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³", name: "India" },
-    { code: "+1", flag: "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸", name: "USA / Canada" },
-    { code: "+44", flag: "Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§", name: "UK" },
-    { code: "+61", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº", name: "Australia" },
-    { code: "+971", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âª", name: "UAE" },
-    { code: "+65", flag: "Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¬", name: "Singapore" },
-    { code: "+60", flag: "Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¾", name: "Malaysia" },
-    { code: "+49", flag: "Ã°Å¸â€¡Â©Ã°Å¸â€¡Âª", name: "Germany" },
-    { code: "+33", flag: "Ã°Å¸â€¡Â«Ã°Å¸â€¡Â·", name: "France" },
-    { code: "+81", flag: "Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ", name: "Japan" },
+    { code: "+91", flag: "🇮🇳", name: "India" },
+    { code: "+1", flag: "🇺🇸", name: "USA / Canada" },
+    { code: "+44", flag: "🇬🇧", name: "UK" },
+    { code: "+61", flag: "🇦🇺", name: "Australia" },
+    { code: "+971", flag: "🇦🇪", name: "UAE" },
+    { code: "+65", flag: "🇸🇬", name: "Singapore" },
+    { code: "+60", flag: "🇲🇾", name: "Malaysia" },
+    { code: "+49", flag: "🇩🇪", name: "Germany" },
+    { code: "+33", flag: "🇫🇷", name: "France" },
+    { code: "+81", flag: "🇯🇵", name: "Japan" },
 ];
 export default function VerifyAccount({ onVerified }) {
     const user = useAuthUser();
     const isSyntheticEmail = user?.email?.endsWith("@otp.mysa.internal") ?? false;
     const emailVerified = !!(user?.isVerified && !isSyntheticEmail);
     const phoneVerified = !!(user?.phoneVerified);
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Email section state Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Email section state ───────────────────────────────────────────────────
     const [emailInput, setEmailInput] = useState("");
     const [emailLoading, setEmailLoading] = useState(false);
     const [emailError, setEmailError] = useState("");
@@ -52,7 +52,7 @@ export default function VerifyAccount({ onVerified }) {
             recaptchaRef.current?.clear();
         };
     }, []);
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Email helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Email helpers ─────────────────────────────────────────────────────────
     function startResendCooldown() {
         setResendSeconds(60);
         resendTimerRef.current = setInterval(() => {
@@ -121,7 +121,7 @@ export default function VerifyAccount({ onVerified }) {
             setEmailLoading(false);
         }
     }
-    // Ã¢â€â‚¬Ã¢â€â‚¬ Phone helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+    // ── Phone helpers ─────────────────────────────────────────────────────────
     function startOtpCooldown() {
         setOtpSendSecs(60);
         otpTimerRef.current = setInterval(() => {
@@ -220,7 +220,7 @@ export default function VerifyAccount({ onVerified }) {
       <div className="mb-8 text-center">
         <div className="flex items-center justify-center gap-2 mb-3">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "rgba(255,255,255,0.15)" }}>
-            <span className="text-xl">Ã¢Å¡Â¡</span>
+            <span className="text-xl">⚡</span>
           </div>
           <span className="text-white font-bold text-xl">AuraAI</span>
         </div>
@@ -232,7 +232,7 @@ export default function VerifyAccount({ onVerified }) {
 
       <div className="w-full max-w-md space-y-4">
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Email Card Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Email Card ─────────────────────────────────────────────────── */}
         <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
           <div className="flex items-center gap-3 mb-4">
             {showEmailVerified
@@ -241,7 +241,7 @@ export default function VerifyAccount({ onVerified }) {
             <div>
               <p className="font-semibold text-white text-sm">Email verification</p>
               <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                {showEmailVerified ? "Verified Ã¢Å“â€œ" : "Click the link we send to your inbox"}
+                {showEmailVerified ? "Verified ✓" : "Click the link we send to your inbox"}
               </p>
             </div>
           </div>
@@ -252,7 +252,7 @@ export default function VerifyAccount({ onVerified }) {
               <input type="email" placeholder="you@example.com" value={emailInput} onChange={e => setEmailInput(e.target.value)} className="w-full px-4 py-2.5 rounded-xl text-sm outline-none" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff" }}/>
               {emailError && <p className="text-red-400 text-xs">{emailError}</p>}
               <button type="submit" disabled={emailLoading} className="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-60" style={{ background: "linear-gradient(135deg, #A4285E, #CB3273)", color: "#fff" }}>
-                {emailLoading ? "SendingÃ¢â‚¬Â¦" : "Send verification email"}
+                {emailLoading ? "Sending…" : "Send verification email"}
               </button>
             </form>)}
 
@@ -268,7 +268,7 @@ export default function VerifyAccount({ onVerified }) {
             </div>)}
         </div>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Phone Card Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Phone Card ─────────────────────────────────────────────────── */}
         <div className="rounded-2xl p-6" style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)" }}>
           <div className="flex items-center gap-3 mb-4">
             {(phoneVerified || phoneDone)
@@ -277,7 +277,7 @@ export default function VerifyAccount({ onVerified }) {
             <div>
               <p className="font-semibold text-white text-sm">Phone verification</p>
               <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                {(phoneVerified || phoneDone) ? "Verified Ã¢Å“â€œ" : "We'll send a 6-digit OTP via SMS"}
+                {(phoneVerified || phoneDone) ? "Verified ✓" : "We'll send a 6-digit OTP via SMS"}
               </p>
             </div>
           </div>
@@ -296,7 +296,7 @@ export default function VerifyAccount({ onVerified }) {
                   </div>
                   {phoneError && <p className="text-red-400 text-xs">{phoneError}</p>}
                   <button type="submit" disabled={phoneLoading} className="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-60" style={{ background: "linear-gradient(135deg, #A4285E, #CB3273)", color: "#fff" }}>
-                    {phoneLoading ? "SendingÃ¢â‚¬Â¦" : "Send OTP"}
+                    {phoneLoading ? "Sending…" : "Send OTP"}
                   </button>
                 </form>)}
 
@@ -307,10 +307,10 @@ export default function VerifyAccount({ onVerified }) {
                   <input type="text" inputMode="numeric" maxLength={6} placeholder="6-digit code" value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} className="w-full px-4 py-2.5 rounded-xl text-sm tracking-[0.3em] text-center outline-none" style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.18)", color: "#fff" }} autoFocus/>
                   {phoneError && <p className="text-red-400 text-xs">{phoneError}</p>}
                   <button type="submit" disabled={phoneLoading || otpCode.length < 6} className="w-full py-2.5 rounded-xl font-semibold text-sm transition-opacity disabled:opacity-60" style={{ background: "linear-gradient(135deg, #A4285E, #CB3273)", color: "#fff" }}>
-                    {phoneLoading ? "VerifyingÃ¢â‚¬Â¦" : "Verify & continue"}
+                    {phoneLoading ? "Verifying…" : "Verify & continue"}
                   </button>
                   <button type="button" onClick={() => { setPhoneStep("phone"); setOtpCode(""); setPhoneError(""); }} disabled={otpSendSecs > 0} className="w-full text-sm disabled:opacity-50" style={{ color: "#E58BB5" }}>
-                    {otpSendSecs > 0 ? `Resend in ${otpSendSecs}s` : "Ã¢â€ Â Change number"}
+                    {otpSendSecs > 0 ? `Resend in ${otpSendSecs}s` : "← Change number"}
                   </button>
                 </form>)}
             </>)}
@@ -318,11 +318,11 @@ export default function VerifyAccount({ onVerified }) {
           {!phoneVerified && !phoneDone && !firebaseConfigured && (<p className="text-sm text-yellow-400">Phone verification is not configured. Contact support.</p>)}
         </div>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Status / refresh Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Status / refresh ───────────────────────────────────────────── */}
         <div className="flex items-center justify-between pt-1">
           <button onClick={onVerified} className="flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80" style={{ color: "rgba(255,255,255,0.55)" }}>
             <RefreshCw className="w-3.5 h-3.5"/>
-            I've verified my email Ã¢â‚¬â€ check again
+            I've verified my email — check again
           </button>
           <button onClick={handleLogout} className="flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80" style={{ color: "rgba(255,255,255,0.45)" }}>
             <LogOut className="w-3.5 h-3.5"/>

@@ -1,10 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 import { Globe, Play, CheckCircle2, XCircle, AlertCircle, Trash2, RotateCcw, Loader2, ShieldCheck, Link2Off, HelpCircle, Clock, ExternalLink, ChevronDown, ChevronUp, X, } from "lucide-react";
 const API = "/api";
-// Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function formatRelative(iso) {
     if (!iso)
-        return "Ã¢â‚¬â€";
+        return "—";
     const diff = Date.now() - new Date(iso).getTime();
     if (diff < 60000)
         return "just now";
@@ -23,7 +23,7 @@ function statusBadge(status) {
         default: return { label: status, bg: "#F3F4F6", text: "#6B7280", icon: AlertCircle };
     }
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Confirm Modal Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Confirm Modal ─────────────────────────────────────────────────────────────
 function ConfirmDeleteModal({ count, onConfirm, onCancel, loading, }) {
     return (<div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.5)" }} onClick={e => { if (e.target === e.currentTarget)
         onCancel(); }}>
@@ -42,7 +42,7 @@ function ConfirmDeleteModal({ count, onConfirm, onCancel, loading, }) {
               Cancel
             </button>
             <button onClick={onConfirm} disabled={loading} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white flex items-center justify-center gap-1.5" style={{ background: loading ? "#D1D5DB" : "#DC2626" }}>
-              {loading ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> DeletingÃ¢â‚¬Â¦</> : "Delete All"}
+              {loading ? <><Loader2 className="w-3.5 h-3.5 animate-spin"/> Deleting…</> : "Delete All"}
             </button>
           </div>
         </div>
@@ -157,7 +157,7 @@ export default function WebsiteHealthChecker() {
             if (!data.started)
                 showToast("error", data.message ?? "Failed to start");
             else if (data.already_running)
-                showToast("success", "Health check is already runningÃ¢â‚¬Â¦");
+                showToast("success", "Health check is already running…");
         }
         catch {
             showToast("error", "Failed to start check");
@@ -235,7 +235,7 @@ export default function WebsiteHealthChecker() {
       {/* Confirm Modal */}
       {showConfirm && (<ConfirmDeleteModal count={deletingIds.length} onConfirm={() => bulkDelete(deletingIds)} onCancel={() => { setShowConfirm(false); setDeletingIds([]); }} loading={deleting}/>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Header ─────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <div className="flex items-center gap-2.5 mb-1">
@@ -245,23 +245,23 @@ export default function WebsiteHealthChecker() {
             <h1 className="text-[18px] font-bold text-gray-900">Website Health Checker</h1>
           </div>
           <p className="text-[13px] text-gray-500 ml-11.5">
-            Scan all lead websites Ã¢â‚¬â€ find dead links, remove ghost leads from your pipeline.
+            Scan all lead websites — find dead links, remove ghost leads from your pipeline.
           </p>
         </div>
 
         <button onClick={startCheck} disabled={running} className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white transition-all" style={{ background: running ? "#93C5FD" : "#3B82F6", cursor: running ? "not-allowed" : "pointer" }}>
           {running
-            ? <><Loader2 className="w-4 h-4 animate-spin"/> CheckingÃ¢â‚¬Â¦</>
+            ? <><Loader2 className="w-4 h-4 animate-spin"/> Checking…</>
             : <><Play className="w-4 h-4"/> Run Check</>}
         </button>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Progress Bar Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Progress Bar ──────────────────────────────────────────────── */}
       {running && jobState && (<div className="rounded-xl border p-4" style={{ background: "#EFF6FF", borderColor: "#BFDBFE" }}>
           <div className="flex items-center justify-between mb-2">
             <span className="text-[13px] font-semibold text-blue-700 flex items-center gap-2">
               <Loader2 className="w-3.5 h-3.5 animate-spin"/>
-              Checking websitesÃ¢â‚¬Â¦ {jobState.checked} / {jobState.total}
+              Checking websites… {jobState.checked} / {jobState.total}
             </span>
             <span className="text-[13px] font-bold text-blue-700">{progress}%</span>
           </div>
@@ -269,14 +269,14 @@ export default function WebsiteHealthChecker() {
             <div className="h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: "linear-gradient(90deg, #3B82F6, #1D4ED8)" }}/>
           </div>
           <div className="flex gap-4 mt-3 text-[11px] text-blue-600">
-            <span>Ã¢Å“â€¦ Live: {jobState.live}</span>
-            <span>Ã¢ÂÅ’ Down: {jobState.down}</span>
-            <span>Ã¢Â¬Å“ No URL: {jobState.noWebsite}</span>
-            {jobState.errors > 0 && <span className="text-red-500">Ã¢Å¡Â  Errors: {jobState.errors}</span>}
+            <span>✅ Live: {jobState.live}</span>
+            <span>❌ Down: {jobState.down}</span>
+            <span>⬜ No URL: {jobState.noWebsite}</span>
+            {jobState.errors > 0 && <span className="text-red-500">⚠ Errors: {jobState.errors}</span>}
           </div>
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Stats Cards Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Stats Cards ────────────────────────────────────────────────── */}
       {!loading && counts && (<div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
                 { label: "Total Leads", value: counts.total ?? 0, icon: Globe, color: "#A4285E", bg: "#FBE9F1", filter: null },
@@ -300,13 +300,13 @@ export default function WebsiteHealthChecker() {
                 <div className="text-[22px] font-black" style={{ color }}>{value.toLocaleString()}</div>
                 <div className="text-[11px] font-medium mt-0.5" style={{ color: isActive ? color : "#9CA3AF" }}>{label}</div>
                 {isClickable && (<div className="text-[10px] mt-1" style={{ color: isActive ? color : "#CBD5E1", opacity: isActive ? 1 : 0.7 }}>
-                    {isActive ? "Ã¢â€“Â² hide" : "click to view"}
+                    {isActive ? "▲ hide" : "click to view"}
                   </div>)}
               </div>);
             })}
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Filtered Leads Table Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Filtered Leads Table ──────────────────────────────────────── */}
       {activeFilter && (<div className="rounded-xl border overflow-hidden" style={{ borderColor: "hsl(220 13% 91%)" }}>
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3" style={{
@@ -317,7 +317,7 @@ export default function WebsiteHealthChecker() {
               <span className="text-[14px] font-bold" style={{
                 color: activeFilter === "live" ? "#065F46" : activeFilter === "dead" ? "#991B1B" : activeFilter === "no_website" ? "#374151" : "#92400E"
             }}>
-                {activeFilter === "live" ? "Ã¢Å“â€¦ Live Websites" : activeFilter === "dead" ? "Ã¢ÂÅ’ Dead Websites" : activeFilter === "no_website" ? "Ã¢Â¬Å“ No Website" : "Ã°Å¸â€¢Â Unchecked Leads"}
+                {activeFilter === "live" ? "✅ Live Websites" : activeFilter === "dead" ? "❌ Dead Websites" : activeFilter === "no_website" ? "⬜ No Website" : "🕐 Unchecked Leads"}
               </span>
               <span className="text-[11px] font-bold px-2 py-0.5 rounded-full text-white" style={{
                 background: activeFilter === "live" ? "#059669" : activeFilter === "dead" ? "#DC2626" : activeFilter === "no_website" ? "#6B7280" : "#D97706"
@@ -332,7 +332,7 @@ export default function WebsiteHealthChecker() {
 
           {/* Loading */}
           {filteredLoading && (<div className="flex items-center justify-center gap-2 py-10 text-[13px] text-gray-400">
-              <Loader2 className="w-4 h-4 animate-spin"/> LoadingÃ¢â‚¬Â¦
+              <Loader2 className="w-4 h-4 animate-spin"/> Loading…
             </div>)}
 
           {/* Empty */}
@@ -364,7 +364,7 @@ export default function WebsiteHealthChecker() {
                           {lead.website ? (<a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-500 hover:underline truncate" title={lead.website}>
                               <ExternalLink className="w-3 h-3 flex-shrink-0"/>
                               <span className="truncate">{lead.website}</span>
-                            </a>) : <span className="text-gray-400">Ã¢â‚¬â€</span>}
+                            </a>) : <span className="text-gray-400">—</span>}
                         </td>
                         <td className="px-3 py-3">
                           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: badge.bg, color: badge.text }}>
@@ -374,7 +374,7 @@ export default function WebsiteHealthChecker() {
                         </td>
                         {(activeFilter === "dead" || activeFilter === "live") && (<td className="px-3 py-3 text-gray-400 max-w-[160px]">
                             <span className="truncate block" title={lead.websiteCheckReason ?? ""}>
-                              {lead.websiteCheckReason ?? "Ã¢â‚¬â€"}
+                              {lead.websiteCheckReason ?? "—"}
                               {lead.websiteHttpCode ? <span className="ml-1 text-[10px]">HTTP {lead.websiteHttpCode}</span> : null}
                             </span>
                           </td>)}
@@ -405,10 +405,10 @@ export default function WebsiteHealthChecker() {
       {jobState?.finishedAt && !running && (<div className="flex items-center gap-2 text-[12px] text-gray-400">
           <Clock className="w-3.5 h-3.5"/>
           Last check completed {formatRelative(jobState.finishedAt)}
-          {jobState.errors > 0 && <span className="text-amber-500 ml-2">Ã‚Â· {jobState.errors} errors</span>}
+          {jobState.errors > 0 && <span className="text-amber-500 ml-2">· {jobState.errors} errors</span>}
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Dead Pool (hidden when "dead" filter card is active) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Dead Pool (hidden when "dead" filter card is active) ───────── */}
       {activeFilter !== "dead" && <div className="rounded-xl border overflow-hidden" style={{ borderColor: "hsl(220 13% 91%)" }}>
         {/* Dead pool header */}
         <div className="flex items-center justify-between px-4 py-3 cursor-pointer select-none" style={{ background: deadTotal > 0 ? "#FEF2F2" : "#F9FAFB", borderBottom: showDeadPool ? "1px solid hsl(220 13% 91%)" : "none" }} onClick={() => setShowDeadPool(p => !p)}>
@@ -477,7 +477,7 @@ export default function WebsiteHealthChecker() {
                         {lead.website ? (<a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-500 hover:underline truncate" title={lead.website}>
                             <ExternalLink className="w-3 h-3 flex-shrink-0"/>
                             <span className="truncate">{lead.website}</span>
-                          </a>) : <span className="text-gray-400">Ã¢â‚¬â€</span>}
+                          </a>) : <span className="text-gray-400">—</span>}
                       </td>
                       <td className="px-3 py-3">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold" style={{ background: badge.bg, color: badge.text }}>
@@ -488,7 +488,7 @@ export default function WebsiteHealthChecker() {
                       </td>
                       <td className="px-3 py-3 text-gray-400 max-w-[160px]">
                         <span className="truncate block" title={lead.websiteCheckReason ?? ""}>
-                          {lead.websiteCheckReason ?? "Ã¢â‚¬â€"}
+                          {lead.websiteCheckReason ?? "—"}
                         </span>
                       </td>
                       <td className="px-3 py-3 text-gray-400 whitespace-nowrap">
@@ -516,18 +516,18 @@ export default function WebsiteHealthChecker() {
             <p className="text-[14px] font-semibold text-gray-500">No dead websites detected</p>
             <p className="text-[12px] text-gray-400 mt-1">
               {counts?.unchecked && counts.unchecked > 0
-                    ? `${counts.unchecked} leads not yet checked Ã¢â‚¬â€ run a check to scan them`
+                    ? `${counts.unchecked} leads not yet checked — run a check to scan them`
                     : "All lead websites are healthy"}
             </p>
           </div>)}
 
         {loading && (<div className="py-10 flex items-center justify-center gap-2 text-gray-400">
             <Loader2 className="w-5 h-5 animate-spin"/>
-            <span className="text-[13px]">LoadingÃ¢â‚¬Â¦</span>
+            <span className="text-[13px]">Loading…</span>
           </div>)}
       </div>}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ How it works Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── How it works ─────────────────────────────────────────────── */}
       <div className="rounded-xl border p-4" style={{ borderColor: "hsl(220 13% 91%)", background: "#FAFAFA" }}>
         <div className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">How it works</div>
         <div className="grid md:grid-cols-3 gap-3">

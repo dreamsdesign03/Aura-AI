@@ -69,7 +69,7 @@ export default function Verify({ onSuccess }) {
       <div className="w-full max-w-sm text-center">
         <div className="flex items-center justify-center gap-2.5 mb-8">
           <div className="w-9 h-9 rounded-xl flex items-center justify-center text-white text-base" style={{ background: GRAD }}>
-            Ã¢Å¡Â¡
+            ⚡
           </div>
           <span style={{ fontSize: 18, fontWeight: 700, color: "#111827", letterSpacing: "-0.025em" }}>
             AuraAI
@@ -83,7 +83,7 @@ export default function Verify({ onSuccess }) {
                 <Loader2 className="w-7 h-7 animate-spin" style={{ color: "#CB3273" }}/>
               </div>
               <h1 style={{ fontSize: 20, fontWeight: 800, color: "#111827", marginBottom: 8 }}>
-                Verifying your emailÃ¢â‚¬Â¦
+                Verifying your email…
               </h1>
               <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
                 Please wait while we verify your account.
@@ -98,7 +98,7 @@ export default function Verify({ onSuccess }) {
                 Email verified!
               </h1>
               <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>
-                Your account is active. Taking you to the dashboardÃ¢â‚¬Â¦
+                Your account is active. Taking you to the dashboard…
               </p>
             </>)}
 
@@ -116,7 +116,7 @@ export default function Verify({ onSuccess }) {
             }}>
                 <Lock size={16} style={{ color: "#16a34a", flexShrink: 0, marginTop: 2 }}/>
                 <p style={{ fontSize: 13, color: "#15803d", lineHeight: 1.6, margin: 0 }}>
-                  <strong>One more step:</strong> set a password so you can also sign in with your email. Taking you to SettingsÃ¢â‚¬Â¦
+                  <strong>One more step:</strong> set a password so you can also sign in with your email. Taking you to Settings…
                 </p>
               </div>
             </>)}
@@ -139,7 +139,7 @@ export default function Verify({ onSuccess }) {
                     color: "white", fontSize: 14, fontWeight: 700,
                     cursor: resending ? "not-allowed" : "pointer",
                 }}>
-                  {resending ? "SendingÃ¢â‚¬Â¦" : "Send a new link"}
+                  {resending ? "Sending…" : "Send a new link"}
                 </button>)}
             </>)}
 

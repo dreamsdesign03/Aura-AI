@@ -16,7 +16,7 @@ function formatRelative(iso) {
         return `${Math.round(diff / 86400000)}d ago`;
     }
     catch {
-        return "Ã¢â‚¬â€";
+        return "—";
     }
 }
 const STAGE_LABELS = {
@@ -34,7 +34,7 @@ const STAGE_COLORS = {
 };
 const AGENT_META = [
     { key: "scout", label: "Scout Agent", icon: Radar, color: "#3B82F6",
-        desc: "Checks website status for new leads Ã¢â‚¬â€ live, down, or no website." },
+        desc: "Checks website status for new leads — live, down, or no website." },
     { key: "sales", label: "Sales Agent", icon: Brain, color: "#CB3273",
         desc: "Runs real 61-signal brand audits and sends personalized cold emails." },
     { key: "followup", label: "Follow-Up Agent", icon: RefreshCw, color: "#10B981",
@@ -51,7 +51,7 @@ const RUN_ENDPOINTS = {
 function BounceRateBar({ rate }) {
     const pct = Math.min(Math.round(rate * 100), 100);
     const color = pct > 5 ? "#EF4444" : pct > 3 ? "#F59E0B" : "#10B981";
-    const label = pct > 5 ? "CRITICAL Ã¢â‚¬â€ auto-paused" : pct > 3 ? "Warning" : "Healthy";
+    const label = pct > 5 ? "CRITICAL — auto-paused" : pct > 3 ? "Warning" : "Healthy";
     return (<div>
       <div className="flex justify-between text-[11px] mb-1">
         <span className="font-semibold" style={{ color }}>{label}</span>
@@ -124,13 +124,13 @@ export default function SalesAgentControl() {
             const res = await fetch(`${BASE}${RUN_ENDPOINTS[key]}`, { method: "POST", credentials: "include" });
             const data = await res.json();
             const nums = Object.entries(data).filter(([k]) => k !== "ok").map(([k, v]) => `${v} ${k}`).join(", ");
-            setRunResult(`Ã¢Å“â€œ Done: ${nums || "0 items"}`);
+            setRunResult(`✓ Done: ${nums || "0 items"}`);
             qc.invalidateQueries({ queryKey: ["agent-hub-status"] });
             qc.invalidateQueries({ queryKey: ["agent-activities"] });
             qc.invalidateQueries({ queryKey: ["pipeline-stats"] });
         }
         catch {
-            setRunResult("Ã¢Å“â€” Error running agent");
+            setRunResult("✗ Error running agent");
         }
         finally {
             setRunningAgent(null);
@@ -142,12 +142,12 @@ export default function SalesAgentControl() {
         try {
             const res = await fetch(`${BASE}/api/agents/report/send`, { method: "POST", credentials: "include" });
             const data = await res.json();
-            setReportResult(data.ok ? `Ã¢Å“â€œ Report sent to ${data.email}` : "Ã¢Å“â€” Failed to send report");
+            setReportResult(data.ok ? `✓ Report sent to ${data.email}` : "✗ Failed to send report");
             qc.invalidateQueries({ queryKey: ["agent-reports"] });
             qc.invalidateQueries({ queryKey: ["agent-hub-status"] });
         }
         catch {
-            setReportResult("Ã¢Å“â€” Error sending report");
+            setReportResult("✗ Error sending report");
         }
         finally {
             setSendingReport(false);
@@ -197,7 +197,7 @@ export default function SalesAgentControl() {
             </div>
             <h1 className="text-xl font-bold text-gray-900">Autopilot Control Room</h1>
           </div>
-          <p className="text-sm text-gray-500 ml-11.5">24/7 Sales Brain Ã¢â‚¬â€ Real audits Ã¢â€ â€™ Personalized emails Ã¢â€ â€™ D3/D6/D9/D14 follow-ups.</p>
+          <p className="text-sm text-gray-500 ml-11.5">24/7 Sales Brain — Real audits → Personalized emails → D3/D6/D9/D14 follow-ups.</p>
         </div>
         <div className="flex items-center gap-2">
           {orch && (<span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${orch.brainActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -207,7 +207,7 @@ export default function SalesAgentControl() {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ MASTER EMAIL TOGGLE Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── MASTER EMAIL TOGGLE ───────────────────────────────────────────────── */}
       <div className={`rounded-2xl border-2 p-5 flex items-start gap-4 transition-all ${emailPaused
             ? "border-amber-300 bg-amber-50"
             : bouncePct > 5
@@ -225,17 +225,17 @@ export default function SalesAgentControl() {
             <div>
               <h2 className="text-[15px] font-bold text-gray-900">
                 {emailPaused
-            ? "Email Sending Ã¢â‚¬â€ PAUSED"
+            ? "Email Sending — PAUSED"
             : bouncePct > 5
-                ? "Email Sending Ã¢â‚¬â€ AUTO-PAUSED (bounce rate too high)"
-                : "Email Sending Ã¢â‚¬â€ Active"}
+                ? "Email Sending — AUTO-PAUSED (bounce rate too high)"
+                : "Email Sending — Active"}
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
                 {emailPaused
             ? "No emails will be sent until you resume. Agents still run audits and log activities."
             : bouncePct > 5
                 ? `Bounce rate is ${bouncePct}% (threshold: 5%). Resume only after resolving deliverability issues.`
-                : `Sending ${warmup?.sentToday ?? 0}/${warmup?.dailyCap ?? 15} emails today Ã‚Â· IST business hours only Ã‚Â· D3/D6/D9/D14 sequence`}
+                : `Sending ${warmup?.sentToday ?? 0}/${warmup?.dailyCap ?? 15} emails today · IST business hours only · D3/D6/D9/D14 sequence`}
               </p>
             </div>
             <button onClick={() => pauseEmailMutation.mutate(!emailPaused)} disabled={pauseEmailMutation.isPending || hubLoading} className={`flex-shrink-0 ml-4 flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-50 ${emailPaused
@@ -251,7 +251,7 @@ export default function SalesAgentControl() {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ DELIVERABILITY HEALTH Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── DELIVERABILITY HEALTH ─────────────────────────────────────────────── */}
       {warmup && (<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Warmup Ramp */}
           <div className="rounded-2xl border p-5" style={{ borderColor: "hsl(220 13% 91%)" }}>
@@ -261,7 +261,7 @@ export default function SalesAgentControl() {
             </div>
             {warmup.firstSendDate ? (<>
                 <div className="text-2xl font-bold text-gray-900 mb-0.5">Day {warmup.sendingDay}</div>
-                <div className="text-xs text-gray-500 mb-3">Week {warmup.weekNumber} Ã‚Â· Cap: {warmup.dailyCap}/day</div>
+                <div className="text-xs text-gray-500 mb-3">Week {warmup.weekNumber} · Cap: {warmup.dailyCap}/day</div>
                 <RampBar sentToday={warmup.sentToday} dailyCap={warmup.dailyCap}/>
                 <div className="mt-3 grid grid-cols-4 gap-1">
                   {[{ w: 1, cap: 15 }, { w: 2, cap: 25 }, { w: 3, cap: 40 }, { w: 4, cap: 80 }].map(({ w, cap }) => (<div key={w} className={`rounded-lg p-1.5 text-center ${warmup.weekNumber >= w ? "bg-violet-100" : "bg-gray-50"}`}>
@@ -273,7 +273,7 @@ export default function SalesAgentControl() {
                 <div className="text-2xl font-bold text-gray-900 mb-0.5">Not started</div>
                 <div className="text-xs text-gray-500">First send will start the warmup clock.</div>
                 <div className="mt-2 text-[11px] text-violet-700 bg-violet-50 rounded-lg px-3 py-2">
-                  Week 1 cap: 15 emails/day Ã¢â€ â€™ grows to 80/day by Week 4.
+                  Week 1 cap: 15 emails/day → grows to 80/day by Week 4.
                 </div>
               </div>)}
           </div>
@@ -312,11 +312,11 @@ export default function SalesAgentControl() {
         </div>)}
 
       {/* Run result flash */}
-      {runResult && (<div className={`rounded-xl px-4 py-3 text-sm font-medium ${runResult.startsWith("Ã¢Å“â€œ") ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
+      {runResult && (<div className={`rounded-xl px-4 py-3 text-sm font-medium ${runResult.startsWith("✓") ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}>
           {runResult}
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ 4 AGENT CARDS Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── 4 AGENT CARDS ────────────────────────────────────────────────────── */}
       <div>
         <div className="flex items-center gap-2 mb-3">
           <Shield className="w-4 h-4 text-gray-400"/>
@@ -338,7 +338,7 @@ export default function SalesAgentControl() {
                       <div className="text-[14px] font-bold text-gray-900 flex items-center gap-2">
                         {label}
                         <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full" style={active ? { background: color + "18", color } : { background: "#F3F4F6", color: "#9CA3AF" }}>
-                          {active ? "Ã¢â€”Â Online" : "Paused"}
+                          {active ? "● Online" : "Paused"}
                         </span>
                       </div>
                       <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">{desc}</p>
@@ -364,14 +364,14 @@ export default function SalesAgentControl() {
                 </div>
                 <button onClick={() => runAgent(key)} disabled={running || !!runningAgent} className="w-full rounded-xl py-2.5 text-sm font-bold flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-50" style={{ background: running ? "#F3F4F6" : color + "15", color: running ? "#9CA3AF" : color, border: `1px solid ${color}30` }}>
                   {running ? <Loader2 className="w-4 h-4 animate-spin"/> : <Play className="w-4 h-4"/>}
-                  {running ? "RunningÃ¢â‚¬Â¦" : `Run ${label}`}
+                  {running ? "Running…" : `Run ${label}`}
                 </button>
               </div>);
         })}
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ PIPELINE FUNNEL Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── PIPELINE FUNNEL ──────────────────────────────────────────────────── */}
       {pipeline && (<section>
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-gray-400"/>
@@ -405,7 +405,7 @@ export default function SalesAgentControl() {
           </div>
         </section>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ CUMULATIVE STATS Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── CUMULATIVE STATS ─────────────────────────────────────────────────── */}
       {orch && (<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
                 { label: "Total Leads", value: pipeline?.total ?? 0, icon: Users, color: "#A4285E" },
@@ -421,7 +421,7 @@ export default function SalesAgentControl() {
             </div>))}
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ ACTIVITY LOG Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── ACTIVITY LOG ─────────────────────────────────────────────────────── */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Activity className="w-4 h-4 text-gray-400"/>
@@ -461,18 +461,18 @@ export default function SalesAgentControl() {
         </div>
       </section>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ DAILY REPORT Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── DAILY REPORT ─────────────────────────────────────────────────────── */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <Send className="w-4 h-4 text-gray-400"/>
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Daily Report Ã¢â‚¬â€ 08:30 AM IST</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Daily Report — 08:30 AM IST</span>
           <div className="h-px flex-1" style={{ background: "hsl(220 13% 91%)" }}/>
           <button onClick={sendReport} disabled={sendingReport} className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all hover:opacity-90 disabled:opacity-50" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)", color: "#fff" }}>
             {sendingReport ? <Loader2 className="w-3 h-3 animate-spin"/> : <Send className="w-3 h-3"/>}
             Send Now
           </button>
         </div>
-        {reportResult && (<div className={`rounded-xl px-4 py-2.5 text-sm font-medium mb-3 ${reportResult.startsWith("Ã¢Å“â€œ") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
+        {reportResult && (<div className={`rounded-xl px-4 py-2.5 text-sm font-medium mb-3 ${reportResult.startsWith("✓") ? "bg-green-50 text-green-700" : "bg-red-50 text-red-700"}`}>
             {reportResult}
           </div>)}
         <p className="text-xs text-gray-400 mb-3">Sends automatically daily at 08:30 AM IST to dreamsdesign.in@gmail.com</p>
@@ -495,7 +495,7 @@ export default function SalesAgentControl() {
           </div>)}
       </section>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ ERROR LOG Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── ERROR LOG ────────────────────────────────────────────────────────── */}
       {orch?.errors && orch.errors.length > 0 && (<section>
           <div className="flex items-center gap-2 mb-3">
             <AlertCircle className="w-4 h-4 text-red-400"/>

@@ -5,10 +5,10 @@ const STATUS_LABELS = { new_enquiry: "New Enquiry", enquiry_qualified: "Enquiry 
 const STATUS_DOT = { new_enquiry: "#3B82F6", enquiry_qualified: "#CB3273", discovery_call: "#0D9488", quote_sent: "#F59E0B", follow_up: "#F97316", project_won: "#16A34A", project_lost: "#EF4444" };
 const STATUS_BG = { new_enquiry: "#EFF6FF", enquiry_qualified: "#FBE9F1", discovery_call: "#F0FDFA", quote_sent: "#FFFBEB", follow_up: "#FFF7ED", project_won: "#F0FDF4", project_lost: "#FEF2F2" };
 const TIER_META = {
-    HOT: { icon: "Ã°Å¸â€Â¥", bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
-    WARM: { icon: "Ã¢Ëœâ‚¬Ã¯Â¸Â", bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" },
-    COOL: { icon: "Ã°Å¸â€™Â§", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
-    COLD: { icon: "Ã¢Ââ€žÃ¯Â¸Â", bg: "#F9FAFB", color: "#6B7280", border: "#E5E7EB" },
+    HOT: { icon: "🔥", bg: "#FEF2F2", color: "#DC2626", border: "#FECACA" },
+    WARM: { icon: "☀️", bg: "#FFFBEB", color: "#D97706", border: "#FDE68A" },
+    COOL: { icon: "💧", bg: "#EFF6FF", color: "#2563EB", border: "#BFDBFE" },
+    COLD: { icon: "❄️", bg: "#F9FAFB", color: "#6B7280", border: "#E5E7EB" },
 };
 function TierBadge({ tier }) {
     const t = (tier?.toUpperCase() ?? "COLD");
@@ -66,7 +66,7 @@ function TranscriptModal({ lead, onClose, onStatusUpdate }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>{lead.firstName} {lead.lastName}</div>
             <div style={{ fontSize: 12, color: "#6B7280", marginTop: 3, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-              <span>{lead.email}</span>{lead.phone && <span>Ã‚Â· {lead.phone}</span>}
+              <span>{lead.email}</span>{lead.phone && <span>· {lead.phone}</span>}
               {lead.bantScore != null && <span style={{ background: "#FBE9F1", color: "#8E1F54", padding: "1px 8px", borderRadius: 12, fontWeight: 700, fontSize: 11 }}>BANT {lead.bantScore}/12</span>}
               <TierBadge tier={tier}/>
             </div>
@@ -99,7 +99,7 @@ function TranscriptModal({ lead, onClose, onStatusUpdate }) {
         <div style={{ flex: 1, overflowY: "auto", padding: "14px 22px" }}>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", color: "#9CA3AF", letterSpacing: "0.06em", marginBottom: 12 }}>Full Conversation {transcript.length > 0 ? `(${transcript.length} messages)` : ""}</div>
           {transcript.length === 0
-            ? <div style={{ color: "#9CA3AF", fontSize: 13, textAlign: "center", padding: "24px 0" }}>This lead was captured via the Growth Quest form Ã¢â‚¬â€ no chat transcript.</div>
+            ? <div style={{ color: "#9CA3AF", fontSize: 13, textAlign: "center", padding: "24px 0" }}>This lead was captured via the Growth Quest form — no chat transcript.</div>
             : <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {transcript.map((msg, i) => (<div key={i} style={{ display: "flex", flexDirection: "column", alignItems: msg.role === "user" ? "flex-end" : "flex-start" }}>
                     <div style={{ fontSize: 10, color: "#9CA3AF", marginBottom: 2, fontWeight: 600 }}>{msg.role === "user" ? "Visitor" : "Krish (AI)"}</div>
@@ -118,7 +118,7 @@ function LeadCard({ lead, onViewTranscript, onStatusUpdate }) {
     const currentStatus = lead.status ?? "new_enquiry";
     const isUnseen = currentStatus === "new_enquiry";
     const dot = STATUS_DOT[currentStatus] ?? "#9CA3AF";
-    const serviceLabel = bd?.serviceInterest || lead.industry || bd?.industry || "Ã¢â‚¬â€";
+    const serviceLabel = bd?.serviceInterest || lead.industry || bd?.industry || "—";
     function fmt(d) {
         const diff = Date.now() - new Date(d).getTime();
         if (diff < 60000)
@@ -152,7 +152,7 @@ function LeadCard({ lead, onViewTranscript, onStatusUpdate }) {
           <StatusSelect leadId={lead.id} current={currentStatus} onUpdate={onStatusUpdate}/>
           <TierBadge tier={tier}/>
           <div style={{ textAlign: "center", minWidth: 40 }}>
-            <span style={{ fontSize: 17, fontWeight: 800, color: tier === "HOT" ? "#DC2626" : tier === "WARM" ? "#D97706" : "#9CA3AF" }}>{lead.bantScore ?? "Ã¢â‚¬â€"}</span>
+            <span style={{ fontSize: 17, fontWeight: 800, color: tier === "HOT" ? "#DC2626" : tier === "WARM" ? "#D97706" : "#9CA3AF" }}>{lead.bantScore ?? "—"}</span>
             <span style={{ fontSize: 11, color: "#9CA3AF" }}>/12</span>
           </div>
           <div style={{ fontSize: 12, color: "#9CA3AF", minWidth: 50, textAlign: "right" }}>{fmt(lead.createdAt)}</div>
@@ -299,7 +299,7 @@ export default function FormLeads() {
       <div style={{ display: "flex", gap: 10, marginBottom: 14, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ flex: 1, minWidth: 200, position: "relative" }}>
           <Search className="w-4 h-4" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }}/>
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, phone, companyÃ¢â‚¬Â¦" style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 9, paddingBottom: 9, border: "1px solid #E5E7EB", borderRadius: 10, fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }}/>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name, email, phone, company…" style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 9, paddingBottom: 9, border: "1px solid #E5E7EB", borderRadius: 10, fontSize: 13, color: "#111827", outline: "none", boxSizing: "border-box" }}/>
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           {["all", "HOT", "WARM", "COOL", "COLD"].map(t => (<button key={t} onClick={() => setFilterTier(t)} style={{ padding: "7px 14px", borderRadius: 20, fontSize: 12, fontWeight: 700, cursor: "pointer", border: "none", background: filterTier === t ? "#FF6B35" : "#F3F4F6", color: filterTier === t ? "#fff" : "#6B7280", transition: "all .15s" }}>
@@ -307,21 +307,21 @@ export default function FormLeads() {
             </button>))}
         </div>
         <button onClick={() => setSortDesc(v => !v)} style={{ display: "flex", alignItems: "center", gap: 4, padding: "7px 12px", border: "1px solid #E5E7EB", borderRadius: 10, background: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#374151" }}>
-          <BarChart2 className="w-3.5 h-3.5"/> BANT {sortDesc ? "Ã¢â€ â€œ" : "Ã¢â€ â€˜"}
+          <BarChart2 className="w-3.5 h-3.5"/> BANT {sortDesc ? "↓" : "↑"}
         </button>
       </div>
 
       {!loading && filtered.length > 0 && (<div style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 10, fontWeight: 500 }}>
           {filtered.length} lead{filtered.length !== 1 ? "s" : ""}
-          {newCount > 0 && filterStatus === "all" && <span style={{ marginLeft: 8, color: "#FF6B35", fontWeight: 700 }}>Ã‚Â· {newCount} unchecked</span>}
+          {newCount > 0 && filterStatus === "all" && <span style={{ marginLeft: 8, color: "#FF6B35", fontWeight: 700 }}>· {newCount} unchecked</span>}
         </div>)}
 
-      {loading ? (<div style={{ textAlign: "center", padding: "60px 0", color: "#9CA3AF", fontSize: 15 }}>Loading leadsÃ¢â‚¬Â¦</div>) : filtered.length === 0 ? (<div style={{ textAlign: "center", padding: "60px 0", background: "#FAFAFA", borderRadius: 16, border: "1px solid #F3F4F6" }}>
+      {loading ? (<div style={{ textAlign: "center", padding: "60px 0", color: "#9CA3AF", fontSize: 15 }}>Loading leads…</div>) : filtered.length === 0 ? (<div style={{ textAlign: "center", padding: "60px 0", background: "#FAFAFA", borderRadius: 16, border: "1px solid #F3F4F6" }}>
           <FileText className="w-10 h-10" style={{ color: "#E5E7EB", margin: "0 auto 12px" }}/>
           <div style={{ fontSize: 15, fontWeight: 600, color: "#374151" }}>No form leads yet</div>
           <div style={{ fontSize: 13, color: "#9CA3AF", marginTop: 4 }}>
             {leads.length === 0
-                ? <span>Share the form link with customers to start collecting leads. <a href="/aura-ai/form-quest" target="_blank" style={{ color: "#FF6B35", fontWeight: 600 }}>Open Form Ã¢â€ â€™</a></span>
+                ? <span>Share the form link with customers to start collecting leads. <a href="/aura-ai/form-quest" target="_blank" style={{ color: "#FF6B35", fontWeight: 600 }}>Open Form →</a></span>
                 : "Try adjusting your search or filter"}
           </div>
         </div>) : (<div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -330,8 +330,8 @@ export default function FormLeads() {
 
       {/* Standalone link box */}
       <div style={{ marginTop: 32, padding: "18px 20px", background: "linear-gradient(135deg,#1A0A00,#0F0A00)", borderRadius: 16, border: "1px solid rgba(255,107,53,.25)" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B35", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>Ã°Å¸â€â€” Standalone Public Link</div>
-        <p style={{ fontSize: 13, color: "rgba(255,255,255,.5)", marginBottom: 10 }}>Share this link with your customers Ã¢â‚¬â€ they can fill out the Growth Quest form and their responses will automatically appear here as leads.</p>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#FF6B35", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>🔗 Standalone Public Link</div>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,.5)", marginBottom: 10 }}>Share this link with your customers — they can fill out the Growth Quest form and their responses will automatically appear here as leads.</p>
         <div style={{ background: "rgba(0,0,0,.3)", borderRadius: 10, padding: "11px 16px", fontFamily: "monospace", fontSize: 13, color: "#FF6B35", letterSpacing: .5 }}>
           {window.location.origin}/aura-ai/form-quest
         </div>

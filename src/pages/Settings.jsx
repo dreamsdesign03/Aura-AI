@@ -67,7 +67,7 @@ function SaveButton({ pending, success, label = "Save changes" }) {
       {success ? "Saved!" : label}
     </button>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Profile Name Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Profile Name Form ──────────────────────────────────────────────────────────
 function ProfileNameForm() {
     const authUser = useAuthUser();
     const updateUser = useUpdateUser();
@@ -162,7 +162,7 @@ function ProfileNameForm() {
         const body = { firstName: trimmedFirst, lastName: trimmedLast };
         if (isPhoneUser && trimmedEmail)
             body.email = trimmedEmail;
-        console.log("[Client - User Profile Settings] Ã°Å¸â€™Â¾ Saving profile details to PostgreSQL table 'users':", body);
+        console.log("[Client - User Profile Settings] 💾 Saving profile details to PostgreSQL table 'users':", body);
         try {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
@@ -172,11 +172,11 @@ function ProfileNameForm() {
             });
             const d = await res.json().catch(() => ({}));
             if (!res.ok) {
-                console.error("[Client - User Profile Settings] Ã¢ÂÅ’ Error updating PostgreSQL table 'users':", d);
+                console.error("[Client - User Profile Settings] ❌ Error updating PostgreSQL table 'users':", d);
                 setProfileErr(d.error || "Failed to save");
             }
             else {
-                console.log("[Client - User Profile Settings] Ã¢Å“â€¦ Successfully updated user details in PostgreSQL table 'users':", d);
+                console.log("[Client - User Profile Settings] ✅ Successfully updated user details in PostgreSQL table 'users':", d);
                 committedFirst.current = trimmedFirst;
                 committedLast.current = trimmedLast;
                 if (d.verificationEmailSent) {
@@ -192,7 +192,7 @@ function ProfileNameForm() {
             }
         }
         catch (err) {
-            console.error("[Client - User Profile Settings] Ã¢ÂÅ’ Network Error while updating table 'users':", err);
+            console.error("[Client - User Profile Settings] ❌ Network Error while updating table 'users':", err);
             setProfileErr("Network error");
         }
         finally {
@@ -234,9 +234,9 @@ function ProfileNameForm() {
                         <div className="flex-1 min-w-0">
                           {linkExpired ? (<div>
                               <strong className="block">Verification link expired</strong>
-                              <span className="text-[11px] opacity-80">{authUser.pendingEmail} Ã¢â‚¬â€ send a new link to confirm this address.</span>
+                              <span className="text-[11px] opacity-80">{authUser.pendingEmail} — send a new link to confirm this address.</span>
                             </div>) : (<span>
-                              <strong>{authUser.pendingEmail}</strong> Ã¢â‚¬â€ verification email sent. Check your inbox to confirm it.
+                              <strong>{authUser.pendingEmail}</strong> — verification email sent. Check your inbox to confirm it.
                               {expiryLabel && (<span className="ml-1 text-[11px] opacity-70">(Link expires in {expiryLabel})</span>)}
                             </span>)}
                           <div className="mt-1.5">
@@ -245,7 +245,7 @@ function ProfileNameForm() {
                               </span>) : resendErr ? (<span className="text-red-600">{resendErr}</span>) : null}
                             <button type="button" onClick={handleResendPendingEmail} disabled={resendPend || resendCooldown > 0} className={`mt-1 inline-flex items-center gap-1 font-semibold underline underline-offset-2 disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed transition-colors ${linkExpired ? "text-red-800 hover:text-red-900" : "text-amber-800 hover:text-amber-900"}`}>
                               {resendPend
-                    ? <><Loader2 className="w-3 h-3 animate-spin"/> SendingÃ¢â‚¬Â¦</>
+                    ? <><Loader2 className="w-3 h-3 animate-spin"/> Sending…</>
                     : resendCooldown > 0
                         ? linkExpired ? <>Send a new link in {resendCooldown}s</> : <>Resend link in {resendCooldown}s</>
                         : linkExpired
@@ -277,9 +277,9 @@ function ProfileNameForm() {
                     <div className="flex-1 min-w-0">
                       {linkExpired ? (<div>
                           <strong className="block">Verification link expired</strong>
-                          <span className="text-[11px] opacity-80">{authUser.pendingEmail} Ã¢â‚¬â€ send a new link to confirm this address.</span>
+                          <span className="text-[11px] opacity-80">{authUser.pendingEmail} — send a new link to confirm this address.</span>
                         </div>) : (<span>
-                          <strong>{authUser.pendingEmail}</strong> Ã¢â‚¬â€ verification email sent. Check your inbox to confirm it.
+                          <strong>{authUser.pendingEmail}</strong> — verification email sent. Check your inbox to confirm it.
                           {expiryLabel && (<span className="ml-1 text-[11px] opacity-70">(Link expires in {expiryLabel})</span>)}
                         </span>)}
                       <div className="mt-1.5">
@@ -288,7 +288,7 @@ function ProfileNameForm() {
                           </span>) : resendErr ? (<span className="text-red-600">{resendErr}</span>) : null}
                         <button type="button" onClick={handleResendPendingEmail} disabled={resendPend || resendCooldown > 0} className={`mt-1 inline-flex items-center gap-1 font-semibold underline underline-offset-2 disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed transition-colors ${linkExpired ? "text-red-800 hover:text-red-900" : "text-amber-800 hover:text-amber-900"}`}>
                           {resendPend
-                    ? <><Loader2 className="w-3 h-3 animate-spin"/> SendingÃ¢â‚¬Â¦</>
+                    ? <><Loader2 className="w-3 h-3 animate-spin"/> Sending…</>
                     : resendCooldown > 0
                         ? linkExpired ? <>Send a new link in {resendCooldown}s</> : <>Resend link in {resendCooldown}s</>
                         : linkExpired
@@ -312,7 +312,7 @@ function ProfileNameForm() {
       </form>
     </SectionCard>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Change Password Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Change Password Form ───────────────────────────────────────────────────────
 function ChangePasswordForm() {
     const authUser = useAuthUser();
     const refreshUser = useRefreshUser();
@@ -374,7 +374,7 @@ function ChangePasswordForm() {
       <form onSubmit={handlePasswordSave} className="space-y-4">
         {hasPassword && (<div>
             <label className={labelClass}>Current password</label>
-            <input type="password" className={inputClass} value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete="current-password" required/>
+            <input type="password" className={inputClass} value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="••••••••" autoComplete="current-password" required/>
           </div>)}
         <div>
           <label className={labelClass}>{hasPassword ? "New password" : "Password"}</label>
@@ -382,7 +382,7 @@ function ChangePasswordForm() {
         </div>
         <div>
           <label className={labelClass}>Confirm password</label>
-          <input type="password" className={inputClass} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢" autoComplete="new-password" required style={{ borderColor: confirmPw && confirmPw !== newPw ? "#EF4444" : undefined }}/>
+          <input type="password" className={inputClass} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" required style={{ borderColor: confirmPw && confirmPw !== newPw ? "#EF4444" : undefined }}/>
           {confirmPw && confirmPw !== newPw && (<p className="mt-1 text-[11px] text-red-500">Passwords do not match</p>)}
         </div>
         {pwErr && (<div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">
@@ -392,18 +392,18 @@ function ChangePasswordForm() {
       </form>
     </SectionCard>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Phone Number Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Phone Number Form ──────────────────────────────────────────────────────────
 const PHONE_COUNTRY_CODES = [
-    { code: "+91", flag: "Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³", name: "India" },
-    { code: "+1", flag: "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸", name: "USA / Canada" },
-    { code: "+44", flag: "Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§", name: "UK" },
-    { code: "+61", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº", name: "Australia" },
-    { code: "+971", flag: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âª", name: "UAE" },
-    { code: "+65", flag: "Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¬", name: "Singapore" },
-    { code: "+60", flag: "Ã°Å¸â€¡Â²Ã°Å¸â€¡Â¾", name: "Malaysia" },
-    { code: "+49", flag: "Ã°Å¸â€¡Â©Ã°Å¸â€¡Âª", name: "Germany" },
-    { code: "+33", flag: "Ã°Å¸â€¡Â«Ã°Å¸â€¡Â·", name: "France" },
-    { code: "+81", flag: "Ã°Å¸â€¡Â¯Ã°Å¸â€¡Âµ", name: "Japan" },
+    { code: "+91", flag: "🇮🇳", name: "India" },
+    { code: "+1", flag: "🇺🇸", name: "USA / Canada" },
+    { code: "+44", flag: "🇬🇧", name: "UK" },
+    { code: "+61", flag: "🇦🇺", name: "Australia" },
+    { code: "+971", flag: "🇦🇪", name: "UAE" },
+    { code: "+65", flag: "🇸🇬", name: "Singapore" },
+    { code: "+60", flag: "🇲🇾", name: "Malaysia" },
+    { code: "+49", flag: "🇩🇪", name: "Germany" },
+    { code: "+33", flag: "🇫🇷", name: "France" },
+    { code: "+81", flag: "🇯🇵", name: "Japan" },
 ];
 function PhoneNumberForm() {
     const authUser = useAuthUser();
@@ -625,7 +625,7 @@ function PhoneNumberForm() {
         </form>)}
     </SectionCard>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Business WHY Form Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Business WHY Form ──────────────────────────────────────────────────────────
 function BusinessWhyForm() {
     const authUser = useAuthUser();
     const updateUser = useUpdateUser();
@@ -646,7 +646,7 @@ function BusinessWhyForm() {
         setSaved(false);
         setSaving(true);
         const userEmail = authUser?.email || "dreamsdesign.in03@gmail.com";
-        console.log("[Client - Business WHY] Ã°Å¸â€™Â¾ Saving Business WHY to PostgreSQL table 'users':", { businessWhy: why, email: userEmail });
+        console.log("[Client - Business WHY] 💾 Saving Business WHY to PostgreSQL table 'users':", { businessWhy: why, email: userEmail });
         try {
             const res = await fetch("/api/users/me", {
                 method: "PATCH",
@@ -656,18 +656,18 @@ function BusinessWhyForm() {
             });
             const d = await res.json().catch(() => ({}));
             if (!res.ok) {
-                console.error("[Client - Business WHY] Ã¢ÂÅ’ Error saving Business WHY to PostgreSQL table 'users':", d);
+                console.error("[Client - Business WHY] ❌ Error saving Business WHY to PostgreSQL table 'users':", d);
                 setErr(d.error || "Failed to save");
             }
             else {
-                console.log("[Client - Business WHY] Ã¢Å“â€¦ Saved Business WHY successfully to PostgreSQL table 'users':", d);
+                console.log("[Client - Business WHY] ✅ Saved Business WHY successfully to PostgreSQL table 'users':", d);
                 updateUser({ businessWhy: why });
                 setSaved(true);
                 setTimeout(() => setSaved(false), 3000);
             }
         }
         catch (err) {
-            console.error("[Client - Business WHY] Ã¢ÂÅ’ Network Error while saving to 'users':", err);
+            console.error("[Client - Business WHY] ❌ Network Error while saving to 'users':", err);
             setErr("Network error");
         }
         finally {
@@ -696,7 +696,7 @@ function BusinessWhyForm() {
       </form>
     </SectionCard>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Profile Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Profile Tab ────────────────────────────────────────────────────────────────
 function ProfileTab() {
     return (<div className="space-y-6">
       <BusinessWhyForm />
@@ -705,7 +705,7 @@ function ProfileTab() {
       <ChangePasswordForm />
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Company Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Company Tab ─────────────────────────────────────────────────────────────
 function CompanyTab() {
     const { data: brandingData, isLoading } = useGetBrandingSettings();
     const [companyName, setCompanyName] = useState("");
@@ -788,12 +788,12 @@ function CompanyTab() {
 
             if (res.ok) {
                 const data = await res.json().catch(() => ({ ok: true }));
-                console.log("[Client - Company Settings] Ã¢Å“â€¦ Saved successfully to database table 'branding_settings':", data);
+                console.log("[Client - Company Settings] ✅ Saved successfully to database table 'branding_settings':", data);
                 setBrandSaveOk(true);
                 setTimeout(() => setBrandSaveOk(false), 3000);
             } else {
                 const errText = await res.text().catch(() => "Unknown server error");
-                console.error(`[Client - Company Settings] Ã¢ÂÅ’ Database save error (${res.status}):`, errText);
+                console.error(`[Client - Company Settings] ❌ Database save error (${res.status}):`, errText);
                 alert(`Error saving company details (${res.status}): ${res.statusText}`);
             }
         }
@@ -883,7 +883,7 @@ function CompanyTab() {
       </SectionCard>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Email Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Email Tab ──────────────────────────────────────────────────────────────────
 function EmailTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -967,7 +967,7 @@ function EmailTab() {
             setTestResult(await res.json());
         }
         catch {
-            setTestResult({ success: false, message: "Network error Ã¢â‚¬â€ could not reach the server." });
+            setTestResult({ success: false, message: "Network error — could not reach the server." });
         }
         finally {
             setTestPend(false);
@@ -1048,7 +1048,7 @@ function EmailTab() {
       </SectionCard>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ WhatsApp Tab Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── WhatsApp Tab ───────────────────────────────────────────────────────────────
 function WhatsAppTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -1145,11 +1145,11 @@ function WhatsAppTab() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <label className={labelClass}>Access Token</label>
-              <input type="password" className={inputClass + " font-mono"} value={accessToken} onChange={e => setAccessToken(e.target.value)} placeholder={hasAccessToken ? "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢  (set Ã¢â‚¬â€ enter new value to change)" : "EAAxÃ¢â‚¬Â¦"} autoComplete="off"/>
+              <input type="password" className={inputClass + " font-mono"} value={accessToken} onChange={e => setAccessToken(e.target.value)} placeholder={hasAccessToken ? "••••••  (set — enter new value to change)" : "EAAx…"} autoComplete="off"/>
             </div>
             <div>
               <label className={labelClass}>App Secret</label>
-              <input type="password" className={inputClass + " font-mono"} value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder={hasAppSecret ? "Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢  (set Ã¢â‚¬â€ enter new value to change)" : "a1b2c3Ã¢â‚¬Â¦"} autoComplete="off"/>
+              <input type="password" className={inputClass + " font-mono"} value={appSecret} onChange={e => setAppSecret(e.target.value)} placeholder={hasAppSecret ? "••••••  (set — enter new value to change)" : "a1b2c3…"} autoComplete="off"/>
             </div>
             <div>
               <label className={labelClass}>Phone Number ID</label>
@@ -1226,7 +1226,7 @@ function WhatsAppTab() {
       </SectionCard>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Disconnect Button Component Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Disconnect Button Component ───────────────────────────────────────────────
 function DisconnectButton({ href, onDisconnected }) {
     const [pending, setPending] = useState(false);
     const [showInfo, setShowInfo] = useState(false);
@@ -1562,7 +1562,7 @@ function TeamTab() {
 
             <button type="submit" disabled={inviting} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-colors" style={{ background: "#A4285E" }}>
               {inviting ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Send className="w-3.5 h-3.5"/>}
-              {inviting ? "SendingÃ¢â‚¬Â¦" : "Send Invitation"}
+              {inviting ? "Sending…" : "Send Invitation"}
             </button>
           </form>
         </SectionCard>)}
@@ -1588,7 +1588,7 @@ function TeamTab() {
         </SectionCard>)}
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ AI Spend Threshold Widget Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── AI Spend Threshold Widget ──────────────────────────────────────────────────
 function AiSpendThresholdSection() {
     const [limitInput, setLimitInput] = useState("");
     const [todaySpend, setTodaySpend] = useState(null);
@@ -1697,7 +1697,7 @@ function AiSpendThresholdSection() {
           <label className={labelClass}>Daily Spend Limit (USD)</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-400">$</span>
-            <input type="number" min="0" step="0.01" value={limitInput} onChange={e => setLimitInput(e.target.value)} placeholder="e.g. 5.00 Ã¢â‚¬â€ leave blank to disable" className="w-full text-sm rounded-lg border border-gray-200 bg-white text-gray-900 pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-colors"/>
+            <input type="number" min="0" step="0.01" value={limitInput} onChange={e => setLimitInput(e.target.value)} placeholder="e.g. 5.00 — leave blank to disable" className="w-full text-sm rounded-lg border border-gray-200 bg-white text-gray-900 pl-7 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-teal-500/30 focus:border-teal-500 transition-colors"/>
           </div>
           <p className="mt-1.5 text-[11px] text-gray-400">
             An email alert fires to your admin address each day the limit is exceeded. Clear the field to disable alerts.
@@ -1714,7 +1714,7 @@ function AiSpendThresholdSection() {
 
         <button type="submit" disabled={saving} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#A4285E] disabled:opacity-60" style={{ background: "#CB3273" }}>
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Save className="w-3.5 h-3.5"/>}
-          {saving ? "SavingÃ¢â‚¬Â¦" : "Save Threshold"}
+          {saving ? "Saving…" : "Save Threshold"}
         </button>
       </form>
     </div>);
@@ -1814,7 +1814,7 @@ function ModelIntelligenceTab() {
         <AiSpendThresholdSection />
       </SectionCard>
 
-      <SectionCard title="Model Intelligence" subtitle="Override AI model tier per operation Ã¢â‚¬â€ Fast cuts cost, Smart boosts quality" icon={Brain} iconBg="#FBE9F1" iconColor="#8E1F54">
+      <SectionCard title="Model Intelligence" subtitle="Override AI model tier per operation — Fast cuts cost, Smart boosts quality" icon={Brain} iconBg="#FBE9F1" iconColor="#8E1F54">
         <form onSubmit={handleSave} className="space-y-4">
           <div className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-2.5 text-[11px] text-purple-800 flex items-start gap-2">
             <AlertCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"/>
@@ -1866,7 +1866,7 @@ function ModelIntelligenceTab() {
       </SectionCard>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Main Settings Page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Main Settings Page ──────────────────────────────────────────────────────────
 export default function Settings() {
     const authUser = useAuthUser();
     const isOwner = authUser?.role === "owner";

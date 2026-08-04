@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { Zap, Plus, Play, Pause, ChevronRight, ChevronDown, X, MessageCircle, Clock, Filter, Calendar, Tag, GitBranch, Send, Bell, AlertCircle, ArrowRight, CheckCircle2, RotateCcw, Star, Loader2, Trash2, } from "lucide-react";
 const API_BASE = "/api";
-// Icon map Ã¢â‚¬â€ DB stores icon as a string key, we resolve to React component here
+// Icon map — DB stores icon as a string key, we resolve to React component here
 const ICON_MAP = {
     Tag, Clock, MessageCircle, GitBranch, Zap, Filter, Calendar, Send, Bell, AlertCircle, ArrowRight, CheckCircle2, RotateCcw, Star, Play, Pause, Users: Zap,
 };
@@ -279,7 +279,7 @@ function NewAutomationModal({ onClose, onCreate }) {
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-colors" style={{ borderColor: "hsl(220 13% 88%)", color: "#6B7280" }}>Cancel</button>
           <button onClick={handleCreate} disabled={!name.trim() || saving} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all flex items-center justify-center gap-1.5" style={{ background: name.trim() && !saving ? "#A4285E" : "#D1D5DB", cursor: name.trim() && !saving ? "pointer" : "not-allowed" }}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin"/>}
-            {saving ? "CreatingÃ¢â‚¬Â¦" : "Create Automation"}
+            {saving ? "Creating…" : "Create Automation"}
           </button>
         </div>
       </div>

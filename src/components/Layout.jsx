@@ -63,7 +63,7 @@ const navGroups = [
         group: "Intelligence",
         items: [
             { href: "/sales-brain", label: "Sales Brain", icon: MessageCircle, accent: "#25D366" },
-            { href: "/agent-hub", label: "Automation Ã°Å¸Â¤â€“", icon: Bot, accent: "#CB3273" },
+            { href: "/agent-hub", label: "Automation 🤖", icon: Bot, accent: "#CB3273" },
         ],
     },
     {
@@ -101,10 +101,10 @@ async function doLogout() {
     window.location.href = "/login";
 }
 const FEEDBACK_CATEGORIES = [
-    { value: "bug", label: "Ã°Å¸Ââ€º Bug Report", color: "#EF4444" },
-    { value: "feature", label: "Ã¢Å“Â¨ Feature Request", color: "#CB3273" },
-    { value: "general", label: "Ã°Å¸â€™Â¬ General Feedback", color: "#3B82F6" },
-    { value: "complaint", label: "Ã¢Å¡Â Ã¯Â¸Â Complaint", color: "#F59E0B" },
+    { value: "bug", label: "🐛 Bug Report", color: "#EF4444" },
+    { value: "feature", label: "✨ Feature Request", color: "#CB3273" },
+    { value: "general", label: "💬 General Feedback", color: "#3B82F6" },
+    { value: "complaint", label: "⚠️ Complaint", color: "#F59E0B" },
 ];
 function FeedbackModal({ onClose }) {
     const [category, setCategory] = useState("general");
@@ -224,7 +224,7 @@ function FeedbackModal({ onClose }) {
               </div>)}
 
             <button type="submit" disabled={submitting} className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 transition-all hover:opacity-90 disabled:opacity-60" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)" }}>
-              {submitting ? <><Loader2 className="w-4 h-4 animate-spin"/> SubmittingÃ¢â‚¬Â¦</> : <><MessageSquarePlus className="w-4 h-4"/> Submit Feedback</>}
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin"/> Submitting…</> : <><MessageSquarePlus className="w-4 h-4"/> Submit Feedback</>}
             </button>
           </form>)}
       </div>
@@ -371,8 +371,8 @@ function GlobalSearch({ iconOnly = false }) {
           <Search className="w-4 h-4"/>
         </button>) : (<button onClick={openSearch} className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-[13px] transition-colors" style={{ background: "hsl(220 13% 95%)", color: "#9CA3AF", width: 220 }}>
           <Search className="w-3.5 h-3.5 flex-shrink-0"/>
-          <span className="flex-1 text-left">SearchÃ¢â‚¬Â¦</span>
-          <kbd className="text-[10px] px-1 py-0.5 rounded" style={{ background: "#E5E7EB", color: "#6B7280" }}>Ã¢Å’ËœK</kbd>
+          <span className="flex-1 text-left">Search…</span>
+          <kbd className="text-[10px] px-1 py-0.5 rounded" style={{ background: "#E5E7EB", color: "#6B7280" }}>⌘K</kbd>
         </button>)}
 
       {open && (<div className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4" style={{ background: "rgba(0,0,0,0.45)" }} onClick={e => { if (e.target === e.currentTarget)
@@ -380,7 +380,7 @@ function GlobalSearch({ iconOnly = false }) {
           <div className="w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden" style={{ background: "#fff", border: "1px solid hsl(220 13% 91%)" }}>
             <div className="flex items-center gap-3 px-4 py-3" style={{ borderBottom: "1px solid hsl(220 13% 91%)" }}>
               <Search className="w-4 h-4 flex-shrink-0" style={{ color: "#6B7280" }}/>
-              <input ref={inputRef} value={query} onChange={handleChange} placeholder="Search leads, proposals, meetingsÃ¢â‚¬Â¦" className="flex-1 text-[14px] outline-none bg-transparent" style={{ color: "#111827" }}/>
+              <input ref={inputRef} value={query} onChange={handleChange} placeholder="Search leads, proposals, meetings…" className="flex-1 text-[14px] outline-none bg-transparent" style={{ color: "#111827" }}/>
               {loading && (<div className="w-4 h-4 border-2 border-t-transparent rounded-full animate-spin" style={{ borderColor: `${PURPLE} ${PURPLE} ${PURPLE} transparent` }}/>)}
               <button onClick={closeSearch}>
                 <X className="w-4 h-4" style={{ color: "#9CA3AF" }}/>
@@ -402,7 +402,7 @@ function GlobalSearch({ iconOnly = false }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] font-medium truncate">{l.firstName} {l.lastName}</div>
-                        <div className="text-[11px] truncate" style={{ color: "#6B7280" }}>{l.designation} Ã‚Â· {l.company}</div>
+                        <div className="text-[11px] truncate" style={{ color: "#6B7280" }}>{l.designation} · {l.company}</div>
                       </div>
                     </button>))}
                 </div>)}
@@ -412,7 +412,7 @@ function GlobalSearch({ iconOnly = false }) {
                       <FileText className="w-4 h-4 flex-shrink-0" style={{ color: "#6B7280" }}/>
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] font-medium truncate">{p.title}</div>
-                        <div className="text-[11px] truncate" style={{ color: "#6B7280" }}>{p.company} Ã‚Â· {p.status}</div>
+                        <div className="text-[11px] truncate" style={{ color: "#6B7280" }}>{p.company} · {p.status}</div>
                       </div>
                     </button>))}
                 </div>)}
@@ -423,7 +423,7 @@ function GlobalSearch({ iconOnly = false }) {
                       <div className="flex-1 min-w-0">
                         <div className="text-[13px] font-medium truncate">{m.title}</div>
                         <div className="text-[11px]" style={{ color: "#6B7280" }}>
-                          {m.scheduledAt ? new Date(m.scheduledAt).toLocaleDateString() : ""} Ã‚Â· {m.status}
+                          {m.scheduledAt ? new Date(m.scheduledAt).toLocaleDateString() : ""} · {m.status}
                         </div>
                       </div>
                     </button>))}
@@ -448,7 +448,7 @@ function TrialBanner() {
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <AlertCircle className="w-3.5 h-3.5 text-red-600 flex-shrink-0"/>
           <span className="text-[12px] font-medium truncate" style={{ color: "#991B1B" }}>
-            Your free trial has <strong className="font-bold">expired</strong> Ã¢â‚¬â€ upgrade now to keep using AuraAI
+            Your free trial has <strong className="font-bold">expired</strong> — upgrade now to keep using AuraAI
           </span>
         </div>
         <Link href="/billing">
@@ -470,8 +470,8 @@ function TrialBanner() {
         <Clock className="w-3.5 h-3.5 flex-shrink-0" style={{ color }}/>
         <span className="text-[12px] font-medium" style={{ color }}>
           {isUrgent
-            ? <><strong className="font-bold">{dayStr}</strong> in your free trial Ã¢â‚¬â€ upgrade to keep all your data</>
-            : <>Free trial Ã¢â‚¬â€ <strong className="font-bold">{dayStr}</strong></>}
+            ? <><strong className="font-bold">{dayStr}</strong> in your free trial — upgrade to keep all your data</>
+            : <>Free trial — <strong className="font-bold">{dayStr}</strong></>}
         </span>
         <div className="flex items-center gap-1.5">
           {leadsRem !== null && (<span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: `${color}18`, color }}>
@@ -502,13 +502,13 @@ function UpgradeWall() {
       </div>
       <h2 className="text-xl font-black text-gray-900 mb-1">Your free trial has ended</h2>
       <p className="text-sm text-gray-500 max-w-xs mb-5 leading-relaxed">
-        Choose a plan to restore full access Ã¢â‚¬â€ all your leads, audits, and data are safe.
+        Choose a plan to restore full access — all your leads, audits, and data are safe.
       </p>
       <div className="grid grid-cols-3 gap-3 w-full max-w-lg mb-5">
         {[
-            { key: "solo", name: "Solo", price: "Ã¢â€šÂ¹2,499", desc: "1 user Ã‚Â· 300 leads Ã‚Â· 30 audits", highlight: false },
-            { key: "growth", name: "Growth", price: "Ã¢â€šÂ¹6,999", desc: "5 users Ã‚Â· 2,000 leads Ã‚Â· 150 audits", highlight: true },
-            { key: "agency", name: "Agency", price: "Ã¢â€šÂ¹14,999", desc: "Unlimited users & features", highlight: false },
+            { key: "solo", name: "Solo", price: "₹2,499", desc: "1 user · 300 leads · 30 audits", highlight: false },
+            { key: "growth", name: "Growth", price: "₹6,999", desc: "5 users · 2,000 leads · 150 audits", highlight: true },
+            { key: "agency", name: "Agency", price: "₹14,999", desc: "Unlimited users & features", highlight: false },
         ].map(plan => (<Link key={plan.key} href="/billing">
             <div className="p-3 rounded-xl border-2 cursor-pointer transition-all text-left hover:shadow-md" style={{ borderColor: plan.highlight ? "#CB3273" : "#E5E7EB", background: plan.highlight ? "#FBE9F1" : "#fff" }}>
               <div className="text-[11px] font-bold" style={{ color: plan.highlight ? "#CB3273" : "#374151" }}>{plan.name}</div>
@@ -526,7 +526,7 @@ function UpgradeWall() {
           <Zap className="w-4 h-4"/> Choose a Plan <ArrowRight className="w-4 h-4"/>
         </button>
       </Link>
-      <p className="text-[11px] text-gray-400 mt-3">All data preserved Ã‚Â· Cancel anytime</p>
+      <p className="text-[11px] text-gray-400 mt-3">All data preserved · Cancel anytime</p>
     </div>);
 }
 function EmailVerificationBanner() {
@@ -586,7 +586,7 @@ function EmailVerificationBanner() {
           <Mail className="w-3.5 h-3.5" style={{ color: "#B45309" }}/>
         </div>
         <span className="text-[12px] font-medium truncate" style={{ color: "#78350F" }}>
-          Verify your email to unlock all features Ã¢â‚¬â€ check your inbox for the link sent to{" "}
+          Verify your email to unlock all features — check your inbox for the link sent to{" "}
           <strong className="font-bold">{user.email}</strong>
         </span>
       </div>
@@ -597,14 +597,14 @@ function EmailVerificationBanner() {
           </span>)}
 
         <button onClick={handleResend} disabled={resendSecs > 0 || resending} className="text-[11px] font-bold px-3 py-1.5 rounded-lg border transition-all disabled:opacity-50" style={{ borderColor: "#F59E0B", background: "#FFFBEB", color: "#B45309" }}>
-          {resending ? "SendingÃ¢â‚¬Â¦" : resendSecs > 0 ? `Resend in ${resendSecs}s` : "Resend email"}
+          {resending ? "Sending…" : resendSecs > 0 ? `Resend in ${resendSecs}s` : "Resend email"}
         </button>
 
         <button onClick={handleCheck} disabled={checking} className="flex items-center gap-1.5 text-[11px] font-bold px-3 py-1.5 rounded-lg transition-all" style={{ background: "#F59E0B", color: "#fff" }}>
           {checking
             ? <Loader2 className="w-3 h-3 animate-spin"/>
             : <RefreshCw className="w-3 h-3"/>}
-          {checking ? "CheckingÃ¢â‚¬Â¦" : "I've verified"}
+          {checking ? "Checking…" : "I've verified"}
         </button>
       </div>
     </div>);
@@ -625,14 +625,14 @@ export default function Layout({ children }) {
     return (<>
       <div className="flex h-screen overflow-hidden" style={{ background: "hsl(138 25% 96%)" }}>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Desktop Sidebar (hidden on mobile) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Desktop Sidebar (hidden on mobile) ──────────────────────── */}
         <aside className="hidden md:flex w-56 flex-shrink-0 flex-col" style={{
             background: "#ffffff",
             borderRight: "1px solid hsl(220 13% 91%)",
         }}>
           {/* Logo */}
           <div className="w-full flex items-center justify-center overflow-hidden" style={{ borderBottom: "1px solid hsl(220 13% 91%)", background: "#FDE8F2", padding: 0, minHeight: 70 }}>
-            <img src={auraLogo} alt="AuraAI Ã¢â‚¬â€ Laser & Cosmetic Clinic" style={{ width: "100%", height: "100%", maxHeight: 72, objectFit: "cover", display: "block" }}/>
+            <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ width: "100%", height: "100%", maxHeight: 72, objectFit: "cover", display: "block" }}/>
           </div>
 
           {/* Nav */}
@@ -680,26 +680,26 @@ export default function Layout({ children }) {
           </div>
         </aside>
 
-        {/* Ã¢â€â‚¬Ã¢â€â‚¬ Main area Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+        {/* ── Main area ───────────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
           {/* Mobile top header */}
           <header className="flex md:hidden flex-shrink-0 items-center justify-between px-4" style={{ height: 56, background: "#ffffff", borderBottom: "1px solid hsl(220 13% 91%)" }}>
             <div className="flex items-center">
-              <img src={auraLogo} alt="AuraAI Ã¢â‚¬â€ Laser & Cosmetic Clinic" style={{ height: 38, width: "auto", maxWidth: 160, objectFit: "contain", mixBlendMode: "multiply" }}/>
+              <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 38, width: "auto", maxWidth: 160, objectFit: "contain", mixBlendMode: "multiply" }}/>
             </div>
             <div className="flex items-center gap-2">
               <GlobalSearch iconOnly/>
-              {/* Aura AI button Ã¢â‚¬â€ mobile */}
+              {/* Aura AI button — mobile */}
               <button onClick={() => setMysaOpen(o => !o)} className="w-8 h-8 rounded-lg flex items-center justify-center transition-all" style={mysaOpen
             ? { background: "linear-gradient(135deg,#A4285E,#CB3273)", color: "#fff" }
             : { background: "#FFF0F6", color: "#CB3273" }} title="Aura AI Assistant">
                 <Sparkles className="w-4 h-4"/>
               </button>
               {authUser?.pendingEmail && (<Link href="/settings" aria-label={pendingExpired
-                ? `Verification link for ${authUser.pendingEmail} has expired Ã¢â‚¬â€ click to resend`
-                : `Email change pending for ${authUser.pendingEmail}${pendingCountdownLabel ? ` Ã¢â‚¬â€ link expires in ${pendingCountdownLabel}` : ""} Ã¢â‚¬â€ click to manage`} title={pendingExpired
-                ? `Verification link expired Ã¢â‚¬â€ go to Settings to resend`
+                ? `Verification link for ${authUser.pendingEmail} has expired — click to resend`
+                : `Email change pending for ${authUser.pendingEmail}${pendingCountdownLabel ? ` — link expires in ${pendingCountdownLabel}` : ""} — click to manage`} title={pendingExpired
+                ? `Verification link expired — go to Settings to resend`
                 : `Email change pending: ${authUser.pendingEmail}${pendingCountdownLabel ? `\nLink expires in ${pendingCountdownLabel}` : ""}\nClick to manage`} className="relative flex items-center gap-1 px-2 py-1 rounded-full transition-colors flex-shrink-0 text-[11px] font-semibold leading-none" style={(pendingExpired || pendingNearExpiry) ? { background: "#FEE2E2", color: "#B91C1C" } : { background: "#FEF3C7", color: "#B45309" }}>
                   <MailCheck className="w-3.5 h-3.5 flex-shrink-0"/>
                   <span>{pendingExpired ? "Expired" : pendingCountdownLabel ? `${pendingCountdownLabel} left` : null}</span>
@@ -750,7 +750,7 @@ export default function Layout({ children }) {
             <div className="text-[15px] font-semibold" style={{ color: "#111827" }}>{currentPage}</div>
             <div className="flex items-center gap-2">
               <GlobalSearch />
-              {/* Aura AI button Ã¢â‚¬â€ desktop */}
+              {/* Aura AI button — desktop */}
               <button onClick={() => setMysaOpen(o => !o)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)", color: "#fff", boxShadow: mysaOpen ? "0 0 0 2px #FBCFE8" : undefined }} title="Aura AI Assistant">
                 <Sparkles className="w-3.5 h-3.5"/>
                 Aura
@@ -759,9 +759,9 @@ export default function Layout({ children }) {
                 <Bell className="w-4 h-4"/>
               </button>
               {authUser?.pendingEmail && (<Link href="/settings" aria-label={pendingExpired
-                ? `Verification link for ${authUser.pendingEmail} has expired Ã¢â‚¬â€ click to resend`
-                : `Email change pending for ${authUser.pendingEmail}${pendingCountdownLabel ? ` Ã¢â‚¬â€ link expires in ${pendingCountdownLabel}` : ""} Ã¢â‚¬â€ click to manage`} title={pendingExpired
-                ? `Verification link expired Ã¢â‚¬â€ go to Settings to resend`
+                ? `Verification link for ${authUser.pendingEmail} has expired — click to resend`
+                : `Email change pending for ${authUser.pendingEmail}${pendingCountdownLabel ? ` — link expires in ${pendingCountdownLabel}` : ""} — click to manage`} title={pendingExpired
+                ? `Verification link expired — go to Settings to resend`
                 : `Email change pending: ${authUser.pendingEmail}${pendingCountdownLabel ? `\nLink expires in ${pendingCountdownLabel}` : ""}\nClick to manage`} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full transition-colors flex-shrink-0 text-[11px] font-semibold leading-none" style={(pendingExpired || pendingNearExpiry) ? { background: "#FEE2E2", color: "#B91C1C" } : { background: "#FEF3C7", color: "#B45309" }}>
                   <MailCheck className="w-3.5 h-3.5 flex-shrink-0"/>
                   <span>{pendingExpired ? "Expired" : pendingCountdownLabel ? `${pendingCountdownLabel} left` : null}</span>
@@ -843,7 +843,7 @@ export default function Layout({ children }) {
           </header>
 
 
-          {/* Page content Ã¢â‚¬â€ padded bottom on mobile so content clears the fixed nav */}
+          {/* Page content — padded bottom on mobile so content clears the fixed nav */}
           <main className="flex-1 overflow-y-auto pb-[60px] md:pb-0 relative">
             {children}
             <UpgradeWall />
@@ -851,7 +851,7 @@ export default function Layout({ children }) {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Mobile bottom nav Ã¢â‚¬â€ fixed floating bar above all content Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Mobile bottom nav — fixed floating bar above all content ─── */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden items-stretch" style={{ background: "#ffffff", borderTop: "1px solid hsl(220 13% 91%)", height: 60, paddingBottom: "env(safe-area-inset-bottom, 0px)", boxShadow: "0 -4px 24px rgba(0,0,0,0.08)" }}>
             {mobileBottomNav.map(({ href, label, icon: Icon }) => {
             const active = navIsActive(href);
@@ -869,7 +869,7 @@ export default function Layout({ children }) {
             </button>
       </nav>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Mobile "More" slide-up drawer Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Mobile "More" slide-up drawer ───────────────────────────── */}
       {moreOpen && (<div className="fixed inset-0 z-50 flex flex-col justify-end md:hidden" onClick={e => { if (e.target === e.currentTarget)
             setMoreOpen(false); }} style={{ background: "rgba(0,0,0,0.5)" }}>
           <div className="rounded-t-2xl overflow-hidden" style={{ background: "#ffffff", paddingBottom: "env(safe-area-inset-bottom, 16px)" }}>

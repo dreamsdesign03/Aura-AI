@@ -18,7 +18,7 @@ const INPUT_CLS = "w-full text-xs rounded border border-gray-300 bg-white text-g
 const LABEL_CLS = "text-[10px] font-medium text-muted-foreground uppercase tracking-wider mb-0.5";
 
 function buildMysaIntelData(lead) {
-    if (!lead) return { companyName: "Lead", website: "example.com", healthScore: 70, criticalCount: 2, hero: { monthlyRisk: "â‚¹1,85,000", annualRisk: "â‚¹22,20,000", fixTimeline: "14 Days" }, why: { quote: "Digital conversion barriers route inquiries to competitors.", body: "<p>Lead data is being analyzed.</p>", negativeTags: [], positiveTags: [] }, compare: [], categoryScores: [], findings: [], roadmap: [] };
+    if (!lead) return { companyName: "Lead", website: "example.com", healthScore: 70, criticalCount: 2, hero: { monthlyRisk: "₹1,85,000", annualRisk: "₹22,20,000", fixTimeline: "14 Days" }, why: { quote: "Digital conversion barriers route inquiries to competitors.", body: "<p>Lead data is being analyzed.</p>", negativeTags: [], positiveTags: [] }, compare: [], categoryScores: [], findings: [], roadmap: [] };
     const fn = String(lead.firstName || lead.first_name || lead.company || "Lead").trim();
     const ln = String(lead.lastName || lead.last_name || "").trim();
     const companyName = lead.company || (ln ? `${fn} ${ln}` : fn);
@@ -34,8 +34,8 @@ function buildMysaIntelData(lead) {
         healthScore: bant,
         criticalCount: 3,
         hero: {
-            monthlyRisk: "â‚¹1,85,000",
-            annualRisk: "â‚¹22,20,000",
+            monthlyRisk: "₹1,85,000",
+            annualRisk: "₹22,20,000",
             fixTimeline: "14 Days",
         },
         why: {
@@ -256,7 +256,7 @@ export default function LeadDetail() {
                 description: newScore !== null
                     ? (<span>
               BANT score: {newScore} / 100
-              {bandLabel && (<> â€” <span className={`font-semibold ${bandTextColor}`}>{bandLabel}</span></>)}
+              {bandLabel && (<> — <span className={`font-semibold ${bandTextColor}`}>{bandLabel}</span></>)}
             </span>)
                     : isInitialScore
                         ? "Lead has been scored successfully."
@@ -375,7 +375,7 @@ export default function LeadDetail() {
                         {/* Company logo */}
                         {lead.companyLogo && (<img src={lead.companyLogo} alt={lead.company} className="h-6 object-contain"/>)}
                       </div>
-                      <div className="text-sm text-gray-500 mt-0.5 font-medium">{lead.designation || "Owner"} {lead.company ? `Â· ${lead.company}` : ""}</div>
+                      <div className="text-sm text-gray-500 mt-0.5 font-medium">{lead.designation || "Owner"} {lead.company ? `· ${lead.company}` : ""}</div>
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <StatusBadge status={lead.status}/>
                         {lead.bantScore != null && (() => {
@@ -427,15 +427,15 @@ export default function LeadDetail() {
                   </div>
                   <div>
                     <div className={LABEL_CLS}>Phone</div>
-                    <input className={INPUT_CLS} value={draft.phone} onChange={set("phone")} placeholder="â€”"/>
+                    <input className={INPUT_CLS} value={draft.phone} onChange={set("phone")} placeholder="—"/>
                   </div>
                   <div>
                     <div className={LABEL_CLS}>Website</div>
-                    <input className={INPUT_CLS} value={draft.website} onChange={set("website")} placeholder="â€”"/>
+                    <input className={INPUT_CLS} value={draft.website} onChange={set("website")} placeholder="—"/>
                   </div>
                   <div>
                     <div className={LABEL_CLS}>LinkedIn URL</div>
-                    <input className={INPUT_CLS} value={draft.linkedInUrl} onChange={set("linkedInUrl")} placeholder="â€”"/>
+                    <input className={INPUT_CLS} value={draft.linkedInUrl} onChange={set("linkedInUrl")} placeholder="—"/>
                   </div>
                   <div>
                     <div className={LABEL_CLS}>Industry</div>
@@ -447,7 +447,7 @@ export default function LeadDetail() {
                   </div>
                   <div>
                     <div className={LABEL_CLS}>Company Size</div>
-                    <input className={INPUT_CLS} value={draft.companySize} onChange={set("companySize")} placeholder="â€”"/>
+                    <input className={INPUT_CLS} value={draft.companySize} onChange={set("companySize")} placeholder="—"/>
                   </div>
                   <div>
                     <div className={LABEL_CLS}>Source</div>
@@ -491,7 +491,7 @@ export default function LeadDetail() {
                     </div>)}
                   {lead.industry && (<div className="flex items-center gap-2 text-xs text-gray-500">
                       <Building2 className="w-3.5 h-3.5 flex-shrink-0"/>
-                      <span>{lead.industry}{lead.companySize ? ` Â· ${lead.companySize}` : ""}</span>
+                      <span>{lead.industry}{lead.companySize ? ` · ${lead.companySize}` : ""}</span>
                     </div>)}
                 </div>
 
@@ -504,7 +504,7 @@ export default function LeadDetail() {
 
           {/* BANT Breakdown */}
           {!bantBreakdown && (<div className="rounded-xl border border-dashed border-gray-300 p-5 bg-white shadow-sm flex flex-col items-center gap-3 text-center relative" style={{ minHeight: rescoring ? 160 : undefined }}>
-              {rescoring && (<AiPanelOverlay icon="sparkles" message="AI is scoring this leadâ€¦" subMessages={[
+              {rescoring && (<AiPanelOverlay icon="sparkles" message="AI is scoring this lead…" subMessages={[
                     "Evaluating Budget signals",
                     "Checking Authority & decision power",
                     "Assessing Need & pain points",
@@ -523,7 +523,7 @@ export default function LeadDetail() {
                 </div>)}
               <button onClick={rescore} disabled={rescoring} className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-md border border-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
                 {rescoring ? (<Loader2 className="w-3 h-3 animate-spin"/>) : (<Sparkles className="w-3 h-3"/>)}
-                {rescoring ? "Scoringâ€¦" : "Score with AI"}
+                {rescoring ? "Scoring…" : "Score with AI"}
               </button>
             </div>)}
           {bantBreakdown && (<div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
@@ -531,7 +531,7 @@ export default function LeadDetail() {
                 <div className="text-xs font-semibold text-foreground uppercase tracking-wider">BANT Breakdown</div>
                 <button onClick={rescore} disabled={rescoring} className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border border-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
                   {rescoring ? (<Loader2 className="w-3 h-3 animate-spin"/>) : (<Sparkles className="w-3 h-3"/>)}
-                  {rescoring ? "Scoringâ€¦" : "Re-score with AI"}
+                  {rescoring ? "Scoring…" : "Re-score with AI"}
                 </button>
               </div>
               {rescoreError && (<div className="mb-3 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5">
@@ -568,7 +568,7 @@ export default function LeadDetail() {
                     <div className="w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0" style={{ background: tp.status === "sent" ? "#1A7A45" : "#94a3b8" }}/>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-foreground">{tp.channel} Â· Day {tp.day}</span>
+                        <span className="font-medium text-foreground">{tp.channel} · Day {tp.day}</span>
                         <StatusBadge status={tp.status}/>
                       </div>
                       {tp.subject && <div className="text-muted-foreground mt-0.5">Subject: {tp.subject}</div>}
@@ -598,7 +598,7 @@ export default function LeadDetail() {
                         <CalendarDays className="w-4 h-4 text-emerald-700 flex-shrink-0"/>
                         <div className="min-w-0">
                           <div className="font-semibold text-gray-800 capitalize">{(m.type || "").replace(/_/g, " ")}</div>
-                          <div className="text-gray-500 text-[11px]">{dateLabel} Â· {m.duration} min</div>
+                          <div className="text-gray-500 text-[11px]">{dateLabel} · {m.duration} min</div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
@@ -644,7 +644,7 @@ export default function LeadDetail() {
                     },
                 });
             }} className="w-full text-xs rounded border border-gray-200 bg-white text-gray-700 px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-indigo-400">
-                <option value="">â€” Unassigned â€”</option>
+                <option value="">— Unassigned —</option>
                 {teamMembers.map((m) => (<option key={m.id} value={m.id}>
                     {[m.firstName, m.lastName].filter(Boolean).join(" ") || m.email}
                   </option>))}
@@ -657,10 +657,10 @@ export default function LeadDetail() {
               {[
             ["Source", (lead.source ?? "").replace(/_/g, " ")],
             ["Industry", lead.industry],
-            ["City", lead.city ?? "â€”"],
+            ["City", lead.city ?? "—"],
             ["Country", lead.country],
-            ["Company Size", lead.companySize ?? "â€”"],
-            ["Annual Revenue", lead.annualRevenue ?? "â€”"],
+            ["Company Size", lead.companySize ?? "—"],
+            ["Annual Revenue", lead.annualRevenue ?? "—"],
             ["Sequence Day", lead.sequenceDay > 0 ? `Day ${lead.sequenceDay}` : "Not assigned"],
             ["Added", formatDate(lead.createdAt)],
             ["Last Contact", lead.lastContactedAt ? formatDate(lead.lastContactedAt) : "Never"],
@@ -688,11 +688,11 @@ export default function LeadDetail() {
                 <button className="w-full text-xs py-1.5 px-3 rounded border border-gray-200 text-muted-foreground hover:text-gray-900 hover:bg-gray-50 text-left">BANT Score</button>
               </Link>
               <button onClick={handleGenerateAiOutreach} className="w-full text-xs py-2 px-3 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 text-left flex items-center justify-between transition-all">
-                <span>âš¡ Generate AI Outreach Email</span>
+                <span>⚡ Generate AI Outreach Email</span>
                 <Sparkles className="w-3.5 h-3.5 text-purple-600"/>
               </button>
               <button onClick={handleGenerateAiProposal} className="w-full text-xs py-2 px-3 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 font-semibold hover:bg-emerald-100 text-left flex items-center justify-between transition-all">
-                <span>ðŸ“„ Create AI Sales Proposal</span>
+                <span>📄 Create AI Sales Proposal</span>
                 <FileText className="w-3.5 h-3.5 text-emerald-600"/>
               </button>
             </div>
@@ -700,7 +700,7 @@ export default function LeadDetail() {
         </div>
       </div>
 
-      {/* â”€â”€ AI Outreach & Proposal Generator Modal â”€â”€ */}
+      {/* ── AI Outreach & Proposal Generator Modal ── */}
       {aiModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 space-y-4 border border-gray-100 max-h-[90vh] overflow-y-auto">
@@ -716,7 +716,7 @@ export default function LeadDetail() {
                     {aiModalType === "outreach" ? "AI Tailored Outreach Email" : "AI Custom Sales Proposal"}
                   </h3>
                   <p className="text-xs text-gray-500">
-                    Targeted to {leadFullName} Â· {lead.company || "Clinic"}
+                    Targeted to {leadFullName} · {lead.company || "Clinic"}
                   </p>
                 </div>
               </div>

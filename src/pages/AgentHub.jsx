@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { usePlan } from "@/hooks/usePlan";
 import { Bot, Zap, Mail, RefreshCw, Search, Play, ToggleLeft, ToggleRight, Clock, AlertTriangle, Activity, Users, TrendingUp, Loader2, Filter, MessageSquare, Globe, History, User, Lock, } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, } from "recharts";
-// Ã¢â€â‚¬Ã¢â€â‚¬ Helpers Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Helpers ────────────────────────────────────────────────────────────────────
 function relativeTime(iso) {
     if (!iso)
         return "Never";
@@ -17,30 +17,30 @@ function relativeTime(iso) {
 }
 function activityIcon(type) {
     if (type.includes("whatsapp"))
-        return "Ã°Å¸â€™Â¬";
+        return "💬";
     if (type.includes("email") || type.includes("followup") || type.includes("follow_up"))
-        return "Ã¢Å“â€°Ã¯Â¸Â";
+        return "✉️";
     if (type.includes("audit"))
-        return "Ã°Å¸â€Â";
+        return "🔍";
     if (type.includes("scout") || type.includes("website"))
-        return "Ã°Å¸Å’Â";
+        return "🌐";
     if (type.includes("hubspot"))
-        return "Ã°Å¸â€â€”";
+        return "🔗";
     if (type.includes("lost") || type.includes("exhausted"))
-        return "Ã°Å¸â€œâ€°";
+        return "📉";
     if (type.includes("skip") || type.includes("duplicate"))
-        return "Ã¢ÂÂ­Ã¯Â¸Â";
+        return "⏭️";
     if (type.includes("hunt") || type.includes("fetched") || type.includes("hunter"))
-        return "Ã°Å¸Å½Â¯";
+        return "🎯";
     if (type.includes("error"))
-        return "Ã¢Å¡Â Ã¯Â¸Â";
-    return "Ã¢Å¡Â¡";
+        return "⚠️";
+    return "⚡";
 }
 function activityLabel(type) {
     const map = {
         email_sent: "Email delivered",
         followup_sent: "Follow-up delivered",
-        followup_skipped_meeting_booked: "Follow-up skipped Ã¢â‚¬â€ meeting booked",
+        followup_skipped_meeting_booked: "Follow-up skipped — meeting booked",
         followup_failed: "Failed to send follow-up",
         audit_started: "Brand audit started",
         audit_completed: "Brand audit completed",
@@ -119,7 +119,7 @@ function AgentCard({ name, description, icon, active, lastRun, stat, extraStats,
             display: "inline-block",
             boxShadow: active ? `0 0 0 2px ${accentColor}40` : "none",
         }}/>
-          {active ? "Active Ã¢â‚¬â€ 24/7" : "Paused"}
+          {active ? "Active — 24/7" : "Paused"}
         </span>
         <span style={{ fontSize: 11, color: "#9CA3AF" }}>
           <Clock size={10} style={{ display: "inline", marginRight: 3 }}/>
@@ -165,12 +165,12 @@ function AgentCard({ name, description, icon, active, lastRun, stat, extraStats,
                 opacity: running ? 0.7 : 1, transition: "all 0.15s",
             }}>
           {running
-                ? <><Loader2 size={13} className="animate-spin"/> RunningÃ¢â‚¬Â¦</>
+                ? <><Loader2 size={13} className="animate-spin"/> Running…</>
                 : <><Play size={13}/> Run Now</>}
         </button>)}
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬ Main Page Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AgentHub() {
     const [hub, setHub] = useState(null);
     const [activities, setActivities] = useState([]);
@@ -268,7 +268,7 @@ export default function AgentHub() {
     const errCount = status?.errors.length ?? 0;
     return (<div style={{ maxWidth: 1080, margin: "0 auto", padding: "24px 16px 80px" }}>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Page Header Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Page Header ─────────────────────────────────────────────── */}
       <div style={{ marginBottom: 24 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
           <div style={{
@@ -279,8 +279,8 @@ export default function AgentHub() {
             <Bot size={18} style={{ color: "#fff" }}/>
           </div>
           <div>
-            <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111827", margin: 0 }}>Automation Ã°Å¸Â¤â€“</h1>
-            <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>24/7 Sales Brain Ã¢â‚¬â€ all agents in one place</p>
+            <h1 style={{ fontSize: 20, fontWeight: 900, color: "#111827", margin: 0 }}>Automation 🤖</h1>
+            <p style={{ fontSize: 12, color: "#6B7280", margin: 0 }}>24/7 Sales Brain — all agents in one place</p>
           </div>
         </div>
 
@@ -292,7 +292,7 @@ export default function AgentHub() {
             fontSize: 11, fontWeight: 600, color: "#16A34A",
         }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22C55E", display: "inline-block" }}/>
-            Live Ã¢â‚¬â€ auto-refreshes every 10s
+            Live — auto-refreshes every 10s
           </div>
           <button onClick={() => fetchAll()} style={{ background: "none", border: "none", cursor: "pointer", color: "#9CA3AF", display: "flex", alignItems: "center", gap: 4, fontSize: 11 }}>
             <RefreshCw size={11}/> Refresh now
@@ -303,7 +303,7 @@ export default function AgentHub() {
       {loading ? (<div style={{ display: "flex", justifyContent: "center", padding: "80px 0" }}>
           <Loader2 size={28} style={{ color: PURPLE }} className="animate-spin"/>
         </div>) : (<>
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Autopilot Email Kill Switch Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Autopilot Email Kill Switch ───────────────────────────── */}
           {status && (<div style={{
                     background: status.autopilotEmailPaused ? "#FEF2F2" : "#F0FDF4",
                     border: `2px solid ${status.autopilotEmailPaused ? "#FCA5A5" : "#86EFAC"}`,
@@ -325,7 +325,7 @@ export default function AgentHub() {
                 </div>
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 800, color: status.autopilotEmailPaused ? "#B91C1C" : "#15803D" }}>
-                    {status.autopilotEmailPaused ? "Ã°Å¸â€Â´ Automation Emails: PAUSED" : "Ã°Å¸Å¸Â¢ Automation Emails: ACTIVE"}
+                    {status.autopilotEmailPaused ? "🔴 Automation Emails: PAUSED" : "🟢 Automation Emails: ACTIVE"}
                   </div>
                   <div style={{ fontSize: 12, color: "#6B7280", marginTop: 2, maxWidth: 560 }}>
                     {status.autopilotEmailPaused
@@ -346,11 +346,11 @@ export default function AgentHub() {
                     flexShrink: 0,
                     whiteSpace: "nowrap",
                 }}>
-                {status.autopilotEmailPaused ? "Ã¢â€“Â¶ Resume Sending" : "Ã¢ÂÂ¸ Pause Sending"}
+                {status.autopilotEmailPaused ? "▶ Resume Sending" : "⏸ Pause Sending"}
               </button>
             </div>)}
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Today's DB Metrics Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Today's DB Metrics ────────────────────────────────────── */}
           <div style={{ marginBottom: 20 }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
               Today's Activity (from database)
@@ -378,7 +378,7 @@ export default function AgentHub() {
             </div>
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Cumulative Totals Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Cumulative Totals ─────────────────────────────────────── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
             {[
                 { icon: <Mail size={15}/>, label: "Total Audits Sent (all-time)", value: status?.totalAuditsSent ?? 0, color: PURPLE },
@@ -396,7 +396,7 @@ export default function AgentHub() {
               </div>))}
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Email Health Panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Email Health Panel ────────────────────────────────────── */}
           {emailHealth && (<div style={{
                     background: emailHealth.limitCritical ? "#FEF2F2"
                         : emailHealth.limitWarning ? "#FFFBEB"
@@ -416,7 +416,7 @@ export default function AgentHub() {
                       LIMIT REACHED
                     </span>)}
                   {!emailHealth.limitCritical && emailHealth.limitWarning && (<span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#D97706", color: "#fff" }}>
-                      Ã¢Å¡Â  APPROACHING LIMIT
+                      ⚠ APPROACHING LIMIT
                     </span>)}
                 </div>
                 <div style={{ display: "flex", gap: 16 }}>
@@ -455,10 +455,10 @@ export default function AgentHub() {
                 }}/>
                 </div>
                 {emailHealth.limitWarning && !emailHealth.limitCritical && (<div style={{ fontSize: 11, color: "#92400E", marginTop: 6, fontWeight: 600 }}>
-                    Ã¢Å¡Â  Only {emailHealth.gmailDailyLimit - emailHealth.sentToday} sends remaining today Ã¢â‚¬â€ consider pausing agents to avoid hitting the Gmail limit.
+                    ⚠ Only {emailHealth.gmailDailyLimit - emailHealth.sentToday} sends remaining today — consider pausing agents to avoid hitting the Gmail limit.
                   </div>)}
                 {emailHealth.limitCritical && (<div style={{ fontSize: 11, color: "#DC2626", marginTop: 6, fontWeight: 600 }}>
-                    Gmail daily limit likely reached Ã¢â‚¬â€ further sends may fail. Consider pausing agents until midnight.
+                    Gmail daily limit likely reached — further sends may fail. Consider pausing agents until midnight.
                   </div>)}
                 {!emailHealth.limitWarning && (<div style={{ fontSize: 11, color: "#6B7280", marginTop: 6 }}>
                     {emailHealth.gmailDailyLimit - emailHealth.sentToday} sends remaining today (resets at midnight)
@@ -506,9 +506,9 @@ export default function AgentHub() {
                                 : "#D1FAE5",
                         fontSize: 16,
                     }}>
-                      {emailFailureHealth.consecutiveFailures >= emailFailureHealth.threshold ? "Ã°Å¸â€Â´"
-                        : emailFailureHealth.consecutiveFailures > 0 ? "Ã°Å¸Å¸Â¡"
-                            : "Ã°Å¸Å¸Â¢"}
+                      {emailFailureHealth.consecutiveFailures >= emailFailureHealth.threshold ? "🔴"
+                        : emailFailureHealth.consecutiveFailures > 0 ? "🟡"
+                            : "🟢"}
                     </div>
                     <div>
                       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -529,10 +529,10 @@ export default function AgentHub() {
                       </div>
                       <div style={{ fontSize: 11, color: "#6B7280", marginTop: 2 }}>
                         {emailFailureHealth.consecutiveFailures === 0
-                        ? "No consecutive failures Ã¢â‚¬â€ email delivery is healthy"
+                        ? "No consecutive failures — email delivery is healthy"
                         : emailFailureHealth.consecutiveFailures >= emailFailureHealth.threshold
-                            ? `Spike alert triggered Ã¢â‚¬â€ ${emailFailureHealth.consecutiveFailures} failures in a row`
-                            : `${emailFailureHealth.consecutiveFailures} failure${emailFailureHealth.consecutiveFailures > 1 ? "s" : ""} in a row Ã¢â‚¬â€ approaching alert threshold`}
+                            ? `Spike alert triggered — ${emailFailureHealth.consecutiveFailures} failures in a row`
+                            : `${emailFailureHealth.consecutiveFailures} failure${emailFailureHealth.consecutiveFailures > 1 ? "s" : ""} in a row — approaching alert threshold`}
                       </div>
                       {emailFailureHealth.consecutiveFailures > 0 && emailFailureHealth.lastFailureError && (<div style={{
                             marginTop: 4, fontSize: 10, color: "#B91C1C",
@@ -561,13 +561,13 @@ export default function AgentHub() {
                             opacity: resettingFailure ? 0.7 : 1,
                         }}>
                       {resettingFailure
-                            ? <><Loader2 size={11} className="animate-spin"/> ResettingÃ¢â‚¬Â¦</>
+                            ? <><Loader2 size={11} className="animate-spin"/> Resetting…</>
                             : <><RefreshCw size={11}/> Reset Counter</>}
                     </button>)}
                 </div>)}
             </div>)}
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Master Brain Toggle Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Master Brain Toggle ────────────────────────────────────── */}
           <div style={{
                 background: status?.brainActive ? GRAD : "#F9FAFB",
                 border: status?.brainActive ? "none" : "1.5px solid #E5E7EB",
@@ -583,8 +583,8 @@ export default function AgentHub() {
                 </div>
                 <div style={{ fontSize: 11, color: status?.brainActive ? "rgba(255,255,255,0.7)" : "#9CA3AF" }}>
                   {status?.brainActive
-                ? "All agents running Ã¢â‚¬â€ orchestrator ticks every 30 min"
-                : "All agents paused Ã¢â‚¬â€ toggle to resume automation"}
+                ? "All agents running — orchestrator ticks every 30 min"
+                : "All agents paused — toggle to resume automation"}
                 </div>
               </div>
             </div>
@@ -595,19 +595,19 @@ export default function AgentHub() {
             </button>
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Agent Cards Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Agent Cards ───────────────────────────────────────────── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 28 }}>
             <AgentCard name="Scout Agent" description="Checks website status of new leads" icon={<Globe size={18}/>} active={status?.scoutActive ?? false} lastRun={status?.lastScoutRun ?? null} stat={{ label: "Sites scanned today", value: today?.websitesScanned ?? 0 }} onToggle={() => toggleAgent("scout")} onRun={() => runAgent("scout", "scout")} running={running["scout"] ?? false} accentColor="#0891B2"/>
             <AgentCard name="Sales Agent" description="Generates brand audits & sends emails + WhatsApp" icon={<Mail size={18}/>} active={status?.salesActive ?? false} lastRun={status?.lastSalesRun ?? null} stat={{ label: "Emails sent today", value: today?.emailsSent ?? 0 }} onToggle={() => toggleAgent("sales")} onRun={() => runAgent("sales", "sales")} running={running["sales"] ?? false} accentColor={PURPLE}/>
             <AgentCard name="Follow-Up Agent" description="Day-2, 7, 10 plain-text follow-ups (skips if meeting booked)" icon={<RefreshCw size={18}/>} active={status?.followupActive ?? false} lastRun={status?.lastFollowupRun ?? null} stat={{ label: "Follow-ups sent today", value: today?.followupsSent ?? 0 }} onToggle={() => toggleAgent("followup")} onRun={() => runAgent("followup", "followup")} running={running["followup"] ?? false} accentColor={GREEN}/>
-            <AgentCard name="Lead Hunter" description="Nightly Apollo.io hunt Ã¢â‚¬â€ all orgs with active ICPs, 100/day cap" icon={<TrendingUp size={18}/>} active={lhStatus?.active ?? false} lastRun={lhStatus?.config.lastRunAt ?? null} stat={{ label: "Added to pipeline (lifetime)", value: lhStatus?.config.totalPipelineAdded ?? 0 }} extraStats={[
+            <AgentCard name="Lead Hunter" description="Nightly Apollo.io hunt — all orgs with active ICPs, 100/day cap" icon={<TrendingUp size={18}/>} active={lhStatus?.active ?? false} lastRun={lhStatus?.config.lastRunAt ?? null} stat={{ label: "Added to pipeline (lifetime)", value: lhStatus?.config.totalPipelineAdded ?? 0 }} extraStats={[
                 { label: "Leads Found", value: lhStatus?.config.totalLeadsFound ?? 0 },
                 { label: "Qualified", value: lhStatus?.config.totalQualified ?? 0 },
                 { label: "Added to Pipeline", value: lhStatus?.config.totalPipelineAdded ?? 0 },
             ]} onToggle={() => toggleAgent("lead_hunter")} onRun={() => runAgent("lead_hunter", "lead_hunter")} running={running["lead_hunter"] ?? false} accentColor="#D97706"/>
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Toggle History Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Toggle History ────────────────────────────────────────── */}
           <div style={{
                 background: "#fff", border: "1px solid #E5E7EB",
                 borderRadius: 16, overflow: "hidden", marginBottom: 20,
@@ -628,7 +628,7 @@ export default function AgentHub() {
             </div>
 
             {toggleHistory.length === 0 ? (<div style={{ padding: "28px 20px", textAlign: "center", color: "#9CA3AF", fontSize: 12 }}>
-                No toggle events yet Ã¢â‚¬â€ changes will appear here as agents are turned on or off
+                No toggle events yet — changes will appear here as agents are turned on or off
               </div>) : (<div style={{ maxHeight: 320, overflowY: "auto" }}>
                 {toggleHistory.map(entry => {
                     const detail = entry.detail ?? {};
@@ -650,7 +650,7 @@ export default function AgentHub() {
                             display: "flex", alignItems: "center", justifyContent: "center",
                             fontSize: 14,
                         }}>
-                        {active ? "Ã¢â€“Â¶" : "Ã¢ÂÂ¸"}
+                        {active ? "▶" : "⏸"}
                       </div>
 
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -682,7 +682,7 @@ export default function AgentHub() {
               </div>)}
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Errors Panel Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Errors Panel ──────────────────────────────────────────── */}
           {errCount > 0 && status?.errors && (<div style={{
                     background: "#FEF2F2", border: "1px solid #FECACA",
                     borderRadius: 14, padding: "14px 18px", marginBottom: 24,
@@ -702,7 +702,7 @@ export default function AgentHub() {
                 </div>))}
             </div>)}
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Live Activity Feed Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Live Activity Feed ────────────────────────────────────── */}
           <div style={{
                 background: "#fff", border: "1px solid #E5E7EB",
                 borderRadius: 16, overflow: "hidden",
@@ -743,7 +743,7 @@ export default function AgentHub() {
             </div>
 
             {activities.length === 0 ? (<div style={{ padding: "40px 20px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
-                No activity yet Ã¢â‚¬â€ agents will log every action here
+                No activity yet — agents will log every action here
               </div>) : (<div style={{ maxHeight: 480, overflowY: "auto" }}>
                 {activities.map(a => (<div key={a.id} style={{
                         display: "flex", alignItems: "flex-start", gap: 12,
@@ -789,7 +789,7 @@ export default function AgentHub() {
 
                       {/* Lead / company name */}
                       {(a.leadName || a.companyName) && (<div style={{ fontSize: 11, color: "#374151", fontWeight: 600, marginTop: 2 }}>
-                          {[a.leadName, a.companyName].filter(Boolean).join(" Ã¢â‚¬â€ ")}
+                          {[a.leadName, a.companyName].filter(Boolean).join(" — ")}
                         </div>)}
 
                       {/* Detail summary */}
@@ -798,7 +798,7 @@ export default function AgentHub() {
                             .filter(([, v]) => typeof v === "string" || typeof v === "number")
                             .slice(0, 3)
                             .map(([k, v]) => `${k}: ${String(v).slice(0, 60)}`)
-                            .join(" Ã‚Â· ")}
+                            .join(" · ")}
                         </div>)}
 
                       {/* Error message */}
@@ -814,7 +814,7 @@ export default function AgentHub() {
               </div>)}
           </div>
 
-          {/* Ã¢â€â‚¬Ã¢â€â‚¬ Schedule Info Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+          {/* ── Schedule Info ─────────────────────────────────────────── */}
           <div style={{
                 display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 20,
             }}>
@@ -822,22 +822,22 @@ export default function AgentHub() {
                 background: "#F9FAFB", border: "1px solid #E5E7EB", borderRadius: 12, padding: "14px 16px",
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#374151", marginBottom: 6 }}>
-                Ã¢Å¡Â¡ Orchestrator Schedule
+                ⚡ Orchestrator Schedule
               </div>
               <div style={{ fontSize: 12, color: "#6B7280", lineHeight: 1.6 }}>
                 Ticks every <strong>30 minutes</strong> automatically.<br />
-                Scout Ã¢â€ â€™ Sales Ã¢â€ â€™ Follow-Up Ã¢â€ â€™ on each cycle.
+                Scout → Sales → Follow-Up → on each cycle.
               </div>
             </div>
             <div style={{
                 background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 12, padding: "14px 16px",
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: "#92400E", marginBottom: 6 }}>
-                Ã°Å¸Å½Â¯ Lead Hunter Schedule
+                🎯 Lead Hunter Schedule
               </div>
               <div style={{ fontSize: 12, color: "#78350F", lineHeight: 1.6 }}>
                 Nightly at <strong>01:00 IST</strong> (19:30 UTC).<br />
-                Runs for all orgs with active ICPs Ã¢â‚¬â€ 100 leads/day cap.
+                Runs for all orgs with active ICPs — 100 leads/day cap.
               </div>
             </div>
           </div>

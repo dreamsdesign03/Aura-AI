@@ -3,18 +3,18 @@ import { ArrowRight, ChevronLeft, Phone } from "lucide-react";
 import { RecaptchaVerifier, signInWithPhoneNumber, } from "firebase/auth";
 import { getFirebaseAuth, firebaseConfigured } from "../lib/firebase";
 const COUNTRY_CODES = [
-    { code: "+91", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â®ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â³", name: "India" },
-    { code: "+1", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚ÂºÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¸", name: "USA / Canada" },
-    { code: "+44", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¬ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â§", name: "UK" },
-    { code: "+61", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¦ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Âº", name: "Australia" },
-    { code: "+971", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¦ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Âª", name: "UAE" },
-    { code: "+65", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¸ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¬", name: "Singapore" },
-    { code: "+60", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â²ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¾", name: "Malaysia" },
-    { code: "+49", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â©ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Âª", name: "Germany" },
-    { code: "+33", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â«ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â·", name: "France" },
-    { code: "+81", flag: "ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Â¯ÃƒÂ°Ã…Â¸Ã¢â‚¬Â¡Ã‚Âµ", name: "Japan" },
+    { code: "+91", flag: "🇮🇳", name: "India" },
+    { code: "+1", flag: "🇺🇸", name: "USA / Canada" },
+    { code: "+44", flag: "🇬🇧", name: "UK" },
+    { code: "+61", flag: "🇦🇺", name: "Australia" },
+    { code: "+971", flag: "🇦🇪", name: "UAE" },
+    { code: "+65", flag: "🇸🇬", name: "Singapore" },
+    { code: "+60", flag: "🇲🇾", name: "Malaysia" },
+    { code: "+49", flag: "🇩🇪", name: "Germany" },
+    { code: "+33", flag: "🇫🇷", name: "France" },
+    { code: "+81", flag: "🇯🇵", name: "Japan" },
 ];
-const TEAM_SIZES = ["Just me", "2ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“5", "6ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“10", "11ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“25", "26ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“50", "51ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Å“100", "100+"];
+const TEAM_SIZES = ["Just me", "2–5", "6–10", "11–25", "26–50", "51–100", "100+"];
 export default function Register({ onSuccess, onLoginClick }) {
     const [step, setStep] = useState("idle");
     const [countryCode, setCountryCode] = useState("+91");
@@ -209,7 +209,7 @@ export default function Register({ onSuccess, onLoginClick }) {
     const inputBase = "w-full px-4 py-3 rounded-xl text-[14px] outline-none transition-all border bg-white text-gray-900 placeholder-gray-400 focus:border-[#CB3273] focus:ring-2 focus:ring-[#CB3273]/10";
     const inputSm = "w-full px-3 py-2.5 rounded-xl text-[13px] outline-none transition-all border bg-white text-gray-900 placeholder-gray-400 focus:border-[#CB3273] focus:ring-2 focus:ring-[#CB3273]/10";
     return (<div className="min-h-screen flex flex-col lg:flex-row relative overflow-hidden" style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: "linear-gradient(150deg, #1A050F 0%, #3A0C20 35%, #8E1F54 70%, #CB3273 100%)" }}>
-      {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Full-screen background decorations (mobile only) ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+      {/* ── Full-screen background decorations (mobile only) ── */}
       <div className="lg:hidden absolute inset-0 pointer-events-none">
         <div style={{
             position: "absolute", inset: 0,
@@ -235,7 +235,7 @@ export default function Register({ onSuccess, onLoginClick }) {
         }}/>
       </div>
 
-      {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Desktop left panel ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+      {/* ── Desktop left panel ── */}
       <div className="hidden lg:flex flex-col justify-between w-[460px] flex-shrink-0 px-12 py-12 relative overflow-hidden" style={{ background: "linear-gradient(150deg, #1A050F 0%, #3A0C20 35%, #8E1F54 70%, #CB3273 100%)" }}>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.055) 1px, transparent 1px)", backgroundSize: "32px 32px" }}/>
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "radial-gradient(ellipse 500px 400px at 20% 80%, rgba(229,139,181,0.14) 0%, transparent 65%), radial-gradient(ellipse 350px 300px at 85% 15%, rgba(203,50,115,0.18) 0%, transparent 65%)" }}/>
@@ -260,18 +260,18 @@ export default function Register({ onSuccess, onLoginClick }) {
               </div>))}
           </div>
         </div>
-        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", position: "relative", zIndex: 10 }}>Ãƒâ€šÃ‚Â© {new Date().getFullYear()} Dreamsdesign Ãƒâ€šÃ‚Â· AuraAI</p>
+        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.22)", position: "relative", zIndex: 10 }}>© {new Date().getFullYear()} Dreamsdesign · AuraAI</p>
       </div>
 
-      {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Right / mobile panel ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+      {/* ── Right / mobile panel ── */}
       <div className="flex-1 flex flex-col lg:bg-[#FBE9F1] relative z-10">
 
-        {/* Mobile hero ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â visible only on mobile, only when idle */}
+        {/* Mobile hero — visible only on mobile, only when idle */}
         {step === "idle" && (<div className="lg:hidden flex flex-col items-center text-center px-6 pt-16 pb-8">
             {/* Logo icon with glow */}
             <div className="relative mb-5">
               <div style={{ width: 68, height: 68, borderRadius: 22, background: "linear-gradient(135deg, rgba(203,50,115,0.5), rgba(229,139,181,0.25))", border: "1px solid rgba(196,181,253,0.35)", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(8px)" }}>
-                <span style={{ fontSize: 30 }}>ÃƒÂ¢Ã…Â¡Ã‚Â¡</span>
+                <span style={{ fontSize: 30 }}>⚡</span>
               </div>
               <div style={{ position: "absolute", inset: -12, borderRadius: 34, background: "radial-gradient(circle, rgba(229,139,181,0.18) 0%, transparent 70%)", pointerEvents: "none" }}/>
             </div>
@@ -291,12 +291,12 @@ export default function Register({ onSuccess, onLoginClick }) {
             </h1>
 
             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", lineHeight: 1.65, maxWidth: 270, marginBottom: 24 }}>
-              Score leads, write outreach, and close deals faster ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â free forever.
+              Score leads, write outreach, and close deals faster — free forever.
             </p>
 
             {/* Stats chips */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-              {[{ val: "3ÃƒÆ’Ã¢â‚¬â€", label: "Pipeline growth" }, { val: "68%", label: "Faster outreach" }, { val: "41%", label: "More deals" }].map(({ val, label }) => (<div key={label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(196,181,253,0.15)", borderRadius: 100, padding: "5px 13px" }}>
+              {[{ val: "3×", label: "Pipeline growth" }, { val: "68%", label: "Faster outreach" }, { val: "41%", label: "More deals" }].map(({ val, label }) => (<div key={label} style={{ display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(196,181,253,0.15)", borderRadius: 100, padding: "5px 13px" }}>
                   <span style={{ fontSize: 13, fontWeight: 800, color: "white" }}>{val}</span>
                   <span style={{ fontSize: 11, color: "rgba(229,139,181,0.65)", fontWeight: 500 }}>{label}</span>
                 </div>))}
@@ -309,17 +309,17 @@ export default function Register({ onSuccess, onLoginClick }) {
           {/* Desktop-only title */}
           {step === "idle" && (<div className="hidden lg:block w-full max-w-[400px] mb-8">
               <h1 style={{ fontSize: 28, fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", lineHeight: 1.15, marginBottom: 6 }}>Sign up for AuraAI</h1>
-              <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>Score leads, write outreach, and close deals faster ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â free to start.</p>
+              <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6 }}>Score leads, write outreach, and close deals faster — free to start.</p>
             </div>)}
 
-          {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Card: white card on mobile, plain on desktop ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+          {/* ── Card: white card on mobile, plain on desktop ── */}
           <div className="w-full max-w-[400px] lg:bg-transparent lg:shadow-none lg:rounded-none lg:p-0" style={{
             background: "white",
             borderRadius: 24,
             boxShadow: "0 8px 48px rgba(0,0,0,0.28), 0 2px 12px rgba(0,0,0,0.12)",
             padding: "28px 22px",
         }}>
-            {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Phone OTP steps ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+            {/* ── Phone OTP steps ── */}
             {step !== "idle" ? (<div>
                 <button type="button" onClick={resetPhoneFlow} className="flex items-center gap-1.5 mb-5" style={{ background: "none", border: "none", cursor: "pointer", color: "#6B7280", fontSize: 13, fontWeight: 500, padding: 0 }}>
                   <ChevronLeft className="w-4 h-4"/> Back
@@ -340,7 +340,7 @@ export default function Register({ onSuccess, onLoginClick }) {
                       </div>
                       {phoneError && <div style={{ fontSize: 12, padding: "10px 14px", borderRadius: 12, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>{phoneError}</div>}
                       <button type="submit" disabled={phoneLoading} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all" style={{ fontSize: 14, fontWeight: 700, color: "white", border: "none", background: phoneLoading ? "#9CA3AF" : "linear-gradient(135deg, #A4285E, #CB3273)", cursor: phoneLoading ? "not-allowed" : "pointer", boxShadow: phoneLoading ? "none" : "0 4px 14px rgba(203,50,115,0.3)" }}>
-                        {phoneLoading ? "SendingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : <><span>Send code</span><ArrowRight className="w-4 h-4"/></>}
+                        {phoneLoading ? "Sending…" : <><span>Send code</span><ArrowRight className="w-4 h-4"/></>}
                       </button>
                     </form>
                   </>)}
@@ -354,7 +354,7 @@ export default function Register({ onSuccess, onLoginClick }) {
                       <input type="text" inputMode="numeric" pattern="[0-9]*" maxLength={6} value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" autoFocus className={inputBase} style={{ border: "1.5px solid #FBE9F1", letterSpacing: "0.4em", textAlign: "center", fontSize: 24, fontWeight: 800 }}/>
                       {phoneError && <div style={{ fontSize: 12, padding: "10px 14px", borderRadius: 12, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>{phoneError}</div>}
                       <button type="submit" disabled={phoneLoading || otpCode.length !== 6} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all" style={{ fontSize: 14, fontWeight: 700, color: "white", border: "none", background: (phoneLoading || otpCode.length !== 6) ? "#9CA3AF" : "linear-gradient(135deg, #A4285E, #CB3273)", cursor: (phoneLoading || otpCode.length !== 6) ? "not-allowed" : "pointer", boxShadow: (phoneLoading || otpCode.length !== 6) ? "none" : "0 4px 14px rgba(203,50,115,0.3)" }}>
-                        {phoneLoading ? "VerifyingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : <><span>Verify &amp; continue</span><ArrowRight className="w-4 h-4"/></>}
+                        {phoneLoading ? "Verifying…" : <><span>Verify &amp; continue</span><ArrowRight className="w-4 h-4"/></>}
                       </button>
                       <div style={{ textAlign: "center", fontSize: 13, color: "#6B7280", paddingTop: 2 }}>
                         {resendSecs > 0 ? <span>Resend in {resendSecs}s</span> : (<button type="button" onClick={() => { setStep("phone"); setOtpCode(""); setPhoneError(""); }} style={{ background: "none", border: "none", cursor: "pointer", color: "#A4285E", fontWeight: 600, fontSize: 13 }}>Resend code</button>)}
@@ -364,12 +364,12 @@ export default function Register({ onSuccess, onLoginClick }) {
 
                 <div id="recaptcha-container-reg"/>
               </div>) : (
-        /* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Idle: 3 signup options ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */
+        /* ── Idle: 3 signup options ── */
         <div className="space-y-3">
                 {/* Mobile-only label inside card */}
                 <p className="lg:hidden text-center text-xs text-gray-400 font-medium pb-1">Choose how to get started</p>
 
-                {/* Continue with Mobile ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â primary */}
+                {/* Continue with Mobile — primary */}
                 <button type="button" onClick={() => {
                 if (otpEnabled) {
                     setStep("phone");
@@ -405,7 +405,7 @@ export default function Register({ onSuccess, onLoginClick }) {
               </div>)}
           </div>
 
-          {/* Sign in + terms ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â below card, on mobile they're on dark bg */}
+          {/* Sign in + terms — below card, on mobile they're on dark bg */}
           {step === "idle" && (<div className="mt-6 text-center w-full max-w-[400px]">
               <p style={{ fontSize: 13, marginBottom: 12 }}>
                 <span className="text-white/60 lg:text-gray-500">Already have an account? </span>
@@ -421,13 +421,13 @@ export default function Register({ onSuccess, onLoginClick }) {
         </div>
       </div>
 
-      {/* ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ Complete your profile modal ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ÃƒÂ¢Ã¢â‚¬ÂÃ¢â€šÂ¬ */}
+      {/* ── Complete your profile modal ── */}
       {showProfileModal && (<div style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, overflowY: "auto" }}>
           <div style={{ background: "white", borderRadius: 24, padding: "32px 28px", width: "100%", maxWidth: 480, margin: "auto", boxShadow: "0 24px 64px rgba(0,0,0,0.28)" }}>
             {!profEmailSent ? (<>
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
                   <div style={{ width: 54, height: 54, borderRadius: 15, margin: "0 auto 14px", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #A4285E, #CB3273)" }}>
-                    <span style={{ fontSize: 26 }}>ÃƒÂ°Ã…Â¸Ã¢â‚¬ËœÃ‚Â¤</span>
+                    <span style={{ fontSize: 26 }}>👤</span>
                   </div>
                   <h2 style={{ fontSize: 22, fontWeight: 800, color: "#111827", letterSpacing: "-0.025em", margin: 0 }}>Complete your profile</h2>
                   <p style={{ fontSize: 13, color: "#6B7280", marginTop: 6, marginBottom: 0, lineHeight: 1.5 }}>Help us personalise your experience.</p>
@@ -471,7 +471,7 @@ export default function Register({ onSuccess, onLoginClick }) {
                     <div>
                       <label style={{ display: "block", fontSize: 11, fontWeight: 600, marginBottom: 5, color: "#374151" }}>Team members</label>
                       <select value={profTeamSize} onChange={e => setProfTeamSize(e.target.value)} className={inputSm} style={{ border: "1.5px solid #FBE9F1", cursor: "pointer", appearance: "none", backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E\")", backgroundRepeat: "no-repeat", backgroundPosition: "right 10px center", paddingRight: 30 }}>
-                        <option value="">SelectÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦</option>
+                        <option value="">Select…</option>
                         {TEAM_SIZES.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                     </div>
@@ -479,12 +479,12 @@ export default function Register({ onSuccess, onLoginClick }) {
                   {profEmail && <p style={{ fontSize: 11, color: "#9CA3AF", marginTop: -4 }}>A verification link will be sent to your email.</p>}
                   {profError && <div style={{ fontSize: 12, padding: "10px 14px", borderRadius: 12, background: "#FEF2F2", color: "#DC2626", border: "1px solid #FECACA" }}>{profError}</div>}
                   <button type="submit" disabled={profLoading} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl transition-all" style={{ fontSize: 14, fontWeight: 700, color: "white", border: "none", background: profLoading ? "#9CA3AF" : "linear-gradient(135deg, #A4285E, #CB3273)", cursor: profLoading ? "not-allowed" : "pointer", boxShadow: profLoading ? "none" : "0 4px 14px rgba(203,50,115,0.3)", marginTop: 4 }}>
-                    {profLoading ? "SavingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : <><span>Get started</span><ArrowRight className="w-4 h-4"/></>}
+                    {profLoading ? "Saving…" : <><span>Get started</span><ArrowRight className="w-4 h-4"/></>}
                   </button>
                 </form>
               </>) : (<div style={{ textAlign: "center", padding: "8px 0" }}>
                 <div style={{ width: 54, height: 54, borderRadius: 15, margin: "0 auto 16px", display: "flex", alignItems: "center", justifyContent: "center", background: "linear-gradient(135deg, #A4285E, #CB3273)" }}>
-                  <span style={{ fontSize: 26 }}>ÃƒÂ¢Ã…â€œÃ¢â‚¬Â°ÃƒÂ¯Ã‚Â¸Ã‚Â</span>
+                  <span style={{ fontSize: 26 }}>✉️</span>
                 </div>
                 <h2 style={{ fontSize: 20, fontWeight: 800, color: "#111827", marginBottom: 8 }}>Check your inbox</h2>
                 <p style={{ fontSize: 13, color: "#6B7280", lineHeight: 1.6, marginBottom: 20 }}>

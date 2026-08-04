@@ -4,7 +4,7 @@ import { getListLeadsQueryKey } from "@workspace/api-client-react";
 import { MessageSquare, Send, Sparkles, User, Bot, X, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 const TEMPLATES = [
-    { label: "Cold Email â€” First Touch", prompt: "Write a compelling cold email for the selected lead, introducing Dreamsdesign's branding services. Keep it under 150 words, personal, and end with a clear CTA to book a 15-min call." },
+    { label: "Cold Email — First Touch", prompt: "Write a compelling cold email for the selected lead, introducing Dreamsdesign's branding services. Keep it under 150 words, personal, and end with a clear CTA to book a 15-min call." },
     { label: "LinkedIn Message", prompt: "Write a LinkedIn connection message for the selected lead. Max 300 characters, professional yet friendly, referencing their industry." },
     { label: "Pain-Based Follow-Up", prompt: "Write a follow-up email for a lead we haven't heard from in 5 days. Focus on brand pain points common in their industry and position Dreamsdesign as the solution." },
     { label: "Proposal Cover Email", prompt: "Write a proposal cover email for the selected lead. Professional, confident, mention the key service and investment, and invite them to a proposal review call." },
@@ -32,7 +32,7 @@ export default function AiComposer() {
         let sys = `You are the Dreamsdesign AI sales assistant. Dreamsdesign is a premium B2B branding and design studio based in Dubai.
 Brand voice: Professional, confident, creative, results-focused. Always position design as business ROI.
 Services: Brand Identity, Logo Design, Website Design & Development, Social Media Branding, Marketing Collateral, UI/UX Design.
-Typical project value: $5,000â€“$50,000 USD.`;
+Typical project value: $5,000–$50,000 USD.`;
         if (selectedLead) {
             sys += `\n\nContext about the current lead:
 Name: ${selectedLead.firstName} ${selectedLead.lastName}
@@ -152,7 +152,7 @@ Status: ${selectedLead.status}`;
             <User className="w-3.5 h-3.5 text-muted-foreground"/>
             <select value={selectedLeadId ?? ""} onChange={(e) => setSelectedLeadId(e.target.value ? Number(e.target.value) : null)} className="text-xs rounded border border-gray-200 bg-white text-gray-900 px-2 py-0.5 focus:outline-none">
               <option value="">No lead context</option>
-              {leads.map((l) => <option key={l.id} value={l.id}>{l.firstName} {l.lastName} â€” {l.company}</option>)}
+              {leads.map((l) => <option key={l.id} value={l.id}>{l.firstName} {l.lastName} — {l.company}</option>)}
             </select>
           </div>
           {streaming && (<button onClick={() => abortRef.current?.abort()} className="text-xs text-red-600 hover:text-red-600 border border-red-500/30 px-2 py-0.5 rounded">

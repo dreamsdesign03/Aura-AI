@@ -45,10 +45,10 @@ function normalizeEmail(r) {
 }
 function CurrencyFlag({ currency }) {
     const map = {
-        INR: "Ã°Å¸â€¡Â®Ã°Å¸â€¡Â³", AED: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âª", SAR: "Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¦", GBP: "Ã°Å¸â€¡Â¬Ã°Å¸â€¡Â§",
-        EUR: "Ã°Å¸â€¡ÂªÃ°Å¸â€¡Âº", AUD: "Ã°Å¸â€¡Â¦Ã°Å¸â€¡Âº", SGD: "Ã°Å¸â€¡Â¸Ã°Å¸â€¡Â¬", CAD: "Ã°Å¸â€¡Â¨Ã°Å¸â€¡Â¦", USD: "Ã°Å¸â€¡ÂºÃ°Å¸â€¡Â¸",
+        INR: "🇮🇳", AED: "🇦🇪", SAR: "🇸🇦", GBP: "🇬🇧",
+        EUR: "🇪🇺", AUD: "🇦🇺", SGD: "🇸🇬", CAD: "🇨🇦", USD: "🇺🇸",
     };
-    return <span className="text-sm">{map[currency] ?? "Ã°Å¸Å’Â"}</span>;
+    return <span className="text-sm">{map[currency] ?? "🌍"}</span>;
 }
 function StatusIcon({ status, opened }) {
     if (status === "sent" && opened)
@@ -106,7 +106,7 @@ export default function Outreach() {
     };
     const generateSingle = useCallback((leadId) => {
         closeSse();
-        setGenerating({ leadId, status: "running", message: "Auditing websiteÃ¢â‚¬Â¦" });
+        setGenerating({ leadId, status: "running", message: "Auditing website…" });
         const API_BASE = "/api";
         const es = new EventSource(`${API_BASE}/outreach-ai/generate/${leadId}`);
         sseRef.current = es;
@@ -150,7 +150,7 @@ export default function Outreach() {
     const generateAll = useCallback(() => {
         closeSse();
         setBulkStatus("running");
-        setBulkMessage("Starting bulk generationÃ¢â‚¬Â¦");
+        setBulkMessage("Starting bulk generation…");
         const API_BASE = "/api";
         const es = new EventSource(`${API_BASE}/outreach-ai/generate-all`);
         sseRef.current = es;
@@ -214,7 +214,7 @@ export default function Outreach() {
         <div>
           <h1 className="text-base font-bold text-gray-900">AI Outreach Engine</h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            {draftCount} drafts Ã‚Â· {sentCount} sent Ã‚Â· {failedCount} failed
+            {draftCount} drafts · {sentCount} sent · {failedCount} failed
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -227,7 +227,7 @@ export default function Outreach() {
           </button>
           <button onClick={generateAll} disabled={bulkStatus === "running"} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60 transition-all hover:bg-[#A4285E]" style={{ background: bulkStatus === "running" ? "#4A7C5E" : "#CB3273" }}>
             <Zap className="w-3.5 h-3.5"/>
-            {bulkStatus === "running" ? "GeneratingÃ¢â‚¬Â¦" : "Generate All"}
+            {bulkStatus === "running" ? "Generating…" : "Generate All"}
           </button>
         </div>
       </div>
@@ -243,7 +243,7 @@ export default function Outreach() {
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Left panel: list Ã¢â‚¬â€ full width on mobile when no selection, 320px on desktop */}
+        {/* Left panel: list — full width on mobile when no selection, 320px on desktop */}
         <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-80", selectedId ? "hidden md:flex" : "flex w-full")}>
 
           {/* Tabs */}
@@ -323,7 +323,7 @@ export default function Outreach() {
           </div>
         </div>
 
-        {/* Right panel: email preview Ã¢â‚¬â€ hidden on mobile when nothing selected */}
+        {/* Right panel: email preview — hidden on mobile when nothing selected */}
         <div className={cn("flex-1 flex flex-col overflow-hidden", !selected && "hidden md:flex")}>
           {/* Mobile back button */}
           {selected && (<button className="md:hidden flex items-center gap-1 px-3 py-2 text-xs text-gray-500 border-b border-gray-200 bg-white" onClick={() => setSelectedId(null)}>
@@ -354,7 +354,7 @@ export default function Outreach() {
                       {selected.leadFirstName} {selected.leadLastName}
                     </div>
                     <div className="text-xs text-gray-500">
-                      {selected.leadDesignation} Ã‚Â· {selected.company}
+                      {selected.leadDesignation} · {selected.company}
                     </div>
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className="flex items-center gap-1 text-[11px] text-gray-400">
@@ -364,7 +364,7 @@ export default function Outreach() {
                           <Globe className="w-3 h-3"/> Website
                         </a>)}
                       <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                        <CurrencyFlag currency={selected.currency}/> {selected.currency} Ã‚Â· {selected.country}
+                        <CurrencyFlag currency={selected.currency}/> {selected.currency} · {selected.country}
                       </span>
                       {selected.openedAt && (<span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#EFF6FF", color: "#3B82F6" }}>
                           <Eye className="w-3 h-3"/>
@@ -385,18 +385,18 @@ export default function Outreach() {
                           </button>
                           <button onClick={handleSave} disabled={updateEmail.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60 transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
                             <Save className="w-3.5 h-3.5"/>
-                            {updateEmail.isPending ? "SavingÃ¢â‚¬Â¦" : "Save"}
+                            {updateEmail.isPending ? "Saving…" : "Save"}
                           </button>
                         </>)}
                       <button onClick={() => generateSingle(selected.leadId)} disabled={generating?.status === "running"} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 disabled:opacity-60">
                         <Zap className="w-3.5 h-3.5"/>
                         {generating?.leadId === selected.leadId && generating?.status === "running"
-                    ? "GeneratingÃ¢â‚¬Â¦"
+                    ? "Generating…"
                     : "Regenerate"}
                       </button>
                       <button onClick={handleSend} disabled={sendEmail.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60 transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
                         <Send className="w-3.5 h-3.5"/>
-                        {sendEmail.isPending ? "SendingÃ¢â‚¬Â¦" : "Send Email"}
+                        {sendEmail.isPending ? "Sending…" : "Send Email"}
                       </button>
                       <button onClick={handleDelete} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50">
                         <Trash2 className="w-4 h-4"/>
@@ -408,7 +408,7 @@ export default function Outreach() {
                       </button>
                       <button onClick={() => sendEmail.mutate({ id: selected.id })} disabled={sendEmail.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-60">
                         <RefreshCw className={cn("w-3.5 h-3.5", sendEmail.isPending && "animate-spin")}/>
-                        {sendEmail.isPending ? "SendingÃ¢â‚¬Â¦" : "Resend"}
+                        {sendEmail.isPending ? "Sending…" : "Resend"}
                       </button>
                       <button onClick={handleDelete} className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50">
                         <Trash2 className="w-4 h-4"/>
@@ -421,7 +421,7 @@ export default function Outreach() {
                       </div>
                       <button onClick={() => sendEmail.mutate({ id: selected.id })} disabled={sendEmail.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-60">
                         <RefreshCw className={cn("w-3.5 h-3.5", sendEmail.isPending && "animate-spin")}/>
-                        {sendEmail.isPending ? "SendingÃ¢â‚¬Â¦" : "Resend"}
+                        {sendEmail.isPending ? "Sending…" : "Resend"}
                       </button>
                     </div>)}
                 </div>

@@ -45,14 +45,14 @@ function bantFromMeta(metadata) {
         return null;
     return bant;
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ Shared API helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── Shared API helper ────────────────────────────────────────────────────────
 async function apiFetch(path, opts) {
     const r = await fetch(`/api${path}`, { credentials: "include", ...opts });
     if (!r.ok)
         throw new Error(await r.text());
     return r.json();
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ LEAD BRAIN TAB Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── LEAD BRAIN TAB ───────────────────────────────────────────────────────────
 function LeadBrainTab() {
     const [leads, setLeads] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -149,14 +149,14 @@ function LeadBrainTab() {
         return map[s] ?? "#6B7280";
     };
     return (<div className="flex flex-1 overflow-hidden" style={{ height: "100%" }}>
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Left: Lead list Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Left: Lead list ───────────────────────────────────────── */}
       <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-72", selectedId ? "hidden md:flex" : "flex w-full")}>
         <div className="px-3 py-2.5 border-b border-gray-100 flex-shrink-0">
           <div className="relative">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"/>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leadsÃ¢â‚¬Â¦" className="w-full pl-8 pr-3 py-1.5 text-xs rounded border border-gray-200 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500/40"/>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search leads…" className="w-full pl-8 pr-3 py-1.5 text-xs rounded border border-gray-200 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-indigo-500/40"/>
           </div>
-          <div className="mt-1.5 text-[10px] text-gray-400">{filtered.length} leads Ã‚Â· {filtered.filter(l => l.hasBrain).length} with memory</div>
+          <div className="mt-1.5 text-[10px] text-gray-400">{filtered.length} leads · {filtered.filter(l => l.hasBrain).length} with memory</div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -191,7 +191,7 @@ function LeadBrainTab() {
                       <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: `${statusColor(lead.status)}18`, color: statusColor(lead.status) }}>
                         {lead.status}
                       </span>
-                      {lead.hasBrain && <span className="text-[9px] text-green-600 font-medium">Ã¢â€”Â Memory active</span>}
+                      {lead.hasBrain && <span className="text-[9px] text-green-600 font-medium">● Memory active</span>}
                     </div>
                   </div>
                   {isSelected && <ChevronRight className="w-3.5 h-3.5 text-indigo-400 self-center flex-shrink-0"/>}
@@ -200,7 +200,7 @@ function LeadBrainTab() {
         </div>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Right: Lead detail Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Right: Lead detail ────────────────────────────────────── */}
       <div className={cn("flex-1 flex flex-col overflow-hidden", !sel && "hidden md:flex")}>
         {/* Mobile back */}
         {sel && (<button className="md:hidden flex items-center gap-1 px-3 py-2 text-xs text-gray-500 border-b border-gray-200 bg-white flex-shrink-0" onClick={() => setSelectedId(null)}>
@@ -227,13 +227,13 @@ function LeadBrainTab() {
                         BANT {sel.bantScore}
                       </span>)}
                   </div>
-                  <div className="text-[11px] text-gray-500">{sel.designation} Ã‚Â· {sel.company} Ã‚Â· {sel.industry}</div>
+                  <div className="text-[11px] text-gray-500">{sel.designation} · {sel.company} · {sel.industry}</div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 <button onClick={refreshMemory} disabled={memLoading} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-60" style={{ background: "linear-gradient(135deg,#A4285E,#A4285E)" }}>
                   {memLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Sparkles className="w-3.5 h-3.5"/>}
-                  {memLoading ? "SyncingÃ¢â‚¬Â¦" : "Sync Memory"}
+                  {memLoading ? "Syncing…" : "Sync Memory"}
                 </button>
                 <Link href={`/leads/${sel.id}`}>
                   <button className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-medium rounded border border-gray-200 text-gray-600 hover:bg-gray-50">
@@ -257,7 +257,7 @@ function LeadBrainTab() {
             {/* Sub-tab content */}
             <div className="flex-1 overflow-y-auto bg-gray-50">
               {ctxLoading ? (<div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-indigo-400"/></div>) : context ? (<>
-                  {/* Ã¢â€â‚¬Ã¢â€â‚¬ OVERVIEW Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                  {/* ── OVERVIEW ── */}
                   {subTab === "overview" && (<div className="p-5 space-y-4 max-w-2xl">
                       {/* Profile card */}
                       <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
@@ -331,7 +331,7 @@ function LeadBrainTab() {
                           <p className="text-xs text-gray-400 mb-3">Click "Sync Memory" to have AI read all interactions and build a complete deal profile.</p>
                           <button onClick={refreshMemory} disabled={memLoading} className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold text-white" style={{ background: "linear-gradient(135deg,#A4285E,#A4285E)" }}>
                             {memLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Sparkles className="w-3.5 h-3.5"/>}
-                            {memLoading ? "AnalysingÃ¢â‚¬Â¦" : "Generate Memory Now"}
+                            {memLoading ? "Analysing…" : "Generate Memory Now"}
                           </button>
                         </div>)}
 
@@ -347,11 +347,11 @@ function LeadBrainTab() {
                             Save
                           </button>
                         </div>
-                        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add private notes about this lead Ã¢â‚¬â€ call tone, objections, personal details, deal context. These become part of the AI's memory." rows={4} className="w-full text-xs text-gray-700 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-400 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed"/>
+                        <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Add private notes about this lead — call tone, objections, personal details, deal context. These become part of the AI's memory." rows={4} className="w-full text-xs text-gray-700 resize-none focus:outline-none focus:ring-1 focus:ring-indigo-400 border border-gray-200 rounded-lg px-3 py-2 leading-relaxed"/>
                       </div>
                     </div>)}
 
-                  {/* Ã¢â€â‚¬Ã¢â€â‚¬ TIMELINE Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                  {/* ── TIMELINE ── */}
                   {subTab === "timeline" && (() => {
                     const items = [];
                     context.context.waMessages.forEach(m => {
@@ -360,7 +360,7 @@ function LeadBrainTab() {
                             type: "whatsapp",
                             icon: MessageCircle,
                             color: "#25D366",
-                            title: m.direction === "outbound" ? "You Ã¢â€ â€™ WhatsApp" : `${sel.firstName} Ã¢â€ â€™ WhatsApp`,
+                            title: m.direction === "outbound" ? "You → WhatsApp" : `${sel.firstName} → WhatsApp`,
                             body: m.content.substring(0, 200),
                         });
                     });
@@ -390,7 +390,7 @@ function LeadBrainTab() {
                             type: "appointment",
                             icon: MessageSquare,
                             color: "#EA580C",
-                            title: `Discovery Call Ã¢â‚¬â€ ${a.status ?? "scheduled"}`,
+                            title: `Discovery Call — ${a.status ?? "scheduled"}`,
                             body: a.meetingLink ?? "",
                         });
                     });
@@ -430,13 +430,13 @@ function LeadBrainTab() {
                       </div>);
                 })()}
 
-                  {/* Ã¢â€â‚¬Ã¢â€â‚¬ AI CHAT Ã¢â€â‚¬Ã¢â€â‚¬ */}
+                  {/* ── AI CHAT ── */}
                   {subTab === "chat" && (<div className="flex flex-col h-full" style={{ height: "100%" }}>
                       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                         {chatHistory.length === 0 && (<div className="text-center py-8">
                             <Brain className="w-10 h-10 mx-auto mb-3" style={{ color: "#A4285E" }}/>
                             <p className="text-sm font-semibold text-gray-700 mb-1">Sales Brain is ready</p>
-                            <p className="text-xs text-gray-400 mb-4 max-w-xs mx-auto">I know everything about {sel.firstName}. Ask me anything Ã¢â‚¬â€ what they said, how to close, what to write next.</p>
+                            <p className="text-xs text-gray-400 mb-4 max-w-xs mx-auto">I know everything about {sel.firstName}. Ask me anything — what they said, how to close, what to write next.</p>
                             <div className="flex flex-wrap justify-center gap-2">
                               {[
                             `What's blocking this deal?`,
@@ -482,12 +482,12 @@ function LeadBrainTab() {
                           <textarea value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     sendChat();
-                } }} placeholder={`Ask Sales Brain about ${sel.firstName}Ã¢â‚¬Â¦`} rows={2} className="flex-1 text-sm resize-none border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"/>
+                } }} placeholder={`Ask Sales Brain about ${sel.firstName}…`} rows={2} className="flex-1 text-sm resize-none border border-gray-200 rounded-xl px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-indigo-400/40"/>
                           <button onClick={sendChat} disabled={chatLoading || !chatInput.trim()} className="w-10 h-10 rounded-xl flex items-center justify-center text-white transition-all disabled:opacity-40 flex-shrink-0" style={{ background: "#A4285E" }}>
                             <Send className="w-4 h-4"/>
                           </button>
                         </div>
-                        <p className="text-[10px] text-gray-400 mt-1.5">Shift+Enter for new line Ã‚Â· Enter to send</p>
+                        <p className="text-[10px] text-gray-400 mt-1.5">Shift+Enter for new line · Enter to send</p>
                       </div>
                     </div>)}
                 </>) : null}
@@ -496,7 +496,7 @@ function LeadBrainTab() {
       </div>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ CONVERSATIONS TAB Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── CONVERSATIONS TAB ────────────────────────────────────────────────────────
 function ConversationsTab() {
     const [selectedId, setSelectedId] = useState(null);
     const [filterState, setFilterState] = useState("all");
@@ -526,7 +526,7 @@ function ConversationsTab() {
     return (<div className="flex flex-1 overflow-hidden" style={{ height: "100%" }}>
       <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-80", selectedId ? "hidden md:flex" : "flex w-full")}>
         <div className="px-3 py-2.5 border-b border-gray-100 space-y-2 flex-shrink-0">
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contactsÃ¢â‚¬Â¦" className="w-full px-3 py-1.5 text-xs rounded border border-gray-200 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-green-500/40"/>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…" className="w-full px-3 py-1.5 text-xs rounded border border-gray-200 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-green-500/40"/>
           <div className="flex gap-1 overflow-x-auto pb-0.5">
             {stateFilters.map(f => (<button key={f.val} onClick={() => setFilterState(f.val)} className={cn("flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full border transition-colors whitespace-nowrap", filterState === f.val ? "border-green-600 text-green-700 bg-green-50" : "border-gray-200 text-gray-500 bg-gray-50 hover:border-gray-300")}>
                 {f.label}
@@ -573,7 +573,7 @@ function ConversationsTab() {
               <MessageCircle className="w-8 h-8" style={{ color: "#CB3273" }}/>
             </div>
             <p className="text-sm font-semibold text-gray-700 mb-1">Select a conversation</p>
-            <p className="text-xs text-gray-400 max-w-xs">View the full WhatsApp thread Ã¢â‚¬â€ the AI bot handles all replies automatically</p>
+            <p className="text-xs text-gray-400 max-w-xs">View the full WhatsApp thread — the AI bot handles all replies automatically</p>
           </div>) : (<>
             <div className="px-4 py-3 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -619,13 +619,13 @@ function ConversationsTab() {
             }))}
             </div>
             <div className="px-4 py-2.5 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-              <p className="text-[11px] text-gray-400 text-center">AI bot handles all replies automatically Ã‚Â· Read-only view</p>
+              <p className="text-[11px] text-gray-400 text-center">AI bot handles all replies automatically · Read-only view</p>
             </div>
           </>)}
       </div>
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ ANALYTICS TAB Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── ANALYTICS TAB ────────────────────────────────────────────────────────────
 function AnalyticsTab() {
     const { data: analytics, isLoading: loading } = useGetWhatsAppAnalytics();
     const yesCount = analytics ? Math.round(analytics.totalInitiated * (analytics.yesRate / 100)) : 0;
@@ -658,7 +658,7 @@ function AnalyticsTab() {
         </div>)}
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ SETTINGS TAB Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
 function SettingsTab() {
     const { toast } = useToast();
     const { data: savedSettings, isLoading: loading } = useGetWhatsAppSettings();
@@ -718,8 +718,8 @@ function SettingsTab() {
             <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">WhatsApp API Credentials</div>
             <Field label="Phone Number ID"><Input value={form.phoneNumberId ?? ""} onChange={v => setForm(p => ({ ...p, phoneNumberId: v }))} placeholder="Enter Phone Number ID"/></Field>
             <Field label="Webhook Verify Token"><Input value={form.webhookVerifyToken ?? ""} onChange={v => setForm(p => ({ ...p, webhookVerifyToken: v }))} placeholder="Enter Webhook Verify Token"/></Field>
-            <Field label="Access Token (leave blank to keep existing)"><Input value={newAccessToken} onChange={setNewAccessToken} type="password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢"/></Field>
-            <Field label="App Secret (leave blank to keep existing)"><Input value={newAppSecret} onChange={setNewAppSecret} type="password" placeholder="Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢"/></Field>
+            <Field label="Access Token (leave blank to keep existing)"><Input value={newAccessToken} onChange={setNewAccessToken} type="password" placeholder="••••••••"/></Field>
+            <Field label="App Secret (leave blank to keep existing)"><Input value={newAppSecret} onChange={setNewAppSecret} type="password" placeholder="••••••••"/></Field>
             <div>
               <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1">Webhook URL</div>
               <div className="flex items-center gap-2">
@@ -751,11 +751,11 @@ function SettingsTab() {
           <div className="flex gap-3">
             <button type="submit" disabled={updateSettings.isPending} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold text-white rounded-xl disabled:opacity-60" style={{ background: "#A4285E" }}>
               {updateSettings.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Save className="w-3.5 h-3.5"/>}
-              {updateSettings.isPending ? "SavingÃ¢â‚¬Â¦" : "Save Settings"}
+              {updateSettings.isPending ? "Saving…" : "Save Settings"}
             </button>
             <button type="button" onClick={handleTest} disabled={testConn.isPending} className="flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 disabled:opacity-60">
               {testConn.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Wifi className="w-3.5 h-3.5"/>}
-              {testConn.isPending ? "TestingÃ¢â‚¬Â¦" : "Test Connection"}
+              {testConn.isPending ? "Testing…" : "Test Connection"}
             </button>
           </div>
 
@@ -766,7 +766,7 @@ function SettingsTab() {
         </form>)}
     </div>);
 }
-// Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬ MAIN PAGE Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
+// ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function SalesBrain() {
     const [tab, setTab] = useState("brain");
     const tabs = [

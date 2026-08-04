@@ -16,7 +16,7 @@ function formatRelative(iso) {
         return `${Math.round(diff / 86400000)}d ago`;
     }
     catch {
-        return "Ã¢â‚¬â€";
+        return "—";
     }
 }
 const AUTONOMOUS_AGENTS = [
@@ -49,7 +49,7 @@ const AUTONOMOUS_AGENTS = [
     {
         key: "followup",
         name: "Follow-Up Agent",
-        tagline: "D2 Ã‚Â· D7 Ã‚Â· D10 Outreach Sequences",
+        tagline: "D2 · D7 · D10 Outreach Sequences",
         desc: "Tracks every lead in the audit_sent stage and fires Day 2, Day 7, and Day 10 follow-up emails automatically until they reply or book a call.",
         icon: RefreshCw,
         color: "#10B981",
@@ -91,11 +91,11 @@ export default function Agents() {
             </span>)}
         </div>
         <p className="text-sm text-gray-500 ml-11.5">
-          5 autonomous agents running 24Ãƒâ€”7 Ã¢â‚¬â€ hunting leads, auditing brands, sending outreach, and booking calls for Dreamsdesign.
+          5 autonomous agents running 24×7 — hunting leads, auditing brands, sending outreach, and booking calls for Dreamsdesign.
         </p>
       </div>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Stats bar Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── Stats bar ── */}
       {orchStatus && pipeline && (<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
                 { label: "Total Leads", value: pipeline.total ?? 0, icon: Users, color: "#A4285E" },
@@ -111,12 +111,12 @@ export default function Agents() {
             </div>))}
         </div>)}
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ ACTIVE AGENTS Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── ACTIVE AGENTS ── */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Active Agents</span>
           <div className="h-px flex-1" style={{ background: "hsl(220 13% 91%)" }}/>
-          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white" style={{ background: "#059669" }}>Ã¢â€”Â 4 Online</span>
+          <span className="text-[10px] font-medium px-2 py-0.5 rounded-full text-white" style={{ background: "#059669" }}>● 4 Online</span>
         </div>
 
         {/* Lead Hunter */}
@@ -140,10 +140,10 @@ export default function Agents() {
                       <div className="flex items-center gap-2 mb-0.5">
                         <h2 className="text-[17px] font-bold text-gray-900">Lead Hunter Agent</h2>
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={hunterStatus?.active ? { background: "#D1FAE5", color: "#065F46" } : { background: "#F3F4F6", color: "#6B7280" }}>
-                          {hunterStatus?.active ? "Ã¢â€”Â Hunting" : "Idle"}
+                          {hunterStatus?.active ? "● Hunting" : "Idle"}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-500">Virtual BDR Ã¢â‚¬â€ hunts ICP-matched leads from Apollo, qualifies with BANT scoring</p>
+                      <p className="text-sm text-gray-500">Virtual BDR — hunts ICP-matched leads from Apollo, qualifies with BANT scoring</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
@@ -164,12 +164,12 @@ export default function Agents() {
                     </div>))}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {["ICP-aware hunting", "Apollo.io integration", "BANT scoring", "Anti-duplicate guard", "24Ãƒâ€”7 automation"].map(skill => (<span key={skill} className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "#FBE9F1", color: "#CB3273" }}>{skill}</span>))}
+                  {["ICP-aware hunting", "Apollo.io integration", "BANT scoring", "Anti-duplicate guard", "24×7 automation"].map(skill => (<span key={skill} className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "#FBE9F1", color: "#CB3273" }}>{skill}</span>))}
                 </div>
                 <div className="flex items-center justify-between text-[12px]" style={{ color: "#9CA3AF" }}>
                   <span className="flex items-center gap-1">
                     <Clock className="w-3.5 h-3.5"/>
-                    Last run: <span className="font-medium text-gray-600 ml-0.5">{cfg ? formatRelative(cfg.lastRunAt) : "Ã¢â‚¬â€"}</span>
+                    Last run: <span className="font-medium text-gray-600 ml-0.5">{cfg ? formatRelative(cfg.lastRunAt) : "—"}</span>
                   </span>
                   <span className="flex items-center gap-1">
                     <Zap className="w-3.5 h-3.5"/>
@@ -198,7 +198,7 @@ export default function Agents() {
                         <div>
                           <div className="text-[14px] font-bold text-gray-900">{name}</div>
                           <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full" style={isActive ? { background: color + "18", color } : { background: "#F3F4F6", color: "#9CA3AF" }}>
-                            {isActive ? "Ã¢â€”Â Online" : "Paused"}
+                            {isActive ? "● Online" : "Paused"}
                           </span>
                         </div>
                       </div>
@@ -223,7 +223,7 @@ export default function Agents() {
         </div>
       </section>
 
-      {/* Ã¢â€â‚¬Ã¢â€â‚¬ SALES BRAIN ORCHESTRATOR Ã¢â€â‚¬Ã¢â€â‚¬ */}
+      {/* ── SALES BRAIN ORCHESTRATOR ── */}
       <section>
         <div className="flex items-center gap-2 mb-3">
           <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Sales Brain Orchestrator</span>
@@ -242,11 +242,11 @@ export default function Agents() {
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[17px] font-bold text-white">Sales Brain</span>
                       <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full" style={orchStatus?.brainActive ? { background: "rgba(16,185,129,0.2)", color: "#34D399" } : { background: "rgba(255,255,255,0.08)", color: "#9CA3AF" }}>
-                        {orchStatus?.brainActive ? "Ã¢â€”Â Orchestrating" : "Paused"}
+                        {orchStatus?.brainActive ? "● Orchestrating" : "Paused"}
                       </span>
                     </div>
                     <p className="text-[13px]" style={{ color: "rgba(255,255,255,0.55)" }}>
-                      Runs every 30 min Ã‚Â· Sends daily report at 08:30 AM IST to dreamsdesign.in@gmail.com
+                      Runs every 30 min · Sends daily report at 08:30 AM IST to dreamsdesign.in@gmail.com
                     </p>
                   </div>
                 </div>

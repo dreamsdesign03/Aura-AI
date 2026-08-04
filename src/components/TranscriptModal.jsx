@@ -158,7 +158,7 @@ export default function TranscriptModal({ meetingId, appointmentId, clientName, 
           </div>
           <div className="flex-1 min-w-0">
             <div className="font-semibold text-gray-900 text-sm">Meeting Transcript & AI Analysis</div>
-            {clientName && <div className="text-xs text-gray-500">{clientName}{company ? ` Â· ${company}` : ""}</div>}
+            {clientName && <div className="text-xs text-gray-500">{clientName}{company ? ` · ${company}` : ""}</div>}
           </div>
           {transcript?.source && (<span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border" style={{ background: transcript.source === "meet" ? "#e0f2fe" : "#f0fdf4", color: transcript.source === "meet" ? "#0369a1" : "#16a34a", borderColor: transcript.source === "meet" ? "#bae6fd" : "#bbf7d0" }}>
               {transcript.source}
@@ -207,7 +207,7 @@ export default function TranscriptModal({ meetingId, appointmentId, clientName, 
               <div className="flex gap-2">
                 <button onClick={saveTranscript} disabled={saving || !transcriptText.trim()} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
                   {saving ? <Loader2 className="w-3 h-3 animate-spin"/> : <CheckCircle2 className="w-3 h-3"/>}
-                  {saving ? "Savingâ€¦" : "Save Transcript"}
+                  {saving ? "Saving…" : "Save Transcript"}
                 </button>
                 {hasTranscript && (<button onClick={() => copyText(transcriptText, "transcript")} className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 text-gray-600 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors">
                     {copied === "transcript" ? <Check className="w-3 h-3 text-green-500"/> : <Copy className="w-3 h-3"/>}
@@ -224,7 +224,7 @@ export default function TranscriptModal({ meetingId, appointmentId, clientName, 
                   <p className="text-sm text-gray-500">Run AI analysis to extract pain points, action items, and buying signals.</p>
                   <button onClick={runAnalysis} disabled={analyzing} className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
                     {analyzing ? <Loader2 className="w-4 h-4 animate-spin"/> : <Zap className="w-4 h-4"/>}
-                    {analyzing ? "Analyzingâ€¦" : "Run AI Analysis"}
+                    {analyzing ? "Analyzing…" : "Run AI Analysis"}
                   </button>
                 </div>)}
 
@@ -271,7 +271,7 @@ export default function TranscriptModal({ meetingId, appointmentId, clientName, 
                   <p className="text-sm text-gray-500">Generate a customized proposal based on what the client said in the call.</p>
                   <button onClick={runProposal} disabled={genProposal} className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
                     {genProposal ? <Loader2 className="w-4 h-4 animate-spin"/> : <Zap className="w-4 h-4"/>}
-                    {genProposal ? "Generatingâ€¦" : "Generate Proposal"}
+                    {genProposal ? "Generating…" : "Generate Proposal"}
                   </button>
                 </div>)}
 
@@ -300,7 +300,7 @@ export default function TranscriptModal({ meetingId, appointmentId, clientName, 
                   <p className="text-sm text-gray-500">Generate a 5-email follow-up sequence personalized to this conversation.</p>
                   <button onClick={runEmailSequence} disabled={genEmails} className="inline-flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:opacity-50">
                     {genEmails ? <Loader2 className="w-4 h-4 animate-spin"/> : <Zap className="w-4 h-4"/>}
-                    {genEmails ? "Generatingâ€¦" : "Generate Email Sequence"}
+                    {genEmails ? "Generating…" : "Generate Email Sequence"}
                   </button>
                 </div>)}
 
@@ -352,15 +352,15 @@ export default function TranscriptModal({ meetingId, appointmentId, clientName, 
         {!loading && hasTranscript && activeTab !== "transcript" && (<div className="px-5 py-3 border-t border-gray-100 bg-gray-50 rounded-b-2xl flex items-center gap-2 flex-wrap">
             {activeTab !== "analysis" && (<button onClick={runAnalysis} disabled={analyzing} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-700 bg-indigo-50 hover:bg-indigo-100 rounded-lg border border-indigo-200 transition-colors disabled:opacity-50">
                 {analyzing ? <Loader2 className="w-3 h-3 animate-spin"/> : <Brain className="w-3 h-3"/>}
-                {analyzing ? "Analyzingâ€¦" : "Analyze"}
+                {analyzing ? "Analyzing…" : "Analyze"}
               </button>)}
             {activeTab !== "proposal" && (<button onClick={runProposal} disabled={genProposal} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-lg border border-purple-200 transition-colors disabled:opacity-50">
                 {genProposal ? <Loader2 className="w-3 h-3 animate-spin"/> : <FileText className="w-3 h-3"/>}
-                {genProposal ? "Generatingâ€¦" : "Proposal"}
+                {genProposal ? "Generating…" : "Proposal"}
               </button>)}
             {activeTab !== "emails" && (<button onClick={runEmailSequence} disabled={genEmails} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 hover:bg-green-100 rounded-lg border border-green-200 transition-colors disabled:opacity-50">
                 {genEmails ? <Loader2 className="w-3 h-3 animate-spin"/> : <Mail className="w-3 h-3"/>}
-                {genEmails ? "Generatingâ€¦" : "Email Sequence"}
+                {genEmails ? "Generating…" : "Email Sequence"}
               </button>)}
           </div>)}
       </div>

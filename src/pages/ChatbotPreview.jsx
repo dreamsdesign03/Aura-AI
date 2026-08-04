@@ -34,7 +34,7 @@ export default function ChatbotPreview() {
             borderRadius: 8, padding: "6px 14px", fontSize: 12, color: "#C9A84C",
         }}>
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#25D366" }}/>
-          Widget active Ã‚Â· AI-powered BANT qualification
+          Widget active · AI-powered BANT qualification
         </div>
       </div>
 

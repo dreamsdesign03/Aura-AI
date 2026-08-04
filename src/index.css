@@ -55,6 +55,18 @@
   --color-pink-deep: #A4285E;
   --color-navy: #1E293B;
 
+  --color-violet-50: #FDF3F8;
+  --color-violet-100: #FBE9F1;
+  --color-violet-200: #F7D6E4;
+  --color-violet-300: #F0B8CE;
+  --color-violet-400: #E58BB5;
+  --color-violet-500: #DE5B96;
+  --color-violet-600: #DE377C;
+  --color-violet-700: #DE377C;
+  --color-violet-800: #B02861;
+  --color-violet-900: #8E1F54;
+  --color-violet-950: #5A1232;
+
   --font-sans: 'Inter', sans-serif;
   --radius: 0.5rem;
   --radius-sm: 0.375rem;

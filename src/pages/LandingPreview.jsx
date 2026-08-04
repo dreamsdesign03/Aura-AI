@@ -5,7 +5,7 @@ export default function LandingPreview() {
     return (<div className="flex flex-col h-full">
       <div className="flex items-center justify-between px-5 py-3 bg-white border-b border-gray-200 flex-shrink-0">
         <div>
-          <div className="text-sm font-semibold text-gray-900">AuraAI Ã¢â‚¬â€ Landing Page</div>
+          <div className="text-sm font-semibold text-gray-900">AuraAI — Landing Page</div>
           <div className="text-xs text-gray-400 mt-0.5">Live preview of your public-facing marketing site</div>
         </div>
         <a href={LANDING_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-colors" style={{ background: "#A4285E" }}>

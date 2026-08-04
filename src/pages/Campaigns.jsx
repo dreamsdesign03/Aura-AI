@@ -24,10 +24,10 @@ const STATUS_CONFIG = {
 const TEMPLATES = [
     { id: 1, name: "WhatsApp Welcome + Audit Offer", category: "reminder", preview: "Hi {{firstName}}, I noticed you're running {{company}} and wanted to share a free brand audit. Want to see your score?", variables: ["firstName", "company"] },
     { id: 2, name: "Gentle Follow-Up Offer", category: "offer", preview: "Hey {{firstName}}, just checking in. We're running a limited offer for {{industry}} businesses this month!", variables: ["firstName", "industry"] },
-    { id: 3, name: "Reactivation Ã¢â‚¬â€ 30-Day No Response", category: "reactivation", preview: "Hi {{firstName}}, it's been a while! We've helped 3 businesses in {{city}} grow their revenue by 40% last quarter.", variables: ["firstName", "city"] },
+    { id: 3, name: "Reactivation — 30-Day No Response", category: "reactivation", preview: "Hi {{firstName}}, it's been a while! We've helped 3 businesses in {{city}} grow their revenue by 40% last quarter.", variables: ["firstName", "city"] },
     { id: 4, name: "Testimonial Request", category: "testimonial", preview: "{{firstName}}, working with you on {{project}} was amazing! Would you mind sharing a 2-line testimonial?", variables: ["firstName", "project"] },
     { id: 5, name: "Google Review Request", category: "review", preview: "Hi {{firstName}}, we loved working with {{company}}! A Google review would mean the world to us.", variables: ["firstName", "company", "reviewLink"] },
-    { id: 6, name: "Proposal Reminder Ã¢â‚¬â€ Day 3", category: "reminder", preview: "Hi {{firstName}}, just following up on the proposal for {{service}}. Any questions?", variables: ["firstName", "service"] },
+    { id: 6, name: "Proposal Reminder — Day 3", category: "reminder", preview: "Hi {{firstName}}, just following up on the proposal for {{service}}. Any questions?", variables: ["firstName", "service"] },
 ];
 const TEMPLATE_ICONS = {
     reminder: Clock, offer: TrendingUp, reactivation: RotateCcw, testimonial: Star, review: ThumbsUp,
@@ -186,7 +186,7 @@ function CreateCampaignModal({ onClose, onCreate }) {
           <button onClick={onClose} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold border transition-colors" style={{ borderColor: "hsl(220 13% 88%)", color: "#6B7280" }}>Cancel</button>
           <button onClick={handleCreate} disabled={!name.trim() || saving} className="flex-1 py-2.5 rounded-xl text-[13px] font-semibold text-white transition-all flex items-center justify-center gap-1.5" style={{ background: name.trim() && !saving ? "#A4285E" : "#D1D5DB", cursor: name.trim() && !saving ? "pointer" : "not-allowed" }}>
             {saving && <Loader2 className="w-3.5 h-3.5 animate-spin"/>}
-            {saving ? "CreatingÃ¢â‚¬Â¦" : "Create Campaign"}
+            {saving ? "Creating…" : "Create Campaign"}
           </button>
         </div>
       </div>
@@ -264,7 +264,7 @@ function AnalyticsTab({ campaigns }) {
                   <td className="py-2.5 pr-4" style={{ color: "#374151" }}>{c.delivered}</td>
                   <td className="py-2.5 pr-4" style={{ color: "#374151" }}>{c.replied}</td>
                   <td className="py-2.5 pr-4" style={{ color: "#374151" }}>{c.booked}</td>
-                  <td className="py-2.5 font-bold" style={{ color: "#059669" }}>{c.total ? `${pct(c.booked, c.total)}%` : "Ã¢â‚¬â€"}</td>
+                  <td className="py-2.5 font-bold" style={{ color: "#059669" }}>{c.total ? `${pct(c.booked, c.total)}%` : "—"}</td>
                 </tr>))}
             </tbody>
           </table>
