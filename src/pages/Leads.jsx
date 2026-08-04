@@ -1370,7 +1370,7 @@ export default function Leads() {
             ["Email ID", null, "175px"],
             ["Phone No", null, "150px"],
             ["Website URL", null, "140px"],
-            ["Brand Audit", null, "90px"],
+            ["Email Send", null, "90px"],
             ["Location", null, "120px"],
             ["Lead Status", null, "130px"],
             ["Source", null, "100px"],
@@ -1430,7 +1430,7 @@ export default function Leads() {
                         </a>) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-2">
-                      {l.brandAuditCompleted ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-700">✓ Done</span>) : <span className="text-gray-300 text-[10px]">—</span>}
+                      {l.emailSent ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700"><Mail className="w-2.5 h-2.5"/> Email Sent</span>) : <span className="text-gray-300 text-[10px]">—</span>}
                     </td>
                     <td className="px-3 py-2 text-gray-500 truncate text-[11px]" style={{ maxWidth: "120px" }}>
                       {lead.country || l.city

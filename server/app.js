@@ -915,7 +915,12 @@ app.get('/api/leads', async (req, res) => {
     const offsetIndex = queryParams.length;
 
     const leadsRes = await db.query(
-      `SELECT * FROM leads ${whereString} ORDER BY id DESC LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
+      `SELECT leads.*,
+              EXISTS (
+                SELECT 1 FROM outreach_emails oe
+                WHERE oe.lead_id = leads.id AND oe.status = 'sent' AND oe.user_id = leads.user_id
+              ) AS email_sent
+       FROM leads ${whereString} ORDER BY id DESC LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
       queryParams
     );
 
@@ -929,6 +934,7 @@ app.get('/api/leads', async (req, res) => {
           lastName: ln,
           first_name: fn,
           last_name: ln,
+          emailSent: !!r.email_sent,
         };
       }),
       total: totalCount,
