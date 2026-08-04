@@ -64,8 +64,20 @@ async function init() {
       );
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS website_status TEXT;
       CREATE INDEX IF NOT EXISTS idx_agent_activity_user ON agent_activity (user_id, executed_at DESC);
+
+      -- Clean up non-mail activities from DB
+      DELETE FROM agent_activity WHERE activity_type NOT IN ('email_sent','followup_sent','email_failed','followup_failed');
+
+      -- Keep only the single latest mail activity per lead in DB
+      DELETE FROM agent_activity a
+      USING agent_activity b
+      WHERE a.user_id = b.user_id
+        AND COALESCE(a.lead_name, '') = COALESCE(b.lead_name, '')
+        AND COALESCE(a.company_name, '') = COALESCE(b.company_name, '')
+        AND (a.lead_name IS NOT NULL OR a.company_name IS NOT NULL)
+        AND a.executed_at < b.executed_at;
     `);
-    console.log('[agent-hub] tables ready');
+    console.log('[agent-hub] tables ready & mail-only activity history cleaned');
   } catch (e) {
     console.error('[agent-hub] init error:', e.message);
   }
@@ -116,13 +128,25 @@ async function setActive(userId, key, active) {
   }
 }
 
+const MAIL_ACTIVITY_TYPES = new Set(['email_sent', 'followup_sent', 'email_failed', 'followup_failed']);
+
 async function recordActivity(userId, entry) {
   const { agentName, activityType, status, leadName, companyName, detail, errorMessage } = entry || {};
+  if (activityType && !MAIL_ACTIVITY_TYPES.has(activityType)) return;
   try {
+    if (leadName || companyName) {
+      await db.query(
+        `DELETE FROM agent_activity 
+         WHERE user_id = $1 
+           AND COALESCE(lead_name, '') = COALESCE($2, '') 
+           AND COALESCE(company_name, '') = COALESCE($3, '')`,
+        [userId, leadName || '', companyName || '']
+      );
+    }
     await db.query(
       `INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`,
-      [userId, agentName || 'Agent', activityType || 'action', status || 'completed', leadName || null, companyName || null, detail || null, errorMessage || null]
+      [userId, agentName || 'Agent', activityType || 'email_sent', status || 'completed', leadName || null, companyName || null, detail || null, errorMessage || null]
     );
   } catch (e) {
     console.error('[agent-hub] recordActivity error:', e.message);
@@ -931,13 +955,15 @@ function registerAgentHubRoutes(app, resolveUserId) {
       const limit = Math.min(Number(req.query.limit) || 100, 500);
       const agent = req.query.agent;
       const params = [userId];
-      let where = 'WHERE user_id = $1';
+      let where = "WHERE user_id = $1 AND activity_type IN ('email_sent','followup_sent','email_failed','followup_failed')";
       if (agent) { params.push(agent); where += ` AND agent_name = $${params.length}`; }
       params.push(limit);
       const r = await db.query(
-        `SELECT id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at
-         FROM agent_activity ${where} ORDER BY executed_at DESC LIMIT $${params.length}`, params);
-      const rows = r.rows.map(row => ({
+        `SELECT DISTINCT ON (COALESCE(lead_name, company_name, id::text))
+                id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at
+         FROM agent_activity ${where} ORDER BY COALESCE(lead_name, company_name, id::text), executed_at DESC LIMIT $${params.length}`, params);
+      const sorted = r.rows.sort((a, b) => new Date(b.executed_at) - new Date(a.executed_at));
+      const rows = sorted.map(row => ({
         id: row.id,
         agentName: row.agent_name,
         activityType: row.activity_type,
@@ -1211,9 +1237,13 @@ function registerAgentHubRoutes(app, resolveUserId) {
       const userId = await resolve(req);
       const limit = Math.min(Number(req.query.limit) || 50, 500);
       const r = await db.query(
-        `SELECT id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at
-         FROM agent_activity WHERE user_id = $1 ORDER BY executed_at DESC LIMIT $2`, [userId, limit]);
-      res.json(r.rows);
+        `SELECT DISTINCT ON (COALESCE(lead_name, company_name, id::text))
+                id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at
+         FROM agent_activity 
+         WHERE user_id = $1 AND activity_type IN ('email_sent','followup_sent','email_failed','followup_failed') 
+         ORDER BY COALESCE(lead_name, company_name, id::text), executed_at DESC LIMIT $2`, [userId, limit]);
+      const sorted = r.rows.sort((a, b) => new Date(b.executed_at) - new Date(a.executed_at));
+      res.json(sorted);
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

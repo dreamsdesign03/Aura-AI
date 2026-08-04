@@ -702,50 +702,62 @@ export default function AgentHub() {
                 </div>))}
             </div>)}
 
-          {/* ── Live Activity Feed ────────────────────────────────────── */}
-          <div style={{
+          {/* ── Live Activity Feed (Latest Mail History per Lead) ──────────────── */}
+          {(() => {
+            const mailActivities = activities.filter(a => 
+              ["email_sent", "followup_sent", "email_failed", "followup_failed"].includes(a.activityType)
+            );
+            const leadMailMap = new Map();
+            for (const a of mailActivities) {
+              const key = a.leadName || a.companyName || a.id;
+              if (!leadMailMap.has(key)) leadMailMap.set(key, a);
+            }
+            const displayActivities = Array.from(leadMailMap.values());
+
+            return (
+              <div style={{
                 background: "#fff", border: "1px solid #E5E7EB",
                 borderRadius: 16, overflow: "hidden",
-            }}>
-            {/* Feed header with agent filter */}
-            <div style={{
-                padding: "14px 18px",
-                borderBottom: "1px solid #F3F4F6",
-                display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
-            }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Activity size={16} style={{ color: PURPLE }}/>
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Live Activity Feed</span>
-                <span style={{
-                fontSize: 10, fontWeight: 700, padding: "2px 7px",
-                background: `${PURPLE}15`, color: PURPLE, borderRadius: 99,
-            }}>
-                  {activities.length} events
-                </span>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <Filter size={12} style={{ color: "#9CA3AF" }}/>
-                <div style={{ display: "flex", gap: 4 }}>
-                  {AGENT_FILTERS.map(f => (<button key={f.key} onClick={() => { setAgentFilter(f.key); fetchActivities(f.key); }} style={{
-                    padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700,
-                    border: agentFilter === f.key ? `1.5px solid ${PURPLE}` : "1.5px solid #E5E7EB",
-                    background: agentFilter === f.key ? `${PURPLE}10` : "#fff",
-                    color: agentFilter === f.key ? PURPLE : "#6B7280",
-                    cursor: "pointer",
+              }}>
+                {/* Feed header with agent filter */}
+                <div style={{
+                    padding: "14px 18px",
+                    borderBottom: "1px solid #F3F4F6",
+                    display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
                 }}>
-                      {f.label}
-                    </button>))}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Activity size={16} style={{ color: PURPLE }}/>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Live Mail Activity Feed</span>
+                    <span style={{
+                    fontSize: 10, fontWeight: 700, padding: "2px 7px",
+                    background: `${PURPLE}15`, color: PURPLE, borderRadius: 99,
+                }}>
+                      {displayActivities.length} leads
+                    </span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <Filter size={12} style={{ color: "#9CA3AF" }}/>
+                    <div style={{ display: "flex", gap: 4 }}>
+                      {AGENT_FILTERS.map(f => (<button key={f.key} onClick={() => { setAgentFilter(f.key); fetchActivities(f.key); }} style={{
+                        padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 700,
+                        border: agentFilter === f.key ? `1.5px solid ${PURPLE}` : "1.5px solid #E5E7EB",
+                        background: agentFilter === f.key ? `${PURPLE}10` : "#fff",
+                        color: agentFilter === f.key ? PURPLE : "#6B7280",
+                        cursor: "pointer",
+                    }}>
+                          {f.label}
+                        </button>))}
+                    </div>
+                    <span style={{ fontSize: 11, color: "#9CA3AF" }}>
+                      Updated {relativeTime(new Date(lastRefresh).toISOString())}
+                    </span>
+                  </div>
                 </div>
-                <span style={{ fontSize: 11, color: "#9CA3AF" }}>
-                  Updated {relativeTime(new Date(lastRefresh).toISOString())}
-                </span>
-              </div>
-            </div>
 
-            {activities.length === 0 ? (<div style={{ padding: "40px 20px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
-                No activity yet — agents will log every action here
-              </div>) : (<div style={{ maxHeight: 480, overflowY: "auto" }}>
-                {activities.map(a => (<div key={a.id} style={{
+                {displayActivities.length === 0 ? (<div style={{ padding: "40px 20px", textAlign: "center", color: "#9CA3AF", fontSize: 13 }}>
+                    No mail history yet — latest emails and follow-ups per lead will log here
+                  </div>) : (<div style={{ maxHeight: 480, overflowY: "auto" }}>
+                    {displayActivities.map(a => (<div key={a.id} style={{
                         display: "flex", alignItems: "flex-start", gap: 12,
                         padding: "10px 18px",
                         borderBottom: "1px solid #F9FAFB",
@@ -812,7 +824,9 @@ export default function AgentHub() {
                     </div>
                   </div>))}
               </div>)}
-          </div>
+            </div>
+            );
+          })()}
 
           {/* ── Schedule Info ─────────────────────────────────────────── */}
           <div style={{

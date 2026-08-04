@@ -86,16 +86,27 @@ function StepNode({ step, isLast }) {
     </div>);
 }
 function LiveActivityFeed({ activities, loading }) {
+    const mailActivities = (activities || []).filter(a => 
+        (a.message && (a.message.toLowerCase().includes("email") || a.message.toLowerCase().includes("proposal") || a.message.toLowerCase().includes("mail"))) ||
+        ["proposal_sent", "email_sent", "followup_sent"].includes(a.trigger)
+    );
+    const entityMap = new Map();
+    for (const a of mailActivities) {
+        const key = a.entity_name || a.id;
+        if (!entityMap.has(key)) entityMap.set(key, a);
+    }
+    const displayList = Array.from(entityMap.values());
+
     return (<div className="rounded-xl border p-4" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
-          <span className="text-[13px] font-bold" style={{ color: "#111827" }}>Live Activity</span>
+          <span className="text-[13px] font-bold" style={{ color: "#111827" }}>Live Mail Activity</span>
         </div>
-        <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Real-time</span>
+        <span className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#9CA3AF" }}>Latest per lead</span>
       </div>
       <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
-        {loading && activities.length === 0 ? (<div className="space-y-3">
+        {loading && displayList.length === 0 ? (<div className="space-y-3">
             {[0, 1, 2, 3].map(i => (<div key={i} className="flex items-start gap-3">
                 <div className="w-8 h-8 rounded-lg animate-pulse" style={{ background: "#F3F4F6" }}/>
                 <div className="flex-1 space-y-1.5 py-1">
@@ -104,11 +115,11 @@ function LiveActivityFeed({ activities, loading }) {
                   <div className="h-2 w-2/3 rounded-full animate-pulse" style={{ background: "#F3F4F6" }}/>
                 </div>
               </div>))}
-          </div>) : activities.length === 0 ? (<div className="text-center py-8">
+          </div>) : displayList.length === 0 ? (<div className="text-center py-8">
           <Bell className="w-6 h-6 mx-auto mb-2" style={{ color: "#D1D5DB" }}/>
-          <p className="text-[12px] font-medium" style={{ color: "#9CA3AF" }}>No activity yet</p>
-          <p className="text-[11px] mt-0.5" style={{ color: "#C0C4CC" }}>Trigger a new lead, booking, or proposal to see live events here</p>
-        </div>) : (activities.map(a => {
+          <p className="text-[12px] font-medium" style={{ color: "#9CA3AF" }}>No mail activity yet</p>
+          <p className="text-[11px] mt-0.5" style={{ color: "#C0C4CC" }}>Sent emails and follow-ups per lead will appear here</p>
+        </div>) : (displayList.map(a => {
         const Icon = resolveIcon(a.icon);
         return (<div key={a.id} className="flex items-start gap-3">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: `${a.color}18` }}>

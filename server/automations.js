@@ -369,6 +369,17 @@ async function init() {
         color TEXT DEFAULT '#4F35A8',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+
+      DELETE FROM automation_activity 
+      WHERE (message NOT ILIKE '%email%' AND message NOT ILIKE '%proposal%' AND message NOT ILIKE '%mail%')
+        AND trigger NOT IN ('proposal_sent', 'email_sent', 'followup_sent');
+
+      DELETE FROM automation_activity a
+      USING automation_activity b
+      WHERE a.user_id = b.user_id
+        AND COALESCE(a.entity_name, '') = COALESCE(b.entity_name, '')
+        AND a.entity_name IS NOT NULL
+        AND a.created_at < b.created_at;
     `);
     console.log('[automations] Tables ready.');
     await seedTemplates();
@@ -511,10 +522,15 @@ function registerAutomationRoutes(app, resolveUserId) {
       const userId = await resolveUserId(req.query.email, req.headers.cookie);
       if (!userId) return res.json({ activity: [] });
       const r = await db.query(
-        'SELECT * FROM automation_activity WHERE user_id = $1 ORDER BY created_at DESC LIMIT 30',
+        `SELECT DISTINCT ON (COALESCE(entity_name, id::text)) * 
+         FROM automation_activity 
+         WHERE user_id = $1 
+           AND (message ILIKE '%email%' OR message ILIKE '%proposal%' OR message ILIKE '%mail%' OR trigger IN ('proposal_sent','email_sent','followup_sent'))
+         ORDER BY COALESCE(entity_name, id::text), created_at DESC LIMIT 30`,
         [userId]
       );
-      res.json({ activity: r.rows });
+      const sorted = r.rows.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      res.json({ activity: sorted });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

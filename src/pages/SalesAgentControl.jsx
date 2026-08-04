@@ -432,31 +432,47 @@ export default function SalesAgentControl() {
           </button>
         </div>
         <div className="rounded-2xl border overflow-hidden" style={{ borderColor: "hsl(220 13% 91%)" }}>
-          {!activities || activities.length === 0 ? (<div className="p-8 text-center text-sm text-gray-400">No activities yet. Run an agent to see logs here.</div>) : (<div className="divide-y divide-gray-100">
-              {activities.slice(0, 30).map(a => {
-                const agentColor = a.agentName === "scout" ? "#3B82F6" : a.agentName === "sales" ? "#CB3273" : a.agentName === "followup" ? "#10B981" : "#C9A84C";
-                return (<div key={a.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
-                    <div className="flex-shrink-0">
-                      {a.status === "success"
-                        ? <CheckCircle2 className="w-4 h-4 text-green-500"/>
-                        : a.status === "pending"
-                            ? <Loader2 className="w-4 h-4 text-yellow-500"/>
-                            : a.status === "skipped"
-                                ? <Clock className="w-4 h-4 text-gray-400"/>
-                                : <XCircle className="w-4 h-4 text-red-400"/>}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold" style={{ color: agentColor }}>[{a.agentName.toUpperCase()}]</span>
-                        <span className="text-xs font-semibold text-gray-800">{a.activityType.replace(/_/g, " ")}</span>
-                        {a.channel && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-gray-100 text-gray-500">{a.channel}</span>}
-                        {a.leadId && <span className="text-[10px] text-gray-400">lead #{a.leadId}</span>}
+          {!activities || activities.length === 0 ? (<div className="p-8 text-center text-sm text-gray-400">No mail activity logs yet.</div>) : (<div className="divide-y divide-gray-100">
+              {(() => {
+                const mailActivities = (activities || []).filter(a => 
+                  ["email_sent", "followup_sent", "email_failed", "followup_failed"].includes(a.activityType)
+                );
+                const leadMap = new Map();
+                for (const a of mailActivities) {
+                  const key = a.leadName || a.companyName || a.leadId || a.id;
+                  if (!leadMap.has(key)) leadMap.set(key, a);
+                }
+                const displayList = Array.from(leadMap.values());
+
+                if (displayList.length === 0) {
+                  return <div className="p-8 text-center text-sm text-gray-400">No mail history recorded yet.</div>;
+                }
+
+                return displayList.slice(0, 30).map(a => {
+                  const agentColor = (a.agentName || "").toLowerCase().includes("scout") ? "#3B82F6" : (a.agentName || "").toLowerCase().includes("sales") ? "#CB3273" : "#10B981";
+                  return (<div key={a.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                      <div className="flex-shrink-0">
+                        {a.status === "success" || a.status === "completed"
+                          ? <CheckCircle2 className="w-4 h-4 text-green-500"/>
+                          : a.status === "pending"
+                              ? <Loader2 className="w-4 h-4 text-yellow-500"/>
+                              : a.status === "skipped"
+                                  ? <Clock className="w-4 h-4 text-gray-400"/>
+                                  : <XCircle className="w-4 h-4 text-red-400"/>}
                       </div>
-                      {a.errorMessage && <p className="text-[11px] text-red-500 mt-0.5 truncate">{a.errorMessage}</p>}
-                    </div>
-                    <div className="flex-shrink-0 text-[11px] text-gray-400">{formatRelative(a.executedAt)}</div>
-                  </div>);
-            })}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold" style={{ color: agentColor }}>[{(a.agentName || "Agent").toUpperCase()}]</span>
+                          <span className="text-xs font-semibold text-gray-800">{a.activityType ? a.activityType.replace(/_/g, " ") : "Mail event"}</span>
+                          {a.channel && <span className="text-[10px] px-1.5 py-0.5 rounded font-medium bg-gray-100 text-gray-500">{a.channel}</span>}
+                          {(a.leadName || a.companyName || a.leadId) && <span className="text-[10px] text-gray-400">{[a.leadName, a.companyName].filter(Boolean).join(" - ") || `lead #${a.leadId}`}</span>}
+                        </div>
+                        {a.errorMessage && <p className="text-[11px] text-red-500 mt-0.5 truncate">{a.errorMessage}</p>}
+                      </div>
+                      <div className="flex-shrink-0 text-[11px] text-gray-400">{formatRelative(a.executedAt)}</div>
+                    </div>);
+                });
+              })()}
             </div>)}
         </div>
       </section>
