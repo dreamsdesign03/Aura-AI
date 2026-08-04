@@ -956,7 +956,23 @@ function registerAgentHubRoutes(app, resolveUserId) {
       const agent = req.query.agent;
       const params = [userId];
       let where = "WHERE user_id = $1 AND activity_type IN ('email_sent','followup_sent','email_failed','followup_failed')";
-      if (agent) { params.push(agent); where += ` AND agent_name = $${params.length}`; }
+
+      if (agent && agent !== 'all') {
+        const agentLower = agent.toLowerCase();
+        if (agentLower === 'scout') {
+          where += ` AND LOWER(agent_name) LIKE '%scout%'`;
+        } else if (agentLower === 'sales') {
+          where += ` AND LOWER(agent_name) LIKE '%sales%'`;
+        } else if (agentLower === 'followup' || agentLower === 'follow-up') {
+          where += ` AND LOWER(agent_name) LIKE '%follow%'`;
+        } else if (agentLower === 'lead_hunter' || agentLower === 'hunter') {
+          where += ` AND LOWER(agent_name) LIKE '%hunter%'`;
+        } else {
+          params.push(`%${agent}%`);
+          where += ` AND LOWER(agent_name) LIKE LOWER($${params.length})`;
+        }
+      }
+
       params.push(limit);
       const r = await db.query(
         `SELECT DISTINCT ON (COALESCE(lead_name, company_name, id::text))
@@ -1236,12 +1252,32 @@ function registerAgentHubRoutes(app, resolveUserId) {
     try {
       const userId = await resolve(req);
       const limit = Math.min(Number(req.query.limit) || 50, 500);
+      const agent = req.query.agent;
+      const params = [userId];
+      let where = "WHERE user_id = $1 AND activity_type IN ('email_sent','followup_sent','email_failed','followup_failed')";
+
+      if (agent && agent !== 'all') {
+        const agentLower = agent.toLowerCase();
+        if (agentLower === 'scout') {
+          where += ` AND LOWER(agent_name) LIKE '%scout%'`;
+        } else if (agentLower === 'sales') {
+          where += ` AND LOWER(agent_name) LIKE '%sales%'`;
+        } else if (agentLower === 'followup' || agentLower === 'follow-up') {
+          where += ` AND LOWER(agent_name) LIKE '%follow%'`;
+        } else if (agentLower === 'lead_hunter' || agentLower === 'hunter') {
+          where += ` AND LOWER(agent_name) LIKE '%hunter%'`;
+        } else {
+          params.push(`%${agent}%`);
+          where += ` AND LOWER(agent_name) LIKE LOWER($${params.length})`;
+        }
+      }
+
+      params.push(limit);
       const r = await db.query(
         `SELECT DISTINCT ON (COALESCE(lead_name, company_name, id::text))
                 id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at
-         FROM agent_activity 
-         WHERE user_id = $1 AND activity_type IN ('email_sent','followup_sent','email_failed','followup_failed') 
-         ORDER BY COALESCE(lead_name, company_name, id::text), executed_at DESC LIMIT $2`, [userId, limit]);
+         FROM agent_activity ${where} 
+         ORDER BY COALESCE(lead_name, company_name, id::text), executed_at DESC LIMIT $${params.length}`, params);
       const sorted = r.rows.sort((a, b) => new Date(b.executed_at) - new Date(a.executed_at));
       res.json(sorted);
     } catch (err) {
