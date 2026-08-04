@@ -30,7 +30,7 @@ function usePendingEmailCountdown(expiresAt) {
     const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     return { expired: false, label, nearExpiry: totalMinutes < 10 };
 }
-import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, CreditCard, MessageSquarePlus, AlertCircle, Loader2, Zap, Bell, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, Sparkles, } from "lucide-react";
+import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Bell, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, Sparkles, } from "lucide-react";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import MysaAssistant from "@/components/MysaAssistant";
 import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
@@ -69,7 +69,6 @@ const navGroups = [
     {
         group: "Account",
         items: [
-            { href: "/billing", label: "Billing", icon: CreditCard, accent: "#4F35A8" },
             { href: "/settings", label: "Settings", icon: Settings },
         ],
     },

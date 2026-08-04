@@ -4,6 +4,7 @@ require('dotenv').config();
 const db = require('./db');
 const nodemailer = require('nodemailer');
 const automationsApi = require('./automations');
+const agentHubApi = require('./agent-hub');
 
 const app = express();
 
@@ -151,6 +152,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 })();
 
 automationsApi.init();
+agentHubApi.init();
 
 // Client error reporting from ErrorBoundary
 app.post('/api/client-error', (req, res) => {
@@ -4772,6 +4774,9 @@ app.post('/api/auth/google/token', async (req, res) => {
 
 // ── Automations API (trigger-based WhatsApp sequences, powered by Gemini) ──────
 automationsApi.registerAutomationRoutes(app, resolveUserId);
+
+// ── Agent Hub API (Scout, Sales, Follow-up, Brain, Lead Hunter) ───────────────
+agentHubApi.registerAgentHubRoutes(app, resolveUserId);
 
 module.exports = app;
 
