@@ -8,7 +8,7 @@ const APOLLO_BASE = 'https://api.apollo.io/api/v1';
 const AGENT_DEFAULTS = {
   brain: { active: true },
   scout: { active: true },
-  sales: { active: true, config: { dailyCap: 15 } },
+  sales: { active: true, config: { dailyCap: 50 } },
   followup: { active: true, config: { dailyCap: 15 } },
   lead_hunter: { active: true, config: { frequency: '24h', minQualScore: 60, dailyTarget: 10, sources: ['apollo', 'gemini'] } },
   autopilot_email: { active: true },
@@ -262,10 +262,33 @@ async function runScout(userId) {
 }
 
 // ── SALES AGENT ─────────────────────────────────────────────
+async function createSalesProposal(userId, lead, name) {
+  try {
+    const company = lead.company || 'Clinic / Healthcare Practice';
+    const title = `AI Patient Acquisition & Sales Automation Proposal for ${company}`;
+    const services = ['AI Sales Agent', 'WhatsApp Booking Automation', 'High-Ticket Treatment Campaigns', 'Brand Audit Optimization'];
+    const investment = 150000;
+    const content = {
+      executiveSummary: `Aura AI proposes an end-to-end AI Patient Acquisition Engine designed exclusively for ${company}. By automating patient engagement across web, Instagram, and WhatsApp, ${company} will capture high-intent patients for premium treatments (Dermatology, Laser, Aesthetics) 24/7.`,
+      understandingAndChallenges: `${company} operates in the highly competitive ${lead.industry || 'aesthetic'} market. Current challenges include after-hours lead drop-off, manual phone booking delays, and no-shows for consultation appointments.`,
+      proposedSolution: `1. 24/7 AI Medical Receptionist: Instantly answers patient questions regarding packages, pricing, and prep instructions.\n2. Direct EMR / Calendar Booking: Patients book consultations automatically.\n3. WhatsApp Follow-Up Sequence: Automated appointment reminders & post-treatment care instructions.`,
+      scopeAndDeliverables: `- Custom AI Chatbot trained on ${company}'s specific treatment menu & pricing.\n- WhatsApp Business API Integration with multi-agent inbox.\n- Meta & Google Ad Campaign Funnels for High-Margin Procedures.\n- Monthly Performance Dashboard & ROI Reporting.`,
+      investmentPackage: `Complete Implementation: ₹1,50,000 (Includes setup, AI model training, WhatsApp API integration, and 30 days of managed growth optimization).`,
+      expectedROI: `Projected 35% increase in month-1 appointment volume and 50% reduction in patient no-show rates.`
+    };
+    await db.query(
+      `INSERT INTO proposals (user_id, lead_id, title, services, investment, status, content, created_at)
+       VALUES ($1, $2, $3, $4, $5, 'sent', $6, NOW())`,
+      [userId, lead.id, title, JSON.stringify(services), investment, JSON.stringify(content)]
+    );
+  } catch (e) {
+    console.error('[agent-hub] createSalesProposal error:', e.message);
+  }
+}
+
 async function runSales(userId) {
   const sales = await getSetting(userId, 'sales');
-  const dailyCap = Number(sales.config?.dailyCap) || 15;
-  const emailAutopilot = await getSetting(userId, 'autopilot_email');
+  const dailyCap = Number(sales.config?.dailyCap) || 50;
 
   const sentToday = await db.query(
     `SELECT COUNT(*)::int AS n FROM outreach_emails WHERE user_id = $1 AND status = 'sent' AND sent_at >= ${todayStartSql()}`,
@@ -281,94 +304,81 @@ async function runSales(userId) {
        AND NOT EXISTS (
          SELECT 1 FROM outreach_emails oe WHERE oe.lead_id = l.id AND oe.status IN ('sent','draft')
        )
-     ORDER BY l.created_at ASC LIMIT 20`,
+     ORDER BY l.created_at ASC LIMIT 50`,
     [userId]
   );
 
-  const summary = { ok: true, audited: 0, drafted: 0, sent: 0, skipped: 0, failed: 0 };
-  const drafts = [];
+  const summary = { ok: true, drafted: 0, sent: 0, skipped: 0, failed: 0 };
+  const capReachedAtStart = sentToday.rows[0].n >= dailyCap;
 
   for (const lead of leadsRes.rows) {
+    if (sentToday.rows[0].n >= dailyCap) break;
     const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'there';
     let subject = '';
     let body = '';
-    let auditNote = '';
     try {
       const gen = await callGemini(
-        `You are a sales engagement engine for Aura Skin Clinic (Dr. Aditya Shah), a premium aesthetic clinic. Write a short lead audit (2-3 bullets) AND a personalized cold outreach email as JSON:
+        `You are a sales engagement engine for Aura Skin Clinic (Dr. Aditya Shah), a premium aesthetic clinic. Write a personalized PROPOSAL PITCH email (a mini pitch deck in email form) as JSON:
         {
-          "audit": "2-3 bullet summary of why this business is a strong fit",
           "subject": "email subject line under 60 chars, no placeholder tokens",
-          "body": "3-5 sentence professional email. First line uses the contact first name. Mention Aura Skin Clinic + Dr. Aditya Shah, propose a quick discovery call, keep it warm and concise. No placeholders like {{name}}."
+          "body": "4-6 sentence proposal pitch. First line uses the contact first name. Introduce Aura Skin Clinic + Dr. Aditya Shah, then pitch the AI patient-acquisition & sales-automation proposal with 3 high-value points (24/7 AI receptionist & WhatsApp booking automation, high-ticket treatment campaigns, automated follow-ups that cut no-shows). End with a clear call to action to book a 15-minute discovery call. No placeholders like {{name}}."
         }
         LEAD: name=${name}, company=${lead.company || 'unknown'}, title=${lead.title || 'business owner'}, website=${lead.website || 'unknown'}, industry=${lead.industry || ''}, email=${lead.email}`
       );
       const parsed = JSON.parse(gen.replace(/```json|```/g, '').trim());
       subject = parsed.subject || '';
       body = parsed.body || '';
-      auditNote = parsed.audit || '';
     } catch {
       subject = `Partnership with ${lead.company || 'your clinic'}`;
-      body = `Hi ${name},\n\nI run Aura Skin Clinic (Dr. Aditya Shah) — we help clinics like ${lead.company || 'yours'} grow their patient base with a modern aesthetic experience.\n\nWould you be open to a quick 15-minute call this week?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
+      body = `Hi ${name},\n\nI run Aura Skin Clinic (Dr. Aditya Shah). We help clinics like ${lead.company || 'yours'} grow patient volume with an AI patient-acquisition engine — 24/7 AI receptionist, WhatsApp booking automation, and high-ticket treatment campaigns.\n\nWould you be open to a quick 15-minute call this week to walk through a tailored proposal?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
     }
-
-    await recordActivity(userId, {
-      agentName: 'Sales Agent',
-      activityType: 'audit_completed',
-      status: 'completed',
-      leadName: name,
-      companyName: lead.company,
-      detail: auditNote || `Audited ${lead.company || name}`,
-    });
-    summary.audited++;
 
     const ins = await db.query(
       `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, subject, body, status, created_at)
        VALUES ($1, $2, $3, $4, $5, 'draft', NOW()) RETURNING id`,
       [userId, lead.id, lead.email, subject, body]
     );
-    drafts.push({ emailId: ins.rows[0].id, lead, name, subject, body });
+    const emailId = ins.rows[0].id;
     summary.drafted++;
+
+    const result = await sendAgentEmail(userId, { to: lead.email, toName: name, subject, body });
+    if (result.sent) {
+      await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW() WHERE id = $1`, [emailId]);
+      sentToday.rows[0].n++;
+      summary.sent++;
+      await createSalesProposal(userId, lead, name);
+      await recordActivity(userId, {
+        agentName: 'Sales Agent',
+        activityType: 'email_sent',
+        status: 'completed',
+        leadName: name,
+        companyName: lead.company,
+        detail: `Sent proposal pitch "${subject}" → ${lead.email}`,
+      });
+    } else {
+      await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [emailId]);
+      summary.failed++;
+      await recordActivity(userId, {
+        agentName: 'Sales Agent',
+        activityType: 'email_failed',
+        status: 'failed',
+        leadName: name,
+        companyName: lead.company,
+        detail: result.reason || 'Send failed',
+        errorMessage: result.reason || 'Send failed',
+      });
+    }
   }
 
-  const canSend = emailAutopilot.active && sentToday.rows[0].n < dailyCap;
-  if (canSend) {
-    for (const d of drafts) {
-      if (sentToday.rows[0].n >= dailyCap) break;
-      const result = await sendAgentEmail(userId, { to: d.lead.email, toName: d.name, subject: d.subject, body: d.body });
-      if (result.sent) {
-        await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW() WHERE id = $1`, [d.emailId]);
-        sentToday.rows[0].n++;
-        summary.sent++;
-        await recordActivity(userId, {
-          agentName: 'Sales Agent',
-          activityType: 'email_sent',
-          status: 'completed',
-          leadName: d.name,
-          companyName: d.lead.company,
-          detail: `Sent "${d.subject}" → ${d.lead.email}`,
-        });
-      } else {
-        await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [d.emailId]);
-        summary.failed++;
-        await recordActivity(userId, {
-          agentName: 'Sales Agent',
-          activityType: 'email_failed',
-          status: 'failed',
-          leadName: d.name,
-          companyName: d.lead.company,
-          detail: result.reason || 'Send failed',
-          errorMessage: result.reason || 'Send failed',
-        });
-      }
-    }
-  } else if (drafts.length > 0) {
-    summary.skipped = drafts.length;
+  if (capReachedAtStart || (summary.drafted === 0 && summary.sent === 0 && summary.failed === 0)) {
+    summary.skipped = leadsRes.rows.length;
     await recordActivity(userId, {
       agentName: 'Sales Agent',
       activityType: 'email_sent',
       status: 'skipped',
-      detail: emailAutopilot.active ? `Daily cap (${dailyCap}) reached — ${drafts.length} emails drafted but not sent` : 'Email sending paused (autopilot off) — drafts created only',
+      detail: capReachedAtStart
+        ? `Daily cap (${dailyCap}) reached — ${leadsRes.rows.length} leads found, nothing sent`
+        : 'No new leads to pitch',
     });
   }
 
@@ -822,7 +832,7 @@ async function buildStatus(userId) {
   ]);
 
   const today = todayStartSql();
-  const [leadsHunted, meetings, sentEmails, failedEmails, followups, whatsapp, scanned, audits, errorsCount] = await Promise.all([
+  const [leadsHunted, meetings, sentEmails, failedEmails, followups, whatsapp, scanned, proposals, errorsCount] = await Promise.all([
     db.query(`SELECT COUNT(*)::int AS n FROM leads WHERE user_id = $1 AND created_at >= ${today} AND source IN ('apollo','gemini')`, [userId]),
     db.query(`SELECT COUNT(*)::int AS n FROM calendly_events WHERE user_id = $1 AND created_at >= ${today} AND status IN ('confirmed','completed','scheduled')`, [userId]),
     db.query(`SELECT COUNT(*)::int AS n FROM outreach_emails WHERE user_id = $1 AND status = 'sent' AND sent_at >= ${today}`, [userId]),
@@ -830,16 +840,14 @@ async function buildStatus(userId) {
     db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND activity_type = 'followup_sent' AND status = 'completed' AND executed_at >= ${today}`, [userId]),
     db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND activity_type = 'whatsapp_sent' AND status = 'completed' AND executed_at >= ${today}`, [userId]),
     db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND activity_type = 'scout_website_checked' AND executed_at >= ${today}`, [userId]),
-    db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND activity_type = 'audit_completed' AND executed_at >= ${today}`, [userId]),
+    db.query(`SELECT COUNT(*)::int AS n FROM proposals WHERE user_id = $1 AND created_at >= ${today}`, [userId]),
     db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND status = 'failed' AND executed_at >= ${today}`, [userId]),
   ]);
 
   const totals = await db.query(
     `SELECT
-       COUNT(*) FILTER (WHERE activity_type = 'audit_completed')::int AS audits,
-       COUNT(*) FILTER (WHERE activity_type = 'followup_sent' AND status = 'completed')::int AS followups,
-       COUNT(*) FILTER (WHERE status = 'failed')::int AS errors
-     FROM agent_activity WHERE user_id = $1`,
+       (SELECT COUNT(*)::int FROM proposals WHERE user_id = $1) AS proposals,
+       (SELECT COUNT(*)::int FROM agent_activity WHERE user_id = $1 AND activity_type = 'followup_sent' AND status = 'completed') AS followups`,
     [userId]
   );
 
@@ -863,7 +871,7 @@ async function buildStatus(userId) {
       lastScoutRun: scout.lastRunAt,
       lastSalesRun: sales.lastRunAt,
       lastFollowupRun: followup.lastRunAt,
-      totalAuditsSent: totals.rows[0].audits,
+      totalProposalsSent: totals.rows[0].proposals,
       totalFollowupsSent: totals.rows[0].followups,
       errors: recentErrors.rows,
     },
@@ -889,7 +897,7 @@ async function buildStatus(userId) {
       followupsSent: followups.rows[0].n,
       whatsappSent: whatsapp.rows[0].n,
       websitesScanned: scanned.rows[0].n,
-      auditsGenerated: audits.rows[0].n,
+      proposalsSent: proposals.rows[0].n,
       errors: errorsCount.rows[0].n,
     },
     emailHealth,
@@ -1242,7 +1250,7 @@ function registerAgentHubRoutes(app, resolveUserId) {
         `Emails sent today: ${status.today.emailsSent}`,
         `Follow-ups sent today: ${status.today.followupsSent}`,
         `Websites scanned: ${status.today.websitesScanned}`,
-        `Audits generated: ${status.today.auditsGenerated}`,
+        `Proposals sent: ${status.today.proposalsSent}`,
         `Meetings booked: ${status.today.meetingsBookedToday}`,
         `Leads hunted: ${status.today.leadsHuntedToday}`,
         `Errors: ${status.today.errors}`,

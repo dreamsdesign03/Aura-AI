@@ -36,7 +36,7 @@ const AGENT_META = [
     { key: "scout", label: "Scout Agent", icon: Radar, color: "#3B82F6",
         desc: "Checks website status for new leads — live, down, or no website." },
     { key: "sales", label: "Sales Agent", icon: Brain, color: "#CB3273",
-        desc: "Runs real 61-signal brand audits and sends personalized cold emails." },
+        desc: "Sends up to 50 personalized proposal pitch emails per day." },
     { key: "followup", label: "Follow-Up Agent", icon: RefreshCw, color: "#10B981",
         desc: "AI-written D3/D6/D9/D14 follow-ups via Google Gemini AI." },
     { key: "brain", label: "Orchestrator", icon: Zap, color: "#C9A84C",
@@ -197,7 +197,7 @@ export default function SalesAgentControl() {
             </div>
             <h1 className="text-xl font-bold text-gray-900">Autopilot Control Room</h1>
           </div>
-          <p className="text-sm text-gray-500 ml-11.5">24/7 Sales Brain — Real audits → Personalized emails → D3/D6/D9/D14 follow-ups.</p>
+          <p className="text-sm text-gray-500 ml-11.5">24/7 Sales Brain — 50 proposal pitch emails/day → D3/D6/D9/D14 follow-ups.</p>
         </div>
         <div className="flex items-center gap-2">
           {orch && (<span className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full ${orch.brainActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
@@ -232,10 +232,10 @@ export default function SalesAgentControl() {
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
                 {emailPaused
-            ? "No emails will be sent until you resume. Agents still run audits and log activities."
+            ? "No emails will be sent until you resume. Agents still run and log activities."
             : bouncePct > 5
                 ? `Bounce rate is ${bouncePct}% (threshold: 5%). Resume only after resolving deliverability issues.`
-                : `Sending ${warmup?.sentToday ?? 0}/${warmup?.dailyCap ?? 15} emails today · IST business hours only · D3/D6/D9/D14 sequence`}
+                : `Sending ${warmup?.sentToday ?? 0}/${warmup?.dailyCap ?? 50} emails today · IST business hours only · D3/D6/D9/D14 sequence`}
               </p>
             </div>
             <button onClick={() => pauseEmailMutation.mutate(!emailPaused)} disabled={pauseEmailMutation.isPending || hubLoading} className={`flex-shrink-0 ml-4 flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all hover:opacity-90 disabled:opacity-50 ${emailPaused
@@ -300,7 +300,7 @@ export default function SalesAgentControl() {
             {hub?.today && (<div className="space-y-2.5">
                 {[
                     { label: "Sites checked", val: hub.today.websitesScanned, color: "#3B82F6" },
-                    { label: "Audits done", val: hub.today.auditsGenerated, color: "#CB3273" },
+                    { label: "Proposals sent", val: hub.today.proposalsSent, color: "#CB3273" },
                     { label: "Emails sent", val: hub.today.emailsSent + hub.today.followupsSent, color: "#10B981" },
                     { label: "Meetings booked", val: hub.today.meetingsBookedToday, color: "#C9A84C" },
                 ].map(({ label, val, color }) => (<div key={label} className="flex items-center justify-between">
@@ -356,7 +356,7 @@ export default function SalesAgentControl() {
                     Last run: <span className="font-semibold text-gray-600 ml-0.5">{formatRelative(lastRun)}</span>
                   </div>
                   {key === "sales" && orch && (<div className="text-xs text-gray-500">
-                      <span className="font-bold text-gray-800">{orch.totalAuditsSent}</span> audits sent
+                      <span className="font-bold text-gray-800">{orch.totalProposalsSent}</span> proposals sent
                     </div>)}
                   {key === "followup" && orch && (<div className="text-xs text-gray-500">
                       <span className="font-bold text-gray-800">{orch.totalFollowupsSent}</span> follow-ups sent
@@ -409,7 +409,7 @@ export default function SalesAgentControl() {
       {orch && (<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
                 { label: "Total Leads", value: pipeline?.total ?? 0, icon: Users, color: "#A4285E" },
-                { label: "Audits Sent", value: orch.totalAuditsSent, icon: Mail, color: "#CB3273" },
+                { label: "Proposals Sent", value: orch.totalProposalsSent, icon: Mail, color: "#CB3273" },
                 { label: "Follow-Ups Sent", value: orch.totalFollowupsSent, icon: RefreshCw, color: "#10B981" },
                 { label: "Reports Sent", value: reports?.length ?? 0, icon: TrendingUp, color: "#C9A84C" },
             ].map(({ label, value, icon: Icon, color }) => (<div key={label} className="rounded-xl p-4 border text-center" style={{ background: "#FAFAFA", borderColor: "hsl(220 13% 91%)" }}>

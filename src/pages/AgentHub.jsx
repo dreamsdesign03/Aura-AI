@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { usePlan } from "@/hooks/usePlan";
-import { Bot, Zap, Mail, RefreshCw, Search, Play, ToggleLeft, ToggleRight, Clock, AlertTriangle, Activity, Users, TrendingUp, Loader2, Filter, MessageSquare, Globe, History, User, Lock, } from "lucide-react";
+import { Bot, Zap, Mail, RefreshCw, Search, Play, ToggleLeft, ToggleRight, Clock, AlertTriangle, Activity, Users, TrendingUp, Loader2, Filter, MessageSquare, Globe, History, User, Lock, FileText, } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, } from "recharts";
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function relativeTime(iso) {
@@ -363,7 +363,7 @@ export default function AgentHub() {
                 { icon: <RefreshCw size={14}/>, label: "Follow-Ups", value: today?.followupsSent ?? 0, color: "#DE377C" },
                 { icon: <MessageSquare size={14}/>, label: "WhatsApp Sent", value: today?.whatsappSent ?? 0, color: "#25D366" },
                 { icon: <Globe size={14}/>, label: "Sites Scanned", value: today?.websitesScanned ?? 0, color: "#0891B2" },
-                { icon: <Search size={14}/>, label: "Audits Generated", value: today?.auditsGenerated ?? 0, color: "#DE377C" },
+                { icon: <FileText size={14}/>, label: "Proposals Sent", value: today?.proposalsSent ?? 0, color: "#DE377C" },
                 { icon: <AlertTriangle size={14}/>, label: "Errors Today", value: today?.errors ?? 0, color: "#DC2626" },
             ].map(s => (<div key={s.label} style={{
                     background: "#fff", border: "1px solid #E5E7EB", borderRadius: 12,
@@ -381,7 +381,7 @@ export default function AgentHub() {
           {/* ── Cumulative Totals ─────────────────────────────────────── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 20 }}>
             {[
-                { icon: <Mail size={15}/>, label: "Total Audits Sent (all-time)", value: status?.totalAuditsSent ?? 0, color: PURPLE },
+                { icon: <Mail size={15}/>, label: "Total Proposals Sent (all-time)", value: status?.totalProposalsSent ?? 0, color: PURPLE },
                 { icon: <RefreshCw size={15}/>, label: "Total Follow-Ups (all-time)", value: status?.totalFollowupsSent ?? 0, color: GREEN },
                 { icon: <TrendingUp size={15}/>, label: "Leads Added by Hunter", value: lhStatus?.config.totalPipelineAdded ?? 0, color: "#DE377C" },
             ].map(s => (<div key={s.label} style={{
@@ -598,7 +598,7 @@ export default function AgentHub() {
           {/* ── Agent Cards ───────────────────────────────────────────── */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 28 }}>
             <AgentCard name="Scout Agent" description="Checks website status of new leads" icon={<Globe size={18}/>} active={status?.scoutActive ?? false} lastRun={status?.lastScoutRun ?? null} stat={{ label: "Sites scanned today", value: today?.websitesScanned ?? 0 }} onToggle={() => toggleAgent("scout")} onRun={() => runAgent("scout", "scout")} running={running["scout"] ?? false} accentColor="#0891B2"/>
-            <AgentCard name="Sales Agent" description="Generates brand audits & sends emails + WhatsApp" icon={<Mail size={18}/>} active={status?.salesActive ?? false} lastRun={status?.lastSalesRun ?? null} stat={{ label: "Emails sent today", value: today?.emailsSent ?? 0 }} onToggle={() => toggleAgent("sales")} onRun={() => runAgent("sales", "sales")} running={running["sales"] ?? false} accentColor={PURPLE}/>
+            <AgentCard name="Sales Agent" description="Sends 50 personalized proposal pitch emails per day" icon={<Mail size={18}/>} active={status?.salesActive ?? false} lastRun={status?.lastSalesRun ?? null} stat={{ label: "Emails sent today", value: today?.emailsSent ?? 0 }} onToggle={() => toggleAgent("sales")} onRun={() => runAgent("sales", "sales")} running={running["sales"] ?? false} accentColor={PURPLE}/>
             <AgentCard name="Follow-Up Agent" description="Day-2, 7, 10 plain-text follow-ups (skips if meeting booked)" icon={<RefreshCw size={18}/>} active={status?.followupActive ?? false} lastRun={status?.lastFollowupRun ?? null} stat={{ label: "Follow-ups sent today", value: today?.followupsSent ?? 0 }} onToggle={() => toggleAgent("followup")} onRun={() => runAgent("followup", "followup")} running={running["followup"] ?? false} accentColor={GREEN}/>
             <AgentCard name="Lead Hunter" description="Nightly Apollo.io hunt — all orgs with active ICPs, 100/day cap" icon={<TrendingUp size={18}/>} active={lhStatus?.active ?? false} lastRun={lhStatus?.config.lastRunAt ?? null} stat={{ label: "Added to pipeline (lifetime)", value: lhStatus?.config.totalPipelineAdded ?? 0 }} extraStats={[
                 { label: "Leads Found", value: lhStatus?.config.totalLeadsFound ?? 0 },

@@ -36,12 +36,12 @@ const AUTONOMOUS_AGENTS = [
     {
         key: "sales",
         name: "Sales Agent",
-        tagline: "Brand Audit + First-Touch Outreach",
-        desc: "Generates a personalised AI brand audit for each live-website lead and sends it via email. Creates HubSpot contact + deal automatically.",
+        tagline: "Proposal Pitch Emails · 50/Day",
+        desc: "Automatically sends up to 50 personalized proposal pitch emails per day — a mini pitch deck in email form covering the AI patient-acquisition engine, WhatsApp booking automation, and high-ticket campaigns. Creates a proposal record per sent email.",
         icon: Brain,
         color: "#CB3273",
         bg: "#FBE9F1",
-        skills: ["Google Gemini AI brand audit", "Brevo email delivery", "HubSpot CRM sync", "Booking link injection"],
+        skills: ["Google Gemini proposal pitch", "Brevo email delivery", "50 emails/day", "Proposal tracking"],
         href: "/agents/control",
         activeKey: "salesActive",
         lastRunKey: "lastSalesRun",
@@ -91,7 +91,7 @@ export default function Agents() {
             </span>)}
         </div>
         <p className="text-sm text-gray-500 ml-11.5">
-          5 autonomous agents running 24×7 — hunting leads, auditing brands, sending outreach, and booking calls for Dreamsdesign.
+          5 autonomous agents running 24×7 — hunting leads, checking websites, sending proposal pitches, and booking calls for Dreamsdesign.
         </p>
       </div>
 
@@ -99,7 +99,7 @@ export default function Agents() {
       {orchStatus && pipeline && (<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
                 { label: "Total Leads", value: pipeline.total ?? 0, icon: Users, color: "#A4285E" },
-                { label: "Audits Sent", value: orchStatus.totalAuditsSent ?? 0, icon: Mail, color: "#CB3273" },
+                { label: "Proposals Sent", value: orchStatus.totalProposalsSent ?? 0, icon: Mail, color: "#CB3273" },
                 { label: "Follow-Ups", value: orchStatus.totalFollowupsSent ?? 0, icon: Send, color: "#10B981" },
                 { label: "Calls Booked", value: pipeline.stageCount["call_booked"] ?? 0, icon: BarChart3, color: "#C9A84C" },
             ].map(({ label, value, icon: Icon, color }) => (<div key={label} className="rounded-xl p-4 border text-center" style={{ background: "#FAFAFA", borderColor: "hsl(220 13% 91%)" }}>
@@ -260,7 +260,7 @@ export default function Agents() {
                 {[
             { label: "Lead Hunter", icon: Target, color: "#CB3273", activeKey: null, desc: "Finds & qualifies" },
             { label: "Scout", icon: Radar, color: "#3B82F6", activeKey: "scoutActive", desc: "Checks websites" },
-            { label: "Sales Agent", icon: Brain, color: "#E58BB5", activeKey: "salesActive", desc: "Sends audits" },
+            { label: "Sales Agent", icon: Brain, color: "#E58BB5", activeKey: "salesActive", desc: "Sends proposals" },
             { label: "Follow-Up", icon: RefreshCw, color: "#34D399", activeKey: "followupActive", desc: "Nurtures pipeline" },
         ].map(({ label, icon: Icon, color, activeKey, desc }) => {
             const isOn = activeKey ? (orchStatus ? Boolean(orchStatus[activeKey]) : false) : (hunterStatus?.active ?? false);
