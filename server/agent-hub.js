@@ -334,9 +334,9 @@ async function runSales(userId) {
     }
 
     const ins = await db.query(
-      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, subject, body, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'draft', NOW()) RETURNING id`,
-      [userId, lead.id, lead.email, subject, body]
+      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, created_at)
+       VALUES ($1, $2, $3, $3, $4, $5, $6, $7, 'draft', NOW()) RETURNING id`,
+      [userId, lead.id, lead.email, name, lead.company || '', subject, body]
     );
     const emailId = ins.rows[0].id;
     summary.drafted++;
@@ -445,9 +445,9 @@ async function runFollowup(userId) {
     }
 
     const ins = await db.query(
-      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, subject, body, status, created_at)
-       VALUES ($1, $2, $3, $4, $5, 'draft', NOW()) RETURNING id`,
-      [userId, lead.id, lead.email, subject, body]
+      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, created_at)
+       VALUES ($1, $2, $3, $3, $4, $5, $6, $7, 'draft', NOW()) RETURNING id`,
+      [userId, lead.id, lead.email, name, lead.company || '', subject, body]
     );
 
     if (canSend && sentToday.rows[0].n < dailyCap) {
