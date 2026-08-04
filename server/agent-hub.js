@@ -300,7 +300,7 @@ async function runSales(userId) {
      WHERE l.user_id = $1
        AND l.pipeline_stage NOT IN ('won','lost','call_booked','proposal_sent')
        AND COALESCE(l.email, '') <> ''
-       AND (l.website_status = 'live' OR l.website_status IS NULL)
+       AND (l.website_status IS NULL OR l.website_status NOT IN ('down', 'error'))
        AND NOT EXISTS (
          SELECT 1 FROM outreach_emails oe WHERE oe.lead_id = l.id AND oe.status IN ('sent','draft')
        )
