@@ -873,7 +873,7 @@ async function buildStatus(userId) {
       lastFollowupRun: followup.lastRunAt,
       totalProposalsSent: totals.rows[0].proposals,
       totalFollowupsSent: totals.rows[0].followups,
-      errors: recentErrors.rows,
+      errors: recentErrors.rows.map(r => r.error_message || r.detail || 'Unknown error'),
     },
     leadHunter: {
       active: hunter.active,
