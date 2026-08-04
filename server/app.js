@@ -1557,6 +1557,8 @@ app.get('/api/campaigns', async (req, res) => {
   }
 });
 
+const serializeIcp = (row) => row ? { ...row, companySize: row.company_size ?? row.companySize ?? null } : row;
+
 app.get('/api/icps', async (req, res) => {
   try {
     const { email } = req.query;
@@ -1573,7 +1575,7 @@ app.get('/api/icps', async (req, res) => {
 
     query += ' ORDER BY id DESC';
     const icpsRes = await db.query(query, params);
-    res.json(icpsRes.rows);
+    res.json(icpsRes.rows.map(serializeIcp));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1598,7 +1600,7 @@ app.post('/api/icps', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()) RETURNING *`,
       [userId, name, companySize, roles, industries, markets, JSON.stringify(filters), active]
     );
-    res.status(201).json(result.rows[0]);
+    res.status(201).json(serializeIcp(result.rows[0]));
   } catch (err) {
     console.error('Error creating ICP:', err);
     res.status(500).json({ error: err.message });
@@ -1626,7 +1628,7 @@ app.put('/api/icps/:id', async (req, res) => {
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'ICP not found' });
-    res.json(result.rows[0]);
+    res.json(serializeIcp(result.rows[0]));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -1666,7 +1668,7 @@ app.post('/api/icps/update', async (req, res) => {
     );
 
     if (result.rows.length === 0) return res.status(404).json({ error: 'ICP not found' });
-    res.json(result.rows[0]);
+    res.json(serializeIcp(result.rows[0]));
   } catch (err) {
     console.error('Update ICP error:', err.message);
     res.status(500).json({ error: err.message });
