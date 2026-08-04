@@ -66,12 +66,6 @@ const navGroups = [
             { href: "/agent-hub", label: "Automation 🤖", icon: Bot, accent: "#CB3273" },
         ],
     },
-    {
-        group: "Account",
-        items: [
-            { href: "/settings", label: "Settings", icon: Settings },
-        ],
-    },
 ];
 const nav = navGroups.flatMap(g => g.items);
 const LOCKED_PAID_HREFS = new Set([]);
@@ -805,34 +799,6 @@ export default function Layout({ children }) {
                       <User className="w-4 h-4 text-gray-500"/> Your profile
                     </DropdownMenuItem>
                   </Link>
-                  <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer rounded-lg mx-1">
-                    <Activity className="w-4 h-4 text-gray-500"/> Activity &amp; notifications
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer rounded-lg mx-1">
-                    <Palette className="w-4 h-4 text-gray-500"/>
-                    <span className="flex-1">Theme</span>
-                    <ChevronRight className="w-3 h-3 text-gray-400"/>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer rounded-lg mx-1">
-                    <Globe className="w-4 h-4 text-gray-500"/>
-                    <span className="flex-1">Language</span>
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-violet-100 text-violet-600">Beta</span>
-                    <ChevronRight className="w-3 h-3 text-gray-400 ml-1"/>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <Link href="/billing">
-                    <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer rounded-lg mx-1">
-                      <BarChart2 className="w-4 h-4 text-gray-500"/> View credit usage
-                    </DropdownMenuItem>
-                  </Link>
-                  <Link href="/billing">
-                    <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer rounded-lg mx-1">
-                      <TrendingUp className="w-4 h-4 text-gray-500"/> Upgrade Plan
-                    </DropdownMenuItem>
-                  </Link>
-                  <DropdownMenuItem className="flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer rounded-lg mx-1" onClick={() => window.open("https://chrome.google.com/webstore", "_blank")}>
-                    <Chrome className="w-4 h-4 text-gray-500"/> Get the Chrome Extension
-                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={doLogout} className="flex items-center gap-2.5 px-3 py-2 text-[13px] cursor-pointer rounded-lg mx-1 text-red-600 focus:text-red-600 focus:bg-red-50">
                     <LogOut className="w-4 h-4"/> Log out
