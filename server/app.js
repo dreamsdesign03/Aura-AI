@@ -3421,63 +3421,56 @@ app.post('/api/useImportLeadsCsv', (req, res) => res.json({ imported: 0, skipped
 app.get('/api/useLeadAssigneeCounts', (req, res) => res.json({}));
 
 // 12. Dashboard & Command Center APIs (Real Database Analytics)
-async function fetchDashboardSummaryData() {
+async function fetchDashboardSummaryData(userId) {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-    const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay())).toISOString();
+    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
 
-    const [leadsMonth, qualified, meetingsWeek, proposals, dealsWon] = await Promise.all([
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE created_at >= $1`, [startOfMonth]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE status IN ('enquiry_qualified', 'discovery_call', 'quote_sent', 'follow_up', 'project_won') OR bant_score >= 60`),
-      db.query(`SELECT COUNT(*)::int as cnt FROM calendly_events WHERE created_at >= $1 OR start_time >= $1`, [startOfWeek]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM outreach_emails WHERE sent_at >= $1 OR created_at >= $1`, [startOfMonth]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE status IN ('project_won', 'closed_won')`),
+    const [leadsMonth, qualified, meetingsWeek, proposalsRes, dealsWon, pipelineVal] = await Promise.all([
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE user_id = $1 AND created_at >= $2`, [userId, startOfMonth]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE user_id = $1 AND (
+          pipeline_stage ILIKE '%qualif%' OR pipeline_stage ILIKE '%meeting%'
+          OR pipeline_stage ILIKE '%proposal%' OR pipeline_stage ILIKE '%booked%'
+          OR pipeline_stage ILIKE '%won%' OR bant_score >= 60
+          OR status ILIKE '%qualif%' OR status ILIKE '%meeting%'
+          OR status ILIKE '%proposal%' OR status ILIKE '%won%')`, [userId]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM calendly_events WHERE user_id = $1 AND (created_at >= $2 OR start_time >= $2) AND COALESCE(is_deleted, false) = false`, [userId, startOfWeek]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM proposals WHERE user_id = $1 AND created_at >= $2`, [userId, startOfMonth]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE user_id = $1 AND (pipeline_stage ILIKE '%won%' OR status ILIKE '%won%')`, [userId]),
+      db.query(`SELECT COALESCE(SUM(deal_value), 0)::numeric AS v FROM leads WHERE user_id = $1 AND pipeline_stage NOT ILIKE '%won%' AND pipeline_stage NOT ILIKE '%lost%'`, [userId]),
     ]);
 
-    const totalLeads = leadsMonth.rows[0]?.cnt || 0;
-    const qualifiedCnt = qualified.rows[0]?.cnt || 0;
-    const meetingsCnt = meetingsWeek.rows[0]?.cnt || 0;
-    const proposalsCnt = proposals.rows[0]?.cnt || 0;
-    const dealsCnt = dealsWon.rows[0]?.cnt || 0;
-    const val = (qualifiedCnt * 150000) + (dealsCnt * 250000);
-
     return {
-      totalLeadsThisMonth: totalLeads || 15,
-      qualifiedLeads: qualifiedCnt || 8,
-      meetingsThisWeek: meetingsCnt || 4,
-      pipelineValue: val || 1200000,
-      proposalsSent: proposalsCnt || 12,
-      dealsClosedThisMonth: dealsCnt || 3,
+      totalLeadsThisMonth: leadsMonth.rows[0].cnt || 0,
+      qualifiedLeads: qualified.rows[0].cnt || 0,
+      meetingsThisWeek: meetingsWeek.rows[0].cnt || 0,
+      pipelineValue: Number(pipelineVal.rows[0].v) || 0,
+      proposalsSent: proposalsRes.rows[0].cnt || 0,
+      dealsClosedThisMonth: dealsWon.rows[0].cnt || 0,
     };
   } catch (err) {
     console.error('Error fetching dashboard summary:', err.message);
     return {
-      totalLeadsThisMonth: 15,
-      qualifiedLeads: 8,
-      meetingsThisWeek: 4,
-      pipelineValue: 1200000,
-      proposalsSent: 12,
-      dealsClosedThisMonth: 3,
+      totalLeadsThisMonth: 0,
+      qualifiedLeads: 0,
+      meetingsThisWeek: 0,
+      pipelineValue: 0,
+      proposalsSent: 0,
+      dealsClosedThisMonth: 0,
     };
   }
 }
 
-async function fetchDashboardActivityData() {
+async function fetchDashboardActivityData(userId) {
   try {
     const r = await db.query(
       `SELECT id, agent_name, activity_type, status, lead_name, company_name, detail, executed_at
        FROM agent_activity 
-       ORDER BY executed_at DESC LIMIT 30`
+       WHERE user_id = $1
+       ORDER BY executed_at DESC LIMIT 30`,
+      [userId]
     );
-
-    if (r.rows.length === 0) {
-      return [
-        { id: 1, description: 'Outreach email delivered to Dr. Priya Sharma', company: 'Apex Dermatology Clinic', createdAt: new Date(Date.now() - 3600000).toISOString() },
-        { id: 2, description: 'WhatsApp follow-up sent to Vikram Malhotra', company: 'Radiance Skin Care', createdAt: new Date(Date.now() - 7200000).toISOString() },
-        { id: 3, description: 'Clinical Skin Consultation booked via Calendly', company: 'Dr. Shah Clinic', createdAt: new Date(Date.now() - 14400000).toISOString() },
-      ];
-    }
 
     return r.rows.map(row => ({
       id: row.id,
@@ -3491,45 +3484,51 @@ async function fetchDashboardActivityData() {
   }
 }
 
-async function fetchPipelineFunnelData() {
+async function fetchPipelineFunnelData(userId) {
   try {
-    const r = await db.query(`
-      SELECT 
-        COUNT(CASE WHEN status IN ('new_enquiry', 'new') THEN 1 END)::int as new_cnt,
-        COUNT(CASE WHEN status IN ('enquiry_qualified', 'qualified') OR bant_score >= 60 THEN 1 END)::int as qual_cnt,
-        COUNT(CASE WHEN status IN ('discovery_call', 'meeting') THEN 1 END)::int as mtg_cnt,
-        COUNT(CASE WHEN status IN ('quote_sent', 'proposal') THEN 1 END)::int as prop_cnt,
-        COUNT(CASE WHEN status IN ('project_won', 'closed') THEN 1 END)::int as won_cnt,
-        COUNT(*)::int as total_cnt
-      FROM leads
-    `);
+    const r = await db.query(
+      `SELECT COALESCE(NULLIF(pipeline_stage, ''), 'Lead In') AS stage, COUNT(*)::int AS n
+       FROM leads WHERE user_id = $1 GROUP BY 1`,
+      [userId]
+    );
 
-    const row = r.rows[0] || {};
+    const counts = { New: 0, Audited: 0, Qualified: 0, Meeting: 0, Proposal: 0, Closed: 0 };
+    for (const row of r.rows) {
+      const l = String(row.stage).toLowerCase();
+      let bucket = null;
+      if (l === 'new' || l === 'lead in' || l === '') bucket = 'New';
+      else if (l.includes('audit')) bucket = 'Audited';
+      else if (l.includes('qualif') || l.includes('bant')) bucket = 'Qualified';
+      else if (l.includes('meeting') || l.includes('call') || l.includes('booked') || l.includes('discovery')) bucket = 'Meeting';
+      else if (l.includes('proposal') || l.includes('quote') || l.includes('sent')) bucket = 'Proposal';
+      else if (l.includes('won') || l.includes('closed') || l.includes('done')) bucket = 'Closed';
+      else if (l.includes('lost')) bucket = null;
+      else bucket = 'New';
+      if (bucket) counts[bucket] += row.n;
+    }
 
-    return {
-      stages: [
-        { stage: 'New', count: Math.max(row.new_cnt || 0, 15), conversionRate: 100 },
-        { stage: 'Audited', count: Math.max(row.qual_cnt || 0, 12), conversionRate: 80 },
-        { stage: 'Qualified', count: Math.max(row.qual_cnt || 0, 8), conversionRate: 53 },
-        { stage: 'Meeting', count: Math.max(row.mtg_cnt || 0, 5), conversionRate: 33 },
-        { stage: 'Proposal', count: Math.max(row.prop_cnt || 0, 4), conversionRate: 26 },
-        { stage: 'Closed', count: Math.max(row.won_cnt || 0, 3), conversionRate: 20 },
-      ]
-    };
+    const stageOrder = ['New', 'Audited', 'Qualified', 'Meeting', 'Proposal', 'Closed'];
+    const stages = stageOrder.map(stage => ({
+      stage,
+      count: counts[stage],
+      conversionRate: stage === 'New' ? 100 : (counts.New > 0 ? Math.round((counts[stage] / counts.New) * 100) : 0),
+    }));
+
+    return { stages };
   } catch (err) {
     console.error('Error fetching pipeline funnel:', err.message);
     return { stages: [] };
   }
 }
 
-app.get('/api/useGetPipelineFunnel', async (req, res) => res.json(await fetchPipelineFunnelData()));
-app.get('/api/dashboard/funnel', async (req, res) => res.json(await fetchPipelineFunnelData()));
+app.get('/api/useGetPipelineFunnel', async (req, res) => res.json(await fetchPipelineFunnelData(await resolveUserId(null, req.headers.cookie))));
+app.get('/api/dashboard/funnel', async (req, res) => res.json(await fetchPipelineFunnelData(await resolveUserId(null, req.headers.cookie))));
 
-app.get('/api/useGetDashboardSummary', async (req, res) => res.json(await fetchDashboardSummaryData()));
-app.get('/api/dashboard/summary', async (req, res) => res.json(await fetchDashboardSummaryData()));
+app.get('/api/useGetDashboardSummary', async (req, res) => res.json(await fetchDashboardSummaryData(await resolveUserId(null, req.headers.cookie))));
+app.get('/api/dashboard/summary', async (req, res) => res.json(await fetchDashboardSummaryData(await resolveUserId(null, req.headers.cookie))));
 
-app.get('/api/useGetDashboardActivity', async (req, res) => res.json(await fetchDashboardActivityData()));
-app.get('/api/dashboard/activity', async (req, res) => res.json(await fetchDashboardActivityData()));
+app.get('/api/useGetDashboardActivity', async (req, res) => res.json(await fetchDashboardActivityData(await resolveUserId(null, req.headers.cookie))));
+app.get('/api/dashboard/activity', async (req, res) => res.json(await fetchDashboardActivityData(await resolveUserId(null, req.headers.cookie))));
 app.get('/api/client-error', (req, res) => res.json({ received: true }));
 app.get('/api/search', (req, res) => res.json({ leads: [], proposals: [], meetings: [] }));
 

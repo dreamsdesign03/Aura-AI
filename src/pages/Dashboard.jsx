@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useGetDashboardSummary, useGetDashboardActivity, useGetPipelineFunnel } from "@workspace/api-client-react";
 import StatCard from "@/components/StatCard";
 import { Users, Calendar, FileText, TrendingUp, DollarSign, Award, CheckCircle2, Circle, UserCircle, X, ArrowRight, Zap, CreditCard } from "lucide-react";
@@ -62,6 +62,15 @@ export default function Dashboard() {
     const { data: funnel } = useGetPipelineFunnel();
     const { data: planData } = usePlan();
     const [checked, setChecked] = useState(loadChecked);
+    const [hub, setHub] = useState(null);
+    useEffect(() => {
+        let alive = true;
+        fetch("/api/agent-hub/status", { credentials: "include" })
+            .then(r => r.ok ? r.json() : null)
+            .then(data => { if (alive) setHub(data); })
+            .catch(() => { /* silent */ });
+        return () => { alive = false; };
+    }, []);
     const user = useAuthUser();
     const [bannerDismissed, setBannerDismissed] = useState(false);
     const showProfileBanner = !bannerDismissed && isProfileIncomplete(user);
@@ -167,8 +176,8 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-pink-600" />
             <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">Autonomous Sales Agents</span>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-              ● 24/7 Active
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={hub?.orchestrator?.brainActive ? { background: "#ECFDF5", color: "#047857", border: "1px solid #A7F3D0" } : { background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+              {hub?.orchestrator?.brainActive ? "● Active" : "● Paused"}
             </span>
           </div>
           <Link href="/agent-hub" className="text-xs font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1">
@@ -177,19 +186,21 @@ export default function Dashboard() {
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
           {[
-            { name: "Scout Agent", role: "Audit & Website Check", color: "#3B82F6", path: "/agent-hub" },
-            { name: "Sales Agent", role: "Outreach & Proposals", color: "#8E1F54", path: "/sales-agent" },
-            { name: "Follow-Up Agent", role: "Multi-Touch Drips", color: "#059669", path: "/automations" },
-            { name: "Lead Hunter", role: "ICP Prospecting", color: "#DE377C", path: "/lead-hunter" },
+            { name: "Scout Agent", role: "Audit & Website Check", color: "#3B82F6", path: "/agent-hub", active: !!hub?.orchestrator?.scoutActive },
+            { name: "Sales Agent", role: "Outreach & Proposals", color: "#8E1F54", path: "/sales-agent", active: !!hub?.orchestrator?.salesActive },
+            { name: "Follow-Up Agent", role: "Multi-Touch Drips", color: "#059669", path: "/automations", active: !!hub?.orchestrator?.followupActive },
+            { name: "Lead Hunter", role: "ICP Prospecting", color: "#DE377C", path: "/lead-hunter", active: !!hub?.leadHunter?.active },
           ].map(agent => (
             <Link key={agent.name} href={agent.path}>
               <div className="p-3 rounded-lg border border-gray-100 bg-gray-50 hover:bg-white hover:border-gray-200 transition-all cursor-pointer space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-gray-900">{agent.name}</span>
-                  <span className="w-2 h-2 rounded-full" style={{ background: agent.color }} />
+                  <span className="w-2 h-2 rounded-full" style={{ background: agent.active ? "#22C55E" : "#D1D5DB" }} />
                 </div>
                 <p className="text-[10px] text-gray-500">{agent.role}</p>
-                <div className="text-[9px] font-bold text-emerald-600">● 24/7 Running</div>
+                <div className="text-[9px] font-bold" style={{ color: agent.active ? "#059669" : "#9CA3AF" }}>
+                  {agent.active ? "● Active" : "● Paused"}
+                </div>
               </div>
             </Link>
           ))}
