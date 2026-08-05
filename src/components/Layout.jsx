@@ -30,7 +30,7 @@ function usePendingEmailCountdown(expiresAt) {
     const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     return { expired: false, label, nearExpiry: totalMinutes < 10 };
 }
-import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Bell, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, } from "lucide-react";
+import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, } from "lucide-react";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import MysaAssistant from "@/components/MysaAssistant";
 import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
@@ -738,10 +738,6 @@ export default function Layout({ children }) {
             <div className="text-[15px] font-semibold" style={{ color: "#111827" }}>{currentPage}</div>
             <div className="flex items-center gap-2">
               <GlobalSearch />
-              {/* Aura AI button — desktop */}
-              <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100" style={{ color: "#6B7280" }}>
-                <Bell className="w-4 h-4"/>
-              </button>
               {authUser?.pendingEmail && (<Link href="/settings" aria-label={pendingExpired
                 ? `Verification link for ${authUser.pendingEmail} has expired — click to resend`
                 : `Email change pending for ${authUser.pendingEmail}${pendingCountdownLabel ? ` — link expires in ${pendingCountdownLabel}` : ""} — click to manage`} title={pendingExpired
