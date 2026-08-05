@@ -39,6 +39,8 @@ function activityIcon(type) {
 function activityLabel(type) {
     const map = {
         email_sent: "Email delivered",
+        email_drafted: "Proposal drafted",
+        followup_drafted: "Follow-up drafted",
         followup_sent: "Follow-up delivered",
         followup_skipped_meeting_booked: "Follow-up skipped — meeting booked",
         followup_failed: "Failed to send follow-up",
@@ -631,7 +633,10 @@ export default function AgentHub() {
                 No toggle events yet — changes will appear here as agents are turned on or off
               </div>) : (<div style={{ maxHeight: 320, overflowY: "auto" }}>
                 {toggleHistory.map(entry => {
-                    const detail = entry.detail ?? {};
+                    let detail = entry.detail ?? {};
+                    if (typeof detail === "string") {
+                        try { detail = JSON.parse(detail); } catch { detail = {}; }
+                    }
                     const active = detail.active;
                     const userName = detail.userName;
                     const agentLabel = {
@@ -705,7 +710,7 @@ export default function AgentHub() {
           {/* ── Live Activity Feed (Latest Mail History per Lead) ──────────────── */}
           {(() => {
             const mailActivities = activities.filter(a => 
-              ["email_sent", "followup_sent", "email_failed", "followup_failed"].includes(a.activityType)
+              ["email_sent", "followup_sent", "email_failed", "followup_failed", "email_drafted", "followup_drafted"].includes(a.activityType)
             );
             const leadMailMap = new Map();
             for (const a of mailActivities) {
@@ -766,7 +771,7 @@ export default function AgentHub() {
                     <div style={{
                         width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                         background: a.status === "failed" ? "#FEF2F2"
-                            : a.status === "skipped" ? "#FFF7ED"
+                            : a.status === "draft" || a.status === "skipped" ? "#FFF7ED"
                                 : "#F0FDF4",
                         display: "flex", alignItems: "center", justifyContent: "center",
                         fontSize: 14,
@@ -782,10 +787,10 @@ export default function AgentHub() {
                         <span style={{
                         fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 99,
                         background: a.status === "failed" ? "#FEE2E2"
-                            : a.status === "skipped" ? "#FEF3C7"
+                            : a.status === "draft" || a.status === "skipped" ? "#FEF3C7"
                                 : "#D1FAE5",
                         color: a.status === "failed" ? "#DC2626"
-                            : a.status === "skipped" ? "#92400E"
+                            : a.status === "draft" || a.status === "skipped" ? "#92400E"
                                 : "#059669",
                     }}>
                           {a.status}
