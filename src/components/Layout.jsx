@@ -30,7 +30,7 @@ function usePendingEmailCountdown(expiresAt) {
     const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     return { expired: false, label, nearExpiry: totalMinutes < 10 };
 }
-import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Bell, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, Sparkles, } from "lucide-react";
+import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Bell, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, } from "lucide-react";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import MysaAssistant from "@/components/MysaAssistant";
 import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
@@ -684,12 +684,6 @@ export default function Layout({ children }) {
             </div>
             <div className="flex items-center gap-2">
               <GlobalSearch iconOnly/>
-              {/* Aura AI button — mobile */}
-              <button onClick={() => setMysaOpen(o => !o)} className="w-8 h-8 rounded-lg flex items-center justify-center transition-all" style={mysaOpen
-            ? { background: "linear-gradient(135deg,#A4285E,#CB3273)", color: "#fff" }
-            : { background: "#FFF0F6", color: "#CB3273" }} title="Aura AI Assistant">
-                <Sparkles className="w-4 h-4"/>
-              </button>
               {authUser?.pendingEmail && (<Link href="/settings" aria-label={pendingExpired
                 ? `Verification link for ${authUser.pendingEmail} has expired — click to resend`
                 : `Email change pending for ${authUser.pendingEmail}${pendingCountdownLabel ? ` — link expires in ${pendingCountdownLabel}` : ""} — click to manage`} title={pendingExpired
@@ -745,10 +739,6 @@ export default function Layout({ children }) {
             <div className="flex items-center gap-2">
               <GlobalSearch />
               {/* Aura AI button — desktop */}
-              <button onClick={() => setMysaOpen(o => !o)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[12px] font-semibold transition-all hover:opacity-90" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)", color: "#fff", boxShadow: mysaOpen ? "0 0 0 2px #FBCFE8" : undefined }} title="Aura AI Assistant">
-                <Sparkles className="w-3.5 h-3.5"/>
-                Aura
-              </button>
               <button className="w-8 h-8 rounded-lg flex items-center justify-center transition-colors hover:bg-gray-100" style={{ color: "#6B7280" }}>
                 <Bell className="w-4 h-4"/>
               </button>
