@@ -64,20 +64,8 @@ async function init() {
       );
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS website_status TEXT;
       CREATE INDEX IF NOT EXISTS idx_agent_activity_user ON agent_activity (user_id, executed_at DESC);
-
-      -- Clean up non-mail activities from DB
-      DELETE FROM agent_activity WHERE activity_type NOT IN ('email_sent','followup_sent','email_failed','followup_failed');
-
-      -- Keep only the single latest mail activity per lead in DB
-      DELETE FROM agent_activity a
-      USING agent_activity b
-      WHERE a.user_id = b.user_id
-        AND COALESCE(a.lead_name, '') = COALESCE(b.lead_name, '')
-        AND COALESCE(a.company_name, '') = COALESCE(b.company_name, '')
-        AND (a.lead_name IS NOT NULL OR a.company_name IS NOT NULL)
-        AND a.executed_at < b.executed_at;
     `);
-    console.log('[agent-hub] tables ready & mail-only activity history cleaned');
+    console.log('[agent-hub] tables ready');
   } catch (e) {
     console.error('[agent-hub] init error:', e.message);
   }

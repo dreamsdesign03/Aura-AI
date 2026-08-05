@@ -78,6 +78,11 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
         updated_at TIMESTAMP DEFAULT NOW()
       );
     `);
+    await db.query(`ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS user_id INTEGER;`);
+    await db.query(`ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS smtp_user VARCHAR(255);`);
+    await db.query(`ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS pass TEXT;`);
+    await db.query(`ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS from_email VARCHAR(255);`);
+    await db.query(`ALTER TABLE smtp_settings ADD COLUMN IF NOT EXISTS from_name VARCHAR(255);`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS user_id INT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS recipient_email TEXT;`);
