@@ -301,8 +301,9 @@ async function runSales(userId, opts = {}) {
   const emailAutopilot = await getSetting(userId, 'autopilot_email');
   const autopilotActive = Boolean(emailAutopilot.active);
   const dailyCap = Number(sales.config?.dailyCap) || 50;
+  const autoSend = sales.config?.autoSend === true;
 
-  if (!manual && !autopilotActive) {
+  if (autoSend && !manual && !autopilotActive) {
     return { ok: true, drafted: 0, sent: 0, skipped: 0, failed: 0, paused: true, reason: 'Email sending is paused — enable Email Autopilot or use Run Now' };
   }
 
@@ -356,6 +357,18 @@ async function runSales(userId, opts = {}) {
     );
     const emailId = ins.rows[0].id;
     summary.drafted++;
+
+    if (!autoSend) {
+      await recordActivity(userId, {
+        agentName: 'Sales Agent',
+        activityType: 'email_drafted',
+        status: 'draft',
+        leadName: name,
+        companyName: lead.company,
+        detail: `Drafted proposal pitch "${subject}" → ${lead.email}`,
+      });
+      continue;
+    }
 
     const result = await sendAgentEmail(userId, { to: lead.email, toName: name, subject, body });
     if (result.sent) {
