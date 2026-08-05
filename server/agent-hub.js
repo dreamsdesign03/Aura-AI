@@ -128,11 +128,8 @@ async function setActive(userId, key, active) {
   }
 }
 
-const MAIL_ACTIVITY_TYPES = new Set(['email_sent', 'followup_sent', 'email_failed', 'followup_failed']);
-
 async function recordActivity(userId, entry) {
   const { agentName, activityType, status, leadName, companyName, detail, errorMessage } = entry || {};
-  if (activityType && !MAIL_ACTIVITY_TYPES.has(activityType)) return;
   try {
     if (leadName || companyName) {
       await db.query(
@@ -310,9 +307,16 @@ async function createSalesProposal(userId, lead, name) {
   }
 }
 
-async function runSales(userId) {
+async function runSales(userId, opts = {}) {
+  const { manual = false } = opts;
   const sales = await getSetting(userId, 'sales');
+  const emailAutopilot = await getSetting(userId, 'autopilot_email');
+  const autopilotActive = Boolean(emailAutopilot.active);
   const dailyCap = Number(sales.config?.dailyCap) || 50;
+
+  if (!manual && !autopilotActive) {
+    return { ok: true, drafted: 0, sent: 0, skipped: 0, failed: 0, paused: true, reason: 'Email sending is paused — enable Email Autopilot or use Run Now' };
+  }
 
   const sentToday = await db.query(
     `SELECT COUNT(*)::int AS n FROM outreach_emails WHERE user_id = $1 AND status = 'sent' AND sent_at >= ${todayStartSql()}`,
@@ -712,10 +716,10 @@ async function runBrain(userId) {
   return { ok: true, scout, sales, followup };
 }
 
-async function runAgent(userId, key) {
+async function runAgent(userId, key, opts = {}) {
   switch (key) {
     case 'scout': return runScout(userId);
-    case 'sales': return runSales(userId);
+    case 'sales': return runSales(userId, opts);
     case 'followup': return runFollowup(userId);
     case 'lead_hunter': return runLeadHunter(userId);
     case 'brain': return runBrain(userId);
@@ -955,7 +959,7 @@ function registerAgentHubRoutes(app, resolveUserId) {
       const limit = Math.min(Number(req.query.limit) || 100, 500);
       const agent = req.query.agent;
       const params = [userId];
-      let where = "WHERE user_id = $1 AND activity_type IN ('email_sent','followup_sent','email_failed','followup_failed')";
+      let where = "WHERE user_id = $1";
 
       if (agent && agent !== 'all') {
         const agentLower = agent.toLowerCase();
@@ -1094,7 +1098,7 @@ function registerAgentHubRoutes(app, resolveUserId) {
     try {
       const userId = await resolve(req);
       const agent = req.params.agent;
-      const result = await runAgent(userId, agent);
+      const result = await runAgent(userId, agent, { manual: true });
       res.json(result);
     } catch (err) {
       console.error('[agent-hub] run-now error:', err.message);
@@ -1254,7 +1258,7 @@ function registerAgentHubRoutes(app, resolveUserId) {
       const limit = Math.min(Number(req.query.limit) || 50, 500);
       const agent = req.query.agent;
       const params = [userId];
-      let where = "WHERE user_id = $1 AND activity_type IN ('email_sent','followup_sent','email_failed','followup_failed')";
+      let where = "WHERE user_id = $1";
 
       if (agent && agent !== 'all') {
         const agentLower = agent.toLowerCase();
@@ -1334,7 +1338,7 @@ function registerAgentHubRoutes(app, resolveUserId) {
     app.post(`/api/agents/${key}/run`, async (req, res) => {
       try {
         const userId = await resolve(req);
-        res.json(await runAgent(userId, key));
+        res.json(await runAgent(userId, key, { manual: true }));
       } catch (err) {
         res.status(500).json({ ok: false, error: err.message });
       }
