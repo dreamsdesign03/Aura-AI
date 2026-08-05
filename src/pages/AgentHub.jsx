@@ -710,7 +710,8 @@ export default function AgentHub() {
           {/* ── Live Activity Feed (Latest Mail History per Lead) ──────────────── */}
           {(() => {
             const mailActivities = activities.filter(a => 
-              ["email_sent", "followup_sent", "email_failed", "followup_failed", "email_drafted", "followup_drafted"].includes(a.activityType)
+              ["email_sent", "followup_sent", "email_failed", "followup_failed", "email_drafted", "followup_drafted",
+               "scout_website_checked", "audit", "website_checked"].includes(a.activityType)
             );
             const leadMailMap = new Map();
             for (const a of mailActivities) {
