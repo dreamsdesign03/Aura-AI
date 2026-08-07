@@ -126,7 +126,6 @@ export default function Outreach() {
     const byTab = (tab) => emails.filter((e) => e.status === tab);
     const tabEmails = byTab(activeTab);
     const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
-    const selectedReply = selectedReplyId ? replies.find((r) => r.id === selectedReplyId) ?? null : null;
     // Replies linked to the currently selected sent email
     const threadReplies = selected ? replies.filter((r) => r.outreach_email_id === selected.id || (r.lead_id && r.lead_id === selected.leadId)) : [];
     // Map of outreach email id -> reply count for badge on list items
