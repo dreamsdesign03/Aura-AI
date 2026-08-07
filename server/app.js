@@ -89,6 +89,7 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS to_email TEXT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS to_name TEXT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS company TEXT;`);
+    await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS message_id TEXT;`);
 
     // Ensure calendly_events table exists (synced Calendly bookings)
     await db.query(`
@@ -1346,6 +1347,37 @@ async function getTransporter(userId) {
   return { transporter, fromEmail, fromName };
 }
 
+// ── Threading Helper ───────────────────────────────────────────
+async function findThreadParent(leadId, recipientEmail) {
+  try {
+    const replyRes = await db.query(
+      `SELECT message_id, body, from_name, from_email, received_at
+       FROM email_replies
+       WHERE message_id IS NOT NULL AND ((lead_id = $1 AND $1 IS NOT NULL) OR LOWER(from_email) = LOWER($2))
+       ORDER BY received_at DESC LIMIT 1`,
+      [leadId ? Number(leadId) : null, (recipientEmail || '').toLowerCase()]
+    );
+    if (replyRes.rows.length > 0 && replyRes.rows[0].message_id) {
+      const r = replyRes.rows[0];
+      return { messageId: r.message_id, body: r.body, sender: r.from_name || r.from_email, date: r.received_at };
+    }
+    const outRes = await db.query(
+      `SELECT message_id, body, to_name, recipient_email, sent_at
+       FROM outreach_emails
+       WHERE message_id IS NOT NULL AND ((lead_id = $1 AND $1 IS NOT NULL) OR LOWER(recipient_email) = LOWER($2) OR LOWER(to_email) = LOWER($2))
+       ORDER BY sent_at DESC LIMIT 1`,
+      [leadId ? Number(leadId) : null, (recipientEmail || '').toLowerCase()]
+    );
+    if (outRes.rows.length > 0 && outRes.rows[0].message_id) {
+      const o = outRes.rows[0];
+      return { messageId: o.message_id, body: o.body, sender: o.to_name || o.recipient_email, date: o.sent_at };
+    }
+  } catch (err) {
+    console.error('[findThreadParent] error:', err.message);
+  }
+  return null;
+}
+
 // POST /api/outreach/send
 app.post('/api/outreach/send', async (req, res) => {
   try {
@@ -1366,14 +1398,20 @@ app.post('/api/outreach/send', async (req, res) => {
     const recipientEmail = email.recipient_email;
     const subject = email.subject;
     const body = email.body;
-    const contactName = [email.first_name, email.last_name].filter(Boolean).join(' ') || 'there';
 
     if (!recipientEmail) return res.status(400).json({ error: 'No recipient email' });
 
-    // Build HTML body from plain text (convert newlines to <br>)
-    const htmlBody = body
-      ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${body.replace(/\n/g, '<br>')}</div>`
-      : '';
+    const parent = await findThreadParent(email.lead_id, recipientEmail);
+    let htmlBody = body ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${body.replace(/\n/g, '<br>')}</div>` : '';
+    if (parent && parent.body && subject && subject.toLowerCase().startsWith('re:')) {
+      const dateStr = parent.date ? new Date(parent.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+      htmlBody += `<br><br><div class="gmail_quote" style="margin-top:16px;padding-top:12px;border-top:1px solid #e0e0e0;font-family:Arial,sans-serif;">
+        <div style="color:#666;font-size:12px;margin-bottom:8px;">On ${dateStr}, ${parent.sender || 'prospect'} wrote:</div>
+        <blockquote style="margin:0 0 0 .8ex;border-left:2px #cb3273 solid;padding-left:1ex;color:#555;font-size:13px;line-height:1.5;">
+          ${parent.body.replace(/\n/g, '<br>')}
+        </blockquote>
+      </div>`;
+    }
 
     const { transporter, fromEmail, fromName } = await getTransporter(userId);
 
@@ -1383,12 +1421,16 @@ app.post('/api/outreach/send', async (req, res) => {
       subject: subject || 'No subject',
       text: body || '',
       html: htmlBody,
+      inReplyTo: parent?.messageId || undefined,
+      references: parent?.messageId ? [parent.messageId] : undefined,
     };
 
-    await transporter.sendMail(mailOptions);
-    await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW() WHERE id = $1`, [id]);
+    const info = await transporter.sendMail(mailOptions);
+    const messageId = info.messageId || null;
 
-    console.log(`[outreach] Email sent to ${recipientEmail} (id=${id})`);
+    await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW(), message_id = COALESCE($1, message_id) WHERE id = $2`, [messageId, id]);
+
+    console.log(`[outreach] Email sent to ${recipientEmail} (id=${id}, msgId=${messageId})`);
     res.json({ success: true, message: 'Email sent successfully' });
   } catch (err) {
     console.error('[outreach] Send error:', err.message);
@@ -1430,6 +1472,19 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
 
     if (!toEmail) return res.status(400).json({ error: 'Recipient email is required' });
 
+    const parent = await findThreadParent(leadId, toEmail);
+    let finalHtml = bodyHtml || (body ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${body.replace(/\n/g, '<br>')}</div>` : '');
+
+    if (parent && parent.body && subject && subject.toLowerCase().startsWith('re:') && !finalHtml.includes('gmail_quote')) {
+      const dateStr = parent.date ? new Date(parent.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '';
+      finalHtml += `<br><br><div class="gmail_quote" style="margin-top:16px;padding-top:12px;border-top:1px solid #e0e0e0;font-family:Arial,sans-serif;">
+        <div style="color:#666;font-size:12px;margin-bottom:8px;">On ${dateStr}, ${parent.sender || 'prospect'} wrote:</div>
+        <blockquote style="margin:0 0 0 .8ex;border-left:2px #cb3273 solid;padding-left:1ex;color:#555;font-size:13px;line-height:1.5;">
+          ${parent.body.replace(/\n/g, '<br>')}
+        </blockquote>
+      </div>`;
+    }
+
     const { transporter, fromEmail, fromName } = await getTransporter(userId);
 
     const mailOptions = {
@@ -1439,25 +1494,28 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
       bcc: bcc || undefined,
       subject: subject || 'No subject',
       text: body || '',
-      html: bodyHtml || (body ? body.replace(/\n/g, '<br>') : ''),
+      html: finalHtml,
+      inReplyTo: parent?.messageId || undefined,
+      references: parent?.messageId ? [parent.messageId] : undefined,
     };
 
-    await transporter.sendMail(mailOptions);
+    const info = await transporter.sendMail(mailOptions);
+    const messageId = info.messageId || null;
 
-    // Save to outreach_emails if we have a lead
-    if (leadId && userId) {
+    // Save to outreach_emails if we have a lead or email
+    if (userId) {
       try {
         await db.query(
-          `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, sent_at, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sent', NOW(), NOW())`,
-          [userId, leadId, toEmail, toEmail, toName || '', req.body.data?.company || '', subject || '', body || '']
+          `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, message_id, sent_at, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sent', $9, NOW(), NOW())`,
+          [userId, leadId ? Number(leadId) : null, toEmail, toEmail, toName || '', req.body.data?.company || '', subject || '', body || '', messageId]
         );
       } catch (dbErr) {
         console.error('[outreach] Failed to save to outreach_emails:', dbErr.message);
       }
     }
 
-    console.log(`[outreach] Quick email sent to ${toEmail}`);
+    console.log(`[outreach] Quick email sent to ${toEmail} (msgId=${messageId})`);
     res.json({ success: true, message: 'Email sent successfully' });
   } catch (err) {
     console.error('[outreach] Quick send error:', err.message);
