@@ -111,9 +111,40 @@ export default function Outreach() {
     const [activeTab, setActiveTab] = useState("draft");
     const [selectedId, setSelectedId] = useState(null);
     const [composeOpen, setComposeOpen] = useState(false);
-    const [replyBoxId, setReplyBoxId] = useState(null);   // which reply's box is open
-    const [replyText, setReplyText] = useState("");        // text in the inline reply box
-    const [replySending, setReplySending] = useState(false);
+    const [composeInitial, setComposeInitial] = useState(null);
+    const [inlineReplyText, setInlineReplyText] = useState("");
+    const [inlineReplySending, setInlineReplySending] = useState(false);
+
+    const handleInlineReply = async (recipientEmail, leadId, subjectTitle) => {
+        if (!inlineReplyText.trim() || inlineReplySending) return;
+        setInlineReplySending(true);
+        try {
+            const res = await fetch("/api/useQuickSendEmail", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    data: {
+                        leadId,
+                        toEmail: recipientEmail,
+                        toName: selected ? `${selected.leadFirstName} ${selected.leadLastName}` : "",
+                        subject: subjectTitle?.startsWith("Re:") ? subjectTitle : `Re: ${subjectTitle || "Reply"}`,
+                        body: inlineReplyText,
+                        userEmail: sessionStorage.getItem("aura_user_email") || "",
+                    }
+                })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setInlineReplyText("");
+                refetch();
+                qc.invalidateQueries({ queryKey: getListOutreachEmailsQueryKey() });
+            }
+        } catch (err) {
+            console.error("Failed to send reply:", err);
+        } finally {
+            setInlineReplySending(false);
+        }
+    };
     const [editSubject, setEditSubject] = useState("");
     const [editBody, setEditBody] = useState("");
     const [isEditing, setIsEditing] = useState(false);
@@ -255,38 +286,6 @@ export default function Outreach() {
         deleteEmail.mutate({ id: selected.id });
         setSelectedId(null);
     };
-    // Quick inline reply — sends from dreamsdesign.in03@gmail.com via the API
-    const sendQuickReply = useCallback(async (reply) => {
-        if (!replyText.trim()) return;
-        setReplySending(true);
-        try {
-            const replySubject = "Re: " + (reply.subject || selected?.subject || "");
-            const res = await fetch("/api/useQuickSendEmail", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    toEmail: reply.from_email,
-                    toName: reply.from_name || reply.from_email,
-                    subject: replySubject,
-                    body: replyText,
-                    leadId: reply.lead_id || selected?.leadId || null,
-                    userEmail: sessionStorage.getItem("aura_user_email") || "",
-                }),
-            });
-            const data = await res.json();
-            if (data.success) {
-                setReplyBoxId(null);
-                setReplyText("");
-                refetch();
-            } else {
-                alert(data.error || "Failed to send reply");
-            }
-        } catch (e) {
-            alert(e.message || "Failed to send reply");
-        } finally {
-            setReplySending(false);
-        }
-    }, [replyText, selected, refetch]);
     const draftCount = byTab("draft").length;
     const sentCount = byTab("sent").length;
     const failedCount = byTab("failed").length;
@@ -618,48 +617,17 @@ export default function Outreach() {
                                     <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
                                       <Reply className="w-3 h-3"/> Replied
                                     </span>
-                                    {reply.from_email && (<button
-                                      onClick={() => {
-                                        setReplyBoxId(replyBoxId === reply.id ? null : reply.id);
-                                        setReplyText("");
-                                      }}
-                                      className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white transition-all hover:bg-[#A4285E]"
-                                      style={{ background: replyBoxId === reply.id ? "#A4285E" : "#CB3273" }}
-                                    >
-                                      <Send className="w-3 h-3"/> {replyBoxId === reply.id ? "Cancel" : "Reply"}
-                                    </button>)}
+                                    {reply.from_email && (
+                                      <button onClick={() => { setComposeInitial({ leadId: selected.leadId, toEmail: reply.from_email, subject: (reply.subject || selected.subject)?.startsWith("Re:") ? (reply.subject || selected.subject) : `Re: ${reply.subject || selected.subject || ""}` }); setComposeOpen(true); }} className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full text-white transition-all hover:bg-[#A4285E] shadow-sm cursor-pointer" style={{ background: "#CB3273" }}>
+                                        <Send className="w-3 h-3"/> Reply
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                                 {/* Reply body */}
                                 <div className="px-4 py-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
                                   {reply.body || "(empty message)"}
                                 </div>
-                                {/* Inline reply box */}
-                                {replyBoxId === reply.id && (
-                                  <div className="px-4 pb-4 border-t border-emerald-100">
-                                    <div className="mt-3 text-[10px] text-gray-400 mb-1">Replying to <span className="font-medium text-gray-600">{reply.from_email}</span> · from <span className="font-medium text-gray-600">{SENDER_EMAIL}</span></div>
-                                    <textarea
-                                      value={replyText}
-                                      onChange={(e) => setReplyText(e.target.value)}
-                                      rows={4}
-                                      placeholder="Write your reply here…"
-                                      className="w-full px-3 py-2 rounded-lg border border-emerald-200 text-sm text-gray-800 focus:outline-none focus:ring-2 resize-none"
-                                      style={{ focusRingColor: "#CB3273" }}
-                                    />
-                                    <div className="flex justify-end gap-2 mt-2">
-                                      <button onClick={() => { setReplyBoxId(null); setReplyText(""); }} className="px-3 py-1.5 text-xs rounded-lg text-gray-500 hover:bg-gray-100">Cancel</button>
-                                      <button
-                                        onClick={() => sendQuickReply(reply)}
-                                        disabled={replySending || !replyText.trim()}
-                                        className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-semibold rounded-lg text-white disabled:opacity-60 transition-all hover:bg-[#A4285E]"
-                                        style={{ background: "#CB3273" }}
-                                      >
-                                        <Send className="w-3 h-3"/>
-                                        {replySending ? "Sending…" : "Send Reply"}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
                               </div>
                             ))}
                           </div>
@@ -677,6 +645,54 @@ export default function Outreach() {
                           </button>
                         </div>
                       )}
+
+                      {/* Inline Reply Composer Box */}
+                      <div className="mt-6 border border-gray-200 rounded-xl bg-white p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                            <Reply className="w-3.5 h-3.5 text-[#CB3273]" />
+                            Quick Reply to {selected.leadFirstName || "Lead"} ({selected.toEmail})
+                          </span>
+                          <button
+                            onClick={() => {
+                              setComposeInitial({
+                                leadId: selected.leadId,
+                                toEmail: selected.toEmail,
+                                subject: selected.subject?.startsWith("Re:") ? selected.subject : `Re: ${selected.subject || ""}`
+                              });
+                              setComposeOpen(true);
+                            }}
+                            className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors"
+                          >
+                            <Zap className="w-3 h-3 text-purple-500" /> AI Composer
+                          </button>
+                        </div>
+                        <textarea
+                          rows={3}
+                          value={inlineReplyText}
+                          onChange={(e) => setInlineReplyText(e.target.value)}
+                          placeholder="Write a reply to send back..."
+                          className="w-full p-3 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#CB3273]/30 resize-none font-sans"
+                        />
+                        <div className="flex items-center justify-end gap-2 mt-2">
+                          <button
+                            onClick={() => handleInlineReply(selected.toEmail, selected.leadId, selected.subject)}
+                            disabled={inlineReplySending || !inlineReplyText.trim()}
+                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
+                            style={{ background: "#CB3273" }}
+                          >
+                            {inlineReplySending ? (
+                              <>
+                                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sending…
+                              </>
+                            ) : (
+                              <>
+                                <Send className="w-3.5 h-3.5" /> Send Reply
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     /* ── Standard view for draft/failed ── */
@@ -714,9 +730,10 @@ export default function Outreach() {
         </div>)}
 
       {/* Compose Modal */}
-      {composeOpen && (<ComposeModal onClose={() => {
-            setComposeOpen(false);
-            refetch();
-          }}/>)}
+      {composeOpen && (<ComposeModal initialEmail={composeInitial} onClose={() => {
+                setComposeOpen(false);
+                setComposeInitial(null);
+                refetch();
+            }}/>)}
     </div>);
 }
