@@ -126,12 +126,16 @@ export default function Outreach() {
     const byTab = (tab) => emails.filter((e) => e.status === tab);
     const tabEmails = byTab(activeTab);
     const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
-    // Replies linked to the currently selected sent email
-    const threadReplies = selected ? replies.filter((r) => r.outreach_email_id === selected.id || (r.lead_id && r.lead_id === selected.leadId)) : [];
-    // Map of outreach email id -> reply count for badge on list items
+    // Replies linked to the currently selected sent email — use String() to avoid number/string type mismatch from DB
+    const threadReplies = selected ? replies.filter((r) =>
+        (r.outreach_email_id && String(r.outreach_email_id) === String(selected.id)) ||
+        (r.lead_id && String(r.lead_id) === String(selected.leadId))
+    ) : [];
+    // Map of outreach email id -> reply count for badge on list items (String keys for safe lookup)
     const replyCountByEmailId = replies.reduce((acc, r) => {
         if (r.outreach_email_id) {
-            acc[r.outreach_email_id] = (acc[r.outreach_email_id] || 0) + 1;
+            const key = String(r.outreach_email_id);
+            acc[key] = (acc[key] || 0) + 1;
         }
         return acc;
     }, {});
@@ -333,7 +337,7 @@ export default function Outreach() {
               </div>) : (tabEmails.map((email) => {
             const isSelected = selectedId === email.id;
             const isGen = generating?.leadId === email.leadId && generating?.status === "running";
-            const replyCount = replyCountByEmailId[email.id] || 0;
+            const replyCount = replyCountByEmailId[String(email.id)] || 0;
             return (<button key={email.id} onClick={() => {
                     setSelectedId(email.id);
                     setIsEditing(false);
