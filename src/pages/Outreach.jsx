@@ -3,9 +3,12 @@ import { useListOutreachEmails, useUpdateOutreachEmail, useSendOutreachEmail, us
 import { tryParsePlanLimit, dispatchPlanLimitEvent } from "@/lib/fetchGuard";
 import ComposeModal from "@/components/ComposeModal";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Zap, Send, Mail, CheckCircle2, XCircle, Clock, Trash2, Edit3, Save, X, RefreshCw, ChevronRight, Globe, Pencil, Eye, Reply } from "lucide-react";
+import { Zap, Send, Mail, CheckCircle2, XCircle, Clock, Trash2, Edit3, Save, X, RefreshCw, ChevronRight, Globe, Pencil, Eye, Reply, MessageCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
+
+const SENDER_EMAIL = "dreamsdesign.in03@gmail.com";
+const SENDER_NAME = "Aura AI";
 function initials(first, last) {
     return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
 }
@@ -107,7 +110,6 @@ export default function Outreach() {
     }, [refetchReplies, qc]);
     const [activeTab, setActiveTab] = useState("draft");
     const [selectedId, setSelectedId] = useState(null);
-    const [selectedReplyId, setSelectedReplyId] = useState(null);
     const [composeOpen, setComposeOpen] = useState(false);
     const [editSubject, setEditSubject] = useState("");
     const [editBody, setEditBody] = useState("");
@@ -120,12 +122,20 @@ export default function Outreach() {
         { key: "draft", label: "Drafts", icon: <Edit3 className="w-3.5 h-3.5"/> },
         { key: "sent", label: "Sent", icon: <CheckCircle2 className="w-3.5 h-3.5"/> },
         { key: "failed", label: "Failed", icon: <XCircle className="w-3.5 h-3.5"/> },
-        { key: "replies", label: "Replies", icon: <Reply className="w-3.5 h-3.5"/> },
     ];
     const byTab = (tab) => emails.filter((e) => e.status === tab);
     const tabEmails = byTab(activeTab);
     const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
     const selectedReply = selectedReplyId ? replies.find((r) => r.id === selectedReplyId) ?? null : null;
+    // Replies linked to the currently selected sent email
+    const threadReplies = selected ? replies.filter((r) => r.outreach_email_id === selected.id || (r.lead_id && r.lead_id === selected.leadId)) : [];
+    // Map of outreach email id -> reply count for badge on list items
+    const replyCountByEmailId = replies.reduce((acc, r) => {
+        if (r.outreach_email_id) {
+            acc[r.outreach_email_id] = (acc[r.outreach_email_id] || 0) + 1;
+        }
+        return acc;
+    }, {});
     useEffect(() => { checkReplies(); }, [checkReplies]);
     useEffect(() => {
         if (selected && !isEditing) {
@@ -283,13 +293,13 @@ export default function Outreach() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Left panel: list — full width on mobile when no selection, 320px on desktop */}
-        <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-80", (selectedId || selectedReplyId) ? "hidden md:flex" : "flex w-full")}>
+        <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-80", selectedId ? "hidden md:flex" : "flex w-full")}>
 
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
             {tabs.map((t) => {
-            const count = t.key === "replies" ? replies.length : byTab(t.key).length;
-            return (<button key={t.key} onClick={() => { setActiveTab(t.key); setSelectedId(null); setSelectedReplyId(null); }} className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors", activeTab === t.key
+            const count = byTab(t.key).length;
+            return (<button key={t.key} onClick={() => { setActiveTab(t.key); setSelectedId(null); }} className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors", activeTab === t.key
                     ? "border-b-2 text-gray-900"
                     : "text-gray-400 hover:text-[#CB3273] hover:bg-[#FBE9F1]")} style={activeTab === t.key ? { borderBottomColor: "#CB3273", color: "#CB3273" } : {}}>
                   {t.icon}
@@ -314,33 +324,7 @@ export default function Outreach() {
                       <div className="h-2.5 bg-gray-100 rounded w-full"/>
                     </div>
                   </div>
-                </div>))) : activeTab === "replies" ? (replies.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                <Reply className="w-8 h-8 text-gray-300 mb-3"/>
-                <p className="text-xs text-gray-400">No replies yet. Replies to emails you've sent will appear here.</p>
-                {replyPollError && (<p className="text-[11px] text-red-500 mt-2 max-w-xs text-center">{replyPollError}</p>)}
-                <button onClick={checkReplies} disabled={replyPolling} className="mt-4 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60 transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
-                  <RefreshCw className={cn("w-3 h-3", replyPolling && "animate-spin")}/>
-                  {replyPolling ? "Checking…" : "Check for replies"}
-                </button>
-              </div>) : (replies.map((reply) => {
-            const isSel = selectedReplyId === reply.id;
-            return (<button key={reply.id} onClick={() => { setSelectedId(null); setSelectedReplyId(reply.id); }} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-colors flex gap-2.5", isSel ? "bg-emerald-50" : "hover:bg-gray-50")}>
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#059669" }}>
-                  {(reply.from_name?.[0] || reply.from_email?.[0] || "?").toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-gray-900 truncate">{reply.from_name || reply.from_email}</span>
-                    <span className="text-[10px] text-gray-400 ml-1 flex-shrink-0">{formatSafeDistance(reply.received_at)}</span>
-                  </div>
-                  <div className="text-[11px] text-gray-500 truncate">
-                    {reply.first_name ? `${reply.first_name} ${reply.last_name ?? ""}` : "Lead"}{reply.company ? ` · ${reply.company}` : ""}
-                  </div>
-                  <div className="text-[11px] text-gray-400 truncate mt-0.5 italic">{reply.subject || "(no subject)"}</div>
-                </div>
-                {isSel && <ChevronRight className="w-3.5 h-3.5 text-gray-300 flex-shrink-0 self-center"/>}
-              </button>);
-        }))) : tabEmails.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                </div>))) : tabEmails.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <Mail className="w-8 h-8 text-gray-300 mb-3"/>
                 <p className="text-xs text-gray-400">
                   {activeTab === "draft" && "No draft emails yet. Click Generate All to create."}
@@ -350,19 +334,20 @@ export default function Outreach() {
               </div>) : (tabEmails.map((email) => {
             const isSelected = selectedId === email.id;
             const isGen = generating?.leadId === email.leadId && generating?.status === "running";
+            const replyCount = replyCountByEmailId[email.id] || 0;
             return (<button key={email.id} onClick={() => {
                     setSelectedId(email.id);
-                    setSelectedReplyId(null);
                     setIsEditing(false);
                     setEditSubject(email.subject);
                     setEditBody(email.body);
-                }} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-colors flex gap-2.5", isSelected ? "bg-emerald-50" : "hover:bg-gray-50")}>
+                }} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-colors flex gap-2.5", isSelected ? "bg-[#FBE9F1]" : "hover:bg-gray-50")}>
                     {/* Avatar */}
                     <div className="flex-shrink-0 relative">
                       {email.leadPhoto ? (<img src={email.leadPhoto} className="w-8 h-8 rounded-full object-cover"/>) : email.leadCompanyLogo ? (<img src={email.leadCompanyLogo} className="w-8 h-8 rounded-full object-contain border border-gray-200 bg-white p-0.5"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: "#CB3273" }}>
                           {initials(email.leadFirstName, email.leadLastName)}
                         </div>)}
                       {isGen && (<div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 animate-pulse border border-white"/>)}
+                      {replyCount > 0 && (<div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-white" style={{ background: "#059669" }}>{replyCount}</div>)}
                     </div>
 
                     {/* Info */}
@@ -372,6 +357,7 @@ export default function Outreach() {
                           {email.leadFirstName} {email.leadLastName}
                         </span>
                         <div className="flex items-center gap-1 ml-1">
+                          {replyCount > 0 && (<span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5" style={{ background: "#ECFDF5", color: "#059669" }}><MessageCircle className="w-2.5 h-2.5"/>{replyCount}</span>)}
                           {email.openedAt && (<span className="text-[9px] font-semibold px-1 py-0.5 rounded" style={{ background: "#EFF6FF", color: "#3B82F6" }}>OPENED</span>)}
                           <CurrencyFlag currency={email.currency}/>
                           <StatusIcon status={email.status} opened={!!email.openedAt}/>
@@ -390,77 +376,12 @@ export default function Outreach() {
         </div>
 
         {/* Right panel: email preview — hidden on mobile when nothing selected */}
-        <div className={cn("flex-1 flex flex-col overflow-hidden", (activeTab === "replies" ? !selectedReply : !selected) && "hidden md:flex")}>
+        <div className={cn("flex-1 flex flex-col overflow-hidden", !selected && "hidden md:flex")}>
           {/* Mobile back button */}
-          {(selected || selectedReply) && (<button className="md:hidden flex items-center gap-1 px-3 py-2 text-xs text-gray-500 border-b border-gray-200 bg-white" onClick={() => { setSelectedId(null); setSelectedReplyId(null); }}>
+          {selected && (<button className="md:hidden flex items-center gap-1 px-3 py-2 text-xs text-gray-500 border-b border-gray-200 bg-white" onClick={() => { setSelectedId(null); }}>
               <ChevronRight className="w-3.5 h-3.5 rotate-180"/> Back to list
             </button>)}
-          {activeTab === "replies" ? (!selectedReply ? (<div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#D1FAE5" }}>
-                <Reply className="w-8 h-8" style={{ color: "#059669" }}/>
-              </div>
-              <p className="text-sm font-semibold text-gray-700 mb-1">Select a reply to read</p>
-              <p className="text-xs text-gray-400 max-w-xs">
-                Replies from your leads will appear here, linked to the original email you sent.
-              </p>
-              <button onClick={checkReplies} disabled={replyPolling} className="mt-6 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60 transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
-                <RefreshCw className={cn("w-4 h-4", replyPolling && "animate-spin")}/>
-                {replyPolling ? "Checking for replies…" : "Check for replies"}
-              </button>
-            </div>) : (<div className="flex-1 flex flex-col overflow-hidden">
-
-              {/* Reply header */}
-              <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-start justify-between flex-shrink-0">
-                <div className="flex gap-3">
-                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: "#059669" }}>
-                    {(selectedReply.from_name?.[0] || selectedReply.from_email?.[0] || "?").toUpperCase()}
-                  </div>
-                  <div>
-                    <div className="font-semibold text-sm text-gray-900">
-                      {selectedReply.from_name || selectedReply.from_email}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      {selectedReply.first_name ? `${selectedReply.first_name} ${selectedReply.last_name ?? ""}` : ""}
-                      {selectedReply.company ? ` · ${selectedReply.company}` : ""}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 flex-wrap">
-                      <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                        <Mail className="w-3 h-3"/> {selectedReply.from_email}
-                      </span>
-                      <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
-                        <CheckCircle2 className="w-3 h-3"/> Replied {formatSafeDistance(selectedReply.received_at)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                {selectedReply.from_email && (<a href={`mailto:${selectedReply.from_email}?subject=${encodeURIComponent("Re: " + (selectedReply.subject || ""))}`} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
-                    <Send className="w-3.5 h-3.5"/> Reply
-                  </a>)}
-              </div>
-
-              {/* In reply to */}
-              {selectedReply.original_subject && (<div className="px-6 py-2 bg-gray-50 border-b border-gray-100 flex items-center gap-2 text-xs text-gray-500 flex-shrink-0">
-                  <Mail className="w-3 h-3"/> In reply to: <span className="font-medium text-gray-700">{selectedReply.original_subject}</span>
-                </div>)}
-
-              {/* Reply body */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-2xl mx-auto">
-                  <div className="mb-4">
-                    <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Subject</label>
-                    <div className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-900">
-                      {selectedReply.subject || "(no subject)"}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Message</label>
-                    <div className="px-4 py-4 rounded-lg bg-white border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
-                      {selectedReply.body || "(empty message)"}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>)) : !selected ? (<div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+          {!selected ? (<div className="flex-1 flex flex-col items-center justify-center text-center px-8">
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#FBE9F1" }}>
                 <Mail className="w-8 h-8" style={{ color: "#CB3273" }}/>
               </div>
@@ -489,7 +410,10 @@ export default function Outreach() {
                     </div>
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className="flex items-center gap-1 text-[11px] text-gray-400">
-                        <Mail className="w-3 h-3"/> {selected.toEmail}
+                        <Mail className="w-3 h-3"/> To: {selected.toEmail}
+                      </span>
+                      <span className="flex items-center gap-1 text-[11px] text-gray-400">
+                        <Send className="w-3 h-3"/> From: <span className="font-medium text-gray-600">{SENDER_EMAIL}</span>
                       </span>
                       {selected.leadWebsite && (<a href={selected.leadWebsite} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] text-blue-500 hover:underline">
                           <Globe className="w-3 h-3"/> Website
@@ -500,6 +424,10 @@ export default function Outreach() {
                       {selected.openedAt && (<span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#EFF6FF", color: "#3B82F6" }}>
                           <Eye className="w-3 h-3"/>
                           Opened {formatSafeDistance(selected.openedAt)}
+                        </span>)}
+                      {threadReplies.length > 0 && (<span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
+                          <Reply className="w-3 h-3"/>
+                          {threadReplies.length} {threadReplies.length === 1 ? "Reply" : "Replies"}
                         </span>)}
                     </div>
                   </div>
@@ -575,7 +503,7 @@ export default function Outreach() {
                   <XCircle className="w-3.5 h-3.5"/> <strong>Send Error:</strong> {selected.errorMsg}
                 </div>)}
 
-              {/* Email body */}
+              {/* Email body — Gmail-like thread for sent emails, plain for draft/failed */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto">
 
@@ -587,21 +515,118 @@ export default function Outreach() {
                       </span>)}
                   </div>
 
-                  {/* Subject */}
-                  <div className="mb-4">
-                    <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Subject</label>
-                    {isEditing ? (<input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-800/20"/>) : (<div className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-900">
+                  {selected.status === "sent" ? (
+                    /* ── Gmail-style thread view for Sent emails ── */
+                    <div className="space-y-4">
+                      {/* Thread subject */}
+                      <div className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-3">
                         {selected.subject}
-                      </div>)}
-                  </div>
+                      </div>
 
-                  {/* Body */}
-                  <div>
-                    <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email Body</label>
-                    {isEditing ? (<textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={20} className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm text-gray-800 font-mono focus:outline-none focus:ring-2 focus:ring-green-800/20 resize-none"/>) : (<div className="px-4 py-4 rounded-lg bg-white border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
-                        {selected.body}
-                      </div>)}
-                  </div>
+                      {/* Original sent email bubble */}
+                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+                        {/* Sent message header */}
+                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#CB3273" }}>A</div>
+                            <div>
+                              <div className="text-xs font-semibold text-gray-900">{SENDER_NAME} <span className="text-gray-400 font-normal">&lt;{SENDER_EMAIL}&gt;</span></div>
+                              <div className="text-[10px] text-gray-400">to {selected.toEmail} · {formatSafeDistance(selected.sentAt || selected.createdAt)}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
+                              <CheckCircle2 className="w-3 h-3"/> Sent
+                            </span>
+                            {selected.openedAt && (<span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#EFF6FF", color: "#3B82F6" }}>
+                              <Eye className="w-3 h-3"/> Opened
+                            </span>)}
+                          </div>
+                        </div>
+                        {/* Sent message body */}
+                        <div className="px-4 py-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                          {selected.body}
+                        </div>
+                      </div>
+
+                      {/* Thread connector + replies */}
+                      {threadReplies.length > 0 && (
+                        <div className="relative">
+                          {/* Thread line */}
+                          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" style={{ marginLeft: "3px" }}/>
+                          <div className="space-y-4 pl-10">
+                            {/* Separator */}
+                            <div className="flex items-center gap-2 -ml-10">
+                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#059669", marginLeft: "3px" }}/>
+                              <span className="text-[11px] font-semibold text-emerald-700">{threadReplies.length} {threadReplies.length === 1 ? "Reply" : "Replies"} received</span>
+                            </div>
+                            {threadReplies.map((reply) => (
+                              <div key={reply.id} className="rounded-xl border border-emerald-200 bg-white overflow-hidden shadow-sm">
+                                {/* Reply header */}
+                                <div className="px-4 py-3 border-b flex items-center justify-between" style={{ background: "#F0FDF4", borderColor: "#BBF7D0" }}>
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#059669" }}>
+                                      {(reply.from_name?.[0] || reply.from_email?.[0] || "?").toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <div className="text-xs font-semibold text-gray-900">
+                                        {reply.from_name || reply.from_email}
+                                        {reply.from_name && <span className="text-gray-400 font-normal ml-1">&lt;{reply.from_email}&gt;</span>}
+                                      </div>
+                                      <div className="text-[10px] text-gray-400">to {SENDER_EMAIL} · {formatSafeDistance(reply.received_at)}</div>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
+                                      <Reply className="w-3 h-3"/> Replied
+                                    </span>
+                                    {reply.from_email && (<a href={`mailto:${reply.from_email}?subject=${encodeURIComponent("Re: " + (reply.subject || selected.subject || ""))}`} className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full text-white transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
+                                      <Send className="w-3 h-3"/> Reply
+                                    </a>)}
+                                  </div>
+                                </div>
+                                {/* Reply body */}
+                                <div className="px-4 py-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                                  {reply.body || "(empty message)"}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* No replies yet */}
+                      {threadReplies.length === 0 && (
+                        <div className="flex items-center gap-2 px-4 py-3 rounded-lg text-xs text-gray-400 bg-gray-50 border border-gray-100">
+                          <MessageCircle className="w-3.5 h-3.5"/>
+                          No replies yet. Replies to this email will appear here automatically.
+                          <button onClick={checkReplies} disabled={replyPolling} className="ml-auto flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline disabled:opacity-60">
+                            <RefreshCw className={cn("w-3 h-3", replyPolling && "animate-spin")}/>
+                            {replyPolling ? "Checking…" : "Check now"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* ── Standard view for draft/failed ── */
+                    <>
+                      {/* Subject */}
+                      <div className="mb-4">
+                        <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Subject</label>
+                        {isEditing ? (<input value={editSubject} onChange={(e) => setEditSubject(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-green-800/20"/>) : (<div className="px-3 py-2 rounded-lg bg-white border border-gray-200 text-sm font-medium text-gray-900">
+                            {selected.subject}
+                          </div>)}
+                      </div>
+
+                      {/* Body */}
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email Body</label>
+                        {isEditing ? (<textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={20} className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm text-gray-800 font-mono focus:outline-none focus:ring-2 focus:ring-green-800/20 resize-none"/>) : (<div className="px-4 py-4 rounded-lg bg-white border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                            {selected.body}
+                          </div>)}
+                      </div>
+                    </>
+                  )}
 
                 </div>
               </div>
