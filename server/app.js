@@ -5212,6 +5212,10 @@ automationsApi.registerAutomationRoutes(app, resolveUserId);
 // ── Agent Hub API (Scout, Sales, Follow-up, Brain, Lead Hunter) ───────────────
 agentHubApi.registerAgentHubRoutes(app, resolveUserId);
 
+// ── Email Replies API (IMAP-polled replies to sent outreach emails) ───────────
+const emailRepliesApi = require('./email-replies');
+emailRepliesApi.registerEmailReplyRoutes(app, resolveUserId);
+
 module.exports = app;
 
 
