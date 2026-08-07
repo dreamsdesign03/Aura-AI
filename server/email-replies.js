@@ -66,6 +66,14 @@ function stripHtml(html) {
     .trim();
 }
 
+function stripReplyPrefix(subject) {
+  return String(subject || '').replace(/^\s*(re|fwd|fw|aw|antwort|sv)\s*[:：]\s*/i, '').trim().toLowerCase();
+}
+
+function isReplyMessage(subject, inReplyTo) {
+  return !!inReplyTo || /^\s*(re|fwd|fw|aw|antwort|sv)\s*[:：]/i.test(String(subject || ''));
+}
+
 async function pollReplies(userId) {
   const { user, pass } = imapCredentials();
   if (!user || !pass) {
@@ -74,17 +82,22 @@ async function pollReplies(userId) {
 
   const [leadsRes, outreachRes] = await Promise.all([
     db.query(`SELECT id, email FROM leads WHERE user_id = $1 AND email IS NOT NULL AND email <> ''`, [userId]),
-    db.query(`SELECT id, lead_id, COALESCE(to_email, recipient_email) AS recipient FROM outreach_emails WHERE user_id = $1`, [userId])
+    db.query(`SELECT id, lead_id, COALESCE(to_email, recipient_email) AS recipient, subject FROM outreach_emails WHERE user_id = $1`, [userId])
   ]);
 
   const emailToLead = new Map();
   const emailToOutreach = new Map();
+  const subjectToOutreach = new Map();
   for (const row of leadsRes.rows) emailToLead.set(String(row.email).toLowerCase(), row.id);
   for (const row of outreachRes.rows) {
     if (row.recipient) {
       const key = String(row.recipient).toLowerCase();
       emailToOutreach.set(key, { id: row.id, lead_id: row.lead_id });
       if (!emailToLead.has(key) && row.lead_id) emailToLead.set(key, row.lead_id);
+    }
+    if (row.subject) {
+      const subjKey = stripReplyPrefix(row.subject);
+      if (subjKey && !subjectToOutreach.has(subjKey)) subjectToOutreach.set(subjKey, { id: row.id, lead_id: row.lead_id });
     }
   }
 
@@ -116,14 +129,21 @@ async function pollReplies(userId) {
           }
           const from = parsed.from?.value?.[0];
           const fromEmail = (from?.address || '').toLowerCase().trim();
-          if (!fromEmail || fromEmail === user.toLowerCase()) continue;
+          if (!fromEmail) continue;
 
           const messageId = parsed.messageId || String(msg.uid);
           const dup = await db.query('SELECT 1 FROM email_replies WHERE message_id = $1', [messageId]);
           if (dup.rows.length) continue;
 
-          const leadId = emailToLead.get(fromEmail) || null;
-          const outreach = emailToOutreach.get(fromEmail) || null;
+          const isReply = isReplyMessage(parsed.subject, parsed.inReplyTo);
+          if (fromEmail === user.toLowerCase() && !isReply) continue;
+
+          let leadId = emailToLead.get(fromEmail) || null;
+          let outreach = emailToOutreach.get(fromEmail) || null;
+          if (!leadId && !outreach && isReply) {
+            outreach = subjectToOutreach.get(stripReplyPrefix(parsed.subject)) || null;
+          }
+          if (outreach && !leadId) leadId = outreach.lead_id;
           if (!leadId && !outreach) continue;
 
           const body = parsed.text || stripHtml(parsed.html) || '';
