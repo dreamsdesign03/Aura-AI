@@ -14,7 +14,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
 // ── AUTH HELPERS & SINGLE ADMIN SEED ────────────────────────────────────────
-const ADMIN_USERNAME = 'krishadmin';
+const ADMIN_USERNAME = 'auraadmin';
 const ADMIN_PASSWORD = 'Vishnu@Krishna';
 const ADMIN_EMAIL = 'krishadmin@auraai.app';
 
@@ -26,7 +26,7 @@ async function seedAdminUser() {
   try {
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_salt TEXT;`);
-    const existing = await db.query(`SELECT id FROM users WHERE username = $1 OR email = $2`, [ADMIN_USERNAME, ADMIN_EMAIL]);
+    const existing = await db.query(`SELECT id, password_salt, password_hash FROM users WHERE email = $1`, [ADMIN_EMAIL]);
     if (existing.rows.length === 0) {
       const salt = crypto.randomBytes(16).toString('hex');
       const hash = hashPassword(ADMIN_PASSWORD, salt);
@@ -35,18 +35,19 @@ async function seedAdminUser() {
          VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, true, true, NOW())`,
         [ADMIN_USERNAME, ADMIN_EMAIL, hash, salt]
       );
-      console.log('[Auth] ✅ Seeded admin user: krishadmin');
+      console.log('[Auth] ✅ Seeded admin user: auraadmin');
     } else {
+      // Always sync the admin username/email from constants on every start
       const admin = existing.rows[0];
       const salt = admin.password_salt || crypto.randomBytes(16).toString('hex');
-      const hash = admin.password_hash;
-      if (!admin.password_hash || admin.password_hash === 'oauth_google') {
-        await db.query(
-          `UPDATE users SET username = $1, email = $2, password_salt = $3, password_hash = $4, is_active = true, onboarding_completed = true WHERE id = $5`,
-          [ADMIN_USERNAME, ADMIN_EMAIL, salt, hashPassword(ADMIN_PASSWORD, salt), admin.id]
-        );
-        console.log('[Auth] ✅ Updated admin credentials for: krishadmin');
-      }
+      const keepHash = (admin.password_hash && admin.password_hash !== 'oauth_google' && /^[0-9a-f]{128}$/.test(admin.password_hash))
+        ? admin.password_hash
+        : hashPassword(ADMIN_PASSWORD, salt);
+      await db.query(
+        `UPDATE users SET username = $1, email = $2, password_salt = $3, password_hash = $4, is_active = true, onboarding_completed = true WHERE id = $5`,
+        [ADMIN_USERNAME, ADMIN_EMAIL, salt, keepHash, admin.id]
+      );
+      console.log('[Auth] ✅ Synced admin user: auraadmin');
     }
   } catch (err) {
     console.error('[Auth] seed admin error:', err.message);
