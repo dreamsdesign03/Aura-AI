@@ -6,7 +6,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Layout from "@/components/Layout";
 import Login from "@/pages/Login";
-import Register from "@/pages/Register";
 import AcceptInvite from "@/pages/AcceptInvite";
 import Verify from "@/pages/Verify";
 import { UpgradeWallModal } from "@/components/UpgradeWallModal";
@@ -334,9 +333,9 @@ function UnauthenticatedRouter({ onSuccess }) {
       <Route path="/verify" component={() => (<Verify onSuccess={handleSuccess}/>)}/>
       <Route path="/invite/:token" component={() => (<AcceptInvite />)}/>
       <Route path="/audit/share/:token" component={() => (<AuditShare />)}/>
-      <Route path="/login" component={() => (<Login onSuccess={handleSuccess} onRegisterClick={() => navigate("/register")}/>)}/>
-      <Route path="/register" component={() => (<Register onSuccess={handleSuccess} onLoginClick={() => navigate("/login")}/>)}/>
-      <Route component={() => (<Register onSuccess={handleSuccess} onLoginClick={() => navigate("/login")}/>)}/>
+      <Route path="/login" component={() => (<Login onSuccess={handleSuccess}/>)}/>
+      <Route path="/register" component={() => (<Login onSuccess={handleSuccess}/>)}/>
+      <Route component={() => (<Login onSuccess={handleSuccess}/>)}/>
     </Switch>);
 }
 function App() {
@@ -361,29 +360,11 @@ function App() {
                 return;
             }
 
-            if (urlEmail) {
-                sessionStorage.setItem("aura_user_email", urlEmail);
-            }
-
             if (authSuccess || urlEmail) {
                 window.history.replaceState({}, "", "/");
             }
 
-            const activeEmail = urlEmail || sessionStorage.getItem("aura_user_email");
-
-            let apiUrl;
-            if (activeEmail) {
-                apiUrl = `/api/auth/me?email=${encodeURIComponent(activeEmail)}`;
-            } else if (authSuccess) {
-                apiUrl = `/api/auth/me`;
-            } else {
-                // No email, no auth param → show Register (new visitor)
-                setAuthUser(null);
-                setAuth("unauthenticated");
-                return;
-            }
-
-            const res = await fetch(apiUrl, {
+            const res = await fetch("/api/auth/me", {
                 credentials: "include",
                 signal: AbortSignal.timeout(8000),
             });
@@ -443,8 +424,9 @@ function App() {
             <Route path="/verify" component={() => <Verify onSuccess={() => checkAuth()}/>}/>
             <Route path="/invite/:token" component={() => <AcceptInvite />}/>
             <Route path="/audit/share/:token" component={() => <AuditShare />}/>
-            <Route path="/register" component={() => <Register onSuccess={() => checkAuth()} onLoginClick={() => { sessionStorage.removeItem("aura_logged_out"); window.location.href = "/login"; }}/>}/>
-            <Route component={() => <Login onSuccess={() => checkAuth()} onRegisterClick={() => { sessionStorage.removeItem("aura_logged_out"); window.location.href = "/register"; }}/>}/>
+            <Route path="/login" component={() => <Login onSuccess={() => { sessionStorage.removeItem("aura_logged_out"); checkAuth(); }}/>}/>
+            <Route path="/register" component={() => <Login onSuccess={() => { sessionStorage.removeItem("aura_logged_out"); checkAuth(); }}/>}/>
+            <Route component={() => <Login onSuccess={() => { sessionStorage.removeItem("aura_logged_out"); checkAuth(); }}/>}/>
           </Switch>
         </WouterRouter>
         <Toaster />

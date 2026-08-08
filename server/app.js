@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const crypto = require('crypto');
 require('dotenv').config();
 const db = require('./db');
 const nodemailer = require('nodemailer');
@@ -11,6 +12,46 @@ const app = express();
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// ── AUTH HELPERS & SINGLE ADMIN SEED ────────────────────────────────────────
+const ADMIN_USERNAME = 'krishadmin';
+const ADMIN_PASSWORD = 'Vishnu@Krishna';
+const ADMIN_EMAIL = 'krishadmin@auraai.app';
+
+function hashPassword(password, salt) {
+  return crypto.scryptSync(password, salt, 64).toString('hex');
+}
+
+async function seedAdminUser() {
+  try {
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_salt TEXT;`);
+    const existing = await db.query(`SELECT id FROM users WHERE username = $1 OR email = $2`, [ADMIN_USERNAME, ADMIN_EMAIL]);
+    if (existing.rows.length === 0) {
+      const salt = crypto.randomBytes(16).toString('hex');
+      const hash = hashPassword(ADMIN_PASSWORD, salt);
+      await db.query(
+        `INSERT INTO users (username, first_name, last_name, email, password_hash, password_salt, is_active, onboarding_completed, created_at)
+         VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, true, true, NOW())`,
+        [ADMIN_USERNAME, ADMIN_EMAIL, hash, salt]
+      );
+      console.log('[Auth] ✅ Seeded admin user: krishadmin');
+    } else {
+      const admin = existing.rows[0];
+      const salt = admin.password_salt || crypto.randomBytes(16).toString('hex');
+      const hash = admin.password_hash;
+      if (!admin.password_hash || admin.password_hash === 'oauth_google') {
+        await db.query(
+          `UPDATE users SET username = $1, email = $2, password_salt = $3, password_hash = $4, is_active = true, onboarding_completed = true WHERE id = $5`,
+          [ADMIN_USERNAME, ADMIN_EMAIL, salt, hashPassword(ADMIN_PASSWORD, salt), admin.id]
+        );
+        console.log('[Auth] ✅ Updated admin credentials for: krishadmin');
+      }
+    }
+  } catch (err) {
+    console.error('[Auth] seed admin error:', err.message);
+  }
+}
 
 // ── STARTUP MIGRATIONS — Run once on cold start ────────────────────────────────
 (async () => {
@@ -168,6 +209,8 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
     await db.query(`ALTER TABLE meetings ALTER COLUMN pain_points SET DEFAULT '[]';`);
     await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS next_action TEXT;`);
     await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`);
+
+    await seedAdminUser();
     console.log('[Startup Migration] ✅ All migrations complete.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
@@ -647,108 +690,21 @@ app.get('/api/run-migrations', async (req, res) => {
   res.json({ message: '✅ Migrations complete', results });
 });
 
-// 2. Google OAuth Integration Endpoints
+// 2. Google OAuth — disabled. Login is username/password only.
 app.get('/api/auth/google', (req, res) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${req.protocol}://${req.get('host')}/api/auth/google/callback`;
-
-  if (!clientId) {
-    return res.redirect('/login?error=oauth_not_configured');
-  }
-
-  const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
-    `client_id=${encodeURIComponent(clientId)}&` +
-    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-    `response_type=code&` +
-    `scope=${encodeURIComponent('openid email profile')}&` +
-    `access_type=offline&` +
-    `prompt=consent`;
-
-  res.redirect(googleAuthUrl);
+  res.redirect('/login?error=google_disabled');
 });
 
-app.get('/api/auth/google/callback', async (req, res) => {
-  const { code, error } = req.query;
-
-  if (error || !code) {
-    return res.redirect(`/login?error=${encodeURIComponent(error || 'no_code')}`);
-  }
-
-  try {
-    const host = req.headers['x-forwarded-host'] || req.headers.host;
-    const protocol = req.headers['x-forwarded-proto'] || 'https';
-    
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${protocol}://${host}/api/auth/google/callback`;
-    const clientId = process.env.GOOGLE_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-
-    if (!clientId || !clientSecret) {
-      return res.redirect('/login?error=oauth_not_configured');
-    }
-
-    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({
-        code: String(code),
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: 'authorization_code'
-      })
-    });
-
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.access_token) {
-      console.error('Google token exchange failed:', tokenData);
-      const errMsg = tokenData.error_description || tokenData.error || 'token_exchange_failed';
-      return res.redirect(`/login?error=${encodeURIComponent(errMsg)}`);
-    }
-
-    const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: { Authorization: `Bearer ${tokenData.access_token}` }
-    });
-
-    const profile = await userRes.json();
-    if (!profile.email) {
-      return res.redirect('/login?error=no_email');
-    }
-
-    const firstName = profile.given_name || (profile.name ? profile.name.split(' ')[0] : 'User');
-    const lastName = profile.family_name || (profile.name && profile.name.split(' ').length > 1 ? profile.name.split(' ').slice(1).join(' ') : '');
-
-    try {
-      const existingUser = await db.query('SELECT * FROM users WHERE email = $1', [profile.email]);
-      if (existingUser.rows.length === 0) {
-        await db.query(
-          `INSERT INTO users (first_name, last_name, email, password_hash, is_active, onboarding_completed, created_at)
-           VALUES ($1, $2, $3, 'oauth_google', true, true, NOW())`,
-          [firstName, lastName, profile.email]
-        );
-      } else {
-        await db.query(
-          `UPDATE users SET first_name = COALESCE(NULLIF($1, ''), first_name), last_name = COALESCE(NULLIF($2, ''), last_name), is_active = true WHERE email = $3`,
-          [firstName, lastName, profile.email]
-        );
-      }
-    } catch (dbErr) {
-      console.error('Database connection warning in Google callback:', dbErr);
-    }
-
-    res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(profile.email)}; Path=/; SameSite=Lax; Max-Age=2592000`);
-    res.redirect(`/?auth=success&email=${encodeURIComponent(profile.email)}`);
-  } catch (err) {
-    console.error('Google OAuth Callback Server Error:', err);
-    res.redirect(`/login?error=${encodeURIComponent(err.message || 'server_error')}`);
-  }
+app.get('/api/auth/google/callback', (req, res) => {
+  res.redirect('/login?error=google_disabled');
 });
 
 // 3. Auth Current User Status Check
 app.get('/api/auth/me', async (req, res) => {
-  let email = req.query.email;
-
-  // Fallback: read email from aura_user_email cookie
-  if (!email && req.headers.cookie) {
+  // The signed-in session cookie is the ONLY trusted source of identity.
+  // The ?email= query param is deliberately ignored (prevents login bypass).
+  let email = null;
+  if (req.headers.cookie) {
     const cookies = {};
     req.headers.cookie.split(';').forEach(c => {
       const [key, ...rest] = c.split('=');
@@ -761,21 +717,20 @@ app.get('/api/auth/me', async (req, res) => {
     return res.status(401).json({ error: 'Unauthenticated' });
   }
 
-  const namePart = email.split('@')[0];
-  const formattedName = namePart.charAt(0).toUpperCase() + namePart.slice(1);
-
   try {
     const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userRes.rows.length > 0) {
       const dbUser = userRes.rows[0];
       return res.status(200).json({
         id: dbUser.id,
-        firstName: dbUser.first_name || formattedName,
-        lastName: dbUser.last_name || '',
+        username: dbUser.username || '',
+        firstName: dbUser.first_name || 'Krishna',
+        lastName: dbUser.last_name || 'Admin',
         email: dbUser.email,
         phone: dbUser.phone || '',
         companyName: dbUser.company_name || 'Aura Laser & Cosmetic Clinic | Skinnonest',
         businessWhy: dbUser.business_why || 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.',
+        isVerified: true,
         isActive: dbUser.is_active ?? true,
         onboardingCompleted: dbUser.onboarding_completed ?? true
       });
@@ -788,23 +743,54 @@ app.get('/api/auth/me', async (req, res) => {
   return res.status(401).json({ error: 'not_registered' });
 });
 
-// Standard Login API
+// Standard Login API — username + password (single admin account only)
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { email, password } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
+    const { username, password } = req.body;
+    const identifier = String(username || '').trim().toLowerCase();
+    const pass = String(password || '');
+
+    if (!identifier || !pass) {
+      return res.status(400).json({ error: 'Username and password are required' });
     }
-    
-    const userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
+
+    const userRes = await db.query('SELECT * FROM users WHERE username = $1', [identifier]);
     if (userRes.rows.length === 0) {
-      return res.status(400).json({ error: 'not_registered' });
+      return res.status(401).json({ error: 'Invalid username or password' });
     }
 
     const user = userRes.rows[0];
-    await db.query('UPDATE users SET is_active = true WHERE email = $1', [email]);
+    const salt = user.password_salt || '';
+    const expectedHash = user.password_hash || '';
 
-    res.json({ success: true, user: { ...user, is_active: true } });
+    const valid = !!(salt && expectedHash && expectedHash !== 'oauth_google' && /^[0-9a-f]{128}$/.test(expectedHash) &&
+      crypto.timingSafeEqual(
+        Buffer.from(hashPassword(pass, salt), 'hex'),
+        Buffer.from(expectedHash, 'hex')
+      ));
+
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid username or password' });
+    }
+
+    await db.query('UPDATE users SET is_active = true WHERE id = $1', [user.id]);
+
+    const maxAge = 30 * 24 * 60 * 60; // 30 days
+    res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(user.email)}; Path=/; SameSite=Lax; Max-Age=${maxAge}`);
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        firstName: user.first_name || 'Krishna',
+        lastName: user.last_name || 'Admin',
+        email: user.email,
+        isVerified: true,
+        isActive: true,
+        onboardingCompleted: user.onboarding_completed ?? true
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
