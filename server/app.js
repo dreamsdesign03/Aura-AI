@@ -4529,7 +4529,7 @@ app.post('/api/branding/settings', saveBrandingHandler);
 app.post(['/api/useComposeOutreachEmail', '/api/outreach/compose', '/api/outreach-ai/compose'], async (req, res) => {
   try {
     const payload = req.body?.data || req.body || {};
-    const { leadId, ctaTypes = ['consultation'], tone = 'professional' } = payload;
+    const { leadId, ctaTypes = ['proposal'], tone = 'professional' } = payload;
 
     console.log('[AI Outreach Engine] Composing email with Gemini for payload:', { leadId, ctaTypes, tone });
 
@@ -4570,12 +4570,14 @@ app.post(['/api/useComposeOutreachEmail', '/api/outreach/compose', '/api/outreac
     }
 
     // 3. Format Call To Action Label
+    const BOOKING_LINK = 'https://calendly.com/dreamsdesign-in03/aura-meeting';
+    const PITCH_DECK_LINK = 'https://drive.google.com/file/d/1zFKYiPI69TK1izNQOyj9g-TmK3Yvsfe9/view?usp=sharing';
     const ctaLabels = {
-      consultation: 'Book a Personal Dermatological Consultation with Dr. Aditya Shah',
-      proposal: 'Review a Tailored Clinical & Skincare Proposal',
-      pitch_deck: 'Explore Our Product & Treatment Pitch Deck'
+      consultation: `Book a Personal Dermatological Consultation with Dr. Aditya Shah — ${BOOKING_LINK}`,
+      proposal: `Review a Tailored Clinical & Skincare Proposal — ${BOOKING_LINK}`,
+      pitch_deck: `Explore Our Product & Treatment Pitch Deck — ${PITCH_DECK_LINK}`
     };
-    const activeCtas = (Array.isArray(ctaTypes) ? ctaTypes : [ctaTypes]).map(k => ctaLabels[k] || ctaLabels.consultation).join(' & ');
+    const activeCtas = (Array.isArray(ctaTypes) ? ctaTypes : [ctaTypes]).map(k => ctaLabels[k] || ctaLabels.proposal).join(' & ');
 
     // 4. Formulate Prompt for Gemini AI
     const systemPrompt = `You are the lead AI Communications Strategist for ${companyName} (${tagline}), led by ${doctorName}.
@@ -4597,8 +4599,11 @@ REQUIREMENTS:
 1. Subject Line: Create an engaging, high-open-rate subject line.
 2. Body: Personalize the hook to ${leadCompany}. Connect their needs with ${companyName}'s dermatologist-backed expertise and clinical precision.
 3. Integrate our Business WHY naturally without forcing it.
-4. End with a clear, frictionless Call To Action requesting them to ${activeCtas}.
-5. Signature: From ${doctorName} & The ${companyName} Team.
+4. Always include both of these links in the email body (use them as clickable URLs):
+   - Booking link: ${BOOKING_LINK}
+   - Pitch deck: ${PITCH_DECK_LINK}
+5. End with a clear, frictionless Call To Action requesting them to ${activeCtas}.
+6. Signature: From ${doctorName} & The ${companyName} Team.
 
 OUTPUT FORMAT (JSON strictly):
 {
@@ -4637,8 +4642,8 @@ OUTPUT FORMAT (JSON strictly):
     }
 
     // 6. Smart Fallback if API key rate limited or unavailable
-    const fallbackSubject = `${leadCompany} x ${companyName}: Elevating Patient & Skin Outcomes`;
-    const fallbackBody = `Dear ${leadName},\n\nI hope this email finds you well at ${leadCompany}.\n\nAt ${companyName}, led by Dr. Aditya Shah, we operate on a core belief:\n"${businessWhy}"\n\nGiven your focus in ${leadIndustry}, I would love to connect and share how our dermatologist-backed laser cosmetology and specialized formulations can deliver transformative results for your clients.\n\nWould you be open to ${activeCtas.toLowerCase()} this week?\n\nWarm regards,\n\nDr. Aditya Shah\n${companyName}\n${tagline}`;
+    const fallbackSubject = `${leadCompany} x ${companyName}: A Tailored Proposal for You`;
+    const fallbackBody = `Dear ${leadName},\n\nI hope this email finds you well at ${leadCompany}.\n\nAt ${companyName}, led by Dr. Aditya Shah, we operate on a core belief:\n"${businessWhy}"\n\nGiven your focus in ${leadIndustry}, I would love to connect and share how our dermatologist-backed laser cosmetology and specialized formulations can deliver transformative results for your clients.\n\nHere is the tailored proposal we have prepared for ${leadCompany}:\n\n📅 Book your consultation here: ${BOOKING_LINK}\n📊 View our pitch deck here: ${PITCH_DECK_LINK}\n\nWould you be open to a quick 15-minute call this week to walk through it together?\n\nWarm regards,\n\nDr. Aditya Shah\n${companyName}\n${tagline}`;
 
     res.json({
       subject: fallbackSubject,

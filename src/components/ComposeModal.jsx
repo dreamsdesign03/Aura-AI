@@ -1,13 +1,10 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useListAuditedLeads, useListLeads, useComposeOutreachEmail, useQuickSendEmail, getListOutreachEmailsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { X, Minus, Maximize2, Minimize2, Bold, Italic, Underline, List, Link, Paperclip, Send, Save, Sparkles, CheckCircle2, AlertCircle, Loader2, AlignLeft, AlignCenter, AlignRight, Phone, Calendar, Monitor, FileText, ChevronDown, ChevronUp, Check, } from "lucide-react";
+import { X, Minus, Maximize2, Minimize2, Bold, Italic, Underline, List, Link, Paperclip, Send, Save, Sparkles, CheckCircle2, AlertCircle, Loader2, AlignLeft, AlignCenter, AlignRight, FileText, ChevronDown, ChevronUp, } from "lucide-react";
 import { cn, auditScoreColors } from "@/lib/utils";
-const CTA_OPTIONS = [
-    { key: "consultation", label: "Book Consultation", icon: <Calendar className="w-3.5 h-3.5"/> },
-    { key: "proposal", label: "Send Proposal", icon: <FileText className="w-3.5 h-3.5"/> },
-    { key: "pitch_deck", label: "Send Pitch Deck", icon: <Monitor className="w-3.5 h-3.5"/> },
-];
+export const BOOKING_LINK = "https://calendly.com/dreamsdesign-in03/aura-meeting";
+export const PITCH_DECK_LINK = "https://drive.google.com/file/d/1zFKYiPI69TK1izNQOyj9g-TmK3Yvsfe9/view?usp=sharing";
 const TONE_OPTIONS = [
     { key: "professional", label: "Professional", emoji: "🎯" },
     { key: "friendly", label: "Friendly", emoji: "😊" },
@@ -80,7 +77,6 @@ export default function ComposeModal({ onClose, initialEmail }) {
     const [showBcc, setShowBcc] = useState(false);
     const [cc, setCc] = useState("");
     const [bcc, setBcc] = useState("");
-    const [ctaTypes, setCtaTypes] = useState(["consultation"]);
     const [tone, setTone] = useState("professional");
     const [aiStage, setAiStage] = useState(-1);
     const [aiRunning, setAiRunning] = useState(false);
@@ -94,7 +90,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
     const leadSearchRef = useRef(null);
     const fileInputRef = useRef(null);
     const stageTimer = useRef(null);
-    const attachReport = ctaTypes.includes("report");
+    const attachReport = false;
     const filteredLeads = contacts.filter((l) => {
         const q = leadSearch.toLowerCase();
         return !q || `${l.firstName} ${l.lastName} ${l.company} ${l.email}`.toLowerCase().includes(q);
@@ -122,9 +118,6 @@ export default function ComposeModal({ onClose, initialEmail }) {
         setLeadSearch("");
         setLeadDropdownOpen(false);
         setAiError(null);
-    };
-    const toggleCta = (key) => {
-        setCtaTypes((prev) => prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]);
     };
     const handleFileUpload = async (e) => {
         const files = Array.from(e.target.files ?? []);
@@ -166,14 +159,14 @@ export default function ComposeModal({ onClose, initialEmail }) {
             let result;
             if (typeof composeMutation?.mutateAsync === "function") {
                 result = await composeMutation.mutateAsync({
-                    data: { leadId: selectedLead.id, ctaTypes, tone },
+                    data: { leadId: selectedLead.id, tone },
                 });
             }
             else {
                 const res = await fetch("/api/useComposeOutreachEmail", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ data: { leadId: selectedLead.id, ctaTypes, tone } })
+                    body: JSON.stringify({ data: { leadId: selectedLead.id, tone } })
                 });
                 result = await res.json();
             }
@@ -194,7 +187,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
         finally {
             setAiRunning(false);
         }
-    }, [selectedLead, ctaTypes, tone, composeMutation]);
+    }, [selectedLead, tone, composeMutation]);
     const execFormat = (cmd, value) => {
         document.execCommand(cmd, false, value);
         bodyRef.current?.focus();
@@ -369,7 +362,7 @@ export default function ComposeModal({ onClose, initialEmail }) {
               <span className="text-[11px] font-semibold text-purple-700">AI Compose</span>
               <span className="text-[10px] text-gray-400 ml-1">
                 {selectedLead
-                ? `${selectedLead.company} · ${ctaTypes.join(", ")} · ${tone}`
+                ? `${selectedLead.company} · ${tone}`
                 : "Select a prospect to generate"}
               </span>
               <div className="ml-auto text-gray-400">
@@ -378,36 +371,10 @@ export default function ComposeModal({ onClose, initialEmail }) {
             </button>
 
             {aiPanelOpen && (<div className="px-4 pb-3 bg-purple-50/40 space-y-2.5" onClick={(e) => e.stopPropagation()}>
-                {/* CTA row */}
-                <div className="flex-1">
-                  <div className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
-                    Call to Action
-                    <span className="ml-1.5 font-normal normal-case text-gray-400">(tick all that apply)</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {CTA_OPTIONS.map((opt) => {
-                    const selected = ctaTypes.includes(opt.key);
-                    const isReportOpt = opt.key === "report";
-                    return (<button key={opt.key} onClick={() => toggleCta(opt.key)} className={cn("flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all", selected
-                            ? isReportOpt
-                                ? "border-amber-500 bg-amber-50 text-amber-800"
-                                : "border-purple-600 bg-purple-100 text-purple-800"
-                            : "border-gray-200 text-gray-500 hover:border-gray-300 bg-white")}>
-                          <span className={selected ? (isReportOpt ? "text-amber-600" : "text-purple-600") : "text-gray-400"}>
-                            {opt.icon}
-                          </span>
-                          {opt.label}
-                          {isReportOpt && selected && (<span className="text-[9px] font-semibold text-amber-600 bg-amber-100 border border-amber-300 px-1 py-0.5 rounded ml-0.5">PDF</span>)}
-                          {selected && (<Check className={cn("w-3 h-3 ml-0.5", isReportOpt ? "text-amber-600" : "text-purple-600")}/>)}
-                        </button>);
-                })}
-                  </div>
-                  {attachReport && (<div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-amber-700">
-                      <FileText className="w-3 h-3"/>
-                      {selectedLead?.isAudited
-                        ? "The generated brand audit report PDF will be attached to the email."
-                        : "Run a Brand Audit first to attach the report."}
-                    </div>)}
+                {/* Proposal default note */}
+                <div className="flex items-start gap-1.5 text-[11px] text-purple-700 bg-purple-100/70 border border-purple-200 rounded-lg px-3 py-2">
+                  <Sparkles className="w-3.5 h-3.5 flex-shrink-0"/>
+                  <span>Generates a proposal email by default — includes our booking link and pitch deck.</span>
                 </div>
 
                 {/* Tone + Generate row */}

@@ -5,6 +5,9 @@ const GEMINI_MODEL = 'gemini-1.5-flash-latest';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const APOLLO_BASE = 'https://api.apollo.io/api/v1';
 
+const BOOKING_LINK = 'https://calendly.com/dreamsdesign-in03/aura-meeting';
+const PITCH_DECK_LINK = 'https://drive.google.com/file/d/1zFKYiPI69TK1izNQOyj9g-TmK3Yvsfe9/view?usp=sharing';
+
 const AGENT_DEFAULTS = {
   brain: { active: true },
   scout: { active: true },
@@ -338,7 +341,7 @@ async function runSales(userId, opts = {}) {
         `You are a sales engagement engine for Aura Skin Clinic (Dr. Aditya Shah), a premium aesthetic clinic. Write a personalized PROPOSAL PITCH email (a mini pitch deck in email form) as JSON:
         {
           "subject": "email subject line under 60 chars, no placeholder tokens",
-          "body": "4-6 sentence proposal pitch. First line uses the contact first name. Introduce Aura Skin Clinic + Dr. Aditya Shah, then pitch the AI patient-acquisition & sales-automation proposal with 3 high-value points (24/7 AI receptionist & WhatsApp booking automation, high-ticket treatment campaigns, automated follow-ups that cut no-shows). End with a clear call to action to book a 15-minute discovery call. No placeholders like {{name}}."
+          "body": "4-6 sentence proposal pitch. First line uses the contact first name. Introduce Aura Skin Clinic + Dr. Aditya Shah, then pitch the AI patient-acquisition & sales-automation proposal with 3 high-value points (24/7 AI receptionist & WhatsApp booking automation, high-ticket treatment campaigns, automated follow-ups that cut no-shows). Always include both links in the body: booking link ${BOOKING_LINK} and pitch deck ${PITCH_DECK_LINK}. End with a clear call to action to book a 15-minute discovery call. No placeholders like {{name}}."
         }
         LEAD: name=${name}, company=${lead.company || 'unknown'}, title=${lead.title || 'business owner'}, website=${lead.website || 'unknown'}, industry=${lead.industry || ''}, email=${lead.email}`
       );
@@ -347,7 +350,7 @@ async function runSales(userId, opts = {}) {
       body = parsed.body || '';
     } catch {
       subject = `Partnership with ${lead.company || 'your clinic'}`;
-      body = `Hi ${name},\n\nI run Aura Skin Clinic (Dr. Aditya Shah). We help clinics like ${lead.company || 'yours'} grow patient volume with an AI patient-acquisition engine — 24/7 AI receptionist, WhatsApp booking automation, and high-ticket treatment campaigns.\n\nWould you be open to a quick 15-minute call this week to walk through a tailored proposal?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
+      body = `Hi ${name},\n\nI run Aura Skin Clinic (Dr. Aditya Shah). We help clinics like ${lead.company || 'yours'} grow patient volume with an AI patient-acquisition engine — 24/7 AI receptionist, WhatsApp booking automation, and high-ticket treatment campaigns.\n\nHere is the tailored proposal for you:\n📅 Book your consultation: ${BOOKING_LINK}\n📊 View our pitch deck: ${PITCH_DECK_LINK}\n\nWould you be open to a quick 15-minute call this week to walk through it?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
     }
 
     const ins = await db.query(
@@ -462,7 +465,7 @@ async function runFollowup(userId) {
     try {
       const gen = await callGemini(
         `You are a follow-up engine for Aura Skin Clinic (Dr. Aditya Shah). Write follow-up email number ${followupCount + 1} (this is the D${FOLLOWUP_DAYS[followupCount]} follow-up, ${daysSince} days since last contact) as JSON:
-        {"subject": "subject under 60 chars, no placeholders", "body": "short warm email referencing the previous outreach, add one new value point about modern aesthetic treatments, propose a 15-min call. No placeholders like {{name}}."}
+        {"subject": "subject under 60 chars, no placeholders", "body": "short warm email referencing the previous outreach, add one new value point about modern aesthetic treatments, include the booking link ${BOOKING_LINK} and pitch deck ${PITCH_DECK_LINK}, propose a 15-min call. No placeholders like {{name}}."}
         LEAD: name=${name}, company=${lead.company || 'business'}, email=${lead.email}`
       );
       const parsed = JSON.parse(gen.replace(/```json|```/g, '').trim());
@@ -470,7 +473,7 @@ async function runFollowup(userId) {
       body = parsed.body || '';
     } catch {
       subject = `Re: quick follow-up`;
-      body = `Hi ${name},\n\nJust bumping this — I'd love to walk you through how Aura Skin Clinic partners with clinics like ${lead.company || 'yours'}.\n\nAre you free for 15 minutes this week?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
+      body = `Hi ${name},\n\nJust bumping this — I'd love to walk you through how Aura Skin Clinic partners with clinics like ${lead.company || 'yours'}.\n\n📅 Book your consultation: ${BOOKING_LINK}\n📊 View our pitch deck: ${PITCH_DECK_LINK}\n\nAre you free for 15 minutes this week?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
     }
 
     const ins = await db.query(
