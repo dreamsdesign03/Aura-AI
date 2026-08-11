@@ -4446,15 +4446,16 @@ app.post('/api/settings/smtp/test', async (req, res) => {
   }
 });
 
-// GET /api/team/members & /api/team/pending-invites
-app.get('/api/team/members', async (req, res) => {
+// GET /api/team & /api/team/members & /api/team/pending-invites
+app.get(['/api/team', '/api/team/members', '/api/useListTeamMembers'], async (req, res) => {
   try {
     const result = await db.query("SELECT id, first_name || ' ' || last_name as name, email, 'owner' as role, 'active' as status FROM users LIMIT 10");
-    res.json(result.rows.length ? result.rows : [{ id: 1, name: 'Dr. Aditya Shah', email: 'dr.aditya@auralaser.co.in', role: 'owner', status: 'active' }]);
+    res.json(result.rows.length ? result.rows : [{ id: 1, name: 'Aura Admin', email: 'dreamsdesign.in03@gmail.com', role: 'owner', status: 'active' }]);
   } catch {
-    res.json([{ id: 1, name: 'Dr. Aditya Shah', email: 'dr.aditya@auralaser.co.in', role: 'owner', status: 'active' }]);
+    res.json([{ id: 1, name: 'Aura Admin', email: 'dreamsdesign.in03@gmail.com', role: 'owner', status: 'active' }]);
   }
 });
+
 
 app.get('/api/team/pending-invites', (req, res) => {
   res.json([]);
