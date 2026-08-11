@@ -5067,17 +5067,14 @@ app.get(['/api/whatsapp/analytics', '/api/useGetWhatsAppAnalytics'], async (req,
 app.get('/api/whatsapp/templates', (req, res) => {
   res.json({
     templates: [
-      { name: 'hello_world', label: 'hello_world (Utility Sandbox)', language: 'en_US', components: [] },
-      { name: 'lead_welcome_confirmation', label: 'lead_welcome_confirmation (Marketing)', language: 'en', components: [{ type: 'body', params: ['lead_name'] }] },
-      { name: 'new_lead_dreamsdesign', label: 'new_lead_dreamsdesign (Utility Lead Details)', language: 'en', components: [{ type: 'body', params: ['lead_name', 'company_name'] }] },
+      { name: 'lead_welcome_confirmation', label: 'lead_welcome_confirmation (Marketing)', language: 'en', components: [{ type: 'body', params: ['lead_name', 'company'] }] },
       { name: 'weekly_client_reviews', label: 'weekly_client_reviews (Marketing)', language: 'en_US', components: [] },
-      { name: 'dd_medax_appointment', label: 'dd_medax_appointment (Marketing)', language: 'en_US', components: [] },
-      { name: 'dd_medax_send_invoice', label: 'dd_medax_send_invoice (Marketing)', language: 'en_IND', components: [] },
-      { name: 'dd_medax_send_prescription', label: 'dd_medax_send_prescription (Marketing)', language: 'en_IND', components: [] },
-      { name: 'code_send', label: 'code_send (Authentication)', language: 'en_US', components: [] }
+      { name: 'new_lead_dreamsdesign', label: 'new_lead_dreamsdesign (Utility Lead Details)', language: 'en', components: [{ type: 'body', params: Array(14).fill('param') }] },
+      { name: 'hello_world', label: 'hello_world (Utility Sandbox)', language: 'en_US', components: [] }
     ]
   });
 });
+
 
 // POST /api/whatsapp/send — Send text or official Meta Template message
 app.post('/api/whatsapp/send', async (req, res) => {

@@ -697,13 +697,10 @@ function ConversationsTab() {
                 >
                   <option value="" disabled>-- Select & Send Approved Meta Template --</option>
                   <option value="lead_welcome_confirmation">⚡ lead_welcome_confirmation (Marketing - English)</option>
-                  <option value="new_lead_dreamsdesign">⚡ new_lead_dreamsdesign (Utility - English)</option>
                   <option value="weekly_client_reviews">⚡ weekly_client_reviews (Marketing - English US)</option>
-                  <option value="dd_medax_appointment">⚡ dd_medax_appointment (Marketing - English US)</option>
-                  <option value="dd_medax_send_invoice">⚡ dd_medax_send_invoice (Marketing - English IND)</option>
-                  <option value="dd_medax_send_prescription">⚡ dd_medax_send_prescription (Marketing - English IND)</option>
-                  <option value="code_send">⚡ code_send (Authentication - English US)</option>
+                  <option value="new_lead_dreamsdesign">⚡ new_lead_dreamsdesign (Utility - English)</option>
                   <option value="hello_world">⚡ hello_world (Utility Sandbox - English US)</option>
+
 
                 </select>
               </div>

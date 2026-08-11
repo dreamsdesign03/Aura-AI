@@ -7,13 +7,7 @@ const META_TEMPLATES = [
     name: "lead_welcome_confirmation",
     label: "lead_welcome_confirmation (Marketing - English)",
     type: "meta",
-    description: "Welcome confirmation for new leads"
-  },
-  {
-    name: "new_lead_dreamsdesign",
-    label: "new_lead_dreamsdesign (Utility - English)",
-    type: "meta",
-    description: "New lead details notification"
+    description: "Welcome confirmation template (Requires 2 params)"
   },
   {
     name: "weekly_client_reviews",
@@ -22,28 +16,10 @@ const META_TEMPLATES = [
     description: "Weekly client review request template"
   },
   {
-    name: "dd_medax_appointment",
-    label: "dd_medax_appointment (Marketing - English US)",
+    name: "new_lead_dreamsdesign",
+    label: "new_lead_dreamsdesign (Utility - English)",
     type: "meta",
-    description: "Appointment booking template"
-  },
-  {
-    name: "dd_medax_send_invoice",
-    label: "dd_medax_send_invoice (Marketing - English IND)",
-    type: "meta",
-    description: "Invoice delivery template"
-  },
-  {
-    name: "dd_medax_send_prescription",
-    label: "dd_medax_send_prescription (Marketing - English IND)",
-    type: "meta",
-    description: "Prescription delivery template"
-  },
-  {
-    name: "code_send",
-    label: "code_send (Authentication - English US)",
-    type: "meta",
-    description: "Authentication code template"
+    description: "New lead details notification template"
   },
   {
     name: "hello_world",
@@ -52,6 +28,7 @@ const META_TEMPLATES = [
     description: "Standard Meta WhatsApp test template"
   }
 ];
+
 
 
 const QUICK_TEXT_TEMPLATES = [
