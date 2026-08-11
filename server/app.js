@@ -4976,13 +4976,51 @@ Question: "${message}"`;
 
 // ─── WHATSAPP DIRECT SEND API ───────────────────────────────────────────────
 
-// POST /api/whatsapp/send — Send a WhatsApp message to a lead / phone
+// ─── WHATSAPP DIRECT SEND & TEMPLATE API ───────────────────────────────────────
+
+// GET /api/whatsapp/templates — List available Meta WhatsApp templates
+app.get('/api/whatsapp/templates', (req, res) => {
+  res.json({
+    templates: [
+      {
+        name: 'hello_world',
+        label: 'Meta Default Hello World',
+        language: 'en_US',
+        components: [],
+        description: 'Standard Meta sandbox test template'
+      },
+      {
+        name: 'lead_intro_v1',
+        label: 'Intro Hook Template',
+        language: 'en_US',
+        components: [{ type: 'body', params: ['lead_name', 'company_name'] }],
+        description: 'Initial touchpoint template for new leads'
+      },
+      {
+        name: 'audit_proposal',
+        label: 'Brand & Growth Audit',
+        language: 'en_US',
+        components: [{ type: 'body', params: ['lead_name', 'company_name'] }],
+        description: 'Delivers personalized website/growth audit'
+      },
+      {
+        name: 'meeting_followup',
+        label: 'Meeting Followup',
+        language: 'en_US',
+        components: [{ type: 'body', params: ['lead_name', 'company_name'] }],
+        description: 'Follow-up template for scheduling a growth call'
+      }
+    ]
+  });
+});
+
+// POST /api/whatsapp/send — Send text or official Meta Template message
 app.post('/api/whatsapp/send', async (req, res) => {
   try {
-    const { leadId, phone: rawPhone, message } = req.body || {};
+    const { leadId, phone: rawPhone, message, templateName, templateParams = [], languageCode = 'en_US' } = req.body || {};
 
-    if (!message || !String(message).trim()) {
-      return res.status(400).json({ error: 'Message content is required' });
+    if (!message && !templateName) {
+      return res.status(400).json({ error: 'Message content or templateName is required' });
     }
 
     let lead = {};
@@ -5008,55 +5046,79 @@ app.post('/api/whatsapp/send', async (req, res) => {
     if (token && phoneNumberId) {
       try {
         const cleanDigits = phone.replace(/\D/g, '');
+        let payload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: cleanDigits,
+        };
+
+        if (templateName) {
+          payload.type = 'template';
+          payload.template = {
+            name: templateName,
+            language: { code: languageCode },
+            components: templateParams.length > 0 ? [
+              {
+                type: 'body',
+                parameters: templateParams.map(param => ({ type: 'text', text: String(param) }))
+              }
+            ] : []
+          };
+        } else {
+          payload.type = 'text';
+          payload.text = { preview_url: false, body: message.trim() };
+        }
+
+        console.log(`[Meta WhatsApp] Sending ${payload.type} to ${cleanDigits}...`);
         const metaRes = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: cleanDigits,
-            type: 'text',
-            text: { preview_url: false, body: message.trim() }
-          })
+          body: JSON.stringify(payload)
         });
+
         const metaData = await metaRes.json();
         if (metaRes.ok && metaData.messages?.[0]?.id) {
           metaResult = { success: true, messageId: metaData.messages[0].id };
+          console.log(`[Meta WhatsApp] Success! Message ID: ${metaData.messages[0].id}`);
         } else {
+          console.error('[Meta WhatsApp] Error:', JSON.stringify(metaData));
           metaResult = { success: false, error: metaData.error?.message || 'Meta API error' };
         }
       } catch (err) {
+        console.error('[Meta WhatsApp] Exception:', err.message);
         metaResult = { success: false, error: err.message };
       }
     } else {
       metaResult = { success: true, simulated: true };
     }
 
+    const finalBody = message || `[Template: ${templateName}]`;
+
     let savedMsg = null;
     try {
       const r = await db.query(
-        `INSERT INTO whatsapp_messages (lead_id, phone, body, direction, status, timestamp, created_at)
-         VALUES ($1, $2, $3, 'outbound', 'sent', NOW(), NOW()) RETURNING *`,
-        [leadId || null, phone, message.trim()]
+        `INSERT INTO whatsapp_messages (lead_id, phone, body, template_name, direction, status, timestamp, created_at)
+         VALUES ($1, $2, $3, $4, 'outbound', 'sent', NOW(), NOW()) RETURNING *`,
+        [leadId || null, phone, finalBody.trim(), templateName || null]
       );
       savedMsg = r.rows[0];
     } catch (dbErr) {
       console.error('Error inserting whatsapp_message:', dbErr.message);
-      savedMsg = { id: Date.now(), lead_id: leadId, phone, body: message, direction: 'outbound', status: 'sent', timestamp: new Date().toISOString() };
+      savedMsg = { id: Date.now(), lead_id: leadId, phone, body: finalBody, direction: 'outbound', status: 'sent', timestamp: new Date().toISOString() };
     }
 
     try {
       await db.query(
         `INSERT INTO whatsapp_conversations (lead_id, phone, status, last_message, state, last_message_at, updated_at)
-         VALUES ($1, $2, 'Active', $3, 'hook_sent', NOW(), NOW())
+         VALUES ($1, $2, 'Active', $3, 'outbound_sent', NOW(), NOW())
          ON CONFLICT (lead_id) DO UPDATE SET
            last_message = EXCLUDED.last_message,
            last_message_at = NOW(),
            updated_at = NOW()`,
-        [leadId || null, phone, message.trim()]
+        [leadId || null, phone, finalBody.trim()]
       );
     } catch {}
 
@@ -5065,7 +5127,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
       await db.query(
         `INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail, executed_at)
          VALUES ($1, 'Sales Agent', $2, 'completed', $3, $4, $5, NOW())`,
-        [1, activityType, leadName, companyName, message.slice(0, 100)]
+        [1, activityType, leadName, companyName, finalBody.slice(0, 100)]
       );
     } catch {}
 
@@ -5085,7 +5147,7 @@ app.get('/api/whatsapp/messages/:leadId', async (req, res) => {
   try {
     const leadId = req.params.id || req.params.leadId;
     const r = await db.query(
-      `SELECT id, lead_id as "leadId", phone, body as content, direction, status, 
+      `SELECT id, lead_id as "leadId", phone, body as content, template_name as "templateName", direction, status, 
               timestamp as "sentAt", created_at as "createdAt"
        FROM whatsapp_messages 
        WHERE lead_id = $1 
@@ -5097,6 +5159,110 @@ app.get('/api/whatsapp/messages/:leadId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ─── META WHATSAPP WEBHOOK ROUTES ──────────────────────────────────────────
+
+// GET /api/whatsapp/webhook — Meta Webhook Verification
+app.get('/api/whatsapp/webhook', (req, res) => {
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
+
+  const expectedToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'aura_ai_whatsapp_verify_token_2026';
+
+  if (mode === 'subscribe' && token === expectedToken) {
+    console.log('[Meta Webhook] Successfully verified webhook Token!');
+    return res.status(200).send(challenge);
+  } else {
+    console.warn('[Meta Webhook] Verification failed. Token mismatch.');
+    return res.sendStatus(403);
+  }
+});
+
+// POST /api/whatsapp/webhook — Incoming Meta WhatsApp Messages & Status Updates
+app.post('/api/whatsapp/webhook', async (req, res) => {
+  try {
+    const body = req.body || {};
+
+    // Helper to process message objects
+    const processIncomingMsg = async (msg) => {
+      if (!msg) return;
+      const fromPhone = msg.from; // Sender phone number
+      const textBody = msg.text?.body || msg.button?.text || msg.interactive?.button_reply?.title || '[Media/Other Message]';
+      const metaMsgId = msg.id;
+
+      console.log(`[Meta Webhook] Incoming message from ${fromPhone}: ${textBody}`);
+
+      let leadId = null;
+      try {
+        const cleanDigits = fromPhone.replace(/\D/g, '').slice(-10);
+        const leadRes = await db.query(
+          `SELECT id FROM leads WHERE replace(replace(phone, '+', ''), ' ', '') LIKE '%' || $1 OR replace(replace(whatsapp, '+', ''), ' ', '') LIKE '%' || $1 LIMIT 1`,
+          [cleanDigits]
+        );
+        leadId = leadRes.rows[0]?.id || null;
+      } catch {}
+
+      try {
+        await db.query(
+          `INSERT INTO whatsapp_messages (lead_id, phone, body, direction, status, meta_message_id, timestamp, created_at)
+           VALUES ($1, $2, $3, 'inbound', 'received', $4, NOW(), NOW())`,
+          [leadId, fromPhone, textBody, metaMsgId]
+        );
+      } catch (err) {
+        console.error('[Meta Webhook] Error inserting message:', err.message);
+      }
+
+      try {
+        await db.query(
+          `INSERT INTO whatsapp_conversations (lead_id, phone, status, last_message, state, last_message_at, updated_at)
+           VALUES ($1, $2, 'Active', $3, 'inbound_received', NOW(), NOW())
+           ON CONFLICT (phone) DO UPDATE SET
+             last_message = EXCLUDED.last_message,
+             state = 'inbound_received',
+             last_message_at = NOW(),
+             updated_at = NOW()`,
+          [leadId, fromPhone, textBody]
+        );
+      } catch {}
+    };
+
+    // Case 1: Standard Meta Webhook Object
+    if (body.object === 'whatsapp_business_account') {
+      for (const entry of body.entry || []) {
+        for (const change of entry.changes || []) {
+          const value = change.value || {};
+          if (value.messages && value.messages[0]) {
+            await processIncomingMsg(value.messages[0]);
+          }
+          if (value.statuses && value.statuses[0]) {
+            const statusObj = value.statuses[0];
+            try {
+              await db.query(`UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2`, [statusObj.status, statusObj.id]);
+            } catch {}
+          }
+        }
+      }
+      return res.status(200).send('EVENT_RECEIVED');
+    } 
+    // Case 2: Direct n8n whatsAppTrigger payload (value object or array of messages)
+    else if (body.messages && body.messages[0]) {
+      await processIncomingMsg(body.messages[0]);
+      return res.status(200).json({ success: true, processed: 1 });
+    }
+    else if (Array.isArray(body) && body[0]?.messages?.[0]) {
+      await processIncomingMsg(body[0].messages[0]);
+      return res.status(200).json({ success: true, processed: 1 });
+    }
+
+    return res.status(200).json({ success: true, note: 'Received payload' });
+  } catch (err) {
+    console.error('[Meta Webhook Error]:', err.message);
+    return res.status(500).send('Internal Server Error');
+  }
+});
+
+
 
 // ─── GOOGLE OAUTH ROUTES ───────────────────────────────────────────────────
 
