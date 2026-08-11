@@ -4988,22 +4988,21 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
          l.last_name as "lastName",
          l.company,
          l.phone,
-         l.whatsapp,
          l.status as "leadStatus",
          COALESCE(wc.id, l.id) as id,
-         COALESCE(wc.phone, l.whatsapp, l.phone, '') as "waPhoneNumber",
+         COALESCE(wc.phone, l.phone, '') as "waPhoneNumber",
          COALESCE(wc.state, 'hook_sent') as state,
          COALESCE(wc.last_message, 'Click to send WhatsApp message') as "lastMessage",
          COALESCE(wc.updated_at, l.created_at, NOW()) as "updatedAt"
        FROM leads l
-       LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.phone = l.phone OR wc.phone = l.whatsapp)
+       LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.phone = l.phone)
        ORDER BY wc.updated_at DESC NULLS LAST, l.created_at DESC`
     );
 
     const conversations = r.rows.map(row => ({
       id: row.id,
       leadId: row.leadId,
-      waPhoneNumber: row.waPhoneNumber || row.whatsapp || row.phone || 'No Phone',
+      waPhoneNumber: row.waPhoneNumber || row.phone || 'No Phone',
       state: row.state,
       lastMessage: row.lastMessage,
       updatedAt: row.updatedAt,
@@ -5015,7 +5014,7 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
         last_name: row.lastName,
         company: row.company,
         phone: row.phone,
-        whatsapp: row.whatsapp
+        whatsapp: row.phone
       }
     }));
 
@@ -5025,6 +5024,7 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // GET /api/whatsapp/analytics — Funnel stats
 app.get(['/api/whatsapp/analytics', '/api/useGetWhatsAppAnalytics'], async (req, res) => {
