@@ -5221,9 +5221,13 @@ app.post('/api/whatsapp/send', async (req, res) => {
 });
 
 // GET /api/whatsapp/messages/:leadId — Get conversation history for a lead
-app.get('/api/whatsapp/messages/:leadId', async (req, res) => {
+app.get(['/api/whatsapp/messages/:leadId', '/api/useGetWhatsAppMessages'], async (req, res) => {
   try {
-    const leadId = req.params.id || req.params.leadId;
+    const rawId = req.params.leadId || req.params.id || req.query.leadId;
+    if (!rawId || rawId === 'undefined' || rawId === 'null' || isNaN(Number(rawId))) {
+      return res.json({ messages: [] });
+    }
+    const leadId = Number(rawId);
     const r = await db.query(
       `SELECT id, lead_id as "leadId", phone, body as content, template_name as "templateName", direction, status, 
               timestamp as "sentAt", created_at as "createdAt"
@@ -5234,9 +5238,10 @@ app.get('/api/whatsapp/messages/:leadId', async (req, res) => {
     );
     res.json({ messages: r.rows });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json({ messages: [] });
   }
 });
+
 
 // ─── META WHATSAPP WEBHOOK ROUTES ──────────────────────────────────────────
 

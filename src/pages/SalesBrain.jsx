@@ -506,8 +506,10 @@ function ConversationsTab() {
     const [localMsgs, setLocalMsgs] = useState([]);
     const threadRef = useRef(null);
     const { toast } = useToast();
-    const { data: conversations = [], isLoading: loading, refetch: refetchConvs } = useGetWhatsAppConversations();
-    const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId, { query: { enabled: !!selectedId, queryKey: getGetWhatsAppMessagesQueryKey(selectedId ?? 0) } });
+    const { data: rawConversations, isLoading: loading, refetch: refetchConvs } = useGetWhatsAppConversations();
+    const conversations = Array.isArray(rawConversations) ? rawConversations : (rawConversations?.conversations || []);
+
+    const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId || 0, { enabled: Boolean(selectedId) });
     useEffect(() => {
         setLocalMsgs(msgData?.messages ?? []);
     }, [msgData]);
@@ -525,6 +527,7 @@ function ConversationsTab() {
         return true;
     });
     const selectedConv = selectedId ? conversations.find(c => c.id === selectedId) ?? null : null;
+
     const stateFilters = [
         { val: "all", label: "All" }, { val: "hook_sent", label: "Hook Sent" }, { val: "awaiting_yes", label: "Awaiting YES" },
         { val: "report_sent", label: "Report Sent" }, { val: "qualifying", label: "Qualifying" },
