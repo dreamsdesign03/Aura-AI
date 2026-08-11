@@ -4981,31 +4981,39 @@ Question: "${message}"`;
 // GET /api/whatsapp/conversations — Get all leads formatted as WhatsApp conversations
 app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], async (req, res) => {
   try {
-    const r = await db.query(
-      `SELECT 
-         l.id as "leadId",
-         l.first_name as "firstName",
-         l.last_name as "lastName",
-         l.company,
-         l.phone,
-         l.status as "leadStatus",
-         COALESCE(wc.id, l.id) as id,
-         COALESCE(wc.phone, l.phone, '') as "waPhoneNumber",
-         COALESCE(wc.state, 'hook_sent') as state,
-         COALESCE(wc.last_message, 'Click to send WhatsApp message') as "lastMessage",
-         COALESCE(wc.updated_at, l.created_at, NOW()) as "updatedAt"
-       FROM leads l
-       LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.phone = l.phone)
-       ORDER BY wc.updated_at DESC NULLS LAST, l.created_at DESC`
-    );
+    let r = { rows: [] };
+    try {
+      r = await db.query(
+        `SELECT 
+           l.id as "leadId",
+           l.first_name as "firstName",
+           l.last_name as "lastName",
+           l.company,
+           l.phone,
+           l.status as "leadStatus",
+           COALESCE(wc.id, l.id) as id,
+           COALESCE(wc.phone, l.phone, '') as "waPhoneNumber",
+           COALESCE(wc.state, 'hook_sent') as state,
+           COALESCE(wc.last_message, 'Click to send WhatsApp message') as "lastMessage",
+           COALESCE(wc.updated_at, l.created_at, NOW()) as "updatedAt"
+         FROM leads l
+         LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.phone = l.phone)
+         ORDER BY wc.updated_at DESC NULLS LAST, l.created_at DESC`
+      );
+    } catch (dbErr) {
+      console.warn('Fallback to simple leads query for conversations:', dbErr.message);
+      r = await db.query(
+        `SELECT id as "leadId", first_name as "firstName", last_name as "lastName", company, phone, status as "leadStatus", id, phone as "waPhoneNumber", 'hook_sent' as state, 'Click to send WhatsApp message' as "lastMessage", created_at as "updatedAt" FROM leads ORDER BY created_at DESC`
+      );
+    }
 
-    const conversations = r.rows.map(row => ({
+    const conversations = (r.rows || []).map(row => ({
       id: row.id,
       leadId: row.leadId,
       waPhoneNumber: row.waPhoneNumber || row.phone || 'No Phone',
-      state: row.state,
-      lastMessage: row.lastMessage,
-      updatedAt: row.updatedAt,
+      state: row.state || 'hook_sent',
+      lastMessage: row.lastMessage || 'Click to send WhatsApp message',
+      updatedAt: row.updatedAt || new Date().toISOString(),
       lead: {
         id: row.leadId,
         firstName: row.firstName,
@@ -5018,12 +5026,13 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
       }
     }));
 
-    res.json(conversations);
+    return res.json(conversations);
   } catch (err) {
     console.error('Error fetching whatsapp conversations:', err.message);
-    res.status(500).json({ error: err.message });
+    return res.json([]);
   }
 });
+
 
 
 // GET /api/whatsapp/analytics — Funnel stats
