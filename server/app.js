@@ -5221,7 +5221,7 @@ app.get(['/api/whatsapp/messages/:leadId', '/api/useGetWhatsAppMessages'], async
       `SELECT id, lead_id as "leadId", phone, body as content, template_name as "templateName", direction, status, 
               timestamp as "sentAt", created_at as "createdAt"
        FROM whatsapp_messages 
-       WHERE lead_id = $1 
+       WHERE lead_id = $1 OR phone IN (SELECT phone FROM leads WHERE id = $1) OR phone IN (SELECT whatsapp FROM leads WHERE id = $1)
        ORDER BY timestamp ASC LIMIT 200`,
       [leadId]
     );
@@ -5230,6 +5230,7 @@ app.get(['/api/whatsapp/messages/:leadId', '/api/useGetWhatsAppMessages'], async
     res.json({ messages: [] });
   }
 });
+
 
 
 // ─── META WHATSAPP WEBHOOK ROUTES ──────────────────────────────────────────
