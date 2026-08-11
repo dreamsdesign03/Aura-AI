@@ -5104,18 +5104,26 @@ app.post('/api/whatsapp/send', async (req, res) => {
             }
           }
 
+          let finalParams = templateParams;
+          if (templateName === 'lead_welcome_confirmation' && finalParams.length === 0) {
+            finalParams = [leadName || 'Contact', companyName || 'Dreamsdesign'];
+          } else if (templateName === 'new_lead_dreamsdesign' && finalParams.length === 0) {
+            finalParams = Array(14).fill(leadName || 'Contact');
+          }
+
           payload.type = 'template';
           payload.template = {
             name: templateName,
             language: { code: resolvedLang },
-            components: templateParams.length > 0 ? [
+            components: finalParams.length > 0 ? [
               {
                 type: 'body',
-                parameters: templateParams.map(param => ({ type: 'text', text: String(param) }))
+                parameters: finalParams.map(param => ({ type: 'text', text: String(param) }))
               }
             ] : []
           };
         } else {
+
           payload.type = 'text';
           payload.text = { preview_url: false, body: message.trim() };
         }
