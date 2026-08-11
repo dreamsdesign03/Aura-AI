@@ -4978,8 +4978,86 @@ Question: "${message}"`;
 
 // ─── WHATSAPP DIRECT SEND & TEMPLATE API ───────────────────────────────────────
 
+// GET /api/whatsapp/conversations — Get all leads formatted as WhatsApp conversations
+app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT 
+         l.id as "leadId",
+         l.first_name as "firstName",
+         l.last_name as "lastName",
+         l.company,
+         l.phone,
+         l.whatsapp,
+         l.status as "leadStatus",
+         COALESCE(wc.id, l.id) as id,
+         COALESCE(wc.phone, l.whatsapp, l.phone, '') as "waPhoneNumber",
+         COALESCE(wc.state, 'hook_sent') as state,
+         COALESCE(wc.last_message, 'Click to send WhatsApp message') as "lastMessage",
+         COALESCE(wc.updated_at, l.created_at, NOW()) as "updatedAt"
+       FROM leads l
+       LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.phone = l.phone OR wc.phone = l.whatsapp)
+       ORDER BY wc.updated_at DESC NULLS LAST, l.created_at DESC`
+    );
+
+    const conversations = r.rows.map(row => ({
+      id: row.id,
+      leadId: row.leadId,
+      waPhoneNumber: row.waPhoneNumber || row.whatsapp || row.phone || 'No Phone',
+      state: row.state,
+      lastMessage: row.lastMessage,
+      updatedAt: row.updatedAt,
+      lead: {
+        id: row.leadId,
+        firstName: row.firstName,
+        lastName: row.lastName,
+        first_name: row.firstName,
+        last_name: row.lastName,
+        company: row.company,
+        phone: row.phone,
+        whatsapp: row.whatsapp
+      }
+    }));
+
+    res.json(conversations);
+  } catch (err) {
+    console.error('Error fetching whatsapp conversations:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/whatsapp/analytics — Funnel stats
+app.get(['/api/whatsapp/analytics', '/api/useGetWhatsAppAnalytics'], async (req, res) => {
+  try {
+    const totalRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_conversations`);
+    const sentRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'outbound'`);
+    const recvRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'inbound'`);
+    
+    const totalInitiated = totalRes.rows[0]?.count || 1;
+    const replies = recvRes.rows[0]?.count || 0;
+    const yesRate = Math.min(100, Math.round((replies / totalInitiated) * 100));
+
+    res.json({
+      totalInitiated: totalInitiated || 1,
+      yesRate: yesRate || 0,
+      reportsSent: sentRes.rows[0]?.count || 0,
+      appointmentsBooked: 0,
+      optedOut: 0
+    });
+  } catch (err) {
+    res.json({
+      totalInitiated: 0,
+      yesRate: 0,
+      reportsSent: 0,
+      appointmentsBooked: 0,
+      optedOut: 0
+    });
+  }
+});
+
 // GET /api/whatsapp/templates — List available Meta WhatsApp templates
 app.get('/api/whatsapp/templates', (req, res) => {
+
   res.json({
     templates: [
       {

@@ -16,7 +16,16 @@ function createQueryHook(key) {
             "useListProposals": "/api/proposals",
             "useGetQualifyQueue": "/api/qualify/queue",
             "useListAppointments": "/api/appointments",
+            "useGetWhatsAppConversations": "/api/whatsapp/conversations",
+            "useGetWhatsAppAnalytics": "/api/whatsapp/analytics",
+            "useGetWhatsAppSettings": "/api/settings/whatsapp",
           };
+          if (key === "useGetWhatsAppMessages") {
+            const leadId = typeof params === "number" || typeof params === "string" ? params : params?.leadId;
+            const res = await fetch(`/api/whatsapp/messages/${leadId}`).then(r => r.json());
+            return res;
+          }
+
           const route = routeMap[key] || `/api/${key}`;
           // Build query string from params
           const qs = new URLSearchParams();
