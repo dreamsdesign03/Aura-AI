@@ -5034,70 +5034,18 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
   }
 });
 
-
-
-// GET /api/whatsapp/analytics — Funnel stats
-app.get(['/api/whatsapp/analytics', '/api/useGetWhatsAppAnalytics'], async (req, res) => {
-  try {
-    const totalRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_conversations`);
-    const sentRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'outbound'`);
-    const recvRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'inbound'`);
-    
-    const totalInitiated = totalRes.rows[0]?.count || 1;
-    const replies = recvRes.rows[0]?.count || 0;
-    const yesRate = Math.min(100, Math.round((replies / totalInitiated) * 100));
-
-    res.json({
-      totalInitiated: totalInitiated || 1,
-      yesRate: yesRate || 0,
-      reportsSent: sentRes.rows[0]?.count || 0,
-      appointmentsBooked: 0,
-      optedOut: 0
-    });
-  } catch (err) {
-    res.json({
-      totalInitiated: 0,
-      yesRate: 0,
-      reportsSent: 0,
-      appointmentsBooked: 0,
-      optedOut: 0
-    });
-  }
-});
-
 // GET /api/whatsapp/templates — List available Meta WhatsApp templates
 app.get('/api/whatsapp/templates', (req, res) => {
-
   res.json({
     templates: [
-      {
-        name: 'hello_world',
-        label: 'Meta Default Hello World',
-        language: 'en_US',
-        components: [],
-        description: 'Standard Meta sandbox test template'
-      },
-      {
-        name: 'lead_intro_v1',
-        label: 'Intro Hook Template',
-        language: 'en_US',
-        components: [{ type: 'body', params: ['lead_name', 'company_name'] }],
-        description: 'Initial touchpoint template for new leads'
-      },
-      {
-        name: 'audit_proposal',
-        label: 'Brand & Growth Audit',
-        language: 'en_US',
-        components: [{ type: 'body', params: ['lead_name', 'company_name'] }],
-        description: 'Delivers personalized website/growth audit'
-      },
-      {
-        name: 'meeting_followup',
-        label: 'Meeting Followup',
-        language: 'en_US',
-        components: [{ type: 'body', params: ['lead_name', 'company_name'] }],
-        description: 'Follow-up template for scheduling a growth call'
-      }
+      { name: 'hello_world', label: 'hello_world (Utility Sandbox)', language: 'en_US', components: [] },
+      { name: 'lead_welcome_confirmation', label: 'lead_welcome_confirmation (Marketing)', language: 'en', components: [{ type: 'body', params: ['lead_name'] }] },
+      { name: 'new_lead_dreamsdesign', label: 'new_lead_dreamsdesign (Utility Lead Details)', language: 'en', components: [{ type: 'body', params: ['lead_name', 'company_name'] }] },
+      { name: 'weekly_client_reviews', label: 'weekly_client_reviews (Marketing)', language: 'en_US', components: [] },
+      { name: 'dd_medax_appointment', label: 'dd_medax_appointment (Marketing)', language: 'en_US', components: [] },
+      { name: 'dd_medax_send_invoice', label: 'dd_medax_send_invoice (Marketing)', language: 'en_IND', components: [] },
+      { name: 'dd_medax_send_prescription', label: 'dd_medax_send_prescription (Marketing)', language: 'en_IND', components: [] },
+      { name: 'code_send', label: 'code_send (Authentication)', language: 'en_US', components: [] }
     ]
   });
 });
@@ -5105,7 +5053,7 @@ app.get('/api/whatsapp/templates', (req, res) => {
 // POST /api/whatsapp/send — Send text or official Meta Template message
 app.post('/api/whatsapp/send', async (req, res) => {
   try {
-    const { leadId, phone: rawPhone, message, templateName, templateParams = [], languageCode = 'en_US' } = req.body || {};
+    const { leadId, phone: rawPhone, message, templateName, templateParams = [], languageCode } = req.body || {};
 
     if (!message && !templateName) {
       return res.status(400).json({ error: 'Message content or templateName is required' });
@@ -5144,12 +5092,22 @@ app.post('/api/whatsapp/send', async (req, res) => {
           to: cleanDigits,
         };
 
-
         if (templateName) {
+          let resolvedLang = languageCode;
+          if (!resolvedLang) {
+            if (templateName === 'lead_welcome_confirmation' || templateName === 'new_lead_dreamsdesign') {
+              resolvedLang = 'en';
+            } else if (templateName.includes('invoice') || templateName.includes('prescription')) {
+              resolvedLang = 'en_IND';
+            } else {
+              resolvedLang = 'en_US';
+            }
+          }
+
           payload.type = 'template';
           payload.template = {
             name: templateName,
-            language: { code: languageCode },
+            language: { code: resolvedLang },
             components: templateParams.length > 0 ? [
               {
                 type: 'body',

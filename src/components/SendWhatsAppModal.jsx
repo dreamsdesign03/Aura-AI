@@ -4,30 +4,55 @@ import { useToast } from "@/hooks/use-toast";
 
 const META_TEMPLATES = [
   {
+    name: "lead_welcome_confirmation",
+    label: "lead_welcome_confirmation (Marketing - English)",
+    type: "meta",
+    description: "Welcome confirmation for new leads"
+  },
+  {
+    name: "new_lead_dreamsdesign",
+    label: "new_lead_dreamsdesign (Utility - English)",
+    type: "meta",
+    description: "New lead details notification"
+  },
+  {
+    name: "weekly_client_reviews",
+    label: "weekly_client_reviews (Marketing - English US)",
+    type: "meta",
+    description: "Weekly client review request template"
+  },
+  {
+    name: "dd_medax_appointment",
+    label: "dd_medax_appointment (Marketing - English US)",
+    type: "meta",
+    description: "Appointment booking template"
+  },
+  {
+    name: "dd_medax_send_invoice",
+    label: "dd_medax_send_invoice (Marketing - English IND)",
+    type: "meta",
+    description: "Invoice delivery template"
+  },
+  {
+    name: "dd_medax_send_prescription",
+    label: "dd_medax_send_prescription (Marketing - English IND)",
+    type: "meta",
+    description: "Prescription delivery template"
+  },
+  {
+    name: "code_send",
+    label: "code_send (Authentication - English US)",
+    type: "meta",
+    description: "Authentication code template"
+  },
+  {
     name: "hello_world",
-    label: "Meta Sandbox Default (hello_world)",
+    label: "hello_world (Utility Sandbox - English US)",
     type: "meta",
-    description: "Standard Meta WhatsApp test template (no variables required)"
-  },
-  {
-    name: "lead_intro_v1",
-    label: "Intro Hook Template",
-    type: "meta",
-    description: "Official Meta initial reach-out template for leads"
-  },
-  {
-    name: "audit_proposal",
-    label: "Brand Audit Delivery Template",
-    type: "meta",
-    description: "Sends personalized website audit link via WhatsApp"
-  },
-  {
-    name: "meeting_followup",
-    label: "Meeting Followup Template",
-    type: "meta",
-    description: "Follow-up nudge template to book a growth session"
+    description: "Standard Meta WhatsApp test template"
   }
 ];
+
 
 const QUICK_TEXT_TEMPLATES = [
   { label: "Intro Hook", text: "Hi {{name}} 👋 I noticed you're leading {{company}} and wanted to connect about boosting lead acquisition. Would you be open to a quick 5-min chat?" },

@@ -695,11 +695,16 @@ function ConversationsTab() {
                   onChange={(e) => { if (e.target.value) { handleSendWa(e, e.target.value); e.target.value = ""; } }}
                   className="flex-1 text-xs p-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-900 font-bold focus:outline-none"
                 >
-                  <option value="" disabled>-- Select & Send Approved Template --</option>
-                  <option value="hello_world">⚡ hello_world (Default Meta Sandbox Template)</option>
-                  <option value="lead_intro_v1">⚡ lead_intro_v1 (Intro Touchpoint)</option>
-                  <option value="audit_proposal">⚡ audit_proposal (Brand Audit Delivery)</option>
-                  <option value="meeting_followup">⚡ meeting_followup (Meeting Nudge)</option>
+                  <option value="" disabled>-- Select & Send Approved Meta Template --</option>
+                  <option value="lead_welcome_confirmation">⚡ lead_welcome_confirmation (Marketing - English)</option>
+                  <option value="new_lead_dreamsdesign">⚡ new_lead_dreamsdesign (Utility - English)</option>
+                  <option value="weekly_client_reviews">⚡ weekly_client_reviews (Marketing - English US)</option>
+                  <option value="dd_medax_appointment">⚡ dd_medax_appointment (Marketing - English US)</option>
+                  <option value="dd_medax_send_invoice">⚡ dd_medax_send_invoice (Marketing - English IND)</option>
+                  <option value="dd_medax_send_prescription">⚡ dd_medax_send_prescription (Marketing - English IND)</option>
+                  <option value="code_send">⚡ code_send (Authentication - English US)</option>
+                  <option value="hello_world">⚡ hello_world (Utility Sandbox - English US)</option>
+
                 </select>
               </div>
 
