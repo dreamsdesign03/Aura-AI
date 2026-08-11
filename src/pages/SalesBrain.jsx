@@ -533,35 +533,60 @@ function ConversationsTab() {
         { val: "report_sent", label: "Report Sent" }, { val: "qualifying", label: "Qualifying" },
         { val: "appointment_pitched", label: "Pitched" }, { val: "appointment_booked", label: "Booked" }, { val: "opted_out", label: "Opted Out" },
     ];
-    async function handleSendWa(e) {
+    async function handleSendWa(e, templateToSend = null) {
         e?.preventDefault();
-        if (!waText.trim() || !selectedConv || sendingWa) return;
-        const msgContent = waText.trim();
+        const isTemplate = Boolean(templateToSend);
+        if (!isTemplate && !waText.trim()) return;
+        if (!selectedConv || sendingWa) return;
+
+        const msgContent = isTemplate ? `[Template: ${templateToSend}]` : waText.trim();
         setSendingWa(true);
-        setWaText("");
+        if (!isTemplate) setWaText("");
+
         try {
+            const bodyPayload = {
+                leadId: selectedConv.leadId || selectedConv.lead?.id,
+                phone: selectedConv.waPhoneNumber || selectedConv.lead?.whatsapp || selectedConv.lead?.phone,
+            };
+
+            if (isTemplate) {
+                bodyPayload.templateName = templateToSend;
+                bodyPayload.templateParams = [
+                    selectedConv.lead?.firstName || selectedConv.lead?.first_name || "Contact",
+                    selectedConv.lead?.company || "Company"
+                ];
+            } else {
+                bodyPayload.message = msgContent;
+            }
+
             const res = await fetch("/api/whatsapp/send", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 credentials: "include",
-                body: JSON.stringify({
-                    leadId: selectedConv.leadId || selectedConv.lead?.id,
-                    phone: selectedConv.waPhoneNumber || selectedConv.lead?.whatsapp || selectedConv.lead?.phone,
-                    message: msgContent
-                })
+                body: JSON.stringify(bodyPayload)
             });
             const data = await res.json();
-            if (!res.ok) throw new Error(data.error || "Failed to send message");
+            if (!res.ok) throw new Error(data.error || "Meta WhatsApp delivery failed");
+
             setLocalMsgs(prev => [...prev, {
                 id: Date.now(),
                 content: msgContent,
                 direction: "outbound",
                 sentAt: new Date().toISOString()
             }]);
-            toast({ title: "WhatsApp message sent" });
+            toast({
+                title: isTemplate ? "Meta Template Dispatched!" : "WhatsApp Message Sent",
+                description: `Delivered via Meta WhatsApp Cloud API`
+            });
             refetchConvs();
         } catch (err) {
-            toast({ title: "Failed to send message", description: err.message, variant: "destructive" });
+            toast({
+                title: "Meta WhatsApp Error",
+                description: err.message.includes("24") || err.message.includes("window") || err.message.includes("re-engagement")
+                    ? "24-hour window expired. Click '⚡ Meta Template (hello_world)' to send an official template."
+                    : err.message,
+                variant: "destructive"
+            });
         } finally {
             setSendingWa(false);
         }
@@ -663,7 +688,14 @@ function ConversationsTab() {
             </div>
 
             <form onSubmit={handleSendWa} className="p-3 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
-              <div className="flex gap-1.5 overflow-x-auto pb-1">
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                <button
+                  type="button"
+                  onClick={(e) => handleSendWa(e, "hello_world")}
+                  className="text-[10px] font-bold px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 flex-shrink-0 whitespace-nowrap"
+                >
+                  ⚡ Send Meta Template (hello_world)
+                </button>
                 {[
                   "Hi {{name}} 👋 Wanted to check in on your audit.",
                   "Following up regarding your consultation call.",
@@ -700,6 +732,7 @@ function ConversationsTab() {
           </>)}
       </div>
     </div>);
+
 }
 // ─── ANALYTICS TAB ────────────────────────────────────────────────────────────
 function AnalyticsTab() {

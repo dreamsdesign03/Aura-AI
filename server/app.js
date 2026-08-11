@@ -5133,12 +5133,17 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
     if (token && phoneNumberId) {
       try {
-        const cleanDigits = phone.replace(/\D/g, '');
+        let cleanDigits = phone.replace(/\D/g, '');
+        if (cleanDigits.length === 10) {
+          cleanDigits = '91' + cleanDigits;
+        }
+
         let payload = {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
           to: cleanDigits,
         };
+
 
         if (templateName) {
           payload.type = 'template';
@@ -5219,6 +5224,13 @@ app.post('/api/whatsapp/send', async (req, res) => {
       );
     } catch {}
 
+    if (!metaResult.success && !metaResult.simulated) {
+      return res.status(400).json({
+        error: metaResult.error || 'Meta WhatsApp API delivery failed',
+        metaResult
+      });
+    }
+
     res.json({
       success: true,
       message: savedMsg,
@@ -5228,6 +5240,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+
 });
 
 // GET /api/whatsapp/messages/:leadId — Get conversation history for a lead
