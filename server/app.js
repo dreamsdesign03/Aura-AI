@@ -4993,12 +4993,12 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
            l.phone,
            l.status as "leadStatus",
            COALESCE(wc.id, l.id) as id,
-           COALESCE(wc.phone, l.phone, '') as "waPhoneNumber",
+           COALESCE(wc.wa_phone_number, l.phone, '') as "waPhoneNumber",
            COALESCE(wc.state, 'hook_sent') as state,
-           COALESCE(wc.last_message, 'Click to send WhatsApp message') as "lastMessage",
+           'Click to send WhatsApp message' as "lastMessage",
            COALESCE(wc.updated_at, l.created_at, NOW()) as "updatedAt"
          FROM leads l
-         LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.phone = l.phone)
+         LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.wa_phone_number = l.phone)
          ORDER BY wc.updated_at DESC NULLS LAST, l.created_at DESC`
       );
     } catch (dbErr) {
@@ -5031,6 +5031,35 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
   } catch (err) {
     console.error('Error fetching whatsapp conversations:', err.message);
     return res.json([]);
+  }
+});
+
+// GET /api/whatsapp/analytics — Funnel stats
+app.get(['/api/whatsapp/analytics', '/api/useGetWhatsAppAnalytics'], async (req, res) => {
+  try {
+    const totalRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_conversations`);
+    const sentRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'outbound'`);
+    const recvRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'inbound'`);
+    
+    const totalInitiated = totalRes.rows[0]?.count || 1;
+    const replies = recvRes.rows[0]?.count || 0;
+    const yesRate = Math.min(100, Math.round((replies / totalInitiated) * 100));
+
+    res.json({
+      totalInitiated: totalInitiated || 1,
+      yesRate: yesRate || 0,
+      reportsSent: sentRes.rows[0]?.count || 0,
+      appointmentsBooked: 0,
+      optedOut: 0
+    });
+  } catch (err) {
+    res.json({
+      totalInitiated: 0,
+      yesRate: 0,
+      reportsSent: 0,
+      appointmentsBooked: 0,
+      optedOut: 0
+    });
   }
 });
 
@@ -5123,7 +5152,6 @@ app.post('/api/whatsapp/send', async (req, res) => {
             ] : []
           };
         } else {
-
           payload.type = 'text';
           payload.text = { preview_url: false, body: message.trim() };
         }
@@ -5154,42 +5182,6 @@ app.post('/api/whatsapp/send', async (req, res) => {
       metaResult = { success: true, simulated: true };
     }
 
-    const finalBody = message || `[Template: ${templateName}]`;
-
-    let savedMsg = null;
-    try {
-      const r = await db.query(
-        `INSERT INTO whatsapp_messages (lead_id, phone, body, template_name, direction, status, timestamp, created_at)
-         VALUES ($1, $2, $3, $4, 'outbound', 'sent', NOW(), NOW()) RETURNING *`,
-        [leadId || null, phone, finalBody.trim(), templateName || null]
-      );
-      savedMsg = r.rows[0];
-    } catch (dbErr) {
-      console.error('Error inserting whatsapp_message:', dbErr.message);
-      savedMsg = { id: Date.now(), lead_id: leadId, phone, body: finalBody, direction: 'outbound', status: 'sent', timestamp: new Date().toISOString() };
-    }
-
-    try {
-      await db.query(
-        `INSERT INTO whatsapp_conversations (lead_id, phone, status, last_message, state, last_message_at, updated_at)
-         VALUES ($1, $2, 'Active', $3, 'outbound_sent', NOW(), NOW())
-         ON CONFLICT (lead_id) DO UPDATE SET
-           last_message = EXCLUDED.last_message,
-           last_message_at = NOW(),
-           updated_at = NOW()`,
-        [leadId || null, phone, finalBody.trim()]
-      );
-    } catch {}
-
-    try {
-      const activityType = 'whatsapp_sent';
-      await db.query(
-        `INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail, executed_at)
-         VALUES ($1, 'Sales Agent', $2, 'completed', $3, $4, $5, NOW())`,
-        [1, activityType, leadName, companyName, finalBody.slice(0, 100)]
-      );
-    } catch {}
-
     if (!metaResult.success && !metaResult.simulated) {
       return res.status(400).json({
         error: metaResult.error || 'Meta WhatsApp API delivery failed',
@@ -5197,16 +5189,50 @@ app.post('/api/whatsapp/send', async (req, res) => {
       });
     }
 
+    const finalBody = message || `[Template: ${templateName}]`;
+
+    // Upsert conversation & insert message into PostgreSQL
+    let convId = null;
+    try {
+      let convRes = await db.query(`SELECT id FROM whatsapp_conversations WHERE lead_id = $1 OR wa_phone_number = $2`, [lead.id || leadId || null, phone]);
+      if (convRes.rows[0]) {
+        convId = convRes.rows[0].id;
+        await db.query(`UPDATE whatsapp_conversations SET state = 'outbound_sent', updated_at = NOW() WHERE id = $1`, [convId]);
+      } else {
+        let newConv = await db.query(
+          `INSERT INTO whatsapp_conversations (lead_id, wa_phone_number, state, created_at, updated_at)
+           VALUES ($1, $2, 'outbound_sent', NOW(), NOW()) RETURNING id`,
+          [lead.id || leadId || null, phone]
+        );
+        convId = newConv.rows[0]?.id;
+      }
+    } catch (cErr) {
+      console.error('Error upserting whatsapp_conversations:', cErr.message);
+    }
+
+    let savedMsg = null;
+    if (convId) {
+      try {
+        const r = await db.query(
+          `INSERT INTO whatsapp_messages (conversation_id, direction, content, wa_message_id, sent_at)
+           VALUES ($1, 'outbound', $2, $3, NOW()) RETURNING *`,
+          [convId, finalBody.trim(), metaResult.messageId || null]
+        );
+        savedMsg = r.rows[0];
+      } catch (mErr) {
+        console.error('Error inserting whatsapp_messages:', mErr.message);
+      }
+    }
+
     res.json({
       success: true,
-      message: savedMsg,
+      message: savedMsg || { id: Date.now(), content: finalBody, direction: 'outbound', sentAt: new Date().toISOString() },
       simulated: metaResult.simulated || false,
       metaResult
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-
 });
 
 // GET /api/whatsapp/messages/:leadId — Get conversation history for a lead
@@ -5218,11 +5244,19 @@ app.get(['/api/whatsapp/messages/:leadId', '/api/useGetWhatsAppMessages'], async
     }
     const leadId = Number(rawId);
     const r = await db.query(
-      `SELECT id, lead_id as "leadId", phone, body as content, template_name as "templateName", direction, status, 
-              timestamp as "sentAt", created_at as "createdAt"
-       FROM whatsapp_messages 
-       WHERE lead_id = $1 OR phone IN (SELECT phone FROM leads WHERE id = $1) OR phone IN (SELECT whatsapp FROM leads WHERE id = $1)
-       ORDER BY timestamp ASC LIMIT 200`,
+      `SELECT 
+         m.id,
+         m.conversation_id as "conversationId",
+         m.content as body,
+         m.content,
+         m.direction,
+         m.sent_at as "sentAt",
+         m.sent_at as "timestamp",
+         m.wa_message_id as "waMessageId"
+       FROM whatsapp_messages m
+       JOIN whatsapp_conversations wc ON m.conversation_id = wc.id
+       WHERE wc.lead_id = $1 OR wc.wa_phone_number = (SELECT phone FROM leads WHERE id = $1)
+       ORDER BY m.sent_at ASC LIMIT 200`,
       [leadId]
     );
     res.json({ messages: r.rows });
@@ -5230,6 +5264,7 @@ app.get(['/api/whatsapp/messages/:leadId', '/api/useGetWhatsAppMessages'], async
     res.json({ messages: [] });
   }
 });
+
 
 
 
