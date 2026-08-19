@@ -215,5 +215,53 @@ CREATE TABLE IF NOT EXISTS whatsapp_conversations (
   lead_id INT REFERENCES leads(id) ON DELETE CASCADE,
   phone TEXT,
   status TEXT DEFAULT 'Active',
-  last_message_at TIMESTAMPTZ DEFAULT NOW()
+  state TEXT DEFAULT 'all',
+  last_message_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Ensure state column exists on whatsapp_conversations
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'whatsapp_conversations' AND column_name = 'state'
+  ) THEN
+    ALTER TABLE whatsapp_conversations ADD COLUMN state TEXT DEFAULT 'all';
+  END IF;
+END $$;
+
+-- 13. WhatsApp Messages Table
+CREATE TABLE IF NOT EXISTS whatsapp_messages (
+  id SERIAL PRIMARY KEY,
+  conversation_id INT REFERENCES whatsapp_conversations(id) ON DELETE CASCADE,
+  lead_id INT REFERENCES leads(id) ON DELETE CASCADE,
+  direction TEXT NOT NULL,
+  content TEXT,
+  template_name TEXT,
+  meta_message_id TEXT,
+  status TEXT DEFAULT 'sent',
+  sent_at TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 14. WhatsApp Settings Table
+CREATE TABLE IF NOT EXISTS whatsapp_settings (
+  id SERIAL PRIMARY KEY,
+  user_id INT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  phone_number_id TEXT,
+  access_token TEXT,
+  app_secret TEXT,
+  webhook_verify_token TEXT,
+  booking_url TEXT,
+  consultant_name TEXT,
+  portfolio_url TEXT,
+  case_study_url TEXT,
+  company_profile_url TEXT,
+  hook_template_name TEXT,
+  hook_template_lang TEXT DEFAULT 'en_US',
+  n8n_webhook_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+

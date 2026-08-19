@@ -86,19 +86,20 @@ LEAD CONTEXT:
   }
 }
 
+const { getWhatsAppCredentials } = require('./whatsapp');
+
 async function sendWhatsAppMessage(phone, message, userId) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneNumberId) {
+  const { phoneNumberId, accessToken } = await getWhatsAppCredentials(userId);
+  if (!accessToken || !phoneNumberId) {
     console.log(`[automation][whatsapp] Gateway not configured. Simulated send to ${phone}: ${String(message).slice(0, 80)}`);
     return { success: true, simulated: true };
   }
   try {
-    const res = await fetch(`https://graph.facebook.com/v20.0/${phoneNumberId}/messages`, {
+    const res = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         messaging_product: 'whatsapp',
@@ -112,12 +113,13 @@ async function sendWhatsAppMessage(phone, message, userId) {
       console.error('[automation][whatsapp] Send failed:', JSON.stringify(data).slice(0, 300));
       return { success: false, error: data?.error?.message || 'WhatsApp send failed' };
     }
-    return { success: true };
+    return { success: true, metaMessageId: data?.messages?.[0]?.id };
   } catch (err) {
     console.error('[automation][whatsapp] Send error:', err.message);
     return { success: false, error: err.message };
   }
 }
+
 
 async function recordActivity(userId, automationId, trigger, message, entityName, icon, color) {
   try {

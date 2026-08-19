@@ -5537,6 +5537,11 @@ agentHubApi.registerAgentHubRoutes(app, resolveUserId);
 const emailRepliesApi = require('./email-replies');
 emailRepliesApi.registerEmailReplyRoutes(app, resolveUserId);
 
+// ── WhatsApp API (Meta Cloud API, Messages, Conversations, Settings, Webhooks) ─
+const whatsappApi = require('./whatsapp');
+whatsappApi.registerWhatsAppRoutes(app, resolveUserId);
+
 module.exports = app;
+
 
 
