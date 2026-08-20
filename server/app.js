@@ -5329,61 +5329,110 @@ app.get('/api/whatsapp/webhook', (req, res) => {
   }
 });
 
-// POST /api/whatsapp/webhook — Incoming Meta WhatsApp Messages & Status Updates
+// POST /api/whatsapp/webhook — Incoming Meta & n8n WhatsApp Messages
 app.post('/api/whatsapp/webhook', async (req, res) => {
+  // Requirement 2: Debug logging BEFORE any parsing logic
+  console.log('\n===== INCOMING WHATSAPP WEBHOOK =====');
+  console.log('Timestamp:', new Date().toISOString());
+  console.log('Headers:', JSON.stringify(req.headers, null, 2));
+  console.log('RAW Body:');
+  console.log(JSON.stringify(req.body, null, 2));
+  console.log('=====================================\n');
+
   try {
     const body = req.body || {};
 
-    // Helper to process message objects
-    const processIncomingMsg = async (msg) => {
-      if (!msg) return;
-      const fromPhone = msg.from; // Sender phone number
-      const textBody = msg.text?.body || msg.button?.text || msg.interactive?.button_reply?.title || '[Media/Other Message]';
-      const metaMsgId = msg.id;
+    const processMessageItem = async (senderPhone, messageText, metaMessageId, rawTimestamp) => {
+      if (!senderPhone && !messageText) return;
 
-      console.log(`[Meta Webhook] Incoming message from ${fromPhone}: ${textBody}`);
+      let cleanDigits = String(senderPhone || '').replace(/\D/g, '');
+      if (cleanDigits.length > 10) {
+        cleanDigits = cleanDigits.slice(-10);
+      }
 
       let leadId = null;
+      if (cleanDigits) {
+        try {
+          const leadMatch = await db.query(
+            `SELECT id FROM leads 
+             WHERE REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+                OR REPLACE(REPLACE(REPLACE(whatsapp, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+             LIMIT 1`,
+            [cleanDigits]
+          );
+          if (leadMatch.rows.length > 0) {
+            leadId = leadMatch.rows[0].id;
+          }
+        } catch {}
+      }
+
+      let convId = null;
       try {
-        const cleanDigits = fromPhone.replace(/\D/g, '').slice(-10);
-        const leadRes = await db.query(
-          `SELECT id FROM leads WHERE replace(replace(phone, '+', ''), ' ', '') LIKE '%' || $1 OR replace(replace(whatsapp, '+', ''), ' ', '') LIKE '%' || $1 LIMIT 1`,
-          [cleanDigits]
+        const convMatch = await db.query(
+          `SELECT id FROM whatsapp_conversations 
+           WHERE phone = $1 
+              OR (lead_id IS NOT NULL AND lead_id = $2)
+              OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $3
+           LIMIT 1`,
+          [senderPhone, leadId, cleanDigits]
         );
-        leadId = leadRes.rows[0]?.id || null;
-      } catch {}
+
+        if (convMatch.rows.length > 0) {
+          convId = convMatch.rows[0].id;
+          await db.query(
+            `UPDATE whatsapp_conversations 
+             SET last_message_at = NOW(), state = 'inbound_received', lead_id = COALESCE(lead_id, $1) 
+             WHERE id = $2`,
+            [leadId, convId]
+          );
+        } else {
+          const newConv = await db.query(
+            `INSERT INTO whatsapp_conversations (lead_id, phone, status, state, last_message_at) 
+             VALUES ($1, $2, 'Active', 'inbound_received', NOW()) 
+             RETURNING id`,
+            [leadId, senderPhone]
+          );
+          convId = newConv.rows[0].id;
+        }
+      } catch (convErr) {
+        console.error('[Meta Webhook] Error upserting conversation:', convErr.message);
+      }
+
+      const msgTimestamp = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : rawTimestamp) : new Date();
+      const validTime = isNaN(msgTimestamp.getTime()) ? new Date() : msgTimestamp;
 
       try {
-        await db.query(
-          `INSERT INTO whatsapp_messages (lead_id, phone, body, direction, status, meta_message_id, timestamp, created_at)
-           VALUES ($1, $2, $3, 'inbound', 'received', $4, NOW(), NOW())`,
-          [leadId, fromPhone, textBody, metaMsgId]
-        );
+        await db.query(`
+          INSERT INTO whatsapp_messages (
+            conversation_id, lead_id, phone, direction, content, body, meta_message_id, status, sent_at, timestamp, created_at
+          ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, 'delivered', $6, $6, NOW())
+        `, [convId, leadId, senderPhone, messageText, metaMessageId || `wamid_${Date.now()}`, validTime]);
+
+        console.log(`[Meta Webhook] Saved inbound message from ${senderPhone} (leadId: ${leadId}, convId: ${convId}): "${messageText}"`);
       } catch (err) {
         console.error('[Meta Webhook] Error inserting message:', err.message);
       }
 
-      try {
-        await db.query(
-          `INSERT INTO whatsapp_conversations (lead_id, phone, status, last_message, state, last_message_at, updated_at)
-           VALUES ($1, $2, 'Active', $3, 'inbound_received', NOW(), NOW())
-           ON CONFLICT (phone) DO UPDATE SET
-             last_message = EXCLUDED.last_message,
-             state = 'inbound_received',
-             last_message_at = NOW(),
-             updated_at = NOW()`,
-          [leadId, fromPhone, textBody]
-        );
-      } catch {}
+      if (leadId) {
+        try {
+          await db.query(`
+            INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+            VALUES ($1, 'WhatsApp', 'Inbound WhatsApp Reply', $2, 'Received', $3)
+          `, [leadId, messageText, validTime]);
+        } catch {}
+      }
     };
 
-    // Case 1: Standard Meta Webhook Object
     if (body.object === 'whatsapp_business_account') {
       for (const entry of body.entry || []) {
         for (const change of entry.changes || []) {
           const value = change.value || {};
           if (value.messages && value.messages[0]) {
-            await processIncomingMsg(value.messages[0]);
+            const msg = value.messages[0];
+            const senderPhone = msg.from;
+            const metaMessageId = msg.id;
+            const messageText = msg.text?.body || msg.button?.text || msg.interactive?.button_reply?.title || msg.text?.body || '[Media/Other Message]';
+            await processMessageItem(senderPhone, messageText, metaMessageId, msg.timestamp);
           }
           if (value.statuses && value.statuses[0]) {
             const statusObj = value.statuses[0];
@@ -5393,22 +5442,24 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
           }
         }
       }
-      return res.status(200).send('EVENT_RECEIVED');
-    } 
-    // Case 2: Direct n8n whatsAppTrigger payload (value object or array of messages)
-    else if (body.messages && body.messages[0]) {
-      await processIncomingMsg(body.messages[0]);
-      return res.status(200).json({ success: true, processed: 1 });
-    }
-    else if (Array.isArray(body) && body[0]?.messages?.[0]) {
-      await processIncomingMsg(body[0].messages[0]);
-      return res.status(200).json({ success: true, processed: 1 });
+    } else {
+      const root = Array.isArray(body) ? body[0] : body;
+      const msgObj = root?.messages?.[0] || root?.message || root?.data?.message || root;
+
+      const senderPhone = root?.from || root?.phone || root?.wa_phone || msgObj?.from || msgObj?.phone || msgObj?.sender || '';
+      const messageText = root?.body || root?.text || root?.message || root?.content || msgObj?.text?.body || msgObj?.body || msgObj?.text || '';
+      const metaMessageId = root?.id || root?.wamid || root?.metaMessageId || msgObj?.id || msgObj?.wamid || '';
+      const rawTimestamp = root?.timestamp || msgObj?.timestamp;
+
+      if (senderPhone || messageText) {
+        await processMessageItem(senderPhone, messageText, metaMessageId, rawTimestamp);
+      }
     }
 
-    return res.status(200).json({ success: true, note: 'Received payload' });
+    return res.status(200).json({ success: true, message: 'EVENT_RECEIVED' });
   } catch (err) {
     console.error('[Meta Webhook Error]:', err.message);
-    return res.status(500).send('Internal Server Error');
+    return res.status(200).json({ success: true, message: 'EVENT_RECEIVED' });
   }
 });
 
