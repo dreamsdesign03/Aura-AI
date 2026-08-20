@@ -217,41 +217,47 @@ function registerWhatsAppRoutes(app, resolveUserId) {
   // ── 4. GET /api/whatsapp/messages/:id ───────────────────────────────────────
   app.get('/api/whatsapp/messages/:id', async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) return res.status(400).json({ error: 'Invalid ID' });
+      const rawId = req.params.id || req.query.id;
+      if (!rawId || rawId === 'undefined' || rawId === 'null' || isNaN(Number(rawId))) {
+        return res.json({ messages: [] });
+      }
+      const targetId = Number(rawId);
 
       const q = `
         SELECT 
-          id,
-          conversation_id as "conversationId",
-          lead_id as "leadId",
-          direction,
-          COALESCE(content, body, '') as content,
-          COALESCE(body, content, '') as body,
-          template_name as "templateName",
-          COALESCE(meta_message_id, wa_message_id, '') as "metaMessageId",
-          status,
-          COALESCE(sent_at, timestamp, created_at) as "sentAt",
-          created_at as "createdAt"
-        FROM whatsapp_messages
-        WHERE conversation_id = $1 
-           OR lead_id = $1
-           OR lead_id = (SELECT lead_id FROM whatsapp_conversations WHERE id = $1)
-           OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || (
+          m.id,
+          m.conversation_id as "conversationId",
+          m.lead_id as "leadId",
+          m.direction,
+          COALESCE(m.content, m.body, '') as content,
+          COALESCE(m.body, m.content, '') as body,
+          m.template_name as "templateName",
+          COALESCE(m.meta_message_id, m.wa_message_id, '') as "metaMessageId",
+          COALESCE(m.wa_message_id, m.meta_message_id, '') as "waMessageId",
+          m.status,
+          COALESCE(m.sent_at, m.timestamp, m.created_at) as "sentAt",
+          COALESCE(m.timestamp, m.sent_at, m.created_at) as "timestamp",
+          m.created_at as "createdAt"
+        FROM whatsapp_messages m
+        WHERE m.conversation_id = $1 
+           OR m.lead_id = $1
+           OR m.conversation_id IN (SELECT id FROM whatsapp_conversations WHERE lead_id = $1)
+           OR m.lead_id IN (SELECT lead_id FROM whatsapp_conversations WHERE id = $1)
+           OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
               SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
-              FROM whatsapp_conversations WHERE id = $1
-           )
-           OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || (
+              FROM whatsapp_conversations WHERE id = $1 LIMIT 1
+           ), '___NONE___')
+           OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
               SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
-              FROM leads WHERE id = (SELECT lead_id FROM whatsapp_conversations WHERE id = $1)
-           )
-        ORDER BY COALESCE(sent_at, timestamp, created_at) ASC;
+              FROM leads WHERE id = $1 LIMIT 1
+           ), '___NONE___')
+        ORDER BY COALESCE(m.sent_at, m.timestamp, m.created_at) ASC LIMIT 300;
       `;
 
-      const result = await db.query(q, [id]);
+      const result = await db.query(q, [targetId]);
       
       // Marker 6: Fetching log
-      console.log("===== FETCHING MESSAGES FOR CONVERSATION =====", id);
+      console.log("===== FETCHING MESSAGES FOR CONVERSATION =====", targetId);
       console.log("MESSAGES RETURNED:", result.rows.length, result.rows.map(m => ({ id: m.id, direction: m.direction, content: m.content })));
 
       res.json({ messages: result.rows });

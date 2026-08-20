@@ -5277,32 +5277,55 @@ app.post('/api/whatsapp/send', async (req, res) => {
   }
 });
 
-// GET /api/whatsapp/messages/:leadId — Get conversation history for a lead
-app.get(['/api/whatsapp/messages/:leadId', '/api/useGetWhatsAppMessages'], async (req, res) => {
+// GET /api/whatsapp/messages/:id — Get conversation history for a conversation or lead
+app.get(['/api/whatsapp/messages/:id', '/api/whatsapp/messages/:leadId', '/api/useGetWhatsAppMessages'], async (req, res) => {
   try {
-    const rawId = req.params.leadId || req.params.id || req.query.leadId;
+    const rawId = req.params.id || req.params.leadId || req.query.id || req.query.leadId;
     if (!rawId || rawId === 'undefined' || rawId === 'null' || isNaN(Number(rawId))) {
       return res.json({ messages: [] });
     }
-    const leadId = Number(rawId);
-    const r = await db.query(
-      `SELECT 
-         m.id,
-         m.conversation_id as "conversationId",
-         m.content as body,
-         m.content,
-         m.direction,
-         m.sent_at as "sentAt",
-         m.sent_at as "timestamp",
-         m.wa_message_id as "waMessageId"
-       FROM whatsapp_messages m
-       JOIN whatsapp_conversations wc ON m.conversation_id = wc.id
-       WHERE wc.lead_id = $1 OR wc.wa_phone_number = (SELECT phone FROM leads WHERE id = $1)
-       ORDER BY m.sent_at ASC LIMIT 200`,
-      [leadId]
-    );
-    res.json({ messages: r.rows });
+    const targetId = Number(rawId);
+
+    const q = `
+      SELECT 
+        m.id,
+        m.conversation_id as "conversationId",
+        m.lead_id as "leadId",
+        m.direction,
+        COALESCE(m.content, m.body, '') as content,
+        COALESCE(m.body, m.content, '') as body,
+        m.template_name as "templateName",
+        COALESCE(m.meta_message_id, m.wa_message_id, '') as "metaMessageId",
+        COALESCE(m.wa_message_id, m.meta_message_id, '') as "waMessageId",
+        m.status,
+        COALESCE(m.sent_at, m.timestamp, m.created_at) as "sentAt",
+        COALESCE(m.timestamp, m.sent_at, m.created_at) as "timestamp",
+        m.created_at as "createdAt"
+      FROM whatsapp_messages m
+      WHERE m.conversation_id = $1 
+         OR m.lead_id = $1
+         OR m.conversation_id IN (SELECT id FROM whatsapp_conversations WHERE lead_id = $1)
+         OR m.lead_id IN (SELECT lead_id FROM whatsapp_conversations WHERE id = $1)
+         OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
+            SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
+            FROM whatsapp_conversations WHERE id = $1 LIMIT 1
+         ), '___NONE___')
+         OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
+            SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
+            FROM leads WHERE id = $1 LIMIT 1
+         ), '___NONE___')
+      ORDER BY COALESCE(m.sent_at, m.timestamp, m.created_at) ASC LIMIT 300;
+    `;
+
+    const result = await db.query(q, [targetId]);
+
+    // Marker 6 Debug Log
+    console.log("===== FETCHING MESSAGES FOR CONVERSATION =====", targetId);
+    console.log("MESSAGES RETURNED:", result.rows.length, result.rows.map(m => ({ id: m.id, direction: m.direction, content: m.content })));
+
+    res.json({ messages: result.rows });
   } catch (err) {
+    console.error('[GET whatsapp messages error]:', err.message);
     res.json({ messages: [] });
   }
 });
