@@ -511,11 +511,16 @@ function ConversationsTab() {
 
     const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId || 0, { enabled: Boolean(selectedId), refetchInterval: 3000 });
     useEffect(() => {
-        const msgs = msgData?.messages ?? [];
         if (selectedId) {
-            console.log("===== FETCHING MESSAGES FOR CONVERSATION =====", selectedId);
-            console.log("MESSAGES RETURNED:", msgs.length, msgs.map(m => ({ id: m.id, direction: m.direction, content: m.content || m.body })));
+            fetch('/api/whatsapp/read', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ conversationId: selectedId })
+            }).then(() => refetchConvs()).catch(() => {});
         }
+    }, [selectedId]);
+    useEffect(() => {
+        const msgs = msgData?.messages ?? [];
         setLocalMsgs(msgs);
     }, [msgData, selectedId]);
     useEffect(() => {
@@ -530,6 +535,10 @@ function ConversationsTab() {
         if (search && !name.includes(search.toLowerCase()) && !company.includes(search.toLowerCase()))
             return false;
         return true;
+    }).sort((a, b) => {
+        const timeA = new Date(a.updatedAt || 0).getTime();
+        const timeB = new Date(b.updatedAt || 0).getTime();
+        return timeB - timeA;
     });
     const selectedConv = selectedId ? conversations.find(c => c.id === selectedId) ?? null : null;
 
@@ -556,57 +565,25 @@ function ConversationsTab() {
 
             if (isTemplate) {
                 bodyPayload.templateName = templateToSend;
-                if (templateToSend === 'hello_world') {
-                    bodyPayload.templateParams = [];
-                } else {
-                    bodyPayload.templateParams = [
-                        selectedConv.lead?.firstName || selectedConv.lead?.first_name || "Contact",
-                        selectedConv.lead?.company || "Company"
-                    ];
-                }
+                bodyPayload.templateParams = [
+                    selectedConv.lead?.firstName || selectedConv.lead?.first_name || "Contact",
+                    selectedConv.lead?.company || "Company"
+                ];
             } else {
                 bodyPayload.message = msgContent;
             }
 
-            console.log('\n===== WHATSAPP SEND ATTEMPT =====');
-            console.log('Full URL:', 'https://graph.facebook.com/v25.0/890723640798276/messages (via /api/whatsapp/send)');
-            console.log('Headers:', JSON.stringify({ "Content-Type": "application/json" }, null, 2));
-            console.log('Full Request Body:', JSON.stringify(bodyPayload, null, 2));
-
-            let res;
-            try {
-                res = await fetch("/api/whatsapp/send", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify(bodyPayload)
-                });
-            } catch (netErr) {
-                console.error('===== WHATSAPP NETWORK EXCEPTION =====');
-                console.error('Request failed to send (Network-level exception):', netErr.message);
-                console.error('Error Stack:', netErr.stack);
-                console.error('======================================\n');
-                throw netErr;
-            }
+            const res = await fetch('/api/whatsapp/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(bodyPayload)
+            });
 
             const data = await res.json();
 
-            console.log('--- META API / BACKEND RAW RESPONSE ---');
-            console.log('HTTP Status Code:', res.status, res.statusText);
-            console.log('Full Response Body (JSON):');
-            console.log(JSON.stringify(data, null, 2));
-
-            const metaErr = data?.details?.error || data?.metaResult?.error;
-            if (metaErr && typeof metaErr === 'object') {
-                console.log('--- META ERROR OBJECT DETAILS ---');
-                console.log('error.code:', metaErr.code);
-                console.log('error.type:', metaErr.type);
-                console.log('error.message:', metaErr.message);
-                console.log('error.error_data:', metaErr.error_data !== undefined ? JSON.stringify(metaErr.error_data, null, 2) : undefined);
+            if (!res.ok || !data.success) {
+                throw new Error(data.error || "Meta WhatsApp delivery failed");
             }
-            console.log('=================================\n');
-
-            if (!res.ok) throw new Error(data.error || "Meta WhatsApp delivery failed");
 
             setLocalMsgs(prev => [...prev, {
                 id: Date.now(),
@@ -623,18 +600,16 @@ function ConversationsTab() {
             console.error('Meta WhatsApp Send Error:', err);
             toast({
                 title: "Meta WhatsApp Error",
-                description: err.message.includes("24") || err.message.includes("window") || err.message.includes("re-engagement")
-                    ? "24-hour window expired. Click '⚡ Meta Template (hello_world)' to send an official template."
-                    : err.message,
+                description: err.message,
                 variant: "destructive"
             });
         } finally {
             setSendingWa(false);
         }
     }
-    return (<div className="flex flex-1 overflow-hidden" style={{ height: "100%" }}>
-      <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-80", selectedId ? "hidden md:flex" : "flex w-full")}>
-        <div className="px-3 py-2.5 border-b border-gray-100 space-y-2 flex-shrink-0">
+    return (<div className="flex flex-1 overflow-hidden bg-white" style={{ height: "100%" }}>
+      <div className={cn("w-full md:w-80 border-r border-gray-200 flex flex-col flex-shrink-0 bg-white", selectedConv && "hidden md:flex")}>
+        <div className="p-3 border-b border-gray-100 space-y-2">
           <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…" className="w-full px-3 py-1.5 text-xs rounded border border-gray-200 bg-gray-50 focus:outline-none focus:ring-1 focus:ring-green-500/40"/>
           <div className="flex gap-1 overflow-x-auto pb-0.5">
             {stateFilters.map(f => (<button key={f.val} onClick={() => setFilterState(f.val)} className={cn("flex-shrink-0 px-2 py-0.5 text-[10px] font-semibold rounded-full border transition-colors whitespace-nowrap", filterState === f.val ? "border-green-600 text-green-700 bg-green-50" : "border-gray-200 text-gray-500 bg-gray-50 hover:border-gray-300")}>
@@ -642,8 +617,8 @@ function ConversationsTab() {
               </button>))}
           </div>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {loading ? (Array.from({ length: 5 }).map((_, i) => (<div key={i} className="flex gap-2.5 px-3 py-3 border-b border-gray-100 animate-pulse">
+        <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          {loading ? (Array.from({ length: 5 }).map((_, i) => (<div key={i} className="flex gap-2.5 px-3 py-3 animate-pulse">
                 <div className="w-9 h-9 rounded-full bg-gray-200 flex-shrink-0"/>
                 <div className="flex-1 space-y-1.5"><div className="h-3 bg-gray-200 rounded w-3/4"/><div className="h-2.5 bg-gray-100 rounded w-1/2"/></div>
               </div>))) : filtered.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 text-center px-6">
@@ -651,23 +626,32 @@ function ConversationsTab() {
               <p className="text-xs text-gray-400">No conversations yet</p>
             </div>) : (filtered.map(conv => {
             const isSelected = selectedId === conv.id;
-            const cfg = STATE_CONFIG[conv.state] ?? { label: conv.state, bg: "#F3F4F6", color: "#6B7280" };
-            return (<button key={conv.id} onClick={() => setSelectedId(conv.id)} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 flex gap-2.5 transition-colors", isSelected ? "bg-green-50" : "hover:bg-gray-50")}>
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#CB3273" }}>
-                    {initials(conv.lead)}
+            const hasUnread = Number(conv.unreadCount || 0) > 0;
+            return (<button key={conv.id} onClick={() => {
+                setSelectedId(conv.id);
+                fetch('/api/whatsapp/read', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ conversationId: conv.id, id: conv.id, leadId: conv.leadId })
+                }).then(() => refetchConvs()).catch(() => {});
+              }} className={cn("w-full text-left px-3 py-3 flex gap-2.5 transition-colors relative", isSelected ? "bg-emerald-50 border-l-4 border-l-emerald-500" : hasUnread ? "bg-emerald-50/40" : "hover:bg-gray-50")}>
+                  <div className="relative flex-shrink-0">
+                    <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: "#CB3273" }}>
+                      {initials(conv.lead)}
+                    </div>
+                    {hasUnread && <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white animate-pulse"/>}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className="text-xs font-semibold text-gray-900 truncate">{leadName(conv.lead)}</span>
-                      <span className="text-[10px] text-gray-400 ml-1 flex-shrink-0">{timeAgo(conv.updatedAt)}</span>
+                      <span className={cn("text-xs truncate", hasUnread ? "font-bold text-gray-900" : "font-semibold text-gray-800")}>{leadName(conv.lead)}</span>
+                      <span className={cn("text-[10px] ml-1 flex-shrink-0", hasUnread ? "font-bold text-emerald-600" : "text-gray-400")}>{timeAgo(conv.updatedAt)}</span>
                     </div>
-                    {conv.lead?.company && <div className="text-[11px] text-gray-500 truncate mb-0.5">{conv.lead.company}</div>}
                     <div className="flex items-center justify-between gap-1">
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
-                      {conv.lastMessage && <span className="text-[10px] text-gray-400 truncate">{conv.lastMessage}</span>}
+                      <span className={cn("text-[11px] truncate flex-1", hasUnread ? "font-bold text-gray-900" : "text-gray-500")}>{conv.lastMessage || (conv.lead?.company ? conv.lead.company : "No messages yet")}</span>
+                      {hasUnread && <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500 text-white min-w-[18px] text-center shadow-sm flex-shrink-0">{conv.unreadCount}</span>}
                     </div>
                   </div>
-                  {isSelected && <ChevronRight className="w-3.5 h-3.5 text-gray-300 self-center flex-shrink-0"/>}
+                  {isSelected && <ChevronRight className="w-3.5 h-3.5 text-emerald-500 self-center flex-shrink-0"/>}
                 </button>);
         }))}
         </div>

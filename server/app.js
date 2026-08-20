@@ -5084,15 +5084,45 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
                 OR REPLACE(REPLACE(REPLACE(wm.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '')
              ORDER BY COALESCE(wm.sent_at, wm.timestamp, NOW()) DESC LIMIT 1
            ), 'Click to send WhatsApp message') as "lastMessage",
-           COALESCE(wc.last_message_at, wc.updated_at, l.created_at, NOW()) as "updatedAt"
+           COALESCE((
+             SELECT COUNT(*)::int
+             FROM whatsapp_messages wm
+             WHERE (wm.conversation_id = wc.id OR wm.lead_id = l.id OR REPLACE(REPLACE(REPLACE(wm.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', ''))
+               AND wm.direction = 'inbound'
+               AND (wm.status IS NULL OR wm.status != 'read')
+           ), 0) as "unreadCount",
+           COALESCE(
+             (
+               SELECT MAX(COALESCE(wm.sent_at, wm.timestamp, NOW())) 
+               FROM whatsapp_messages wm 
+               WHERE wm.conversation_id = wc.id 
+                  OR wm.lead_id = l.id 
+                  OR REPLACE(REPLACE(REPLACE(wm.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '')
+             ),
+             wc.last_message_at,
+             wc.updated_at,
+             l.created_at,
+             NOW()
+           ) as "updatedAt"
          FROM leads l
          LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR REPLACE(REPLACE(REPLACE(wc.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', ''))
-         ORDER BY COALESCE(wc.last_message_at, wc.updated_at) DESC NULLS LAST, l.created_at DESC`
+         ORDER BY COALESCE(
+           (
+             SELECT MAX(COALESCE(wm.sent_at, wm.timestamp, NOW())) 
+             FROM whatsapp_messages wm 
+             WHERE wm.conversation_id = wc.id 
+                OR wm.lead_id = l.id 
+                OR REPLACE(REPLACE(REPLACE(wm.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '')
+           ),
+           wc.last_message_at,
+           wc.updated_at,
+           l.created_at
+         ) DESC NULLS LAST`
       );
     } catch (dbErr) {
       console.warn('Fallback to simple leads query for conversations:', dbErr.message);
       r = await db.query(
-        `SELECT l.id as "leadId", l.first_name as "firstName", l.last_name as "lastName", l.company, l.phone, l.status as "leadStatus", l.id, l.phone as "waPhoneNumber", 'hook_sent' as state, 'Click to send WhatsApp message' as "lastMessage", l.created_at as "updatedAt" FROM leads l ORDER BY l.created_at DESC`
+        `SELECT l.id as "leadId", l.first_name as "firstName", l.last_name as "lastName", l.company, l.phone, l.status as "leadStatus", l.id, l.phone as "waPhoneNumber", 'hook_sent' as state, 'Click to send WhatsApp message' as "lastMessage", 0 as "unreadCount", l.created_at as "updatedAt" FROM leads l ORDER BY l.created_at DESC`
       );
     }
 
@@ -5102,6 +5132,7 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
       waPhoneNumber: row.waPhoneNumber || row.phone || 'No Phone',
       state: row.state || 'hook_sent',
       lastMessage: row.lastMessage || 'Click to send WhatsApp message',
+      unreadCount: Number(row.unreadCount || 0),
       updatedAt: row.updatedAt || new Date().toISOString(),
       lead: {
         id: row.leadId,
@@ -5119,6 +5150,44 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
   } catch (err) {
     console.error('Error fetching whatsapp conversations:', err.message);
     return res.json([]);
+  }
+});
+
+// POST /api/whatsapp/read — Mark conversation inbound messages as read
+app.post(['/api/whatsapp/read', '/api/whatsapp/conversations/:id/read', '/api/useMarkWhatsAppRead'], async (req, res) => {
+  try {
+    const rawId = req.params.id || req.body.conversationId || req.body.id || req.body.leadId;
+    if (!rawId || isNaN(Number(rawId))) return res.json({ success: false, message: 'INVALID_ID' });
+    const targetId = Number(rawId);
+
+    await db.query(
+      `UPDATE whatsapp_messages 
+       SET status = 'read' 
+       WHERE (
+         conversation_id = $1 
+         OR lead_id = $1 
+         OR conversation_id IN (SELECT id FROM whatsapp_conversations WHERE lead_id = $1)
+         OR lead_id IN (SELECT lead_id FROM whatsapp_conversations WHERE id = $1)
+         OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
+            SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') FROM whatsapp_conversations WHERE id = $1 LIMIT 1
+         ), '___NONE___')
+       )
+       AND direction = 'inbound' 
+       AND (status IS NULL OR status != 'read')`,
+      [targetId]
+    );
+
+    await db.query(
+      `UPDATE whatsapp_conversations 
+       SET unread_count = 0 
+       WHERE id = $1 OR lead_id = $1`,
+      [targetId]
+    );
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('[whatsapp read error]:', err.message);
+    return res.json({ success: false, error: err.message });
   }
 });
 
