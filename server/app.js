@@ -219,8 +219,31 @@ async function seedAdminUser() {
         event_type TEXT,
         data JSONB
       );
+
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS conversation_id INT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS lead_id INT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS phone TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'inbound';
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS content TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS body TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS template_name TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS meta_message_id TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS wa_message_id TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS lead_id INT;
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS phone TEXT;
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'hook_sent';
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message TEXT;
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
     `);
-    console.log('[Startup Migration] ✅ All migrations complete.');
+    console.log('[Startup Migration] ✅ All migrations complete including whatsapp_messages created_at.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
@@ -5054,12 +5077,12 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
            COALESCE(wc.phone, l.phone, '') as "waPhoneNumber",
            COALESCE(wc.state, 'hook_sent') as state,
            COALESCE((
-             SELECT COALESCE(content, body, '') 
-             FROM whatsapp_messages 
-             WHERE conversation_id = wc.id 
-                OR lead_id = l.id 
-                OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '')
-             ORDER BY COALESCE(sent_at, timestamp, created_at) DESC LIMIT 1
+             SELECT COALESCE(wm.content, wm.body, '') 
+             FROM whatsapp_messages wm
+             WHERE wm.conversation_id = wc.id 
+                OR wm.lead_id = l.id 
+                OR REPLACE(REPLACE(REPLACE(wm.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '')
+             ORDER BY COALESCE(wm.sent_at, wm.timestamp, NOW()) DESC LIMIT 1
            ), 'Click to send WhatsApp message') as "lastMessage",
            COALESCE(wc.last_message_at, wc.updated_at, l.created_at, NOW()) as "updatedAt"
          FROM leads l
@@ -5069,7 +5092,7 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
     } catch (dbErr) {
       console.warn('Fallback to simple leads query for conversations:', dbErr.message);
       r = await db.query(
-        `SELECT id as "leadId", first_name as "firstName", last_name as "lastName", company, phone, status as "leadStatus", id, phone as "waPhoneNumber", 'hook_sent' as state, 'Click to send WhatsApp message' as "lastMessage", created_at as "updatedAt" FROM leads ORDER BY created_at DESC`
+        `SELECT l.id as "leadId", l.first_name as "firstName", l.last_name as "lastName", l.company, l.phone, l.status as "leadStatus", l.id, l.phone as "waPhoneNumber", 'hook_sent' as state, 'Click to send WhatsApp message' as "lastMessage", l.created_at as "updatedAt" FROM leads l ORDER BY l.created_at DESC`
       );
     }
 
@@ -5368,23 +5391,22 @@ app.get(['/api/whatsapp/messages/:id', '/api/whatsapp/messages/:leadId', '/api/u
         COALESCE(m.meta_message_id, m.wa_message_id, '') as "metaMessageId",
         COALESCE(m.wa_message_id, m.meta_message_id, '') as "waMessageId",
         m.status,
-        COALESCE(m.sent_at, m.timestamp, m.created_at) as "sentAt",
-        COALESCE(m.timestamp, m.sent_at, m.created_at) as "timestamp",
-        m.created_at as "createdAt"
+        COALESCE(m.sent_at, m.timestamp, NOW()) as "sentAt",
+        COALESCE(m.timestamp, m.sent_at, NOW()) as "timestamp"
       FROM whatsapp_messages m
       WHERE m.conversation_id = $1 
          OR m.lead_id = $1
-         OR m.conversation_id IN (SELECT id FROM whatsapp_conversations WHERE lead_id = $1)
-         OR m.lead_id IN (SELECT lead_id FROM whatsapp_conversations WHERE id = $1)
+         OR m.conversation_id IN (SELECT wc.id FROM whatsapp_conversations wc WHERE wc.lead_id = $1)
+         OR m.lead_id IN (SELECT wc.lead_id FROM whatsapp_conversations wc WHERE wc.id = $1)
          OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
-            SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
-            FROM whatsapp_conversations WHERE id = $1 LIMIT 1
+            SELECT REPLACE(REPLACE(REPLACE(wc.phone, '+', ''), '-', ''), ' ', '') 
+            FROM whatsapp_conversations wc WHERE wc.id = $1 LIMIT 1
          ), '___NONE___')
          OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
-            SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
-            FROM leads WHERE id = $1 LIMIT 1
+            SELECT REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '') 
+            FROM leads l WHERE l.id = $1 LIMIT 1
          ), '___NONE___')
-      ORDER BY COALESCE(m.sent_at, m.timestamp, m.created_at) ASC LIMIT 300;
+      ORDER BY COALESCE(m.sent_at, m.timestamp, NOW()) ASC LIMIT 300;
     `;
 
     const result = await db.query(q, [targetId]);

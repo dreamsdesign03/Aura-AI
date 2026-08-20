@@ -235,23 +235,22 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           COALESCE(m.meta_message_id, m.wa_message_id, '') as "metaMessageId",
           COALESCE(m.wa_message_id, m.meta_message_id, '') as "waMessageId",
           m.status,
-          COALESCE(m.sent_at, m.timestamp, m.created_at) as "sentAt",
-          COALESCE(m.timestamp, m.sent_at, m.created_at) as "timestamp",
-          m.created_at as "createdAt"
+          COALESCE(m.sent_at, m.timestamp, NOW()) as "sentAt",
+          COALESCE(m.timestamp, m.sent_at, NOW()) as "timestamp"
         FROM whatsapp_messages m
         WHERE m.conversation_id = $1 
            OR m.lead_id = $1
-           OR m.conversation_id IN (SELECT id FROM whatsapp_conversations WHERE lead_id = $1)
-           OR m.lead_id IN (SELECT lead_id FROM whatsapp_conversations WHERE id = $1)
+           OR m.conversation_id IN (SELECT wc.id FROM whatsapp_conversations wc WHERE wc.lead_id = $1)
+           OR m.lead_id IN (SELECT wc.lead_id FROM whatsapp_conversations wc WHERE wc.id = $1)
            OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
-              SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
-              FROM whatsapp_conversations WHERE id = $1 LIMIT 1
+              SELECT REPLACE(REPLACE(REPLACE(wc.phone, '+', ''), '-', ''), ' ', '') 
+              FROM whatsapp_conversations wc WHERE wc.id = $1 LIMIT 1
            ), '___NONE___')
            OR REPLACE(REPLACE(REPLACE(m.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || COALESCE((
-              SELECT REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') 
-              FROM leads WHERE id = $1 LIMIT 1
+              SELECT REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '') 
+              FROM leads l WHERE l.id = $1 LIMIT 1
            ), '___NONE___')
-        ORDER BY COALESCE(m.sent_at, m.timestamp, m.created_at) ASC LIMIT 300;
+        ORDER BY COALESCE(m.sent_at, m.timestamp, NOW()) ASC LIMIT 300;
       `;
 
       const result = await db.query(q, [targetId]);
