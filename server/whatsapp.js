@@ -281,7 +281,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             language: { code: templateLang || 'en_US' },
           },
         };
-        if (Array.isArray(templateParams) && templateParams.length > 0) {
+        if (Array.isArray(templateParams) && templateParams.length > 0 && templateName !== 'hello_world') {
           metaPayload.template.components = [
             {
               type: 'body',

@@ -102,7 +102,11 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
 
       if (sendType === "template") {
         bodyPayload.templateName = selectedMetaTemplate;
-        bodyPayload.templateParams = [firstName, company];
+        if (selectedMetaTemplate === "hello_world") {
+          bodyPayload.templateParams = [];
+        } else {
+          bodyPayload.templateParams = [firstName, company];
+        }
       } else {
         bodyPayload.message = message.trim();
       }

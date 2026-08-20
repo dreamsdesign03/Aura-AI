@@ -551,10 +551,14 @@ function ConversationsTab() {
 
             if (isTemplate) {
                 bodyPayload.templateName = templateToSend;
-                bodyPayload.templateParams = [
-                    selectedConv.lead?.firstName || selectedConv.lead?.first_name || "Contact",
-                    selectedConv.lead?.company || "Company"
-                ];
+                if (templateToSend === 'hello_world') {
+                    bodyPayload.templateParams = [];
+                } else {
+                    bodyPayload.templateParams = [
+                        selectedConv.lead?.firstName || selectedConv.lead?.first_name || "Contact",
+                        selectedConv.lead?.company || "Company"
+                    ];
+                }
             } else {
                 bodyPayload.message = msgContent;
             }

@@ -5130,7 +5130,9 @@ app.post('/api/whatsapp/send', async (req, res) => {
         }
 
         let finalParams = templateParams;
-        if (templateName === 'lead_welcome_confirmation' && finalParams.length === 0) {
+        if (templateName === 'hello_world') {
+          finalParams = [];
+        } else if (templateName === 'lead_welcome_confirmation' && finalParams.length === 0) {
           finalParams = [leadName || 'Contact', companyName || 'Dreamsdesign'];
         } else if (templateName === 'new_lead_dreamsdesign' && finalParams.length === 0) {
           finalParams = Array(14).fill(leadName || 'Contact');
