@@ -5509,17 +5509,17 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
         const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
 
-        // Save inbound message into whatsapp_messages
+        // Save inbound message into whatsapp_messages (Requirement 1)
         try {
-          await db.query(
+          const savedMsg = await db.query(
             `INSERT INTO whatsapp_messages (
                conversation_id, lead_id, phone, direction, content, body, meta_message_id, status, sent_at, timestamp, created_at
-             ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, 'delivered', $6, $6, NOW())`,
+             ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, 'delivered', $6, $6, NOW()) RETURNING *`,
             [convId, leadId, senderPhone, messageText, waMessageId, validTime]
           );
-          console.log(`[Meta Webhook] SAVED MSG ID: ${waMessageId} into convId: ${convId} for leadId: ${leadId}`);
+          console.log('[Meta Webhook] SAVED INBOUND MESSAGE ROW:', savedMsg.rows[0]);
         } catch (mErr) {
-          console.error('[Meta Webhook] Error inserting message:', mErr.message);
+          console.error('[Meta Webhook] ERROR INSERTING INBOUND MESSAGE:', mErr.stack || mErr.message);
         }
 
         if (leadId) {
