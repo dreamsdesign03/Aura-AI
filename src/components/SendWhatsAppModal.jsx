@@ -107,14 +107,44 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
         bodyPayload.message = message.trim();
       }
 
-      const res = await fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(bodyPayload)
-      });
+      console.log('\n===== WHATSAPP SEND ATTEMPT =====');
+      console.log('Full URL:', 'https://graph.facebook.com/v25.0/890723640798276/messages (via /api/whatsapp/send)');
+      console.log('Headers:', JSON.stringify({ "Content-Type": "application/json" }, null, 2));
+      console.log('Full Request Body:', JSON.stringify(bodyPayload, null, 2));
+
+      let res;
+      try {
+        res = await fetch("/api/whatsapp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify(bodyPayload)
+        });
+      } catch (netErr) {
+        console.error('===== WHATSAPP NETWORK EXCEPTION =====');
+        console.error('Request failed to send (Network-level exception):', netErr.message);
+        console.error('Error Stack:', netErr.stack);
+        console.error('======================================\n');
+        throw netErr;
+      }
 
       const data = await res.json();
+
+      console.log('--- META API / BACKEND RAW RESPONSE ---');
+      console.log('HTTP Status Code:', res.status, res.statusText);
+      console.log('Full Response Body (JSON):');
+      console.log(JSON.stringify(data, null, 2));
+
+      const metaErr = data?.details?.error || data?.metaResult?.error;
+      if (metaErr && typeof metaErr === 'object') {
+        console.log('--- META ERROR OBJECT DETAILS ---');
+        console.log('error.code:', metaErr.code);
+        console.log('error.type:', metaErr.type);
+        console.log('error.message:', metaErr.message);
+        console.log('error.error_data:', metaErr.error_data !== undefined ? JSON.stringify(metaErr.error_data, null, 2) : undefined);
+      }
+      console.log('=================================\n');
+
       if (!res.ok) throw new Error(data.error || "Failed to send WhatsApp message");
 
       toast({
@@ -129,6 +159,7 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
       if (sendType === "text") setMessage("");
       setActiveTab("history");
     } catch (err) {
+      console.error('WhatsApp Modal Send Error:', err);
       toast({ title: "Failed to send WhatsApp message", description: err.message, variant: "destructive" });
     } finally {
       setSending(false);
