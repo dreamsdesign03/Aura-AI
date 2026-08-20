@@ -506,10 +506,10 @@ function ConversationsTab() {
     const [localMsgs, setLocalMsgs] = useState([]);
     const threadRef = useRef(null);
     const { toast } = useToast();
-    const { data: rawConversations, isLoading: loading, refetch: refetchConvs } = useGetWhatsAppConversations();
+    const { data: rawConversations, isLoading: loading, refetch: refetchConvs } = useGetWhatsAppConversations({ refetchInterval: 3000 });
     const conversations = Array.isArray(rawConversations) ? rawConversations : (rawConversations?.conversations || []);
 
-    const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId || 0, { enabled: Boolean(selectedId) });
+    const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId || 0, { enabled: Boolean(selectedId), refetchInterval: 3000 });
     useEffect(() => {
         setLocalMsgs(msgData?.messages ?? []);
     }, [msgData]);
