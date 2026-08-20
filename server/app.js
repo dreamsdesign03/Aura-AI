@@ -5257,6 +5257,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
     const leadName = `${lead.first_name || lead.firstName || 'Contact'} ${lead.last_name || lead.lastName || ''}`.trim();
     const companyName = lead.company || '';
+    let finalParams = Array.isArray(templateParams) ? templateParams : [];
 
     let metaResult = { success: false, error: 'Not configured' };
     const token = process.env.WHATSAPP_ACCESS_TOKEN || 'EAAajLrxVRe0BQuaj5Dsh4mLaUpV5prCHZCUCgHaVGEA5MzjrQ2cromOtG8YT2ziklYZBYF2ZC0NsuAyNUENXZADQgQ2ocR36t0ZB1ra4QiUotZB6f2YZAmFgO3HvpTOZC0poDKoxeZAcKpEJ44LmTRXZB15SifuRuIZAoH2iROi1JboQULQ4HryMEl8Gj81GXaE5wl0fgZDZD';
@@ -5286,7 +5287,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
           }
         }
 
-        let finalParams = templateParams;
+        finalParams = templateParams || [];
         if (templateName === 'hello_world') {
           finalParams = [];
         } else if (templateName === 'lead_welcome_confirmation' && finalParams.length === 0) {
