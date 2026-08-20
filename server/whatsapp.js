@@ -289,7 +289,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       let msgContent = String(message || '');
       if (isTemplate && !msgContent) {
         if (templateName === 'hello_world') {
-          msgContent = 'Welcome and thank you for choosing us.';
+          msgContent = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.';
         } else if (templateName === 'audit_followup') {
           msgContent = 'Hi Mansi 👋 Wanted to check in on your audit.';
         } else {

@@ -242,8 +242,13 @@ async function seedAdminUser() {
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+      UPDATE whatsapp_messages 
+      SET content = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.',
+          body = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.'
+      WHERE content LIKE '%Welcome and thank%' OR body LIKE '%Welcome and thank%';
     `);
-    console.log('[Startup Migration] ✅ All migrations complete including whatsapp_messages created_at.');
+    console.log('[Startup Migration] ✅ All migrations complete including whatsapp_messages created_at and template text alignment.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
@@ -5395,7 +5400,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
       switch (tName) {
         case 'hello_world':
-          return 'Welcome and thank you for choosing us.';
+          return 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.';
         case 'audit_followup':
           return `Hi ${p1} 👋 Wanted to check in on your audit.`;
         case 'new_lead_dreamsdesign':

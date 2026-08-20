@@ -705,8 +705,8 @@ function ConversationsTab() {
                 const isOut = msg.direction === "outbound";
                 const rawContent = msg.content || msg.body || "";
                 let displayContent = rawContent;
-                if (rawContent.includes("[Template: hello_world]")) {
-                  displayContent = "Welcome and thank you for choosing us.";
+                if (rawContent.includes("[Template: hello_world]") || rawContent.includes("Welcome and thank you")) {
+                  displayContent = "Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.";
                 } else if (rawContent.includes("[Template: audit_followup]")) {
                   displayContent = "Hi Mansi 👋 Wanted to check in on your audit.";
                 } else if (rawContent.startsWith("[Template: ") && rawContent.endsWith("]")) {
