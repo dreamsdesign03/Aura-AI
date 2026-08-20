@@ -476,157 +476,172 @@ function registerWhatsAppRoutes(app, resolveUserId) {
     console.log('=====================================\n');
 
     try {
-      const body = req.body || {};
+      const rawBody = req.body || {};
+      const root = Array.isArray(rawBody) ? rawBody[0] : rawBody;
 
-      // Helper to process a single incoming message payload (supports Meta Cloud API & n8n shapes)
-      const processMessageItem = async (senderPhone, messageText, metaMessageId, rawTimestamp) => {
-        if (!senderPhone && !messageText) return;
+      // 1. Drill into value object: if req.body.entry exists -> entry[0].changes[0].value, else root directly
+      let value = null;
+      if (root.entry && Array.isArray(root.entry) && root.entry[0]?.changes?.[0]?.value) {
+        value = root.entry[0].changes[0].value;
+      } else if (root.value) {
+        value = root.value;
+      } else {
+        value = root;
+      }
 
-        // Clean & normalize phone number (Requirement 4)
-        let cleanDigits = String(senderPhone || '').replace(/\D/g, '');
-        if (cleanDigits.length > 10) {
-          cleanDigits = cleanDigits.slice(-10);
-        }
+      if (!value) {
+        console.warn('[Meta Webhook] No valid payload value object found.');
+        return res.status(200).json({ success: true, message: 'NO_VALUE_OBJECT' });
+      }
 
-        let leadId = null;
-        if (cleanDigits) {
+      // Handle status updates if present
+      if (value.statuses && Array.isArray(value.statuses) && value.statuses.length > 0) {
+        for (const statusObj of value.statuses) {
           try {
-            const leadMatch = await db.query(
-              `SELECT id FROM leads 
-               WHERE REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
-                  OR REPLACE(REPLACE(REPLACE(whatsapp, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
-               LIMIT 1`,
-              [cleanDigits]
-            );
-            if (leadMatch.rows.length > 0) {
-              leadId = leadMatch.rows[0].id;
-            }
-          } catch (leadErr) {
-            console.warn('[webhook] Lead matching query error:', leadErr.message);
-          }
-        }
-
-        // Find or create conversation (Requirement 5)
-        let convId = null;
-        try {
-          const convMatch = await db.query(
-            `SELECT id FROM whatsapp_conversations 
-             WHERE phone = $1 
-                OR (lead_id IS NOT NULL AND lead_id = $2)
-                OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $3
-             LIMIT 1`,
-            [senderPhone, leadId, cleanDigits]
-          );
-
-          if (convMatch.rows.length > 0) {
-            convId = convMatch.rows[0].id;
-            await db.query(
-              `UPDATE whatsapp_conversations 
-               SET last_message_at = NOW(), state = 'inbound_received', lead_id = COALESCE(lead_id, $1) 
-               WHERE id = $2`,
-              [leadId, convId]
-            );
-          } else {
-            const newConv = await db.query(
-              `INSERT INTO whatsapp_conversations (lead_id, phone, status, state, last_message_at) 
-               VALUES ($1, $2, 'Active', 'inbound_received', NOW()) 
-               RETURNING id`,
-              [leadId, senderPhone]
-            );
-            convId = newConv.rows[0].id;
-          }
-        } catch (convErr) {
-          console.error('[webhook] Error upserting conversation:', convErr.message);
-        }
-
-        const msgTimestamp = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : rawTimestamp) : new Date();
-        const validTime = isNaN(msgTimestamp.getTime()) ? new Date() : msgTimestamp;
-
-        // Insert inbound message into DB (Requirement 5)
-        try {
-          await db.query(`
-            INSERT INTO whatsapp_messages (
-              conversation_id, lead_id, phone, direction, content, body, meta_message_id, status, sent_at, timestamp, created_at
-            ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, 'delivered', $6, $6, NOW())
-          `, [convId, leadId, senderPhone, messageText, metaMessageId || `wamid_${Date.now()}`, validTime]);
-
-          console.log(`[webhook] Successfully saved inbound message from ${senderPhone} (leadId: ${leadId}, convId: ${convId}): "${messageText}"`);
-        } catch (msgErr) {
-          console.error('[webhook] Error inserting inbound message:', msgErr.message);
-        }
-
-        // Record inbound touchpoint if lead exists
-        if (leadId) {
-          try {
-            await db.query(`
-              INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
-              VALUES ($1, 'WhatsApp', 'Inbound WhatsApp Reply', $2, 'Received', $3)
-            `, [leadId, messageText, validTime]);
-          } catch (tpErr) {
-            console.warn('[webhook] Touchpoint insert warning:', tpErr.message);
-          }
-        }
-      };
-
-      // ── FORMAT 1: Standard Meta Business Account Object ─────────────────────
-      if (body.object === 'whatsapp_business_account') {
-        for (const entry of body.entry || []) {
-          for (const change of entry.changes || []) {
-            const value = change.value;
-            if (!value) continue;
-
-            if (value.messages && value.messages.length > 0) {
-              for (const msg of value.messages) {
-                const senderPhone = msg.from;
-                const metaMessageId = msg.id;
-                let messageText = '';
-
-                if (msg.type === 'text' && msg.text) {
-                  messageText = msg.text.body;
-                } else if (msg.type === 'interactive') {
-                  messageText = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '[Interactive Reply]';
-                } else if (msg.type === 'button') {
-                  messageText = msg.button?.text || '[Button Click]';
-                } else {
-                  messageText = msg.text?.body || `[${msg.type || 'Media'} Message]`;
-                }
-
-                await processMessageItem(senderPhone, messageText, metaMessageId, msg.timestamp);
-              }
-            }
-
-            if (value.statuses && value.statuses.length > 0) {
-              for (const statusObj of value.statuses) {
-                try {
-                  await db.query(
-                    'UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2',
-                    [statusObj.status, statusObj.id]
-                  );
-                } catch (sErr) {}
-              }
-            }
-          }
-        }
-      } 
-      // ── FORMAT 2: n8n WhatsApp Trigger / Custom Forwarded Body ──────────────
-      else {
-        const root = Array.isArray(body) ? body[0] : body;
-        const msgObj = root?.messages?.[0] || root?.message || root?.data?.message || root;
-
-        const senderPhone = root?.from || root?.phone || root?.wa_phone || msgObj?.from || msgObj?.phone || msgObj?.sender || '';
-        const messageText = root?.body || root?.text || root?.message || root?.content || msgObj?.text?.body || msgObj?.body || msgObj?.text || '';
-        const metaMessageId = root?.id || root?.wamid || root?.metaMessageId || msgObj?.id || msgObj?.wamid || '';
-        const rawTimestamp = root?.timestamp || msgObj?.timestamp;
-
-        if (senderPhone || messageText) {
-          await processMessageItem(senderPhone, messageText, metaMessageId, rawTimestamp);
+            await db.query('UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2', [statusObj.status, statusObj.id]);
+          } catch {}
         }
       }
 
-      // Requirement 6: Instant 200 OK Response
+      // Check for incoming messages
+      const messages = value.messages || root.messages;
+      if (Array.isArray(messages) && messages.length > 0) {
+        for (const msg of messages) {
+          // 3. Extract exact fields
+          const senderPhone = String(msg.from || root.from || '').trim();
+          const waMessageId = String(msg.id || msg.wamid || root.wamid || `wamid_${Date.now()}`);
+          const rawTimestamp = msg.timestamp || root.timestamp;
+          const senderName = value.contacts?.[0]?.profile?.name || root.contacts?.[0]?.profile?.name || '';
+
+          let messageText = '';
+          if (msg.text?.body) {
+            messageText = msg.text.body;
+          } else if (msg.type === 'text' && typeof msg.text === 'string') {
+            messageText = msg.text;
+          } else if (msg.interactive) {
+            messageText = msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '[Interactive Reply]';
+          } else if (msg.button) {
+            messageText = msg.button?.text || '[Button Click]';
+          } else if (typeof msg.body === 'string') {
+            messageText = msg.body;
+          } else {
+            messageText = msg.text?.body || `[${msg.type || 'Media'} Message]`;
+          }
+
+          // 4. Find matching lead by phone number (strip '91' country code or non-digits)
+          let cleanDigits = senderPhone.replace(/\D/g, '');
+          if (cleanDigits.length > 10) {
+            cleanDigits = cleanDigits.slice(-10);
+          }
+
+          let leadId = null;
+          if (cleanDigits) {
+            try {
+              const leadMatch = await db.query(
+                `SELECT id FROM leads 
+                 WHERE REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+                    OR REPLACE(REPLACE(REPLACE(whatsapp, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+                 LIMIT 1`,
+                [cleanDigits]
+              );
+              if (leadMatch.rows[0]?.id) {
+                leadId = leadMatch.rows[0].id;
+              }
+            } catch (lErr) {
+              console.warn('[webhook] Lead phone match query error:', lErr.message);
+            }
+          }
+
+          // Fallback lead match by senderName if phone match didn't find lead
+          if (!leadId && senderName) {
+            try {
+              const nameMatch = await db.query(
+                `SELECT id FROM leads 
+                 WHERE LOWER(TRIM(first_name || ' ' || COALESCE(last_name, ''))) LIKE '%' || LOWER($1) || '%'
+                    OR LOWER(TRIM(first_name)) LIKE '%' || LOWER($1) || '%'
+                 LIMIT 1`,
+                [senderName.trim()]
+              );
+              if (nameMatch.rows[0]?.id) {
+                leadId = nameMatch.rows[0].id;
+              }
+            } catch (nErr) {}
+          }
+
+          // 7. Console.log right after extraction
+          console.log('[Meta Webhook] PARSED INBOUND MESSAGE:', {
+            senderPhone,
+            cleanDigits,
+            messageText,
+            senderName,
+            waMessageId,
+            leadId: leadId || 'NO LEAD FOUND'
+          });
+
+          // 5. Find or create conversation linked to lead / phone
+          let convId = null;
+          try {
+            const convMatch = await db.query(
+              `SELECT id FROM whatsapp_conversations 
+               WHERE phone = $1 
+                  OR (lead_id IS NOT NULL AND lead_id = $2)
+                  OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $3
+               LIMIT 1`,
+              [senderPhone, leadId, cleanDigits]
+            );
+
+            if (convMatch.rows.length > 0) {
+              convId = convMatch.rows[0].id;
+              await db.query(
+                `UPDATE whatsapp_conversations 
+                 SET last_message_at = NOW(), state = 'inbound_received', lead_id = COALESCE(lead_id, $1) 
+                 WHERE id = $2`,
+                [leadId, convId]
+              );
+            } else {
+              const newConv = await db.query(
+                `INSERT INTO whatsapp_conversations (lead_id, phone, status, state, last_message_at) 
+                 VALUES ($1, $2, 'Active', 'inbound_received', NOW()) 
+                 RETURNING id`,
+                [leadId, senderPhone]
+              );
+              convId = newConv.rows[0].id;
+            }
+          } catch (cErr) {
+            console.error('[Meta Webhook] Error upserting conversation:', cErr.message);
+          }
+
+          const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
+          const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
+
+          // Save inbound message into whatsapp_messages
+          try {
+            await db.query(
+              `INSERT INTO whatsapp_messages (
+                 conversation_id, lead_id, phone, direction, content, body, meta_message_id, status, sent_at, timestamp, created_at
+               ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, 'delivered', $6, $6, NOW())`,
+              [convId, leadId, senderPhone, messageText, waMessageId, validTime]
+            );
+            console.log(`[Meta Webhook] SAVED MSG ID: ${waMessageId} into convId: ${convId} for leadId: ${leadId}`);
+          } catch (mErr) {
+            console.error('[Meta Webhook] Error inserting message:', mErr.message);
+          }
+
+          if (leadId) {
+            try {
+              await db.query(
+                `INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+                 VALUES ($1, 'WhatsApp', 'Inbound WhatsApp Reply', $2, 'Received', $3)`,
+                [leadId, messageText, validTime]
+              );
+            } catch (tpErr) {}
+          }
+        }
+      }
+
       return res.status(200).json({ success: true, message: 'EVENT_RECEIVED' });
     } catch (err) {
-      console.error('[whatsapp] POST webhook exception:', err.message);
+      console.error('[Meta Webhook Exception]:', err.stack || err.message);
       return res.status(200).json({ success: true, message: 'EVENT_RECEIVED' });
     }
   });
