@@ -305,16 +305,60 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           };
         }
 
-        const metaRes = await fetch(`https://graph.facebook.com/v21.0/${phoneNumberId}/messages`, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(metaPayload),
-        });
+        const targetUrl = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
+        const maskedToken = accessToken ? `Bearer ****${accessToken.slice(-4)}` : '(NONE)';
+        const headersToLog = {
+          Authorization: maskedToken,
+          'Content-Type': 'application/json',
+        };
 
-        const metaData = await metaRes.json();
+        console.log('\n===== WHATSAPP SEND ATTEMPT =====');
+        console.log('Full URL:', targetUrl);
+        console.log('Headers:', JSON.stringify(headersToLog, null, 2));
+        console.log('Full Request Body:', JSON.stringify(metaPayload, null, 2));
+
+        let metaRes;
+        try {
+          metaRes = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(metaPayload),
+          });
+        } catch (netErr) {
+          console.error('===== WHATSAPP NETWORK EXCEPTION =====');
+          console.error('Request failed to send (Network-level exception):', netErr.message);
+          console.error('Error Stack:', netErr.stack);
+          console.error('======================================\n');
+          return res.status(500).json({ error: `Network-level error sending WhatsApp message: ${netErr.message}` });
+        }
+
+        let metaData = {};
+        try {
+          metaData = await metaRes.json();
+        } catch (parseErr) {
+          console.error('===== WHATSAPP RESPONSE PARSE ERROR =====');
+          console.error('HTTP Status Code:', metaRes.status, metaRes.statusText);
+          console.error('Failed to parse Meta response JSON:', parseErr.message);
+          console.error('==========================================\n');
+          return res.status(500).json({ error: 'Failed to parse Meta API response JSON' });
+        }
+
+        console.log('--- META API RAW RESPONSE ---');
+        console.log('HTTP Status Code:', metaRes.status);
+        console.log('Full Response Body (JSON):');
+        console.log(JSON.stringify(metaData, null, 2));
+
+        if (metaData && metaData.error) {
+          console.log('--- META ERROR OBJECT DETAILS ---');
+          console.log('error.code:', metaData.error.code);
+          console.log('error.type:', metaData.error.type);
+          console.log('error.message:', metaData.error.message);
+          console.log('error.error_data:', metaData.error.error_data !== undefined ? JSON.stringify(metaData.error.error_data, null, 2) : undefined);
+        }
+        console.log('=================================\n');
 
         if (!metaRes.ok) {
           console.error('[whatsapp] Meta API call failed:', JSON.stringify(metaData));

@@ -5153,23 +5153,69 @@ app.post('/api/whatsapp/send', async (req, res) => {
           payload.text = { preview_url: false, body: message.trim() };
         }
 
-        console.log(`[Meta WhatsApp] Sending ${payload.type} to ${cleanDigits}...`);
-        const metaRes = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(payload)
-        });
+        const targetUrl = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
+        const maskedToken = token ? `Bearer ****${token.slice(-4)}` : '(NONE)';
+        const headersToLog = {
+          Authorization: maskedToken,
+          'Content-Type': 'application/json',
+        };
 
-        const metaData = await metaRes.json();
-        if (metaRes.ok && metaData.messages?.[0]?.id) {
-          metaResult = { success: true, messageId: metaData.messages[0].id };
-          console.log(`[Meta WhatsApp] Success! Message ID: ${metaData.messages[0].id}`);
-        } else {
-          console.error('[Meta WhatsApp] Error:', JSON.stringify(metaData));
-          metaResult = { success: false, error: metaData.error?.message || 'Meta API error' };
+        console.log('\n===== WHATSAPP SEND ATTEMPT =====');
+        console.log('Full URL:', targetUrl);
+        console.log('Headers:', JSON.stringify(headersToLog, null, 2));
+        console.log('Full Request Body:', JSON.stringify(payload, null, 2));
+
+        let metaRes;
+        try {
+          metaRes = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload)
+          });
+        } catch (netErr) {
+          console.error('===== WHATSAPP NETWORK EXCEPTION =====');
+          console.error('Request failed to send (Network-level exception):', netErr.message);
+          console.error('Error Stack:', netErr.stack);
+          console.error('======================================\n');
+          metaResult = { success: false, error: `Network error: ${netErr.message}` };
+        }
+
+        if (metaRes) {
+          let metaData = {};
+          try {
+            metaData = await metaRes.json();
+          } catch (parseErr) {
+            console.error('===== WHATSAPP RESPONSE PARSE ERROR =====');
+            console.error('HTTP Status Code:', metaRes.status, metaRes.statusText);
+            console.error('Failed to parse Meta response JSON:', parseErr.message);
+            console.error('==========================================\n');
+            metaResult = { success: false, error: 'Failed to parse Meta response JSON' };
+          }
+
+          console.log('--- META API RAW RESPONSE ---');
+          console.log('HTTP Status Code:', metaRes.status);
+          console.log('Full Response Body (JSON):');
+          console.log(JSON.stringify(metaData, null, 2));
+
+          if (metaData && metaData.error) {
+            console.log('--- META ERROR OBJECT DETAILS ---');
+            console.log('error.code:', metaData.error.code);
+            console.log('error.type:', metaData.error.type);
+            console.log('error.message:', metaData.error.message);
+            console.log('error.error_data:', metaData.error.error_data !== undefined ? JSON.stringify(metaData.error.error_data, null, 2) : undefined);
+          }
+          console.log('=================================\n');
+
+          if (metaRes.ok && metaData.messages?.[0]?.id) {
+            metaResult = { success: true, messageId: metaData.messages[0].id };
+            console.log(`[Meta WhatsApp] Success! Message ID: ${metaData.messages[0].id}`);
+          } else {
+            console.error('[Meta WhatsApp] Error:', JSON.stringify(metaData));
+            metaResult = { success: false, error: metaData.error?.message || 'Meta API error' };
+          }
         }
       } catch (err) {
         console.error('[Meta WhatsApp] Exception:', err.message);
