@@ -489,6 +489,18 @@ function registerWhatsAppRoutes(app, resolveUserId) {
     console.log("RAW BODY:", JSON.stringify(req.body, null, 2));
 
     try {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS debug_logs (
+          id SERIAL PRIMARY KEY,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          event_type TEXT,
+          data JSONB
+        );
+      `);
+      await db.query(`INSERT INTO debug_logs (event_type, data, created_at) VALUES ('webhook_received', $1::jsonb, NOW())`, [JSON.stringify(req.body || {})]);
+    } catch (e) {}
+
+    try {
       let rawBody = req.body || {};
       if (typeof rawBody === 'string') {
         try {

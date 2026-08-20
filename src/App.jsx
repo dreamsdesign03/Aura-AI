@@ -38,6 +38,7 @@ const LeadBank = lazy(() => import("@/pages/LeadBank"));
 const AiComposer = lazy(() => import("@/pages/AiComposer"));
 const SalesAgentControl = lazy(() => import("@/pages/SalesAgentControl"));
 const Integrations = lazy(() => import("@/pages/Integrations"));
+const DebugLogsPage = lazy(() => import("@/pages/DebugLogsPage"));
 const SuperAdmin = lazy(() => import("@/pages/SuperAdmin"));
 const GrowthQuestForm = lazy(() => import("@/pages/GrowthQuestForm"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -317,6 +318,7 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/super-admin" component={() => <Layout><SuperAdmin /></Layout>}/>
         <Route path="/chatbot-preview" component={() => <ChatbotPreview />}/>
         <Route path="/form-quest" component={() => <GrowthQuestForm />}/>
+        <Route path="/debug-logs" component={() => <DebugLogsPage />}/>
         <Route component={NotFound}/>
       </Switch>
     </Suspense>);
@@ -328,6 +330,7 @@ function UnauthenticatedRouter({ onSuccess }) {
         onSuccess();
     }
     return (<Switch>
+      <Route path="/debug-logs" component={() => <DebugLogsPage />}/>
       <Route path="/chatbot-preview" component={() => <ChatbotPreview />}/>
       <Route path="/form-quest" component={() => <GrowthQuestForm />}/>
       <Route path="/verify" component={() => (<Verify onSuccess={handleSuccess}/>)}/>

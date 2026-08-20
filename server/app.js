@@ -212,11 +212,69 @@ async function seedAdminUser() {
     await db.query(`ALTER TABLE meetings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();`);
 
     await seedAdminUser();
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS debug_logs (
+        id SERIAL PRIMARY KEY,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        event_type TEXT,
+        data JSONB
+      );
+    `);
     console.log('[Startup Migration] ✅ All migrations complete.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
 })();
+
+async function recordDebugLog(eventType, data) {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS debug_logs (
+        id SERIAL PRIMARY KEY,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        event_type TEXT,
+        data JSONB
+      );
+    `);
+    const payload = typeof data === 'object' && data !== null ? data : { message: String(data) };
+    await db.query(
+      `INSERT INTO debug_logs (event_type, data, created_at) VALUES ($1, $2::jsonb, NOW())`,
+      [eventType, JSON.stringify(payload)]
+    );
+  } catch (err) {
+    console.error(`[recordDebugLog error]:`, err.message);
+  }
+}
+
+// ─── DEBUG LOGS API ─────────────────────────────────────────────────────────
+app.get(['/api/debug-logs', '/api/useGetDebugLogs'], async (req, res) => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS debug_logs (
+        id SERIAL PRIMARY KEY,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        event_type TEXT,
+        data JSONB
+      );
+    `);
+    const r = await db.query(
+      `SELECT id, created_at as "createdAt", event_type as "eventType", data FROM debug_logs ORDER BY created_at DESC LIMIT 50`
+    );
+    res.json({ logs: r.rows });
+  } catch (err) {
+    console.error('[GET debug-logs error]:', err.message);
+    res.json({ logs: [] });
+  }
+});
+
+app.post(['/api/debug-logs/clear', '/api/useClearDebugLogs'], async (req, res) => {
+  try {
+    await db.query(`DELETE FROM debug_logs`);
+    res.json({ success: true });
+  } catch (err) {
+    res.json({ success: false, error: err.message });
+  }
+});
 
 automationsApi.init();
 agentHubApi.init();
@@ -5239,11 +5297,12 @@ app.post('/api/whatsapp/send', async (req, res) => {
     }
 
     const finalBody = message || `[Template: ${templateName}]`;
+    await recordDebugLog("outbound_attempt", { leadId: lead?.id || leadId || null, phone, message: finalBody, templateName });
 
     // Upsert conversation & insert message into PostgreSQL
     let convId = null;
     try {
-      let convRes = await db.query(`SELECT id FROM whatsapp_conversations WHERE lead_id = $1 OR wa_phone_number = $2`, [lead.id || leadId || null, phone]);
+      let convRes = await db.query(`SELECT id FROM whatsapp_conversations WHERE lead_id = $1 OR wa_phone_number = $2`, [lead?.id || leadId || null, phone]);
       if (convRes.rows[0]) {
         convId = convRes.rows[0].id;
         await db.query(`UPDATE whatsapp_conversations SET state = 'outbound_sent', updated_at = NOW() WHERE id = $1`, [convId]);
@@ -5261,6 +5320,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
     let savedMsg = null;
     if (convId) {
+      await recordDebugLog("save_attempt", { leadId: lead?.id || leadId || null, conversationId: convId, direction: "outbound", content: finalBody.trim() });
       try {
         const r = await db.query(
           `INSERT INTO whatsapp_messages (conversation_id, lead_id, phone, direction, content, body, meta_message_id, wa_message_id, status, sent_at, timestamp, created_at)
@@ -5268,8 +5328,10 @@ app.post('/api/whatsapp/send', async (req, res) => {
           [convId, lead?.id || leadId || null, phone, finalBody.trim(), metaResult.messageId || null]
         );
         savedMsg = r.rows[0];
+        await recordDebugLog("save_success", savedMsg);
       } catch (mErr) {
         console.error('Error inserting whatsapp_messages:', mErr.message);
+        await recordDebugLog("save_error", { error: mErr.message });
       }
     }
 
@@ -5280,6 +5342,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
       metaResult
     });
   } catch (err) {
+    await recordDebugLog("save_error", { error: err.message });
     res.status(500).json({ error: err.message });
   }
 });
@@ -5361,9 +5424,10 @@ app.get('/api/whatsapp/webhook', (req, res) => {
 
 // POST /api/whatsapp/webhook — Incoming Meta & n8n WhatsApp Messages
 app.post('/api/whatsapp/webhook', async (req, res) => {
-  // Marker 1: Immediately on receiving request
+  // Marker 1 & Debug Log Insert: Immediately on receiving request
   console.log("===== WEBHOOK RECEIVED =====");
   console.log("RAW BODY:", JSON.stringify(req.body, null, 2));
+  await recordDebugLog("webhook_received", req.body);
 
   try {
     let rawBody = req.body || {};
@@ -5448,9 +5512,10 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
           messageText = msg.text?.body || `[${msg.type || 'Media'} Message]`;
         }
 
-        // Marker 2: Right after extracting parsed fields
+        // Marker 2 & Debug Log Insert: Right after extracting parsed fields
         console.log("===== PARSED FIELDS =====");
         console.log({ senderPhone, messageText, waMessageId, senderName });
+        await recordDebugLog("parsed_fields", { senderPhone, messageText, waMessageId, senderName });
 
         // Find matching lead by phone number (strip '91' country code or non-digits)
         let cleanDigits = senderPhone.replace(/\D/g, '');
@@ -5492,10 +5557,11 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
           } catch (nErr) {}
         }
 
-        // Marker 3: Right after lead lookup query
+        // Marker 3 & Debug Log Insert: Right after lead lookup query
         console.log("===== LEAD LOOKUP =====");
         console.log("Searched phone:", senderPhone);
         console.log("Matched lead:", leadId ? leadId : "NO MATCH FOUND");
+        await recordDebugLog("lead_lookup", { searchedPhone: senderPhone, matchedLeadId: leadId || null });
 
         // Find or create conversation linked to lead / phone
         let convId = null;
@@ -5533,11 +5599,12 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
         const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
 
-        // Marker 4: Right before database insert
+        // Marker 4 & Debug Log Insert: Right before database insert
         console.log("===== ATTEMPTING TO SAVE INBOUND MESSAGE =====");
         console.log({ leadId: leadId, conversationId: convId, direction: "inbound", content: messageText, waMessageId });
+        await recordDebugLog("save_attempt", { leadId, conversationId: convId, direction: "inbound", content: messageText, waMessageId });
 
-        // Marker 5: Save in try/catch and log success or error
+        // Marker 5 & Debug Log Insert: Save in try/catch and log success or error
         try {
           const savedMsg = await db.query(
             `INSERT INTO whatsapp_messages (
@@ -5546,8 +5613,10 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
             [convId, leadId, senderPhone, messageText, waMessageId, validTime]
           );
           console.log("===== MESSAGE SAVED SUCCESSFULLY =====", savedMsg.rows[0]);
+          await recordDebugLog("save_success", savedMsg.rows[0]);
         } catch (error) {
           console.error("===== MESSAGE SAVE FAILED =====", error);
+          await recordDebugLog("save_error", { error: error?.message || String(error), stack: error?.stack });
         }
 
         if (leadId) {
@@ -5565,6 +5634,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
     return res.status(200).json({ success: true, message: 'EVENT_RECEIVED' });
   } catch (err) {
     console.error('[Meta Webhook Exception]:', err.stack || err.message);
+    await recordDebugLog("save_error", { error: err.message, stack: err.stack });
     return res.status(200).json({ success: true, message: 'EVENT_RECEIVED' });
   }
 });
