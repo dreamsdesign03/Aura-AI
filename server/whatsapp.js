@@ -249,6 +249,11 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       `;
 
       const result = await db.query(q, [id]);
+      
+      // Marker 6: Fetching log
+      console.log("===== FETCHING MESSAGES FOR CONVERSATION =====", id);
+      console.log("MESSAGES RETURNED:", result.rows.length, result.rows.map(m => ({ id: m.id, direction: m.direction, content: m.content })));
+
       res.json({ messages: result.rows });
     } catch (err) {
       console.error('[whatsapp] GET messages error:', err.message);
@@ -438,7 +443,6 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       res.json({
         success: true,
         metaMessageId,
-        simulated: isSimulated,
         message: insertedMsg.rows[0],
       });
     } catch (err) {
@@ -474,13 +478,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
 
   // ── 7. POST /api/whatsapp/webhook (Meta & n8n Inbound Webhook Listener) ───
   app.post('/api/whatsapp/webhook', async (req, res) => {
-    // 1. Requirement 2: Debug logging BEFORE any parsing logic
-    console.log('\n===== INCOMING WHATSAPP WEBHOOK =====');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Headers:', JSON.stringify(req.headers, null, 2));
-    console.log('RAW Body:');
-    console.log(JSON.stringify(req.body, null, 2));
-    console.log('=====================================\n');
+    // Marker 1: Immediately on receiving request
+    console.log("===== WEBHOOK RECEIVED =====");
+    console.log("RAW BODY:", JSON.stringify(req.body, null, 2));
 
     try {
       let rawBody = req.body || {};
@@ -566,6 +566,10 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             messageText = msg.text?.body || `[${msg.type || 'Media'} Message]`;
           }
 
+          // Marker 2: Right after extracting parsed fields
+          console.log("===== PARSED FIELDS =====");
+          console.log({ senderPhone, messageText, waMessageId, senderName });
+
           // 4. Find matching lead by phone number (strip '91' country code or non-digits)
           let cleanDigits = senderPhone.replace(/\D/g, '');
           if (cleanDigits.length > 10) {
@@ -606,15 +610,10 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             } catch (nErr) {}
           }
 
-          // 7. Console.log right after extraction
-          console.log('[Meta Webhook] PARSED INBOUND MESSAGE:', {
-            senderPhone,
-            cleanDigits,
-            messageText,
-            senderName,
-            waMessageId,
-            leadId: leadId || 'NO LEAD FOUND'
-          });
+          // Marker 3: Right after lead lookup query
+          console.log("===== LEAD LOOKUP =====");
+          console.log("Searched phone:", senderPhone);
+          console.log("Matched lead:", leadId ? leadId : "NO MATCH FOUND");
 
           // 5. Find or create conversation linked to lead / phone
           let convId = null;
@@ -652,7 +651,12 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
           const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
 
+          // Marker 4: Right before database insert
+          console.log("===== ATTEMPTING TO SAVE INBOUND MESSAGE =====");
+          console.log({ leadId: leadId, conversationId: convId, direction: "inbound", content: messageText, waMessageId });
+
           // Save inbound message into whatsapp_messages (Requirement 1)
+          // Marker 5: Save in try/catch and log success or error
           try {
             const savedMsg = await db.query(
               `INSERT INTO whatsapp_messages (
@@ -660,9 +664,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
                ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, 'delivered', $6, $6, NOW()) RETURNING *`,
               [convId, leadId, senderPhone, messageText, waMessageId, validTime]
             );
-            console.log('[Meta Webhook] SAVED INBOUND MESSAGE ROW:', savedMsg.rows[0]);
+            console.log("===== MESSAGE SAVED SUCCESSFULLY =====", savedMsg.rows[0]);
           } catch (mErr) {
-            console.error('[Meta Webhook] ERROR INSERTING INBOUND MESSAGE:', mErr.stack || mErr.message);
+            console.error("===== MESSAGE SAVE FAILED =====", mErr.stack || mErr.message);
           }
 
           if (leadId) {

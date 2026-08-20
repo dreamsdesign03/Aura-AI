@@ -5331,13 +5331,9 @@ app.get('/api/whatsapp/webhook', (req, res) => {
 
 // POST /api/whatsapp/webhook — Incoming Meta & n8n WhatsApp Messages
 app.post('/api/whatsapp/webhook', async (req, res) => {
-  // 1. Debug logging BEFORE any parsing logic
-  console.log('\n===== INCOMING WHATSAPP WEBHOOK =====');
-  console.log('Timestamp:', new Date().toISOString());
-  console.log('Headers:', JSON.stringify(req.headers, null, 2));
-  console.log('RAW Body:');
-  console.log(JSON.stringify(req.body, null, 2));
-  console.log('=====================================\n');
+  // Marker 1: Immediately on receiving request
+  console.log("===== WEBHOOK RECEIVED =====");
+  console.log("RAW BODY:", JSON.stringify(req.body, null, 2));
 
   try {
     let rawBody = req.body || {};
@@ -5374,7 +5370,7 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
       `);
     } catch (tableErr) {}
 
-    // 1. Drill into value object: if req.body.entry exists -> entry[0].changes[0].value, else root directly
+    // Drill into value object: if req.body.entry exists -> entry[0].changes[0].value, else root directly
     let value = null;
     if (root.entry && Array.isArray(root.entry) && root.entry[0]?.changes?.[0]?.value) {
       value = root.entry[0].changes[0].value;
@@ -5402,7 +5398,6 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
     const messages = value.messages || root.messages;
     if (Array.isArray(messages) && messages.length > 0) {
       for (const msg of messages) {
-        // 3. Extract exact fields
         const senderPhone = String(msg.from || root.from || '').trim();
         const waMessageId = String(msg.id || msg.wamid || root.wamid || `wamid_${Date.now()}`);
         const rawTimestamp = msg.timestamp || root.timestamp;
@@ -5423,7 +5418,11 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
           messageText = msg.text?.body || `[${msg.type || 'Media'} Message]`;
         }
 
-        // 4. Find matching lead by phone number (strip '91' country code or non-digits)
+        // Marker 2: Right after extracting parsed fields
+        console.log("===== PARSED FIELDS =====");
+        console.log({ senderPhone, messageText, waMessageId, senderName });
+
+        // Find matching lead by phone number (strip '91' country code or non-digits)
         let cleanDigits = senderPhone.replace(/\D/g, '');
         if (cleanDigits.length > 10) {
           cleanDigits = cleanDigits.slice(-10);
@@ -5463,17 +5462,12 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
           } catch (nErr) {}
         }
 
-        // 7. Console.log right after extraction
-        console.log('[Meta Webhook] PARSED INBOUND MESSAGE:', {
-          senderPhone,
-          cleanDigits,
-          messageText,
-          senderName,
-          waMessageId,
-          leadId: leadId || 'NO LEAD FOUND'
-        });
+        // Marker 3: Right after lead lookup query
+        console.log("===== LEAD LOOKUP =====");
+        console.log("Searched phone:", senderPhone);
+        console.log("Matched lead:", leadId ? leadId : "NO MATCH FOUND");
 
-        // 5. Find or create conversation linked to lead / phone
+        // Find or create conversation linked to lead / phone
         let convId = null;
         try {
           const convMatch = await db.query(
@@ -5509,7 +5503,11 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
         const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
         const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
 
-        // Save inbound message into whatsapp_messages (Requirement 1)
+        // Marker 4: Right before database insert
+        console.log("===== ATTEMPTING TO SAVE INBOUND MESSAGE =====");
+        console.log({ leadId: leadId, conversationId: convId, direction: "inbound", content: messageText, waMessageId });
+
+        // Marker 5: Save in try/catch and log success or error
         try {
           const savedMsg = await db.query(
             `INSERT INTO whatsapp_messages (
@@ -5517,9 +5515,9 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
              ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, 'delivered', $6, $6, NOW()) RETURNING *`,
             [convId, leadId, senderPhone, messageText, waMessageId, validTime]
           );
-          console.log('[Meta Webhook] SAVED INBOUND MESSAGE ROW:', savedMsg.rows[0]);
-        } catch (mErr) {
-          console.error('[Meta Webhook] ERROR INSERTING INBOUND MESSAGE:', mErr.stack || mErr.message);
+          console.log("===== MESSAGE SAVED SUCCESSFULLY =====", savedMsg.rows[0]);
+        } catch (error) {
+          console.error("===== MESSAGE SAVE FAILED =====", error);
         }
 
         if (leadId) {

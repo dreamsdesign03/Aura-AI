@@ -511,8 +511,13 @@ function ConversationsTab() {
 
     const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId || 0, { enabled: Boolean(selectedId), refetchInterval: 3000 });
     useEffect(() => {
-        setLocalMsgs(msgData?.messages ?? []);
-    }, [msgData]);
+        const msgs = msgData?.messages ?? [];
+        if (selectedId) {
+            console.log("===== FETCHING MESSAGES FOR CONVERSATION =====", selectedId);
+            console.log("MESSAGES RETURNED:", msgs.length, msgs.map(m => ({ id: m.id, direction: m.direction, content: m.content || m.body })));
+        }
+        setLocalMsgs(msgs);
+    }, [msgData, selectedId]);
     useEffect(() => {
         if (threadRef.current)
             threadRef.current.scrollTop = threadRef.current.scrollHeight;
