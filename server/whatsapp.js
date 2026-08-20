@@ -34,8 +34,8 @@ async function getWhatsAppCredentials(userId) {
     }
   }
 
-  const phoneNumberId = settings?.phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || '';
-  const accessToken = settings?.access_token || process.env.WHATSAPP_ACCESS_TOKEN || '';
+  const phoneNumberId = settings?.phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || '890723640798276';
+  const accessToken = settings?.access_token || process.env.WHATSAPP_ACCESS_TOKEN || 'EAAajLrxVRe0BQuaj5Dsh4mLaUpV5prCHZCUCgHaVGEA5MzjrQ2cromOtG8YT2ziklYZBYF2ZC0NsuAyNUENXZADQgQ2ocR36t0ZB1ra4QiUotZB6f2YZAmFgO3HvpTOZC0poDKoxeZAcKpEJ44LmTRXZB15SifuRuIZAoH2iROi1JboQULQ4HryMEl8Gj81GXaE5wl0fgZDZD';
   const appSecret = settings?.app_secret || process.env.WHATSAPP_APP_SECRET || '';
   const webhookVerifyToken = settings?.webhook_verify_token || process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'aura_ai_secure_verify_token';
   const n8nWebhookUrl = settings?.n8n_webhook_url || process.env.WHATSAPP_N8N_WEBHOOK_URL || null;
@@ -264,129 +264,119 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       const { phoneNumberId, accessToken } = await getWhatsAppCredentials(userId);
 
       let metaMessageId = null;
-      let isSimulated = false;
 
       const isTemplate = Boolean(templateName);
       const msgContent = isTemplate ? `[Template: ${templateName}]` : String(message || '');
 
-      // Check if Meta Graph API is configured
-      if (phoneNumberId && accessToken) {
-        let metaPayload = {};
+      let metaPayload = {};
 
-        if (isTemplate) {
-          metaPayload = {
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: targetPhone,
-            type: 'template',
-            template: {
-              name: templateName,
-              language: { code: templateLang || 'en_US' },
-            },
-          };
-          if (Array.isArray(templateParams) && templateParams.length > 0) {
-            metaPayload.template.components = [
-              {
-                type: 'body',
-                parameters: templateParams.map(param => ({
-                  type: 'text',
-                  text: String(param),
-                })),
-              },
-            ];
-          }
-        } else {
-          metaPayload = {
-            messaging_product: 'whatsapp',
-            recipient_type: 'individual',
-            to: targetPhone,
-            type: 'text',
-            text: { body: msgContent },
-          };
-        }
-
-        const targetUrl = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
-        const maskedToken = accessToken ? `Bearer ****${accessToken.slice(-4)}` : '(NONE)';
-        const headersToLog = {
-          Authorization: maskedToken,
-          'Content-Type': 'application/json',
+      if (isTemplate) {
+        metaPayload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: targetPhone,
+          type: 'template',
+          template: {
+            name: templateName,
+            language: { code: templateLang || 'en_US' },
+          },
         };
-
-        console.log('\n===== WHATSAPP SEND ATTEMPT =====');
-        console.log('Full URL:', targetUrl);
-        console.log('Headers:', JSON.stringify(headersToLog, null, 2));
-        console.log('Full Request Body:', JSON.stringify(metaPayload, null, 2));
-
-        let metaRes;
-        try {
-          metaRes = await fetch(targetUrl, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
+        if (Array.isArray(templateParams) && templateParams.length > 0) {
+          metaPayload.template.components = [
+            {
+              type: 'body',
+              parameters: templateParams.map(param => ({
+                type: 'text',
+                text: String(param),
+              })),
             },
-            body: JSON.stringify(metaPayload),
-          });
-        } catch (netErr) {
-          console.error('===== WHATSAPP NETWORK EXCEPTION =====');
-          console.error('Request failed to send (Network-level exception):', netErr.message);
-          console.error('Error Stack:', netErr.stack);
-          console.error('======================================\n');
-          return res.status(500).json({ error: `Network-level error sending WhatsApp message: ${netErr.message}` });
-        }
-
-        let metaData = {};
-        try {
-          metaData = await metaRes.json();
-        } catch (parseErr) {
-          console.error('===== WHATSAPP RESPONSE PARSE ERROR =====');
-          console.error('HTTP Status Code:', metaRes.status, metaRes.statusText);
-          console.error('Failed to parse Meta response JSON:', parseErr.message);
-          console.error('==========================================\n');
-          return res.status(500).json({ error: 'Failed to parse Meta API response JSON' });
-        }
-
-        console.log('--- META API RAW RESPONSE ---');
-        console.log('HTTP Status Code:', metaRes.status);
-        console.log('Full Response Body (JSON):');
-        console.log(JSON.stringify(metaData, null, 2));
-
-        if (metaData && metaData.error) {
-          console.log('--- META ERROR OBJECT DETAILS ---');
-          console.log('error.code:', metaData.error.code);
-          console.log('error.type:', metaData.error.type);
-          console.log('error.message:', metaData.error.message);
-          console.log('error.error_data:', metaData.error.error_data !== undefined ? JSON.stringify(metaData.error.error_data, null, 2) : undefined);
-        }
-        console.log('=================================\n');
-
-        if (!metaRes.ok) {
-          console.error('[whatsapp] Meta API call failed:', JSON.stringify(metaData));
-          let errorMsg = metaData?.error?.message || metaData?.error?.error_user_msg || 'Meta WhatsApp delivery failed.';
-          const code = metaData?.error?.code;
-
-          if (code === 131047) {
-            errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
-          } else if (code === 131030) {
-            errorMsg = 'Recipient phone number is not added to your Meta Test Number allowed list in Meta Developer Portal.';
-          } else if (code === 190) {
-            errorMsg = 'Meta Access Token has expired or is invalid. Please update your token in Settings -> WhatsApp.';
-          } else if (code === 21212) {
-            errorMsg = 'Invalid phone number format. Please ensure country code is included.';
-          }
-
-          return res.status(400).json({ error: errorMsg, details: metaData });
-        }
-
-
-        if (metaData.messages && metaData.messages.length > 0) {
-          metaMessageId = metaData.messages[0].id;
+          ];
         }
       } else {
-        // Fallback simulation mode when keys are missing
-        isSimulated = true;
-        metaMessageId = `sim_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-        console.log(`[whatsapp][simulation] Sent message to ${targetPhone}: ${msgContent}`);
+        metaPayload = {
+          messaging_product: 'whatsapp',
+          recipient_type: 'individual',
+          to: targetPhone,
+          type: 'text',
+          text: { body: msgContent },
+        };
+      }
+
+      const targetUrl = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
+      const maskedToken = accessToken ? `Bearer ****${accessToken.slice(-4)}` : '(NONE)';
+      const headersToLog = {
+        Authorization: maskedToken,
+        'Content-Type': 'application/json',
+      };
+
+      console.log('\n===== WHATSAPP SEND ATTEMPT =====');
+      console.log('Full URL:', targetUrl);
+      console.log('Headers:', JSON.stringify(headersToLog, null, 2));
+      console.log('Full Request Body:', JSON.stringify(metaPayload, null, 2));
+
+      let metaRes;
+      try {
+        metaRes = await fetch(targetUrl, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(metaPayload),
+        });
+      } catch (netErr) {
+        console.error('===== WHATSAPP NETWORK EXCEPTION =====');
+        console.error('Request failed to send (Network-level exception):', netErr.message);
+        console.error('Error Stack:', netErr.stack);
+        console.error('======================================\n');
+        return res.status(500).json({ error: `Network-level error sending WhatsApp message: ${netErr.message}` });
+      }
+
+      let metaData = {};
+      try {
+        metaData = await metaRes.json();
+      } catch (parseErr) {
+        console.error('===== WHATSAPP RESPONSE PARSE ERROR =====');
+        console.error('HTTP Status Code:', metaRes.status, metaRes.statusText);
+        console.error('Failed to parse Meta response JSON:', parseErr.message);
+        console.error('==========================================\n');
+        return res.status(500).json({ error: 'Failed to parse Meta API response JSON' });
+      }
+
+      console.log('--- META API RAW RESPONSE ---');
+      console.log('HTTP Status Code:', metaRes.status);
+      console.log('Full Response Body (JSON):');
+      console.log(JSON.stringify(metaData, null, 2));
+
+      if (metaData && metaData.error) {
+        console.log('--- META ERROR OBJECT DETAILS ---');
+        console.log('error.code:', metaData.error.code);
+        console.log('error.type:', metaData.error.type);
+        console.log('error.message:', metaData.error.message);
+        console.log('error.error_data:', metaData.error.error_data !== undefined ? JSON.stringify(metaData.error.error_data, null, 2) : undefined);
+      }
+      console.log('=================================\n');
+
+      if (!metaRes.ok) {
+        console.error('[whatsapp] Meta API call failed:', JSON.stringify(metaData));
+        let errorMsg = metaData?.error?.message || metaData?.error?.error_user_msg || 'Meta WhatsApp delivery failed.';
+        const code = metaData?.error?.code;
+
+        if (code === 131047) {
+          errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
+        } else if (code === 131030) {
+          errorMsg = 'Recipient phone number is not added to your Meta Test Number allowed list in Meta Developer Portal.';
+        } else if (code === 190) {
+          errorMsg = 'Meta Access Token has expired or is invalid. Please update your token in Settings -> WhatsApp.';
+        } else if (code === 21212) {
+          errorMsg = 'Invalid phone number format. Please ensure country code is included.';
+        }
+
+        return res.status(400).json({ error: errorMsg, details: metaData });
+      }
+
+      if (metaData.messages && metaData.messages.length > 0) {
+        metaMessageId = metaData.messages[0].id;
       }
 
       // Upsert conversation record in DB
