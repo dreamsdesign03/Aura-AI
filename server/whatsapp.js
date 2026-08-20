@@ -286,7 +286,16 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       let metaMessageId = null;
 
       const isTemplate = Boolean(templateName);
-      const msgContent = isTemplate ? `[Template: ${templateName}]` : String(message || '');
+      let msgContent = String(message || '');
+      if (isTemplate && !msgContent) {
+        if (templateName === 'hello_world') {
+          msgContent = 'Welcome and thank you for choosing us.';
+        } else if (templateName === 'audit_followup') {
+          msgContent = 'Hi Mansi 👋 Wanted to check in on your audit.';
+        } else {
+          msgContent = `[Template: ${templateName}]`;
+        }
+      }
 
       let metaPayload = {};
 

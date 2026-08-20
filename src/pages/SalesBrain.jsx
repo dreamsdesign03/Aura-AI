@@ -703,9 +703,20 @@ function ConversationsTab() {
             <div ref={threadRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2" style={{ background: "#F0F4F0" }}>
               {msgLoading ? (<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400"/></div>) : localMsgs.length === 0 ? (<div className="text-center text-xs text-gray-400 py-12">No messages yet</div>) : (localMsgs.map(msg => {
                 const isOut = msg.direction === "outbound";
+                const rawContent = msg.content || msg.body || "";
+                let displayContent = rawContent;
+                if (rawContent.includes("[Template: hello_world]")) {
+                  displayContent = "Welcome and thank you for choosing us.";
+                } else if (rawContent.includes("[Template: audit_followup]")) {
+                  displayContent = "Hi Mansi 👋 Wanted to check in on your audit.";
+                } else if (rawContent.startsWith("[Template: ") && rawContent.endsWith("]")) {
+                  const tName = rawContent.slice(11, -1).replace(/_/g, ' ');
+                  displayContent = `[${tName}]`;
+                }
+
                 return (<div key={msg.id} className={cn("flex", isOut ? "justify-end" : "justify-start")}>
                       <div className="max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm" style={{ background: isOut ? "#25D366" : "#ffffff", color: isOut ? "#ffffff" : "#111827", borderBottomRightRadius: isOut ? 4 : 16, borderBottomLeftRadius: isOut ? 16 : 4 }}>
-                        <p className="text-[13px] leading-snug whitespace-pre-wrap">{msg.content || msg.body}</p>
+                        <p className="text-[13px] leading-snug whitespace-pre-wrap">{displayContent}</p>
                         <div className={cn("mt-1 text-[10px]", isOut ? "text-right" : "text-left")} style={{ color: isOut ? "rgba(255,255,255,0.75)" : "#9CA3AF" }}>{timeAgo(msg.sentAt || msg.timestamp)}</div>
                       </div>
                     </div>);

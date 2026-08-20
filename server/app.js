@@ -5388,7 +5388,28 @@ app.post('/api/whatsapp/send', async (req, res) => {
       });
     }
 
-    const finalBody = message || `[Template: ${templateName}]`;
+    function getReadableTemplateBody(tName, tParams = [], lName = '', cName = '') {
+      const p1 = (tParams && tParams[0]) || lName || 'Contact';
+      const p2 = (tParams && tParams[1]) || cName || 'your organization';
+
+      switch (tName) {
+        case 'hello_world':
+          return 'Welcome and thank you for choosing us.';
+        case 'audit_followup':
+          return `Hi ${p1} 👋 Wanted to check in on your audit.`;
+        case 'new_lead_dreamsdesign':
+          return `Hi ${p1}, thank you for reaching out to Dreamsdesign. We've received your request for ${p2}.`;
+        case 'lead_welcome_confirmation':
+          return `Hi ${p1}, welcome to ${p2}! We look forward to connecting with you.`;
+        default:
+          if (tParams && tParams.length > 0) {
+            return `Hi ${p1}, sending ${tName.replace(/_/g, ' ')} for ${p2}.`;
+          }
+          return `[Template: ${tName}]`;
+      }
+    }
+
+    const finalBody = message || getReadableTemplateBody(templateName, finalParams, leadName, companyName);
     await recordDebugLog("outbound_attempt", { leadId: lead?.id || leadId || null, phone, message: finalBody, templateName });
 
     // Upsert conversation & insert message into PostgreSQL
