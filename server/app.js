@@ -5340,8 +5340,39 @@ app.post('/api/whatsapp/webhook', async (req, res) => {
   console.log('=====================================\n');
 
   try {
-    const rawBody = req.body || {};
+    let rawBody = req.body || {};
+    if (typeof rawBody === 'string') {
+      try {
+        rawBody = JSON.parse(rawBody);
+      } catch (pErr) {
+        console.warn('[Meta Webhook] Could not JSON.parse rawBody string:', pErr.message);
+      }
+    }
     const root = Array.isArray(rawBody) ? rawBody[0] : rawBody;
+
+    // Ensure database columns exist
+    try {
+      await db.query(`
+        ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS lead_id INT;
+        ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS phone TEXT;
+        ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
+        ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'hook_sent';
+        ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message TEXT;
+        ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ DEFAULT NOW();
+
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS conversation_id INT;
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS lead_id INT;
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS phone TEXT;
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'inbound';
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS content TEXT;
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS body TEXT;
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS template_name TEXT;
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS meta_message_id TEXT;
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ DEFAULT NOW();
+        ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ DEFAULT NOW();
+      `);
+    } catch (tableErr) {}
 
     // 1. Drill into value object: if req.body.entry exists -> entry[0].changes[0].value, else root directly
     let value = null;
