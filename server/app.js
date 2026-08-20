@@ -4993,13 +4993,20 @@ app.get(['/api/whatsapp/conversations', '/api/useGetWhatsAppConversations'], asy
            l.phone,
            l.status as "leadStatus",
            COALESCE(wc.id, l.id) as id,
-           COALESCE(wc.wa_phone_number, l.phone, '') as "waPhoneNumber",
+           COALESCE(wc.phone, l.phone, '') as "waPhoneNumber",
            COALESCE(wc.state, 'hook_sent') as state,
-           'Click to send WhatsApp message' as "lastMessage",
-           COALESCE(wc.updated_at, l.created_at, NOW()) as "updatedAt"
+           COALESCE((
+             SELECT COALESCE(content, body, '') 
+             FROM whatsapp_messages 
+             WHERE conversation_id = wc.id 
+                OR lead_id = l.id 
+                OR REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', '')
+             ORDER BY COALESCE(sent_at, timestamp, created_at) DESC LIMIT 1
+           ), 'Click to send WhatsApp message') as "lastMessage",
+           COALESCE(wc.last_message_at, wc.updated_at, l.created_at, NOW()) as "updatedAt"
          FROM leads l
-         LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR wc.wa_phone_number = l.phone)
-         ORDER BY wc.updated_at DESC NULLS LAST, l.created_at DESC`
+         LEFT JOIN whatsapp_conversations wc ON (wc.lead_id = l.id OR REPLACE(REPLACE(REPLACE(wc.phone, '+', ''), '-', ''), ' ', '') LIKE '%' || REPLACE(REPLACE(REPLACE(l.phone, '+', ''), '-', ''), ' ', ''))
+         ORDER BY COALESCE(wc.last_message_at, wc.updated_at) DESC NULLS LAST, l.created_at DESC`
       );
     } catch (dbErr) {
       console.warn('Fallback to simple leads query for conversations:', dbErr.message);
@@ -5242,9 +5249,9 @@ app.post('/api/whatsapp/send', async (req, res) => {
         await db.query(`UPDATE whatsapp_conversations SET state = 'outbound_sent', updated_at = NOW() WHERE id = $1`, [convId]);
       } else {
         let newConv = await db.query(
-          `INSERT INTO whatsapp_conversations (lead_id, wa_phone_number, state, created_at, updated_at)
-           VALUES ($1, $2, 'outbound_sent', NOW(), NOW()) RETURNING id`,
-          [lead.id || leadId || null, phone]
+          `INSERT INTO whatsapp_conversations (lead_id, phone, state, status, last_message_at, created_at, updated_at)
+           VALUES ($1, $2, 'outbound_sent', 'Active', NOW(), NOW(), NOW()) RETURNING id`,
+          [lead?.id || leadId || null, phone]
         );
         convId = newConv.rows[0]?.id;
       }
@@ -5256,9 +5263,9 @@ app.post('/api/whatsapp/send', async (req, res) => {
     if (convId) {
       try {
         const r = await db.query(
-          `INSERT INTO whatsapp_messages (conversation_id, direction, content, wa_message_id, sent_at)
-           VALUES ($1, 'outbound', $2, $3, NOW()) RETURNING *`,
-          [convId, finalBody.trim(), metaResult.messageId || null]
+          `INSERT INTO whatsapp_messages (conversation_id, lead_id, phone, direction, content, body, meta_message_id, wa_message_id, status, sent_at, timestamp, created_at)
+           VALUES ($1, $2, $3, 'outbound', $4, $4, $5, $5, 'sent', NOW(), NOW(), NOW()) RETURNING *`,
+          [convId, lead?.id || leadId || null, phone, finalBody.trim(), metaResult.messageId || null]
         );
         savedMsg = r.rows[0];
       } catch (mErr) {
