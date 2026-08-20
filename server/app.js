@@ -3445,8 +3445,8 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 });
 
 // 11. Stub routes — return empty valid JSON so frontend hooks don't 404
-app.get('/api/useListTeamMembers', (req, res) => res.json([]));
-app.get('/api/useListSequences', (req, res) => res.json([]));
+app.get(['/api/sequences', '/api/useListSequences'], (req, res) => res.json([]));
+app.get(['/api/team', '/api/useListTeamMembers'], (req, res) => res.json([]));
 app.get('/api/useInitiateWhatsApp', (req, res) => res.json({ success: false, error: 'Not configured' }));
 app.get('/api/useInitiateWhatsAppBulk', (req, res) => res.json({ success: false, error: 'Not configured' }));
 app.get('/api/billing/current-plan', (req, res) => res.json({
