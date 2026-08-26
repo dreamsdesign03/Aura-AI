@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { toast } from "sonner";
 import { useGetQualifyQueue, useSaveBantScore, useAiScoreLead, useExplainBantScores } from "@workspace/api-client-react";
 import { getGetQualifyQueueQueryKey } from "@workspace/api-client-react";
@@ -104,6 +104,23 @@ export default function Qualify() {
     const qc = useQueryClient();
     const { data: queue = [], isLoading } = useGetQualifyQueue({ query: { queryKey: getGetQualifyQueueQueryKey() } });
     const [active, setActive] = useState(null);
+
+    useEffect(() => {
+        if (!queue || queue.length === 0 || active) return;
+        const params = new URLSearchParams(window.location.search);
+        const leadIdParam = Number(params.get("leadId"));
+        
+        let targetLead = null;
+        if (leadIdParam) {
+            targetLead = queue.find(l => l.id === leadIdParam);
+        }
+        if (!targetLead) {
+            targetLead = queue[0];
+        }
+        if (targetLead) {
+            selectLead(targetLead);
+        }
+    }, [queue, active]);
     const [scores, setScores] = useState(INITIAL_SCORES);
     const [belief, setBelief] = useState(INITIAL_BELIEF);
     const [aiReasons, setAiReasons] = useState(null);
