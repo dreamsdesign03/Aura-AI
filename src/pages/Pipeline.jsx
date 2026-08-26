@@ -3,6 +3,7 @@ import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDropp
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { getListLeadsQueryKey, getGetQualifyQueueQueryKey } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, Check, Filter } from "lucide-react";
@@ -201,7 +202,12 @@ function Column({ stage, leads, collapsed, onToggleCollapse, }) {
 export default function Pipeline() {
     const qc = useQueryClient();
     const [, navigate] = useLocation();
-    const { data: allLeads = [], isLoading } = useQuery({ queryKey: ["leads-pipeline"], queryFn: fetchLeads });
+    const { data: allLeads = [], isLoading } = useQuery({
+        queryKey: ["leads-pipeline"],
+        queryFn: fetchLeads,
+        refetchOnWindowFocus: true,
+        staleTime: 0
+    });
     const [activeLead, setActiveLead] = useState(null);
     const [search, setSearch] = useState("");
     const [ownerFilter, setOwnerFilter] = useState("all");
@@ -219,6 +225,7 @@ export default function Pipeline() {
         mutationFn: ({ id, status }) => patchLeadStatus(id, status),
         onMutate: async ({ id, status }) => {
             await qc.cancelQueries({ queryKey: ["leads-pipeline"] });
+            await qc.cancelQueries({ queryKey: getListLeadsQueryKey() });
             const prev = qc.getQueryData(["leads-pipeline"]);
             qc.setQueryData(["leads-pipeline"], (old = []) => old.map(l => l.id === id ? { ...l, status } : l));
             return { prev };
@@ -231,7 +238,13 @@ export default function Pipeline() {
         onSuccess: () => {
             toast.success("Deal stage updated");
         },
-        onSettled: () => qc.invalidateQueries({ queryKey: ["leads-pipeline"] }),
+        onSettled: () => {
+            qc.invalidateQueries({ queryKey: ["leads-pipeline"] });
+            qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+            qc.invalidateQueries({ queryKey: getGetQualifyQueueQueryKey() });
+            qc.refetchQueries({ queryKey: ["leads-pipeline"] });
+            qc.refetchQueries({ queryKey: getListLeadsQueryKey() });
+        },
     });
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));

@@ -148,10 +148,10 @@ export default function Leads() {
         limit: 5000,
     };
     const { data, isLoading, isFetching } = useListLeads(params, {
-        query: { queryKey: getListLeadsQueryKey(params) },
+        query: { queryKey: getListLeadsQueryKey(params), refetchOnWindowFocus: true, staleTime: 0 },
     });
     const { data: navData } = useListLeads(navParams, {
-        query: { queryKey: getListLeadsQueryKey(navParams) },
+        query: { queryKey: getListLeadsQueryKey(navParams), refetchOnWindowFocus: true, staleTime: 0 },
     });
     const { data: seqData } = useListSequences();
     const { data: icpsData } = useListIcps();
