@@ -687,9 +687,6 @@ export default function LeadDetail() {
           <div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
             <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</div>
             <div className="space-y-2">
-              <Link href={`/audit?leadId=${lead.id}`}>
-                <button className="w-full text-xs py-1.5 px-3 rounded border border-gray-200 text-muted-foreground hover:text-gray-900 hover:bg-gray-50 text-left">Run Brand Audit</button>
-              </Link>
               <Link href={`/qualify?leadId=${lead.id}`}>
                 <button className="w-full text-xs py-1.5 px-3 rounded border border-gray-200 text-muted-foreground hover:text-gray-900 hover:bg-gray-50 text-left">BANT Score</button>
               </Link>
