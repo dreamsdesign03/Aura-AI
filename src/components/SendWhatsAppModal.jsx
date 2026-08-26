@@ -38,7 +38,7 @@ const QUICK_TEXT_TEMPLATES = [
 ];
 
 export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) {
-  const [sendType, setSendType] = useState("text"); // "text" or "template"
+  const [sendType, setSendType] = useState("template"); // "template" by default for Meta compliance
   const [selectedMetaTemplate, setSelectedMetaTemplate] = useState("hello_world");
   const [message, setMessage] = useState("");
   const [phoneOverride, setPhoneOverride] = useState("");
@@ -149,13 +149,19 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
       }
       console.log('=================================\n');
 
-      if (!res.ok) throw new Error(data.error || "Failed to send WhatsApp message");
+      if (!res.ok || !data.success) {
+        const errMsg = data.error || data.details?.error?.message || "Failed to send WhatsApp message";
+        if (errMsg.includes("131047") || errMsg.includes("24") || errMsg.includes("window") || errMsg.includes("re-engagement")) {
+          setSendType("template");
+          setSelectedMetaTemplate("hello_world");
+          throw new Error("Meta 24-hour Policy Rule: Customer window expired. Auto-switched to official Meta template (hello_world). Click Send again to dispatch!");
+        }
+        throw new Error(errMsg);
+      }
 
       toast({
         title: "WhatsApp message dispatched!",
-        description: data.metaResult?.success 
-          ? `Sent via Meta Cloud API to ${phone}`
-          : (data.simulated ? `Message recorded for ${leadName}` : `Meta API response: ${data.metaResult?.error || 'Sent'}`),
+        description: `Sent via Meta Cloud API to ${phone}`,
       });
 
       fetchHistory();
