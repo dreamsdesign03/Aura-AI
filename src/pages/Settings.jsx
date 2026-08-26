@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useGetBrandingSettings } from "@workspace/api-client-react";
-import { User, Building2, Mail, MessageCircle, Link2, CheckCircle, XCircle, Loader2, Save, Palette, Upload, X, Send, Eye, Lock, Globe, Phone, Smartphone, AlertCircle, ExternalLink, Users, UserPlus, Shield, UserX, Trash2, MoreVertical, ChevronDown, ChevronLeft, Zap, Brain, } from "lucide-react";
+import { User, Building2, Mail, MessageCircle, Link2, CheckCircle, XCircle, Loader2, Save, Palette, Upload, X, Send, Eye, EyeOff, Lock, Globe, Phone, Smartphone, AlertCircle, ExternalLink, Users, UserPlus, Shield, UserX, Trash2, MoreVertical, ChevronDown, ChevronLeft, Zap, Brain, Copy, ShieldCheck, Check } from "lucide-react";
 import { RecaptchaVerifier, signInWithPhoneNumber, } from "firebase/auth";
 import { getFirebaseAuth, firebaseConfigured } from "../lib/firebase";
 import { useAuthUser, useUpdateUser, useRefreshUser } from "@/contexts/AuthContext";
@@ -310,84 +310,55 @@ function ProfileNameForm() {
       </form>
     </SectionCard>);
 }
-// ── Change Password Form ───────────────────────────────────────────────────────
-function ChangePasswordForm() {
+// ── Default Password Card ───────────────────────────────────────────────────────
+function DefaultPasswordCard() {
     const authUser = useAuthUser();
-    const refreshUser = useRefreshUser();
-    const hasPassword = authUser?.hasPassword ?? true;
-    const [curPw, setCurPw] = useState("");
-    const [newPw, setNewPw] = useState("");
-    const [confirmPw, setConfirmPw] = useState("");
-    const [pwSave, setPwSave] = useState(false);
-    const [pwErr, setPwErr] = useState("");
-    const [pwPend, setPwPend] = useState(false);
-    async function handlePasswordSave(e) {
-        e.preventDefault();
-        setPwErr("");
-        setPwSave(false);
-        if (newPw.length < 8) {
-            setPwErr("New password must be at least 8 characters");
-            return;
-        }
-        if (newPw !== confirmPw) {
-            setPwErr("Passwords do not match");
-            return;
-        }
-        setPwPend(true);
-        try {
-            const body = { newPassword: newPw };
-            if (hasPassword)
-                body.currentPassword = curPw;
-            const res = await fetch("/api/users/me/password", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                credentials: "include",
-                body: JSON.stringify(body),
-            });
-            if (!res.ok) {
-                const d = await res.json().catch(() => ({}));
-                setPwErr(d.error || "Failed to update password");
-            }
-            else {
-                setPwSave(true);
-                setCurPw("");
-                setNewPw("");
-                setConfirmPw("");
-                setTimeout(() => setPwSave(false), 3000);
-                await refreshUser();
-            }
-        }
-        catch {
-            setPwErr("Network error");
-        }
-        finally {
-            setPwPend(false);
-        }
-    }
-    return (<SectionCard title={hasPassword ? "Change Password" : "Set a Password"} subtitle={hasPassword ? "Keep your account secure" : "Add a password so you can sign in with your email"} icon={Lock} iconBg="#FEF3C7" iconColor="#DE377C">
-      {!hasPassword && (<div className="flex items-start gap-2 text-xs text-teal-700 bg-teal-50 rounded-lg px-3 py-2 border border-teal-100 mb-4">
-          <CheckCircle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5"/>
-          <span>Your email is verified! Set a password below to sign in with email &amp; password in addition to your phone.</span>
-        </div>)}
-      <form onSubmit={handlePasswordSave} className="space-y-4">
-        {hasPassword && (<div>
-            <label className={labelClass}>Current password</label>
-            <input type="password" className={inputClass} value={curPw} onChange={e => setCurPw(e.target.value)} placeholder="••••••••" autoComplete="current-password" required/>
-          </div>)}
-        <div>
-          <label className={labelClass}>{hasPassword ? "New password" : "Password"}</label>
-          <input type="password" className={inputClass} value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="At least 8 characters" autoComplete="new-password" required/>
+    const [showPassword, setShowPassword] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const defaultPassword = "aura@1234";
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(defaultPassword);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (<SectionCard title="Default Account Password" subtitle="Default sign-in credentials configured for your account" icon={Lock} iconBg="#FEF3C7" iconColor="#DE377C">
+      <div className="space-y-4">
+        <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2.5 border border-amber-200">
+          <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600"/>
+          <span>
+            Default credentials configured for <strong>Aura AI</strong> team access. Use the default password below to log in.
+          </span>
         </div>
-        <div>
-          <label className={labelClass}>Confirm password</label>
-          <input type="password" className={inputClass} value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" required style={{ borderColor: confirmPw && confirmPw !== newPw ? "#EF4444" : undefined }}/>
-          {confirmPw && confirmPw !== newPw && (<p className="mt-1 text-[11px] text-red-500">Passwords do not match</p>)}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className={labelClass}>Account Email</label>
+            <div className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-800 flex items-center justify-between">
+              <span className="truncate">{authUser?.email || "aura.admin@dreamsdesign.in"}</span>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>Default Password</label>
+            <div className="w-full px-3 py-1.5 text-xs font-mono rounded-lg border border-gray-200 bg-gray-50 text-gray-900 flex items-center justify-between gap-2">
+              <span className="font-bold tracking-wider text-sm">
+                {showPassword ? defaultPassword : "••••••••••••"}
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="p-1 text-gray-500 hover:text-gray-700 hover:bg-gray-200/60 rounded transition-colors" title={showPassword ? "Hide password" : "Show password"}>
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5"/> : <Eye className="w-3.5 h-3.5"/>}
+                </button>
+                <button type="button" onClick={handleCopy} className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-teal-700 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-md transition-colors">
+                  {copied ? <Check className="w-3 h-3 text-teal-600"/> : <Copy className="w-3 h-3"/>}
+                  {copied ? "Copied" : "Copy"}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        {pwErr && (<div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100">
-            <XCircle className="w-3.5 h-3.5 flex-shrink-0"/> {pwErr}
-          </div>)}
-        <SaveButton pending={pwPend} success={pwSave} label={hasPassword ? "Update password" : "Set password"}/>
-      </form>
+      </div>
     </SectionCard>);
 }
 // ── Phone Number Form ──────────────────────────────────────────────────────────
@@ -700,7 +671,7 @@ function ProfileTab() {
       <BusinessWhyForm />
       <ProfileNameForm />
       <PhoneNumberForm />
-      <ChangePasswordForm />
+      <DefaultPasswordCard />
     </div>);
 }
 // ── Company Tab ─────────────────────────────────────────────────────────────
