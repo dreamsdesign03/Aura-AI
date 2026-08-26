@@ -225,32 +225,50 @@ export default function Qualify() {
         setActive(lead.id);
         setRoutingResult(null);
         const l = lead;
-        const bd = lead.bantBreakdown;
-        if (bd && typeof bd === "object" && typeof bd.budget === "number") {
-            const budgetScore = bd.budget;
-            const authorityScore = typeof bd.authority === "number" ? bd.authority : INITIAL_SCORES.authority;
-            const needScore = typeof bd.need === "number" ? bd.need : INITIAL_SCORES.need;
-            const timelineScore = typeof bd.timeline === "number" ? bd.timeline : INITIAL_SCORES.timeline;
-            setScores({ budget: budgetScore, authority: authorityScore, need: needScore, timeline: timelineScore });
+        const bd = lead.bantBreakdown || lead.bant_breakdown;
+        if (bd && typeof bd === "object") {
+            const budgetScore = typeof bd.budget === "object" ? bd.budget?.score : (typeof bd.budget === "number" ? bd.budget : INITIAL_SCORES.budget);
+            const authorityScore = typeof bd.authority === "object" ? bd.authority?.score : (typeof bd.authority === "number" ? bd.authority : INITIAL_SCORES.authority);
+            const needScore = typeof bd.need === "object" ? bd.need?.score : (typeof bd.need === "number" ? bd.need : INITIAL_SCORES.need);
+            const timelineScore = typeof bd.timeline === "object" ? bd.timeline?.score : (typeof bd.timeline === "number" ? bd.timeline : INITIAL_SCORES.timeline);
+
+            setScores({
+                budget: Math.min(25, Math.round(budgetScore ?? 12)),
+                authority: Math.min(25, Math.round(authorityScore ?? 12)),
+                need: Math.min(25, Math.round(needScore ?? 12)),
+                timeline: Math.min(25, Math.round(timelineScore ?? 12)),
+            });
+
             const reasoning = bd.reasoning;
+            let combinedReasoning = "";
             if (reasoning && typeof reasoning === "object") {
-                const combinedReasoning = `Budget: ${reasoning.budget ?? ""} Authority: ${reasoning.authority ?? ""} Need: ${reasoning.need ?? ""} Timeline: ${reasoning.timeline ?? ""}`;
-                setAiReasons({
-                    budget: { score: budgetScore, reason: reasoning.budget ?? "" },
-                    authority: { score: authorityScore, reason: reasoning.authority ?? "" },
-                    need: { score: needScore, reason: reasoning.need ?? "" },
-                    timeline: { score: timelineScore, reason: reasoning.timeline ?? "" },
-                    totalScore: budgetScore + authorityScore + needScore + timelineScore,
-                    reasoning: combinedReasoning,
-                });
-                setAiReasoning(combinedReasoning);
-                setHasScoresNoReasoning(false);
+                combinedReasoning = `Budget: ${reasoning.budget ?? ""} Authority: ${reasoning.authority ?? ""} Need: ${reasoning.need ?? ""} Timeline: ${reasoning.timeline ?? ""}`;
+            } else if (typeof reasoning === "string") {
+                combinedReasoning = reasoning;
             }
-            else {
-                setAiReasons(null);
-                setAiReasoning(null);
-                setHasScoresNoReasoning(true);
-            }
+
+            const budgetReason = typeof bd.budget === "object" ? bd.budget?.reason : (reasoning?.budget ?? "");
+            const authorityReason = typeof bd.authority === "object" ? bd.authority?.reason : (reasoning?.authority ?? "");
+            const needReason = typeof bd.need === "object" ? bd.need?.reason : (reasoning?.need ?? "");
+            const timelineReason = typeof bd.timeline === "object" ? bd.timeline?.reason : (reasoning?.timeline ?? "");
+
+            setAiReasons({
+                budget: { score: budgetScore, reason: budgetReason },
+                authority: { score: authorityScore, reason: authorityReason },
+                need: { score: needScore, reason: needReason },
+                timeline: { score: timelineScore, reason: timelineReason },
+                totalScore: (budgetScore || 0) + (authorityScore || 0) + (needScore || 0) + (timelineScore || 0),
+                reasoning: combinedReasoning,
+            });
+            setAiReasoning(combinedReasoning);
+            setHasScoresNoReasoning(false);
+        }
+        else if (typeof lead.bantScore === "number" && lead.bantScore > 0) {
+            const quarter = Math.round(lead.bantScore / 4);
+            setScores({ budget: quarter, authority: quarter, need: quarter, timeline: quarter });
+            setAiReasons(null);
+            setAiReasoning(null);
+            setHasScoresNoReasoning(true);
         }
         else {
             setScores(INITIAL_SCORES);

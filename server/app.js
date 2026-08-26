@@ -3923,12 +3923,12 @@ app.get('/api/qualify/queue', async (req, res) => {
     
     const leads = [];
     for (const l of leadsRes.rows) {
-      const metadata = typeof l.metadata === 'object' ? l.metadata : {};
-      let bd = metadata.bantBreakdown;
-      let beliefScore = metadata.beliefScore;
-      let beliefReason = metadata.beliefReason;
+      const metadata = typeof l.metadata === 'object' && l.metadata ? l.metadata : {};
+      let bd = (typeof l.bant_breakdown === 'object' && l.bant_breakdown) || l.bantBreakdown || metadata.bantBreakdown;
+      let beliefScore = l.belief_score || metadata.beliefScore;
+      let beliefReason = l.belief_reason || metadata.beliefReason;
 
-      if (!bd || typeof bd !== 'object' || !bd.budget) {
+      if (!bd || typeof bd !== 'object' || (typeof bd.budget !== 'number' && typeof bd.budget?.score !== 'number')) {
         const dyn = await calculateDynamicBantScore(l);
         bd = {
           budget: dyn.budget.score,
@@ -3944,6 +3944,24 @@ app.get('/api/qualify/queue', async (req, res) => {
         };
         beliefScore = dyn.belief.score;
         beliefReason = dyn.belief.reason;
+      } else {
+        const budgetNum = typeof bd.budget === 'object' ? bd.budget.score : (Number(bd.budget) || 12);
+        const authNum = typeof bd.authority === 'object' ? bd.authority.score : (Number(bd.authority) || 12);
+        const needNum = typeof bd.need === 'object' ? bd.need.score : (Number(bd.need) || 12);
+        const timeNum = typeof bd.timeline === 'object' ? bd.timeline.score : (Number(bd.timeline) || 12);
+
+        bd = {
+          budget: budgetNum,
+          authority: authNum,
+          need: needNum,
+          timeline: timeNum,
+          reasoning: typeof bd.reasoning === 'object' ? bd.reasoning : {
+            budget: bd.budget?.reason || '',
+            authority: bd.authority?.reason || '',
+            need: bd.need?.reason || '',
+            timeline: bd.timeline?.reason || ''
+          }
+        };
       }
 
       const bantScore = l.bant_score || (bd.budget + bd.authority + bd.need + bd.timeline);
@@ -3993,17 +4011,32 @@ app.post(['/api/qualify/:id/ai', '/api/leads/:id/score-bant'], async (req, res) 
     const lead = leadRes.rows[0];
     const dyn = await calculateDynamicBantScore(lead);
     const totalBant = dyn.budget.score + dyn.authority.score + dyn.need.score + dyn.timeline.score;
-
     const band = totalBant >= 75 ? 'hot' : totalBant >= 50 ? 'qualified' : totalBant >= 30 ? 'nurture' : 'disqualify';
+
+    const bdToSave = {
+      budget: dyn.budget.score,
+      authority: dyn.authority.score,
+      need: dyn.need.score,
+      timeline: dyn.timeline.score,
+      reasoning: {
+        budget: dyn.budget.reason,
+        authority: dyn.authority.reason,
+        need: dyn.need.reason,
+        timeline: dyn.timeline.reason
+      }
+    };
 
     // Update database
     await db.query(
       `UPDATE leads 
        SET bant_score = $1, 
+           bant_breakdown = $2::jsonb,
            status = CASE WHEN status = 'new_enquiry' OR status IS NULL THEN 'contacted' ELSE status END
-       WHERE id = $2`,
-      [totalBant, id]
-    ).catch(() => {});
+       WHERE id = $3`,
+      [totalBant, JSON.stringify(bdToSave), id]
+    ).catch(async () => {
+      await db.query(`UPDATE leads SET bant_score = $1 WHERE id = $2`, [totalBant, id]).catch(() => {});
+    });
 
     res.json({
       totalScore: totalBant,
@@ -4014,7 +4047,7 @@ app.post(['/api/qualify/:id/ai', '/api/leads/:id/score-bant'], async (req, res) 
       need: dyn.need,
       timeline: dyn.timeline,
       belief: dyn.belief,
-      bantBreakdown: dyn,
+      bantBreakdown: bdToSave,
       status: lead.status || 'contacted'
     });
   } catch (err) {
