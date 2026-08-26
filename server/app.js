@@ -6004,7 +6004,104 @@ const whatsappApi = require('./whatsapp');
 whatsappApi.registerWhatsAppRoutes(app, resolveUserId);
 
 // ── Lead Lists, Not-Qualified, Dead-Pool & Website Check APIs ──────────────────
-let globalWhcStatus = { running: false, total: 0, checked: 0, working: 0, dead: 0 };
+let globalWhcStatus = {
+  running: false,
+  total: 0,
+  checked: 0,
+  working: 0,
+  dead: 0,
+  counts: { working: 0, dead: 0 },
+  finishedAt: null
+};
+
+async function runRealWebsiteCheck(onlyDead = false) {
+  if (globalWhcStatus.running) return;
+  globalWhcStatus.running = true;
+  globalWhcStatus.total = 0;
+  globalWhcStatus.checked = 0;
+  globalWhcStatus.working = 0;
+  globalWhcStatus.dead = 0;
+  globalWhcStatus.counts = { working: 0, dead: 0 };
+  globalWhcStatus.finishedAt = null;
+
+  try {
+    const query = onlyDead
+      ? `SELECT id, website FROM leads WHERE (COALESCE(is_dead_website, false) = true OR LOWER(COALESCE(website_status, '')) IN ('dead', 'offline', 'error')) AND website IS NOT NULL AND website != ''`
+      : `SELECT id, website FROM leads WHERE website IS NOT NULL AND website != ''`;
+    const r = await db.query(query);
+    const leads = r.rows || [];
+    globalWhcStatus.total = leads.length;
+
+    if (leads.length === 0) {
+      globalWhcStatus.running = false;
+      globalWhcStatus.finishedAt = new Date().toISOString();
+      return;
+    }
+
+    setImmediate(async () => {
+      let workingCount = 0;
+      let deadCount = 0;
+
+      for (let i = 0; i < leads.length; i++) {
+        const lead = leads[i];
+        let isDead = false;
+        let status = 'live';
+
+        if (!lead.website || lead.website.trim().length === 0) {
+          isDead = true;
+          status = 'dead';
+        } else {
+          try {
+            const rawUrl = lead.website.trim();
+            const targetUrl = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 6000);
+            const checkRes = await fetch(targetUrl, { method: 'HEAD', redirect: 'follow', signal: controller.signal }).catch(() => null);
+            clearTimeout(timer);
+
+            if (!checkRes || checkRes.status >= 400) {
+              const controller2 = new AbortController();
+              const timer2 = setTimeout(() => controller2.abort(), 6000);
+              const getRes = await fetch(targetUrl, { method: 'GET', redirect: 'follow', signal: controller2.signal }).catch(() => null);
+              clearTimeout(timer2);
+
+              if (!getRes || getRes.status >= 400) {
+                isDead = true;
+                status = 'dead';
+              }
+            }
+          } catch (e) {
+            isDead = true;
+            status = 'dead';
+          }
+        }
+
+        if (isDead) {
+          deadCount++;
+        } else {
+          workingCount++;
+        }
+
+        await db.query(
+          `UPDATE leads SET is_dead_website = $1, website_status = $2 WHERE id = $3`,
+          [isDead, status, lead.id]
+        ).catch(() => {});
+
+        globalWhcStatus.checked = i + 1;
+        globalWhcStatus.working = workingCount;
+        globalWhcStatus.dead = deadCount;
+        globalWhcStatus.counts = { working: workingCount, dead: deadCount };
+      }
+
+      globalWhcStatus.running = false;
+      globalWhcStatus.finishedAt = new Date().toISOString();
+    });
+  } catch (err) {
+    console.error('Website check background error:', err.message);
+    globalWhcStatus.running = false;
+    globalWhcStatus.finishedAt = new Date().toISOString();
+  }
+}
 
 app.get(['/api/leads/not-qualified', '/api/useGetNotQualifiedLeads'], async (req, res) => {
   try {
@@ -6056,10 +6153,18 @@ app.get(['/api/leads/dead-pool', '/api/useGetDeadPoolLeads'], async (req, res) =
 });
 
 app.post(['/api/leads/dead-pool/recheck', '/api/useRecheckDeadPool'], async (req, res) => {
+  if (globalWhcStatus.running) {
+    return res.json({ started: true, already_running: true });
+  }
+  runRealWebsiteCheck(true);
   res.json({ started: true, message: 'Recheck initiated' });
 });
 
 app.post(['/api/leads/website-check/run', '/api/useStartWebsiteCheck'], async (req, res) => {
+  if (globalWhcStatus.running) {
+    return res.json({ started: true, already_running: true });
+  }
+  runRealWebsiteCheck(false);
   res.json({ started: true, already_running: false });
 });
 
