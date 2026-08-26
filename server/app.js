@@ -263,8 +263,12 @@ async function seedAdminUser() {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         UNIQUE(list_id, lead_id)
       );
+
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_dead_website BOOLEAN DEFAULT FALSE;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS website_status TEXT DEFAULT 'unknown';
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_fake BOOLEAN DEFAULT FALSE;
     `);
-    console.log('[Startup Migration] ✅ All migrations complete including lead_lists and whatsapp_messages.');
+    console.log('[Startup Migration] ✅ All migrations complete including leads dead pool & lead_lists.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
@@ -5953,32 +5957,49 @@ let globalWhcStatus = { running: false, total: 0, checked: 0, working: 0, dead: 
 app.get(['/api/leads/not-qualified', '/api/useGetNotQualifiedLeads'], async (req, res) => {
   try {
     const limit = Number(req.query.limit || 500);
-    const r = await db.query(
-      `SELECT * FROM leads 
-       WHERE is_fake = true 
-          OR LOWER(status) IN ('not_qualified', 'unqualified', 'opted_out', 'fake')
-       ORDER BY id DESC LIMIT $1`,
-      [limit]
-    );
-    res.json({ data: r.rows || [], total: (r.rows || []).length });
+    let r = { rows: [] };
+    try {
+      r = await db.query(
+        `SELECT * FROM leads 
+         WHERE COALESCE(is_fake, false) = true 
+            OR LOWER(COALESCE(status, '')) IN ('not_qualified', 'unqualified', 'opted_out', 'fake')
+         ORDER BY id DESC LIMIT $1`,
+        [limit]
+      );
+    } catch (dbErr) {
+      console.warn('Fallback query for not-qualified leads:', dbErr.message);
+      r = await db.query(
+        `SELECT * FROM leads 
+         WHERE LOWER(COALESCE(status, '')) IN ('not_qualified', 'unqualified', 'opted_out', 'fake')
+         ORDER BY id DESC LIMIT $1`,
+        [limit]
+      ).catch(() => ({ rows: [] }));
+    }
+    return res.json({ data: r.rows || [], total: (r.rows || []).length });
   } catch (err) {
-    res.json({ data: [], total: 0 });
+    return res.json({ data: [], total: 0 });
   }
 });
 
 app.get(['/api/leads/dead-pool', '/api/useGetDeadPoolLeads'], async (req, res) => {
   try {
     const limit = Number(req.query.limit || 500);
-    const r = await db.query(
-      `SELECT * FROM leads 
-       WHERE is_dead_website = true 
-          OR LOWER(website_status) IN ('dead', 'offline', 'error')
-       ORDER BY id DESC LIMIT $1`,
-      [limit]
-    );
-    res.json({ leads: r.rows || [], total: (r.rows || []).length });
+    let r = { rows: [] };
+    try {
+      r = await db.query(
+        `SELECT * FROM leads 
+         WHERE COALESCE(is_dead_website, false) = true 
+            OR LOWER(COALESCE(website_status, '')) IN ('dead', 'offline', 'error')
+         ORDER BY id DESC LIMIT $1`,
+        [limit]
+      );
+    } catch (dbErr) {
+      console.warn('Fallback query for dead-pool leads:', dbErr.message);
+      r = { rows: [] };
+    }
+    return res.json({ leads: r.rows || [], total: (r.rows || []).length });
   } catch (err) {
-    res.json({ leads: [], total: 0 });
+    return res.json({ leads: [], total: 0 });
   }
 });
 
