@@ -1064,11 +1064,63 @@ app.get('/api/leads', async (req, res) => {
   }
 });
 
+// GET /api/leads/not-qualified — Unqualified or fake leads
+app.get(['/api/leads/not-qualified', '/api/useGetNotQualifiedLeads'], async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 500);
+    let r = { rows: [] };
+    try {
+      r = await db.query(
+        `SELECT * FROM leads 
+         WHERE COALESCE(is_fake, false) = true 
+            OR LOWER(COALESCE(status, '')) IN ('not_qualified', 'unqualified', 'opted_out', 'fake')
+         ORDER BY id DESC LIMIT $1`,
+        [limit]
+      );
+    } catch (dbErr) {
+      console.warn('Fallback query for not-qualified leads:', dbErr.message);
+      r = await db.query(
+        `SELECT * FROM leads 
+         WHERE LOWER(COALESCE(status, '')) IN ('not_qualified', 'unqualified', 'opted_out', 'fake')
+         ORDER BY id DESC LIMIT $1`,
+        [limit]
+      ).catch(() => ({ rows: [] }));
+    }
+    return res.json({ data: r.rows || [], total: (r.rows || []).length });
+  } catch (err) {
+    return res.json({ data: [], total: 0 });
+  }
+});
+
+// GET /api/leads/dead-pool — Offline or dead website leads
+app.get(['/api/leads/dead-pool', '/api/useGetDeadPoolLeads'], async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 500);
+    let r = { rows: [] };
+    try {
+      r = await db.query(
+        `SELECT * FROM leads 
+         WHERE COALESCE(is_dead_website, false) = true 
+            OR LOWER(COALESCE(website_status, '')) IN ('dead', 'offline', 'error')
+         ORDER BY id DESC LIMIT $1`,
+        [limit]
+      );
+    } catch (dbErr) {
+      console.warn('Fallback query for dead-pool leads:', dbErr.message);
+      r = { rows: [] };
+    }
+    return res.json({ leads: r.rows || [], total: (r.rows || []).length });
+  } catch (err) {
+    return res.json({ leads: [], total: 0 });
+  }
+});
+
 // Get single lead by ID
-app.get('/api/leads/:id', async (req, res) => {
+app.get('/api/leads/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [id]);
+    if (isNaN(Number(id))) return next();
+    const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [Number(id)]);
     if (leadRes.rows.length === 0) {
       return res.status(404).json({ error: 'Lead not found' });
     }
