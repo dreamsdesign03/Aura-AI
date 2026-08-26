@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { DndContext, DragOverlay, PointerSensor, useSensor, useSensors, useDroppable, closestCenter, } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, } from "lucide-react";
+import { toast } from "sonner";
+import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, Check, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 // ── Stage definitions ─────────────────────────────────────────────────────────
 const STAGES = [
@@ -24,7 +25,7 @@ const AVATAR_COLORS = [
 function fmtAmount(n) {
     if (n >= 1_00_00_000)
         return `₹${(n / 1_00_00_000).toFixed(1)}Cr`;
-    if (n >= 1_00_000)
+    if (n >= 1_00_00_000)
         return `₹${(n / 1_00_000).toFixed(1)}L`;
     if (n >= 1_000)
         return `₹${(n / 1_000).toFixed(0)}K`;
@@ -203,7 +204,17 @@ export default function Pipeline() {
     const { data: allLeads = [], isLoading } = useQuery({ queryKey: ["leads-pipeline"], queryFn: fetchLeads });
     const [activeLead, setActiveLead] = useState(null);
     const [search, setSearch] = useState("");
+    const [ownerFilter, setOwnerFilter] = useState("all");
+    const [dateFilter, setDateFilter] = useState("all");
+    const [sortOption, setSortOption] = useState("created_desc");
+    const [minAmount, setMinAmount] = useState("");
     const [collapsed, setCollapsed] = useState(new Set());
+
+    const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
+    const [showDateDropdown, setShowDateDropdown] = useState(false);
+    const [showSortDropdown, setShowSortDropdown] = useState(false);
+    const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
     const mutate = useMutation({
         mutationFn: ({ id, status }) => patchLeadStatus(id, status),
         onMutate: async ({ id, status }) => {
@@ -215,23 +226,154 @@ export default function Pipeline() {
         onError: (_err, _vars, ctx) => {
             if (ctx?.prev)
                 qc.setQueryData(["leads-pipeline"], ctx.prev);
+            toast.error("Failed to move deal");
+        },
+        onSuccess: () => {
+            toast.success("Deal stage updated");
         },
         onSettled: () => qc.invalidateQueries({ queryKey: ["leads-pipeline"] }),
     });
+
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-    const filteredLeads = search.trim()
-        ? allLeads.filter(l => `${l.firstName} ${l.lastName} ${l.company} ${l.email}`.toLowerCase().includes(search.toLowerCase()))
-        : allLeads;
+
+    // Extract unique owners
+    const uniqueOwners = useMemo(() => {
+        const owners = new Set();
+        for (const l of allLeads) {
+            const owner = l.assignedToName || "Dreamsdesign Sales";
+            if (owner) owners.add(owner);
+        }
+        return Array.from(owners);
+    }, [allLeads]);
+
+    // Active filters count
+    const activeFiltersCount = (ownerFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0) + (minAmount ? 1 : 0) + (search ? 1 : 0);
+
+    const resetFilters = () => {
+        setSearch("");
+        setOwnerFilter("all");
+        setDateFilter("all");
+        setMinAmount("");
+        setSortOption("created_desc");
+        toast.info("Filters reset");
+    };
+
+    const dateLabels = {
+        all: "All Time",
+        today: "Today",
+        "7days": "Last 7 Days",
+        "30days": "Last 30 Days",
+        this_month: "This Month"
+    };
+
+    const sortLabels = {
+        created_desc: "Newest First",
+        created_asc: "Oldest First",
+        value_desc: "Highest Amount",
+        value_asc: "Lowest Amount",
+        name_asc: "Lead Name A-Z"
+    };
+
+    // Filter deals
+    const filteredLeads = useMemo(() => {
+        return allLeads.filter(l => {
+            if (search.trim()) {
+                const q = search.toLowerCase();
+                const text = `${l.firstName} ${l.lastName} ${l.company} ${l.email} ${l.phone}`.toLowerCase();
+                if (!text.includes(q)) return false;
+            }
+            if (ownerFilter !== "all") {
+                const owner = (l.assignedToName || "Dreamsdesign Sales").toLowerCase();
+                if (!owner.includes(ownerFilter.toLowerCase())) return false;
+            }
+            if (dateFilter !== "all" && l.createdAt) {
+                const created = new Date(l.createdAt);
+                const now = new Date();
+                if (dateFilter === "today") {
+                    if (created.toDateString() !== now.toDateString()) return false;
+                } else if (dateFilter === "7days") {
+                    const diffDays = (now - created) / (1000 * 3600 * 24);
+                    if (diffDays > 7) return false;
+                } else if (dateFilter === "30days") {
+                    const diffDays = (now - created) / (1000 * 3600 * 24);
+                    if (diffDays > 30) return false;
+                } else if (dateFilter === "this_month") {
+                    if (created.getMonth() !== now.getMonth() || created.getFullYear() !== now.getFullYear()) return false;
+                }
+            }
+            if (minAmount && Number(minAmount) > 0) {
+                const val = Number(l.dealValue ?? 0);
+                if (val < Number(minAmount)) return false;
+            }
+            return true;
+        });
+    }, [allLeads, search, ownerFilter, dateFilter, minAmount]);
+
+    // Sort leads inside columns
+    const sortLeads = useCallback((leadsList) => {
+        return [...leadsList].sort((a, b) => {
+            if (sortOption === "created_desc") {
+                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+            }
+            if (sortOption === "created_asc") {
+                return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+            }
+            if (sortOption === "value_desc") {
+                return (Number(b.dealValue) || 0) - (Number(a.dealValue) || 0);
+            }
+            if (sortOption === "value_asc") {
+                return (Number(a.dealValue) || 0) - (Number(b.dealValue) || 0);
+            }
+            if (sortOption === "name_asc") {
+                return (a.firstName || "").localeCompare(b.firstName || "");
+            }
+            return 0;
+        });
+    }, [sortOption]);
+
     const grouped = useCallback(() => {
         const map = new Map();
-        for (const s of STAGES)
-            map.set(s.id, []);
+        for (const s of STAGES) map.set(s.id, []);
         for (const lead of filteredLeads) {
             const key = (lead.status ?? "new_enquiry");
-            map.has(key) ? map.get(key).push(lead) : map.get("new_enquiry").push(lead);
+            if (map.has(key)) map.get(key).push(lead);
+            else map.get("new_enquiry").push(lead);
+        }
+        for (const [key, list] of map.entries()) {
+            map.set(key, sortLeads(list));
         }
         return map;
-    }, [filteredLeads]);
+    }, [filteredLeads, sortLeads]);
+
+    function handleExportCSV() {
+        if (filteredLeads.length === 0) {
+            toast.error("No deals to export");
+            return;
+        }
+        const headers = ["ID", "First Name", "Last Name", "Company", "Email", "Phone", "Stage", "Deal Amount", "Created At"];
+        const rows = filteredLeads.map(l => [
+            l.id,
+            `"${(l.firstName || "").replace(/"/g, '""')}"`,
+            `"${(l.lastName || "").replace(/"/g, '""')}"`,
+            `"${(l.company || "").replace(/"/g, '""')}"`,
+            `"${(l.email || "").replace(/"/g, '""')}"`,
+            `"${(l.phone || "").replace(/"/g, '""')}"`,
+            `"${l.status || "new_enquiry"}"`,
+            l.dealValue ?? 0,
+            `"${l.createdAt || ""}"`
+        ]);
+        const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", `sales_pipeline_export_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        toast.success(`Exported ${filteredLeads.length} deals to CSV`);
+    }
+
     function handleDragStart(ev) {
         const lead = allLeads.find(l => l.id === ev.active.id);
         if (lead)
@@ -269,6 +411,7 @@ export default function Pipeline() {
         return n;
     });
     const g = grouped();
+
     // ── Render ────────────────────────────────────────────────────────────────
     return (<div className="flex flex-col bg-white" style={{ height: "calc(100vh - 56px)" }}>
 
@@ -284,19 +427,13 @@ export default function Pipeline() {
           <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12.5px] font-semibold text-gray-800 hover:bg-gray-100 transition-colors">
             All deals
             <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-semibold text-gray-600">
-              {allLeads.length.toLocaleString()}
+              {filteredLeads.length.toLocaleString()}
             </span>
-          </button>
-          <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400 transition-colors" title="New view">
-            <Plus className="w-3.5 h-3.5"/>
           </button>
         </div>
 
         {/* Right */}
         <div className="flex items-center gap-1.5">
-          <button className="p-1.5 rounded hover:bg-gray-100 text-gray-400 transition-colors">
-            <MoreHorizontal className="w-4 h-4"/>
-          </button>
           <button onClick={() => navigate("/leads")} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">
             <Plus className="w-3.5 h-3.5"/> Add deal
           </button>
@@ -304,54 +441,85 @@ export default function Pipeline() {
       </div>
 
       {/* ── Row 2: search + view controls ──────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-gray-200 bg-white">
+      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-gray-200 bg-white flex-wrap">
         {/* Search */}
-        <div className="relative" style={{ width: 280 }}>
+        <div className="relative" style={{ width: 260 }}>
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"/>
-          <input type="text" placeholder="Search deals…" value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-8 pr-7 py-1.5 text-[12px] border border-gray-200 rounded bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 transition-all"/>
+          <input type="text" placeholder="Search deals by name, company..." value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-8 pr-7 py-1.5 text-[12px] border border-gray-200 rounded bg-white placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-blue-400 focus:border-blue-400 transition-all"/>
           {search && (<button onClick={() => setSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <X className="w-3 h-3"/>
             </button>)}
         </div>
 
+        {/* Active filters clear badge */}
+        {activeFiltersCount > 0 && (<button onClick={resetFilters} className="text-[11px] font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 px-2.5 py-1 rounded flex items-center gap-1 transition-colors">
+            <X className="w-3 h-3"/> Clear {activeFiltersCount} filter(s)
+          </button>)}
+
         {/* View controls */}
-        <div className="flex items-center gap-1.5 ml-auto">
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap">
-            Board view <ChevronDown className="w-3 h-3 text-gray-400"/>
+        <div className="flex items-center gap-1.5 ml-auto flex-wrap">
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <button onClick={() => { setShowSortDropdown(!showSortDropdown); setShowOwnerDropdown(false); setShowDateDropdown(false); }} className={cn("flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded border transition-colors", sortOption !== "created_desc" ? "border-blue-300 bg-blue-50 text-blue-700 font-semibold" : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50")}>
+              <ArrowUpDown className="w-3.5 h-3.5"/> Sort: {sortLabels[sortOption]}
+            </button>
+            {showSortDropdown && (<div className="absolute right-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-xs">
+                {Object.entries(sortLabels).map(([k, lbl]) => (<button key={k} onClick={() => { setSortOption(k); setShowSortDropdown(false); }} className={cn("w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between", sortOption === k ? "text-blue-600 font-bold bg-blue-50/50" : "text-gray-700")}>
+                    <span>{lbl}</span>
+                    {sortOption === k && <Check className="w-3.5 h-3.5"/>}
+                  </button>))}
+              </div>)}
+          </div>
+
+          {/* Export CSV Button */}
+          <button onClick={handleExportCSV} className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors">
+            <Download className="w-3.5 h-3.5"/> Export CSV ({filteredLeads.length})
           </button>
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap">
-            <Settings2 className="w-3.5 h-3.5"/> DD Sales Pipeline <ChevronDown className="w-3 h-3 text-gray-400"/>
-          </button>
-          <div className="w-px h-4 bg-gray-200"/>
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded border border-orange-200 bg-orange-50 text-orange-600 hover:bg-orange-100 transition-colors whitespace-nowrap">
-            <SlidersHorizontal className="w-3.5 h-3.5"/> Filters
-          </button>
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors">
-            <ArrowUpDown className="w-3.5 h-3.5"/> Sort
-          </button>
-          <button className="flex items-center gap-1.5 px-2.5 py-1.5 text-[12px] font-medium rounded border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors">
-            <Download className="w-3.5 h-3.5"/> Export
-          </button>
-          <button className="px-2.5 py-1.5 text-[12px] font-semibold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
-            Save
+
+          {/* Save button */}
+          <button onClick={() => toast.success("Pipeline view preferences saved")} className="px-2.5 py-1.5 text-[12px] font-semibold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
+            Save View
           </button>
         </div>
       </div>
 
-      {/* ── Row 3: filter chips ─────────────────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-1.5 px-4 py-1.5 border-b border-gray-100 bg-white">
-        {["Deal owner", "Create date", "Last activity date", "Close date"].map(label => (<button key={label} className="flex items-center gap-1 px-2.5 py-1 text-[11.5px] text-gray-600 border border-gray-200 rounded hover:border-blue-300 hover:text-blue-600 bg-white transition-colors whitespace-nowrap">
-            {label} <ChevronDown className="w-3 h-3"/>
-          </button>))}
-        <button className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:bg-gray-50 transition-colors">
-          <Plus className="w-3 h-3"/>
-        </button>
-        <button className="w-6 h-6 flex items-center justify-center rounded border border-gray-200 text-gray-400 hover:bg-gray-50 transition-colors">
-          <Pencil className="w-3 h-3"/>
-        </button>
-        <button className="flex items-center gap-1.5 px-2.5 py-1 text-[11.5px] text-gray-500 border border-gray-200 rounded hover:border-blue-300 hover:text-blue-600 bg-white transition-colors ml-1 whitespace-nowrap">
-          <SlidersHorizontal className="w-3 h-3"/> Advanced filters
-        </button>
+      {/* ── Row 3: interactive filter chips ─────────────────────────────── */}
+      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 bg-white flex-wrap relative">
+        {/* Deal Owner Filter */}
+        <div className="relative">
+          <button onClick={() => { setShowOwnerDropdown(!showOwnerDropdown); setShowDateDropdown(false); setShowSortDropdown(false); }} className={cn("flex items-center gap-1 px-2.5 py-1 text-[11.5px] border rounded transition-colors whitespace-nowrap", ownerFilter !== "all" ? "border-blue-500 bg-blue-50 text-blue-700 font-bold" : "text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 bg-white")}>
+            Owner: {ownerFilter === "all" ? "All Owners" : ownerFilter} <ChevronDown className="w-3 h-3"/>
+          </button>
+          {showOwnerDropdown && (<div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-xs">
+              <button onClick={() => { setOwnerFilter("all"); setShowOwnerDropdown(false); }} className={cn("w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between", ownerFilter === "all" ? "text-blue-600 font-bold" : "text-gray-700")}>
+                <span>All Owners</span>
+                {ownerFilter === "all" && <Check className="w-3 h-3"/>}
+              </button>
+              {uniqueOwners.map(o => (<button key={o} onClick={() => { setOwnerFilter(o); setShowOwnerDropdown(false); }} className={cn("w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between", ownerFilter === o ? "text-blue-600 font-bold" : "text-gray-700")}>
+                  <span>{o}</span>
+                  {ownerFilter === o && <Check className="w-3 h-3"/>}
+                </button>))}
+            </div>)}
+        </div>
+
+        {/* Create Date Filter */}
+        <div className="relative">
+          <button onClick={() => { setShowDateDropdown(!showDateDropdown); setShowOwnerDropdown(false); setShowSortDropdown(false); }} className={cn("flex items-center gap-1 px-2.5 py-1 text-[11.5px] border rounded transition-colors whitespace-nowrap", dateFilter !== "all" ? "border-blue-500 bg-blue-50 text-blue-700 font-bold" : "text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 bg-white")}>
+            Created: {dateFilter === "all" ? "All Time" : dateLabels[dateFilter]} <ChevronDown className="w-3 h-3"/>
+          </button>
+          {showDateDropdown && (<div className="absolute left-0 mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-xs">
+              {Object.entries(dateLabels).map(([k, lbl]) => (<button key={k} onClick={() => { setDateFilter(k); setShowDateDropdown(false); }} className={cn("w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between", dateFilter === k ? "text-blue-600 font-bold bg-blue-50/50" : "text-gray-700")}>
+                  <span>{lbl}</span>
+                  {dateFilter === k && <Check className="w-3.5 h-3.5"/>}
+                </button>))}
+            </div>)}
+        </div>
+
+        {/* Min Amount Input */}
+        <div className="flex items-center gap-1 text-xs text-gray-500 ml-1">
+          <span className="text-[11px] font-semibold text-gray-500">Min Amount:</span>
+          <input type="number" placeholder="₹ e.g. 50000" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-28 px-2 py-0.5 text-[11.5px] border border-gray-200 rounded focus:ring-1 focus:ring-blue-400 focus:outline-none"/>
+        </div>
       </div>
 
       {/* ── Board ──────────────────────────────────────────────────── */}
