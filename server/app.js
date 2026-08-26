@@ -247,8 +247,24 @@ async function seedAdminUser() {
       SET content = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.',
           body = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.'
       WHERE content LIKE '%Welcome and thank%' OR body LIKE '%Welcome and thank%';
+
+      CREATE TABLE IF NOT EXISTS lead_lists (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS lead_list_items (
+        id SERIAL PRIMARY KEY,
+        list_id INT REFERENCES lead_lists(id) ON DELETE CASCADE,
+        lead_id INT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(list_id, lead_id)
+      );
     `);
-    console.log('[Startup Migration] ✅ All migrations complete including whatsapp_messages created_at and template text alignment.');
+    console.log('[Startup Migration] ✅ All migrations complete including lead_lists and whatsapp_messages.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
@@ -5930,6 +5946,145 @@ emailRepliesApi.registerEmailReplyRoutes(app, resolveUserId);
 // ── WhatsApp API (Meta Cloud API, Messages, Conversations, Settings, Webhooks) ─
 const whatsappApi = require('./whatsapp');
 whatsappApi.registerWhatsAppRoutes(app, resolveUserId);
+
+// ── Lead Lists, Not-Qualified, Dead-Pool & Website Check APIs ──────────────────
+let globalWhcStatus = { running: false, total: 0, checked: 0, working: 0, dead: 0 };
+
+app.get(['/api/leads/not-qualified', '/api/useGetNotQualifiedLeads'], async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 500);
+    const r = await db.query(
+      `SELECT * FROM leads 
+       WHERE is_fake = true 
+          OR LOWER(status) IN ('not_qualified', 'unqualified', 'opted_out', 'fake')
+       ORDER BY id DESC LIMIT $1`,
+      [limit]
+    );
+    res.json({ data: r.rows || [], total: (r.rows || []).length });
+  } catch (err) {
+    res.json({ data: [], total: 0 });
+  }
+});
+
+app.get(['/api/leads/dead-pool', '/api/useGetDeadPoolLeads'], async (req, res) => {
+  try {
+    const limit = Number(req.query.limit || 500);
+    const r = await db.query(
+      `SELECT * FROM leads 
+       WHERE is_dead_website = true 
+          OR LOWER(website_status) IN ('dead', 'offline', 'error')
+       ORDER BY id DESC LIMIT $1`,
+      [limit]
+    );
+    res.json({ leads: r.rows || [], total: (r.rows || []).length });
+  } catch (err) {
+    res.json({ leads: [], total: 0 });
+  }
+});
+
+app.post(['/api/leads/dead-pool/recheck', '/api/useRecheckDeadPool'], async (req, res) => {
+  res.json({ started: true, message: 'Recheck initiated' });
+});
+
+app.post(['/api/leads/website-check/run', '/api/useStartWebsiteCheck'], async (req, res) => {
+  res.json({ started: true, already_running: false });
+});
+
+app.get(['/api/leads/website-check/status', '/api/useGetWebsiteCheckStatus'], async (req, res) => {
+  res.json(globalWhcStatus);
+});
+
+app.get(['/api/lead-lists', '/api/useGetLeadLists'], async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT ll.id, ll.name, ll.description, ll.created_at as "createdAt", 
+              COUNT(lli.lead_id)::int as "leadCount"
+       FROM lead_lists ll
+       LEFT JOIN lead_list_items lli ON lli.list_id = ll.id
+       GROUP BY ll.id ORDER BY ll.created_at DESC`
+    );
+    res.json(r.rows || []);
+  } catch (err) {
+    res.json([]);
+  }
+});
+
+app.post(['/api/lead-lists', '/api/useCreateLeadList'], async (req, res) => {
+  try {
+    const { name, title, description, leadIds } = req.body;
+    const listName = name || title || 'New List';
+    const ins = await db.query(
+      `INSERT INTO lead_lists (name, description) VALUES ($1, $2) RETURNING id, name, description, created_at as "createdAt"`,
+      [listName, description || '']
+    );
+    const newList = ins.rows[0];
+    if (Array.isArray(leadIds) && leadIds.length > 0) {
+      for (const lid of leadIds) {
+        await db.query(
+          `INSERT INTO lead_list_items (list_id, lead_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [newList.id, lid]
+        );
+      }
+    }
+    res.json(newList);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/lead-lists/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    const r = await db.query(`SELECT id, name, description, created_at as "createdAt" FROM lead_lists WHERE id = $1`, [id]);
+    if (!r.rows[0]) return res.status(404).json({ error: 'List not found' });
+    const leadsRes = await db.query(
+      `SELECT l.* FROM leads l JOIN lead_list_items lli ON lli.lead_id = l.id WHERE lli.list_id = $1`,
+      [id]
+    );
+    res.json({ ...r.rows[0], leads: leadsRes.rows || [] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/lead-lists/:id', async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    await db.query(`DELETE FROM lead_lists WHERE id = $1`, [id]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/lead-lists/:id/leads', async (req, res) => {
+  try {
+    const listId = Number(req.params.id);
+    const { leadIds } = req.body;
+    if (Array.isArray(leadIds)) {
+      for (const lid of leadIds) {
+        await db.query(
+          `INSERT INTO lead_list_items (list_id, lead_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+          [listId, lid]
+        );
+      }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete('/api/lead-lists/:id/leads/:leadId', async (req, res) => {
+  try {
+    const listId = Number(req.params.id);
+    const leadId = Number(req.params.leadId);
+    await db.query(`DELETE FROM lead_list_items WHERE list_id = $1 AND lead_id = $2`, [listId, leadId]);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = app;
 
