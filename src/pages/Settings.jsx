@@ -315,7 +315,8 @@ function DefaultPasswordCard() {
     const authUser = useAuthUser();
     const [showPassword, setShowPassword] = useState(false);
     const [copied, setCopied] = useState(false);
-    const defaultPassword = "aura@1234";
+    const defaultUsername = "auraadmin";
+    const defaultPassword = "Vishnu@Krishna";
 
     const handleCopy = () => {
         navigator.clipboard.writeText(defaultPassword);
@@ -328,15 +329,15 @@ function DefaultPasswordCard() {
         <div className="flex items-start gap-2 text-xs text-amber-800 bg-amber-50 rounded-lg px-3 py-2.5 border border-amber-200">
           <ShieldCheck className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600"/>
           <span>
-            Default credentials configured for <strong>Aura AI</strong> team access. Use the default password below to log in.
+            Default credentials configured for <strong>Aura AI</strong> team access. Use the username and default password below to log in.
           </span>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className={labelClass}>Account Email</label>
-            <div className="w-full px-3 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-800 flex items-center justify-between">
-              <span className="truncate">{authUser?.email || "aura.admin@dreamsdesign.in"}</span>
+            <label className={labelClass}>Username</label>
+            <div className="w-full px-3 py-2 text-xs font-mono font-bold rounded-lg border border-gray-200 bg-gray-50 text-gray-900 flex items-center justify-between">
+              <span className="truncate">{defaultUsername}</span>
             </div>
           </div>
 
