@@ -3977,6 +3977,52 @@ app.get('/api/qualify/queue', async (req, res) => {
   }
 });
 
+// POST /api/qualify/:id/ai — AI BANT Scoring endpoint for Lead Detail page
+app.post(['/api/qualify/:id/ai', '/api/leads/:id/score-bant'], async (req, res) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      return res.status(400).json({ error: 'Invalid lead ID' });
+    }
+
+    const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [id]);
+    if (leadRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Lead not found' });
+    }
+
+    const lead = leadRes.rows[0];
+    const dyn = await calculateDynamicBantScore(lead);
+    const totalBant = dyn.budget.score + dyn.authority.score + dyn.need.score + dyn.timeline.score;
+
+    const band = totalBant >= 75 ? 'hot' : totalBant >= 50 ? 'qualified' : totalBant >= 30 ? 'nurture' : 'disqualify';
+
+    // Update database
+    await db.query(
+      `UPDATE leads 
+       SET bant_score = $1, 
+           status = CASE WHEN status = 'new_enquiry' OR status IS NULL THEN 'contacted' ELSE status END
+       WHERE id = $2`,
+      [totalBant, id]
+    ).catch(() => {});
+
+    res.json({
+      totalScore: totalBant,
+      bantScore: totalBant,
+      band,
+      budget: dyn.budget,
+      authority: dyn.authority,
+      need: dyn.need,
+      timeline: dyn.timeline,
+      belief: dyn.belief,
+      bantBreakdown: dyn,
+      status: lead.status || 'contacted'
+    });
+  } catch (err) {
+    console.error('[qualify/:id/ai] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/qualify/score-ai — AI BANTB Scoring for a single lead
 app.post('/api/qualify/score-ai', async (req, res) => {
   try {
