@@ -191,18 +191,24 @@ async function getTransporter(userId) {
       }
     } catch {}
   }
-  const host = config.host || process.env.SMTP_HOST || 'smtp.gmail.com';
-  const port = config.port || Number(process.env.SMTP_PORT) || 587;
-  const user = config.user || process.env.SMTP_USER || 'aurabackoffice123@gmail.com';
-  const pass = config.pass || process.env.SMTP_PASS || 'zjpbagpgncbxjphm';
-  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'aurabackoffice123@gmail.com';
-  const fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura AI';
+  let host = config.host || process.env.SMTP_HOST || 'smtp.gmail.com';
+  let port = config.port || Number(process.env.SMTP_PORT) || 587;
+  let user = config.user || process.env.SMTP_USER || 'aurabackoffice123@gmail.com';
+  let pass = config.pass || process.env.SMTP_PASS || 'zjpbagpgncbxjphm';
+  let fromEmail = config.fromEmail || process.env.SMTP_FROM || 'aurabackoffice123@gmail.com';
+  let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura AI';
+
+  // STRICT ENFORCEMENT: Never allow dreamsdesign.in03@gmail.com or old credentials
+  if (!user || user.toLowerCase().includes('dreamsdesign')) user = 'aurabackoffice123@gmail.com';
+  if (!fromEmail || fromEmail.toLowerCase().includes('dreamsdesign')) fromEmail = 'aurabackoffice123@gmail.com';
+  if (!pass || pass === 'tquoqenjxkwuffob') pass = 'zjpbagpgncbxjphm';
+
   const transporter = nodemailer.createTransport({
     host, port,
     secure: port === 465,
-    auth: user && pass ? { user, pass } : undefined,
+    auth: { user, pass },
   });
-  return { transporter, fromEmail, fromName, configured: Boolean(user && pass) };
+  return { transporter, fromEmail, fromName, configured: true };
 }
 
 async function sendAgentEmail(userId, { to, toName, subject, body }) {
