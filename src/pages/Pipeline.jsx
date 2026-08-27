@@ -212,7 +212,7 @@ export default function Pipeline() {
     const [search, setSearch] = useState("");
     const [ownerFilter, setOwnerFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState("all");
-    const [sortOption, setSortOption] = useState("created_desc");
+    const [sortOption, setSortOption] = useState(() => localStorage.getItem("pipeline_sort_option") || "created_desc");
     const [collapsed, setCollapsed] = useState(new Set());
 
     const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
@@ -284,20 +284,37 @@ export default function Pipeline() {
         name_asc: "Lead Name A-Z"
     };
 
+    // Helper to get numerical deal value
+    const getDealVal = (l) => {
+        const v = l.dealValue ?? l.deal_value ?? l.budget ?? 0;
+        if (typeof v === "number") return v;
+        if (typeof v === "string") {
+            const num = parseFloat(v.replace(/[^0-9.]/g, ""));
+            return isNaN(num) ? 0 : num;
+        }
+        return 0;
+    };
+
+    // Helper to get creation timestamp
+    const getLeadDate = (l) => {
+        const d = l.createdAt ?? l.created_at;
+        return d ? new Date(d).getTime() : (Number(l.id) || 0);
+    };
+
     // Filter deals
     const filteredLeads = useMemo(() => {
         return allLeads.filter(l => {
             if (search.trim()) {
                 const q = search.toLowerCase();
-                const text = `${l.firstName} ${l.lastName} ${l.company} ${l.email} ${l.phone}`.toLowerCase();
+                const text = `${l.firstName || l.first_name || ""} ${l.lastName || l.last_name || ""} ${l.company || ""} ${l.email || ""} ${l.phone || ""}`.toLowerCase();
                 if (!text.includes(q)) return false;
             }
             if (ownerFilter !== "all") {
                 const owner = (l.assignedToName || "").toLowerCase();
                 if (!owner.includes(ownerFilter.toLowerCase())) return false;
             }
-            if (dateFilter !== "all" && l.createdAt) {
-                const created = new Date(l.createdAt);
+            if (dateFilter !== "all") {
+                const created = new Date(l.createdAt || l.created_at || Date.now());
                 const now = new Date();
                 if (dateFilter === "today") {
                     if (created.toDateString() !== now.toDateString()) return false;
@@ -319,19 +336,21 @@ export default function Pipeline() {
     const sortLeads = useCallback((leadsList) => {
         return [...leadsList].sort((a, b) => {
             if (sortOption === "created_desc") {
-                return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                return getLeadDate(b) - getLeadDate(a);
             }
             if (sortOption === "created_asc") {
-                return new Date(a.createdAt || 0) - new Date(b.createdAt || 0);
+                return getLeadDate(a) - getLeadDate(b);
             }
             if (sortOption === "value_desc") {
-                return (Number(b.dealValue) || 0) - (Number(a.dealValue) || 0);
+                return getDealVal(b) - getDealVal(a);
             }
             if (sortOption === "value_asc") {
-                return (Number(a.dealValue) || 0) - (Number(b.dealValue) || 0);
+                return getDealVal(a) - getDealVal(b);
             }
             if (sortOption === "name_asc") {
-                return (a.firstName || "").localeCompare(b.firstName || "");
+                const nameA = `${a.firstName || a.first_name || ""} ${a.lastName || a.last_name || ""}`.trim();
+                const nameB = `${b.firstName || b.first_name || ""} ${b.lastName || b.last_name || ""}`.trim();
+                return nameA.localeCompare(nameB);
             }
             return 0;
         });
@@ -341,7 +360,7 @@ export default function Pipeline() {
         const map = new Map();
         for (const s of STAGES) map.set(s.id, []);
         for (const lead of filteredLeads) {
-            const key = (lead.status ?? "new_enquiry");
+            const key = (lead.status ?? lead.pipeline_stage ?? "new_enquiry");
             if (map.has(key)) map.get(key).push(lead);
             else map.get("new_enquiry").push(lead);
         }
@@ -351,22 +370,27 @@ export default function Pipeline() {
         return map;
     }, [filteredLeads, sortLeads]);
 
+    function handleSaveView() {
+        localStorage.setItem("pipeline_sort_option", sortOption);
+        toast.success(`Sales Pipeline view saved! Default sort set to "${sortLabels[sortOption]}".`);
+    }
+
     function handleExportCSV() {
         if (filteredLeads.length === 0) {
             toast.error("No deals to export");
             return;
         }
-        const headers = ["ID", "First Name", "Last Name", "Company", "Email", "Phone", "Stage", "Deal Amount", "Created At"];
+        const headers = ["ID", "First Name", "Last Name", "Company", "Email", "Phone", "Stage", "Deal Amount (₹)", "Created Date"];
         const rows = filteredLeads.map(l => [
             l.id,
-            `"${(l.firstName || "").replace(/"/g, '""')}"`,
-            `"${(l.lastName || "").replace(/"/g, '""')}"`,
+            `"${(l.firstName || l.first_name || "").replace(/"/g, '""')}"`,
+            `"${(l.lastName || l.last_name || "").replace(/"/g, '""')}"`,
             `"${(l.company || "").replace(/"/g, '""')}"`,
             `"${(l.email || "").replace(/"/g, '""')}"`,
             `"${(l.phone || "").replace(/"/g, '""')}"`,
-            `"${l.status || "new_enquiry"}"`,
-            l.dealValue ?? 0,
-            `"${l.createdAt || ""}"`
+            `"${l.status || l.pipeline_stage || "new_enquiry"}"`,
+            getDealVal(l),
+            `"${l.createdAt || l.created_at || ""}"`
         ]);
         const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
         const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
@@ -483,7 +507,7 @@ export default function Pipeline() {
           </button>
 
           {/* Save button */}
-          <button onClick={() => toast.success("Pipeline view preferences saved")} className="px-2.5 py-1.5 text-[12px] font-semibold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
+          <button onClick={handleSaveView} className="px-2.5 py-1.5 text-[12px] font-semibold rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 transition-colors">
             Save View
           </button>
         </div>
