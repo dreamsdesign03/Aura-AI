@@ -213,7 +213,6 @@ export default function Pipeline() {
     const [ownerFilter, setOwnerFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState("all");
     const [sortOption, setSortOption] = useState("created_desc");
-    const [minAmount, setMinAmount] = useState("");
     const [collapsed, setCollapsed] = useState(new Set());
 
     const [showOwnerDropdown, setShowOwnerDropdown] = useState(false);
@@ -260,13 +259,12 @@ export default function Pipeline() {
     }, [allLeads]);
 
     // Active filters count
-    const activeFiltersCount = (ownerFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0) + (minAmount ? 1 : 0) + (search ? 1 : 0);
+    const activeFiltersCount = (ownerFilter !== "all" ? 1 : 0) + (dateFilter !== "all" ? 1 : 0) + (search ? 1 : 0);
 
     const resetFilters = () => {
         setSearch("");
         setOwnerFilter("all");
         setDateFilter("all");
-        setMinAmount("");
         setSortOption("created_desc");
         toast.info("Filters reset");
     };
@@ -314,13 +312,9 @@ export default function Pipeline() {
                     if (created.getMonth() !== now.getMonth() || created.getFullYear() !== now.getFullYear()) return false;
                 }
             }
-            if (minAmount && Number(minAmount) > 0) {
-                const val = Number(l.dealValue ?? 0);
-                if (val < Number(minAmount)) return false;
-            }
             return true;
         });
-    }, [allLeads, search, ownerFilter, dateFilter, minAmount]);
+    }, [allLeads, search, ownerFilter, dateFilter]);
 
     // Sort leads inside columns
     const sortLeads = useCallback((leadsList) => {
@@ -528,11 +522,6 @@ export default function Pipeline() {
             </div>)}
         </div>
 
-        {/* Min Amount Input */}
-        <div className="flex items-center gap-1 text-xs text-gray-500 ml-1">
-          <span className="text-[11px] font-semibold text-gray-500">Min Amount:</span>
-          <input type="number" placeholder="₹ e.g. 50000" value={minAmount} onChange={e => setMinAmount(e.target.value)} className="w-28 px-2 py-0.5 text-[11.5px] border border-gray-200 rounded focus:ring-1 focus:ring-blue-400 focus:outline-none"/>
-        </div>
       </div>
 
       {/* ── Board ──────────────────────────────────────────────────── */}
