@@ -583,16 +583,12 @@ export default function Outreach() {
                         <Trash2 className="w-4 h-4"/>
                       </button>
                     </>)}
-                  {selected.status === "sent" && (<div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
-                        <CheckCircle2 className="w-3.5 h-3.5"/>
-                        Sent {formatSafeDistance(selected.sentAt)}
-                      </div>
-                      <button onClick={() => sendEmail.mutate({ id: selected.id })} disabled={sendEmail.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-indigo-700 bg-indigo-50 border border-indigo-200 hover:bg-indigo-100 disabled:opacity-60">
-                        <RefreshCw className={cn("w-3.5 h-3.5", sendEmail.isPending && "animate-spin")}/>
-                        {sendEmail.isPending ? "Sending…" : "Resend"}
-                      </button>
-                    </div>)}
+                  {selected.status === "sent" && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200">
+                      <CheckCircle2 className="w-3.5 h-3.5"/>
+                      Sent {formatSafeDistance(selected.sentAt)}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -613,88 +609,69 @@ export default function Outreach() {
                   <XCircle className="w-3.5 h-3.5"/> <strong>Send Error:</strong> {selected.errorMsg}
                 </div>)}
 
-              {/* Email body — Gmail-like thread for sent emails, plain for draft/failed */}
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="max-w-2xl mx-auto">
-{/* Created time */}
-                  <div className="text-[11px] text-gray-400 mb-4">
-                    Created {formatSafeDistance(selected.createdAt)}
-                    {selected.auditRunId && (<span className="ml-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
-                        AI Audited
-                      </span>)}
-                  </div>
+              {/* Email body — Exact Gmail-style conversation view */}
+              <div className="flex-1 overflow-y-auto p-6 bg-white">
+                <div className="max-w-3xl mx-auto space-y-6">
 
                   {selected.status === "sent" ? (
-                    /* ── Gmail-style Thread View (All emails & replies in sequence) ── */
-                    <div className="space-y-4">
-                      {/* Thread Header */}
-                      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-                        <div className="text-base font-semibold text-gray-900">
+                    /* ── Gmail-style Thread View (Exact Gmail UI) ── */
+                    <div className="space-y-6">
+                      {/* Thread Header / Subject */}
+                      <div className="border-b border-gray-200 pb-4">
+                        <h2 className="text-lg font-normal text-gray-900 leading-snug">
                           {selectedThread?.subject || selected.subject}
-                        </div>
-                        {selectedThread && selectedThread.messageCount > 1 && (
-                          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
-                            {selectedThread.messageCount} Messages
-                          </span>
-                        )}
+                        </h2>
                       </div>
 
                       {/* Stream of all messages in chronological order */}
-                      <div className="space-y-4">
+                      <div className="space-y-6">
                         {fullConversationStream.map((msg) => {
                           const isSentByUs = !msg.isReply;
+                          const msgDateStr = msg.date ? new Date(msg.date).toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true }) : '';
+                          const distanceStr = formatSafeDistance(msg.date);
                           return (
                             <div
                               key={msg.id}
-                              className={cn(
-                                "rounded-xl border overflow-hidden shadow-sm transition-all",
-                                isSentByUs ? "border-gray-200 bg-white" : "border-emerald-300 bg-emerald-50/50 shadow-md ring-1 ring-emerald-200"
-                              )}
+                              className="rounded-lg border border-gray-200/80 bg-white shadow-xs overflow-hidden"
                             >
-                              {/* Header */}
-                              <div
-                                className={cn(
-                                  "px-4 py-3 border-b flex items-center justify-between",
-                                  isSentByUs ? "bg-gray-50 border-gray-100" : "bg-emerald-100/80 border-emerald-200"
-                                )}
-                              >
-                                <div className="flex items-center gap-2.5">
+                              {/* Gmail Header */}
+                              <div className="px-5 py-3.5 bg-white flex items-center justify-between border-b border-gray-100">
+                                <div className="flex items-center gap-3">
                                   <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
+                                    className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold text-white flex-shrink-0 shadow-xs"
                                     style={{ background: isSentByUs ? "#CB3273" : "#059669" }}
                                   >
                                     {isSentByUs ? "A" : initials(msg.senderName, "")}
                                   </div>
                                   <div>
-                                    <div className="text-xs font-semibold text-gray-900">
-                                      {isSentByUs ? SENDER_NAME : msg.senderName} <span className="text-gray-400 font-normal">&lt;{msg.senderEmail}&gt;</span>
+                                    <div className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                                      {isSentByUs ? SENDER_NAME : msg.senderName}
+                                      <span className="text-[11px] font-normal text-gray-500">&lt;{msg.senderEmail}&gt;</span>
                                     </div>
-                                    <div className="text-[10px] text-gray-500">
-                                      {isSentByUs ? `to ${msg.recipientEmail}` : `to ${SENDER_EMAIL}`} · {formatSafeDistance(msg.date)}
+                                    <div className="text-[11px] text-gray-400 mt-0.5">
+                                      to {isSentByUs ? msg.recipientEmail : "me"} ▾
                                     </div>
                                   </div>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-[11px] text-gray-400 font-sans">
+                                    {msgDateStr} ({distanceStr})
+                                  </span>
                                   {isSentByUs ? (
-                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Sent by You
+                                    <span className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Sent
                                     </span>
                                   ) : (
-                                    <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-sm">
+                                    <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded bg-emerald-600 text-white shadow-xs">
                                       <Reply className="w-3 h-3" /> Received Reply
-                                    </span>
-                                  )}
-                                  {msg.openedAt && (
-                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                                      <Eye className="w-3 h-3" /> Opened
                                     </span>
                                   )}
                                 </div>
                               </div>
 
-                              {/* Message body */}
-                              <div className="px-4 py-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                              {/* Gmail Message Body */}
+                              <div className="px-6 py-5 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
                                 {msg.body || "(empty message)"}
                               </div>
                             </div>
@@ -702,51 +679,83 @@ export default function Outreach() {
                         })}
                       </div>
 
-                      {/* Gmail-style Quick Reply Composer Box */}
-                      <div className="mt-6 border border-gray-200 rounded-xl bg-white p-4 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
-                            <Reply className="w-3.5 h-3.5 text-[#CB3273]" />
-                            Quick Reply to {selected.leadFirstName || "Lead"} ({selected.toEmail})
-                          </span>
+                      {/* Gmail Bottom Action Buttons (Reply / Forward) */}
+                      <div className="pt-2">
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => {
+                              const textarea = document.getElementById("gmail-quick-reply-input");
+                              if (textarea) textarea.focus();
+                            }}
+                            className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer shadow-xs"
+                          >
+                            <Reply className="w-3.5 h-3.5 text-gray-600" />
+                            Reply
+                          </button>
                           <button
                             onClick={() => {
                               setComposeInitial({
                                 leadId: selected.leadId,
                                 toEmail: selected.toEmail,
-                                subject: selected.subject?.startsWith("Re:") ? selected.subject : `Re: ${selected.subject || ""}`
+                                subject: `Fwd: ${selected.subject || ""}`,
+                                body: `\n\n---------- Forwarded message ---------\nFrom: ${SENDER_NAME} <${SENDER_EMAIL}>\nSubject: ${selected.subject}\n\n${selected.body}`
                               });
                               setComposeOpen(true);
                             }}
-                            className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors"
+                            className="flex items-center gap-2 px-4 py-2 rounded-full border border-gray-300 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition-all cursor-pointer shadow-xs"
                           >
-                            <Zap className="w-3 h-3 text-purple-500" /> AI Composer
+                            <Send className="w-3.5 h-3.5 text-gray-600 rotate-45" />
+                            Forward
                           </button>
                         </div>
-                        <textarea
-                          rows={3}
-                          value={inlineReplyText}
-                          onChange={(e) => setInlineReplyText(e.target.value)}
-                          placeholder="Write a reply to send back..."
-                          className="w-full p-3 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#CB3273]/30 resize-none font-sans"
-                        />
-                        <div className="flex items-center justify-end gap-2 mt-2">
-                          <button
-                            onClick={() => handleInlineReply(selected.toEmail, selected.leadId, selected.subject)}
-                            disabled={inlineReplySending || !inlineReplyText.trim()}
-                            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50"
-                            style={{ background: "#CB3273" }}
-                          >
-                            {inlineReplySending ? (
-                              <>
-                                <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sending…
-                              </>
-                            ) : (
-                              <>
-                                <Send className="w-3.5 h-3.5" /> Send Reply
-                              </>
-                            )}
-                          </button>
+
+                        {/* Gmail Quick Reply Text Box */}
+                        <div className="mt-4 border border-gray-200 rounded-xl bg-white p-4 shadow-sm">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
+                              <Reply className="w-3.5 h-3.5 text-[#CB3273]" />
+                              Reply to {selected.leadFirstName || "Lead"} ({selected.toEmail})
+                            </span>
+                            <button
+                              onClick={() => {
+                                setComposeInitial({
+                                  leadId: selected.leadId,
+                                  toEmail: selected.toEmail,
+                                  subject: selected.subject?.startsWith("Re:") ? selected.subject : `Re: ${selected.subject || ""}`
+                                });
+                                setComposeOpen(true);
+                              }}
+                              className="text-[11px] font-semibold text-purple-600 hover:text-purple-800 flex items-center gap-1 transition-colors"
+                            >
+                              <Zap className="w-3 h-3 text-purple-500" /> AI Composer
+                            </button>
+                          </div>
+                          <textarea
+                            id="gmail-quick-reply-input"
+                            rows={3}
+                            value={inlineReplyText}
+                            onChange={(e) => setInlineReplyText(e.target.value)}
+                            placeholder="Write a reply..."
+                            className="w-full p-3 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#CB3273]/30 resize-none font-sans text-gray-800"
+                          />
+                          <div className="flex items-center justify-end gap-2 mt-2">
+                            <button
+                              onClick={() => handleInlineReply(selected.toEmail, selected.leadId, selected.subject)}
+                              disabled={inlineReplySending || !inlineReplyText.trim()}
+                              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-xs font-semibold text-white transition-all disabled:opacity-50 cursor-pointer shadow-xs"
+                              style={{ background: "#CB3273" }}
+                            >
+                              {inlineReplySending ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Sending…
+                                </>
+                              ) : (
+                                <>
+                                  <Send className="w-3.5 h-3.5" /> Send Reply
+                                </>
+                              )}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
