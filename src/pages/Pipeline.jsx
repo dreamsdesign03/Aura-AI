@@ -211,18 +211,6 @@ function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onS
           <Plus className="w-3 h-3"/> Add deal
         </button>
       </div>
-
-      {/* ── Sticky footer (total + weighted) ─────────────────────────── */}
-      <div className="flex-shrink-0 border-t border-gray-200 bg-white px-3 py-2 rounded-b text-[10.5px] text-gray-500 space-y-0.5">
-        <div className="flex items-center gap-1 min-w-0">
-          <span className="font-semibold text-gray-800 truncate">{totalAmount > 0 ? fmtAmount(totalAmount) : "—"}</span>
-          <span className="text-gray-400 truncate">| Total amount</span>
-        </div>
-        <div className="flex items-center gap-1 min-w-0">
-          <span className="font-semibold text-gray-800 truncate">{weighted > 0 ? fmtAmount(weighted) : "—"}</span>
-          <span className="text-gray-400 truncate">({stage.weight}%) | Weighted amount</span>
-        </div>
-      </div>
     </div>);
 }
 // ── Pipeline page ─────────────────────────────────────────────────────────────
