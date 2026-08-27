@@ -37,7 +37,7 @@ function readFileAsBase64(file) {
         reader.readAsDataURL(file);
     });
 }
-export default function ComposeModal({ onClose, initialEmail }) {
+export default function ComposeModal({ onClose, initialEmail, initialLead }) {
     const qc = useQueryClient();
     const { data: auditedLeads = [] } = useListAuditedLeads();
     const { data: allLeadsRaw } = useListLeads({ limit: 1000 });
@@ -107,12 +107,44 @@ export default function ComposeModal({ onClose, initialEmail }) {
         }
     }, []);
     useEffect(() => {
-        if (initialEmail?.leadId && contacts.length > 0) {
-            const match = contacts.find((l) => l.id === initialEmail.leadId);
-            if (match)
-                setSelectedLead(match);
+        const targetLeadId = initialLead?.id || (typeof initialEmail === "object" ? initialEmail?.leadId : null);
+        const targetEmail = (typeof initialEmail === "string" ? initialEmail : (initialEmail?.email || initialLead?.email || "")).toLowerCase();
+
+        let match = null;
+        if (targetLeadId && contacts.length > 0) {
+            match = contacts.find((l) => l.id === targetLeadId);
         }
-    }, [contacts.length]);
+        if (!match && targetEmail && contacts.length > 0) {
+            match = contacts.find((l) => (l.email || "").toLowerCase() === targetEmail);
+        }
+        if (!match && initialLead) {
+            match = {
+                id: initialLead.id,
+                firstName: initialLead.firstName || initialLead.first_name || "",
+                lastName: initialLead.lastName || initialLead.last_name || "",
+                email: initialLead.email || targetEmail,
+                company: initialLead.company || "",
+                country: initialLead.country || "",
+                designation: initialLead.designation || "",
+                industry: initialLead.industry || "",
+                photo: initialLead.photo || initialLead.photoUrl || null,
+                isAudited: false
+            };
+        }
+        if (!match && targetEmail) {
+            match = {
+                id: 99999,
+                firstName: targetEmail.split("@")[0],
+                lastName: "",
+                email: targetEmail,
+                company: "",
+                isAudited: false
+            };
+        }
+        if (match) {
+            setSelectedLead(match);
+        }
+    }, [contacts.length, initialEmail, initialLead]);
     const selectLead = (lead) => {
         setSelectedLead(lead);
         setLeadSearch("");
