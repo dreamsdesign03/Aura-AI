@@ -534,9 +534,9 @@ export default function Outreach() {
                           <Eye className="w-3 h-3"/>
                           Opened {formatSafeDistance(selected.openedAt)}
                         </span>)}
-                      {threadReplies.length > 0 && (<span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
+                      {selectedThread?.replyCount > 0 && (<span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
                           <Reply className="w-3 h-3"/>
-                          {threadReplies.length} {threadReplies.length === 1 ? "Reply" : "Replies"}
+                          {selectedThread.replyCount} {selectedThread.replyCount === 1 ? "Reply" : "Replies"}
                         </span>)}
                     </div>
                   </div>
