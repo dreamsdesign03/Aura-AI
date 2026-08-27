@@ -501,13 +501,8 @@ export default function Pipeline() {
 
       {/* ── Row 1: breadcrumb + add deal ───────────────────────────── */}
       <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-white">
-        {/* Left: Deals breadcrumb + All deals tab */}
+        {/* Left: All deals tab */}
         <div className="flex items-center gap-1">
-          <button className="flex items-center gap-1 px-2.5 py-1 rounded border border-gray-200 text-[12.5px] font-semibold text-gray-700 hover:bg-gray-50 transition-colors">
-            Deals
-            <ChevronDown className="w-3 h-3 text-gray-400"/>
-          </button>
-          <span className="text-gray-300 mx-1">·</span>
           <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12.5px] font-semibold text-gray-800 hover:bg-gray-100 transition-colors">
             All deals
             <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-semibold text-gray-600">
