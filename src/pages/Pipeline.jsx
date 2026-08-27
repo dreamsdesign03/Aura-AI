@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 import ComposeModal from "@/components/ComposeModal";
 import NewMeetingModal from "@/components/NewMeetingModal";
+import AddLeadModal from "@/components/AddLeadModal";
 
 // ── Stage definitions ─────────────────────────────────────────────────────────
 const STAGES = [
@@ -31,7 +32,7 @@ function fmtAmount(n) {
     if (n >= 1_00_00_000)
         return `₹${(n / 1_00_00_000).toFixed(1)}Cr`;
     if (n >= 1_00_00_000)
-        return `₹${(n / 1_00_000).toFixed(1)}L`;
+        return `₹${(n / 1_00_00_000).toFixed(1)}L`;
     if (n >= 1_000)
         return `₹${(n / 1_000).toFixed(0)}K`;
     return `₹${n}`;
@@ -169,7 +170,7 @@ function SortableCard({ lead, onSendWhatsApp, onSendEmail, onAddActivity }) {
     </div>);
 }
 // ── Column ────────────────────────────────────────────────────────────────────
-function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onSendEmail, onAddActivity }) {
+function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onSendEmail, onAddActivity, onAddDeal }) {
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: stage.id });
     const totalAmount = leads.reduce((s, l) => s + Number(l.dealValue ?? 0), 0);
     const weighted = Math.round(totalAmount * stage.weight / 100);
@@ -206,7 +207,7 @@ function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onS
             {isOver ? "Drop here" : "No deals"}
           </div>)}
 
-        <button className="w-full py-1.5 text-[11px] text-gray-400 hover:text-blue-600 flex items-center justify-center gap-1 rounded border border-dashed border-gray-200 hover:border-blue-300 hover:bg-white transition-all">
+        <button onClick={() => onAddDeal?.(stage.id)} className="w-full py-1.5 text-[11px] text-gray-400 hover:text-blue-600 flex items-center justify-center gap-1 rounded border border-dashed border-gray-200 hover:border-blue-300 hover:bg-white transition-all font-semibold">
           <Plus className="w-3 h-3"/> Add deal
         </button>
       </div>
@@ -238,6 +239,8 @@ export default function Pipeline() {
     const [whatsappModalLead, setWhatsappModalLead] = useState(null);
     const [emailModalLead, setEmailModalLead] = useState(null);
     const [activityModalLead, setActivityModalLead] = useState(null);
+    const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
+    const [addLeadStage, setAddLeadStage] = useState("new_enquiry");
     const [search, setSearch] = useState("");
     const [ownerFilter, setOwnerFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState("all");
@@ -248,6 +251,11 @@ export default function Pipeline() {
     const [showDateDropdown, setShowDateDropdown] = useState(false);
     const [showSortDropdown, setShowSortDropdown] = useState(false);
     const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+    const handleOpenAddLead = (stageId = "new_enquiry") => {
+        setAddLeadStage(stageId);
+        setIsAddLeadModalOpen(true);
+    };
 
     const mutate = useMutation({
         mutationFn: ({ id, status }) => patchLeadStatus(id, status),
@@ -433,42 +441,35 @@ export default function Pipeline() {
         toast.success(`Exported ${filteredLeads.length} deals to CSV`);
     }
 
-    function handleDragStart(ev) {
-        const lead = allLeads.find(l => l.id === ev.active.id);
-        if (lead)
-            setActiveLead(lead);
-    }
-    function handleDragEnd(ev) {
+    const toggleCollapse = (id) => setCollapsed(prev => {
+        const next = new Set(prev);
+        if (next.has(id))
+            next.delete(id);
+        else
+            next.add(id);
+        return next;
+    });
+
+    const handleDragStart = (e) => {
+        const l = e.active.data.current?.lead;
+        if (l)
+            setActiveLead(l);
+    };
+
+    const handleDragEnd = (e) => {
+        const { active, over } = e;
         setActiveLead(null);
-        const { active, over } = ev;
         if (!over)
             return;
-        const lead = allLeads.find(l => l.id === active.id);
-        if (!lead)
+        const leadId = Number(active.id);
+        const overId = String(over.id);
+        const targetStage = STAGES.find(s => s.id === overId);
+        if (!targetStage)
             return;
-        const overId = over.id;
-        let targetStatus;
-        if (STAGES.some(s => s.id === overId)) {
-            targetStatus = overId;
-        }
-        else {
-            const containerId = over.data.current?.sortable?.containerId;
-            if (containerId && STAGES.some(s => s.id === containerId)) {
-                targetStatus = containerId;
-            }
-            else {
-                targetStatus = allLeads.find(l => l.id === overId)?.status;
-            }
-        }
-        if (!targetStatus || targetStatus === lead.status)
-            return;
-        mutate.mutate({ id: lead.id, status: targetStatus });
-    }
-    const toggleCollapse = (id) => setCollapsed(prev => {
-        const n = new Set(prev);
-        n.has(id) ? n.delete(id) : n.add(id);
-        return n;
-    });
+
+        mutate.mutate({ id: leadId, status: targetStage.id });
+    };
+
     const g = grouped();
 
     const boardScrollRef = useRef(null);
@@ -529,7 +530,7 @@ export default function Pipeline() {
 
         {/* Right */}
         <div className="flex items-center gap-1.5">
-          <button onClick={() => navigate("/leads")} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">
+          <button onClick={() => handleOpenAddLead("new_enquiry")} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">
             <Plus className="w-3.5 h-3.5"/> Add deal
           </button>
         </div>
@@ -587,7 +588,7 @@ export default function Pipeline() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             {/* items-stretch makes every column fill the full board height */}
             <div className="flex gap-2.5 px-4 py-3 h-full items-stretch min-w-max">
-              {STAGES.map(stage => (<Column key={stage.id} stage={stage} leads={g.get(stage.id) ?? []} collapsed={collapsed.has(stage.id)} onToggleCollapse={() => toggleCollapse(stage.id)} onSendWhatsApp={(l) => setWhatsappModalLead(l)} onSendEmail={(l) => setEmailModalLead(l)} onAddActivity={(l) => setActivityModalLead(l)}/>))}
+              {STAGES.map(stage => (<Column key={stage.id} stage={stage} leads={g.get(stage.id) ?? []} collapsed={collapsed.has(stage.id)} onToggleCollapse={() => toggleCollapse(stage.id)} onSendWhatsApp={(l) => setWhatsappModalLead(l)} onSendEmail={(l) => setEmailModalLead(l)} onAddActivity={(l) => setActivityModalLead(l)} onAddDeal={(stageId) => handleOpenAddLead(stageId)}/>))}
             </div>
 
             <DragOverlay dropAnimation={{ duration: 150, easing: "ease" }}>
@@ -600,5 +601,8 @@ export default function Pipeline() {
       {whatsappModalLead && (<SendWhatsAppModal lead={whatsappModalLead} isOpen={true} onClose={() => setWhatsappModalLead(null)}/>)}
       {emailModalLead && (<ComposeModal onClose={() => setEmailModalLead(null)} initialLead={emailModalLead} initialEmail={emailModalLead.email}/>)}
       {activityModalLead && (<NewMeetingModal leads={allLeads} onClose={() => setActivityModalLead(null)} defaultLeadId={activityModalLead.id}/>)}
+      
+      {/* Add Lead / Deal Modal */}
+      <AddLeadModal isOpen={isAddLeadModalOpen} initialStage={addLeadStage} onClose={() => setIsAddLeadModalOpen(false)}/>
     </div>);
 }
