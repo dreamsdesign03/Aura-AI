@@ -163,7 +163,7 @@ export default function Outreach() {
     // Filter out self-replies (emails sent by system account)
     const genuineReplies = replies.filter((r) => {
         const from = (r.from_email || "").toLowerCase();
-        return from && !from.includes("aurabackoffice") && !from.includes("dreamsdesign") && from !== SENDER_EMAIL.toLowerCase();
+        return from && !from.includes("aurabackoffice") && from !== SENDER_EMAIL.toLowerCase();
     });
     // Group activeTab emails into Gmail-style conversation threads by recipient/lead
     const threadMap = tabEmails.reduce((acc, email) => {

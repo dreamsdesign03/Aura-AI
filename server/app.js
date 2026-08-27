@@ -135,13 +135,6 @@ async function seedAdminUser() {
 
     // Force update ALL smtp_settings and users rows in database to aurabackoffice123@gmail.com
     await db.query(`UPDATE smtp_settings SET smtp_user = 'aurabackoffice123@gmail.com', from_email = 'aurabackoffice123@gmail.com', pass = 'zjpbagpgncbxjphm';`).catch(() => {});
-    await db.query(`UPDATE users SET email = 'aurabackoffice123@gmail.com' WHERE email LIKE '%dreamsdesign%';`).catch(() => {});
-
-    // Empty all outreach email tables
-    await db.query(`TRUNCATE TABLE outreach_emails, email_replies RESTART IDENTITY CASCADE;`).catch(async () => {
-      await db.query(`DELETE FROM outreach_emails;`).catch(() => {});
-      await db.query(`DELETE FROM email_replies;`).catch(() => {});
-    });
 
     // Ensure calendly_events table exists (synced Calendly bookings)
     await db.query(`

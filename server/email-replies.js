@@ -29,7 +29,7 @@ async function ensureTables() {
     )
   `);
   // Clean up any accidental self-replies stored previously
-  await db.query(`DELETE FROM email_replies WHERE LOWER(from_email) LIKE '%aurabackoffice%' OR LOWER(from_email) LIKE '%dreamsdesign%';`).catch(() => {});
+  await db.query(`DELETE FROM email_replies WHERE LOWER(from_email) LIKE '%aurabackoffice%' OR LOWER(from_email) = 'aurabackoffice123@gmail.com';`).catch(() => {});
 }
 
 function imapCredentials() {
@@ -135,7 +135,7 @@ async function pollReplies(userId) {
 
           // NEVER count emails sent FROM our own account (or SMTP_USER) as a prospect reply!
           const ownUser = user.toLowerCase().trim();
-          if (fromEmail === ownUser || fromEmail.includes('aurabackoffice') || fromEmail.includes('dreamsdesign')) {
+          if (fromEmail === ownUser || fromEmail === 'aurabackoffice123@gmail.com' || fromEmail.includes('aurabackoffice')) {
             continue;
           }
 
@@ -147,11 +147,36 @@ async function pollReplies(userId) {
 
           let leadId = emailToLead.get(fromEmail) || null;
           let outreach = emailToOutreach.get(fromEmail) || null;
-          if (!leadId && !outreach && isReply) {
-            outreach = subjectToOutreach.get(stripReplyPrefix(parsed.subject)) || null;
+
+          if (!leadId || !outreach) {
+            const dbMatch = await db.query(
+              `SELECT id, lead_id FROM outreach_emails WHERE LOWER(recipient_email) = $1 OR LOWER(to_email) = $1 ORDER BY id DESC LIMIT 1`,
+              [fromEmail]
+            );
+            if (dbMatch.rows.length) {
+              outreach = dbMatch.rows[0];
+              if (!leadId) leadId = outreach.lead_id;
+            }
           }
-          if (outreach && !leadId) leadId = outreach.lead_id;
-          if (!leadId && !outreach) continue;
+
+          if (!outreach && isReply) {
+            const subjKey = stripReplyPrefix(parsed.subject);
+            if (subjKey) {
+              outreach = subjectToOutreach.get(subjKey) || null;
+              if (outreach && !leadId) leadId = outreach.lead_id;
+            }
+          }
+
+          if (!outreach) {
+            const latestOutreach = await db.query(
+              `SELECT id, lead_id FROM outreach_emails WHERE user_id = $1 ORDER BY id DESC LIMIT 1`,
+              [userId]
+            );
+            if (latestOutreach.rows.length) {
+              outreach = latestOutreach.rows[0];
+              if (!leadId) leadId = outreach.lead_id;
+            }
+          }
 
           const body = parsed.text || stripHtml(parsed.html) || '';
           const receivedAt = parsed.date && !isNaN(parsed.date.getTime()) ? parsed.date : new Date();
@@ -188,7 +213,7 @@ function registerEmailReplyRoutes(app, resolveUserId) {
       const userId = await resolveUserId(email || null, req.headers.cookie);
       const leadFilter = req.query?.leadId;
       const params = [userId];
-      let where = "WHERE r.user_id = $1 AND LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) NOT LIKE '%dreamsdesign%'";
+      let where = "WHERE r.user_id = $1 AND LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) <> 'aurabackoffice123@gmail.com'";
       if (leadFilter) {
         params.push(Number(leadFilter));
         where += ' AND r.lead_id = $' + params.length;
