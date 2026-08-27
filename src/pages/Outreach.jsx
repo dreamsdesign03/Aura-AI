@@ -648,14 +648,14 @@ export default function Outreach() {
                               key={msg.id}
                               className={cn(
                                 "rounded-xl border overflow-hidden shadow-sm transition-all",
-                                isSentByUs ? "border-gray-200 bg-white" : "border-emerald-300 bg-emerald-50/40"
+                                isSentByUs ? "border-gray-200 bg-white" : "border-emerald-300 bg-emerald-50/50 shadow-md ring-1 ring-emerald-200"
                               )}
                             >
                               {/* Header */}
                               <div
                                 className={cn(
                                   "px-4 py-3 border-b flex items-center justify-between",
-                                  isSentByUs ? "bg-gray-50 border-gray-100" : "bg-emerald-100/60 border-emerald-200"
+                                  isSentByUs ? "bg-gray-50 border-gray-100" : "bg-emerald-100/80 border-emerald-200"
                                 )}
                               >
                                 <div className="flex items-center gap-2.5">
@@ -667,22 +667,22 @@ export default function Outreach() {
                                   </div>
                                   <div>
                                     <div className="text-xs font-semibold text-gray-900">
-                                      {msg.senderName} <span className="text-gray-400 font-normal">&lt;{msg.senderEmail}&gt;</span>
+                                      {isSentByUs ? SENDER_NAME : msg.senderName} <span className="text-gray-400 font-normal">&lt;{msg.senderEmail}&gt;</span>
                                     </div>
                                     <div className="text-[10px] text-gray-500">
-                                      to {msg.recipientEmail} · {formatSafeDistance(msg.date)}
+                                      {isSentByUs ? `to ${msg.recipientEmail}` : `to ${SENDER_EMAIL}`} · {formatSafeDistance(msg.date)}
                                     </div>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center gap-2">
                                   {isSentByUs ? (
-                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
-                                      <CheckCircle2 className="w-3 h-3" /> Sent
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Sent by You
                                     </span>
                                   ) : (
-                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-sm">
-                                      <Reply className="w-3 h-3" /> Prospect Reply
+                                    <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-sm">
+                                      <Reply className="w-3 h-3" /> Received Reply
                                     </span>
                                   )}
                                   {msg.openedAt && (
