@@ -159,25 +159,91 @@ export default function Outreach() {
     ];
     const byTab = (tab) => emails.filter((e) => e.status === tab);
     const tabEmails = byTab(activeTab);
-    const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
+    const [readReplyIds, setReadReplyIds] = useState(new Set());
     // Filter out self-replies (emails sent by system account)
     const genuineReplies = replies.filter((r) => {
         const from = (r.from_email || "").toLowerCase();
         return from && !from.includes("aurabackoffice") && !from.includes("dreamsdesign") && from !== SENDER_EMAIL.toLowerCase();
     });
-    // Replies linked to the currently selected sent email — use String() to avoid number/string type mismatch from DB
-    const threadReplies = selected ? genuineReplies.filter((r) =>
-        (r.outreach_email_id && String(r.outreach_email_id) === String(selected.id)) ||
-        (r.lead_id && String(r.lead_id) === String(selected.leadId))
-    ) : [];
-    // Map of outreach email id -> reply count for badge on list items (String keys for safe lookup)
-    const replyCountByEmailId = genuineReplies.reduce((acc, r) => {
-        if (r.outreach_email_id) {
-            const key = String(r.outreach_email_id);
-            acc[key] = (acc[key] || 0) + 1;
+    // Group activeTab emails into Gmail-style conversation threads by recipient/lead
+    const threadMap = tabEmails.reduce((acc, email) => {
+        const key = (email.toEmail || email.recipientEmail || `lead-${email.leadId || email.id}`).toLowerCase().trim();
+        if (!acc[key]) {
+            acc[key] = [];
         }
+        acc[key].push(email);
         return acc;
     }, {});
+    const threadList = Object.entries(threadMap).map(([key, group]) => {
+        // Sort emails in group DESC (newest first for root representation)
+        group.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
+        const root = group[0];
+        // Find all genuine replies matching any email in this group or recipient key
+        const groupReplies = genuineReplies.filter((r) =>
+            (r.from_email && r.from_email.toLowerCase() === key) ||
+            (r.lead_id && group.some(g => String(g.leadId) === String(r.lead_id))) ||
+            (r.outreach_email_id && group.some(g => String(g.id) === String(r.outreach_email_id)))
+        );
+        // Check if there are any unread replies
+        const unreadReplies = groupReplies.filter(r => !readReplyIds.has(r.id));
+        return {
+            ...root,
+            threadKey: key,
+            groupEmails: group,
+            groupReplies,
+            messageCount: group.length + groupReplies.length,
+            replyCount: groupReplies.length,
+            hasUnread: unreadReplies.length > 0,
+            unreadCount: unreadReplies.length
+        };
+    });
+    // Sort threads DESC by latest activity
+    threadList.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
+    // Currently selected thread & root email
+    const selectedThread = selectedId ? threadList.find((t) => t.groupEmails.some(e => e.id === selectedId)) ?? null : null;
+    const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
+    // Full chronological message stream for current thread (Gmail style)
+    const fullConversationStream = selectedThread ? [
+        ...selectedThread.groupEmails.map(s => ({
+            id: `sent-${s.id}`,
+            isReply: false,
+            rawId: s.id,
+            senderName: SENDER_NAME,
+            senderEmail: SENDER_EMAIL,
+            recipientEmail: s.toEmail,
+            subject: s.subject,
+            body: s.body,
+            date: s.sentAt || s.createdAt,
+            status: s.status,
+            openedAt: s.openedAt,
+            errorMsg: s.errorMsg
+        })),
+        ...selectedThread.groupReplies.map(r => ({
+            id: `reply-${r.id}`,
+            replyId: r.id,
+            isReply: true,
+            senderName: r.from_name || r.from_email,
+            senderEmail: r.from_email,
+            recipientEmail: SENDER_EMAIL,
+            subject: r.subject || selectedThread.subject,
+            body: r.body,
+            date: r.received_at || r.created_at,
+            isUnread: !readReplyIds.has(r.id)
+        }))
+    ].sort((a, b) => new Date(a.date || 0) - new Date(b.date || 0)) : [];
+    const handleSelectThread = (thread) => {
+        setSelectedId(thread.id);
+        setIsEditing(false);
+        setEditSubject(thread.subject);
+        setEditBody(thread.body);
+        if (thread.groupReplies.length > 0) {
+            setReadReplyIds(prev => {
+                const next = new Set(prev);
+                thread.groupReplies.forEach(r => next.add(r.id));
+                return next;
+            });
+        }
+    };
     useEffect(() => { checkReplies(); }, [checkReplies]);
     useEffect(() => {
         if (selected && !isEditing) {
@@ -366,47 +432,48 @@ export default function Outreach() {
                       <div className="h-2.5 bg-gray-100 rounded w-full"/>
                     </div>
                   </div>
-                </div>))) : tabEmails.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+                </div>))) : threadList.length === 0 ? (<div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <Mail className="w-8 h-8 text-gray-300 mb-3"/>
                 <p className="text-xs text-gray-400">
                   {activeTab === "draft" && "No draft emails yet. Click Generate All to create."}
                   {activeTab === "sent" && "No sent emails yet."}
                   {activeTab === "failed" && "No failed emails."}
                 </p>
-              </div>) : (tabEmails.map((email) => {
-            const isSelected = selectedId === email.id;
-            const isGen = generating?.leadId === email.leadId && generating?.status === "running";
-            const replyCount = replyCountByEmailId[String(email.id)] || 0;
-            return (<button key={email.id} onClick={() => {
-                    setSelectedId(email.id);
-                    setIsEditing(false);
-                    setEditSubject(email.subject);
-                    setEditBody(email.body);
-                }} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-colors flex gap-2.5", isSelected ? "bg-[#FBE9F1]" : "hover:bg-gray-50")}>
+              </div>) : (threadList.map((thread) => {
+            const isSelected = selectedId && thread.groupEmails.some(e => e.id === selectedId);
+            const isGen = generating?.leadId === thread.leadId && generating?.status === "running";
+            return (<button key={thread.threadKey} onClick={() => handleSelectThread(thread)} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-all flex gap-2.5 relative", isSelected ? "bg-[#FBE9F1] border-l-4 border-[#CB3273]" : thread.hasUnread ? "bg-blue-50/80 border-l-4 border-blue-600 font-semibold" : "hover:bg-gray-50")}>
+                    {/* Gmail Blue Unread Dot */}
+                    {thread.hasUnread && (<span className="absolute top-3 right-3 w-2.5 h-2.5 bg-blue-600 rounded-full shadow-sm animate-pulse" title="Unread reply"/>)}
+
                     {/* Avatar */}
                     <div className="flex-shrink-0 relative">
-                      {email.leadPhoto ? (<img src={email.leadPhoto} className="w-8 h-8 rounded-full object-cover"/>) : email.leadCompanyLogo ? (<img src={email.leadCompanyLogo} className="w-8 h-8 rounded-full object-contain border border-gray-200 bg-white p-0.5"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: "#CB3273" }}>
-                          {initials(email.leadFirstName, email.leadLastName)}
+                      {thread.leadPhoto ? (<img src={thread.leadPhoto} className="w-8 h-8 rounded-full object-cover"/>) : thread.leadCompanyLogo ? (<img src={thread.leadCompanyLogo} className="w-8 h-8 rounded-full object-contain border border-gray-200 bg-white p-0.5"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: thread.hasUnread ? "#2563EB" : "#CB3273" }}>
+                          {initials(thread.leadFirstName, thread.leadLastName)}
                         </div>)}
                       {isGen && (<div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 animate-pulse border border-white"/>)}
-                      {replyCount > 0 && (<div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-white" style={{ background: "#059669" }}>{replyCount}</div>)}
+                      {thread.replyCount > 0 && (<div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-white" style={{ background: thread.hasUnread ? "#2563EB" : "#059669" }}>{thread.replyCount}</div>)}
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-gray-900 truncate">
-                          {email.leadFirstName} {email.leadLastName}
+                        <span className={cn("text-xs truncate", thread.hasUnread ? "font-bold text-blue-950" : "font-semibold text-gray-900")}>
+                          {thread.leadFirstName} {thread.leadLastName}
+                          {thread.messageCount > 1 && (<span className="ml-1 text-[11px] font-bold text-gray-500">({thread.messageCount})</span>)}
                         </span>
-                        <div className="flex items-center gap-1 ml-1">
-                          {replyCount > 0 && (<span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5" style={{ background: "#ECFDF5", color: "#059669" }}><MessageCircle className="w-2.5 h-2.5"/>{replyCount}</span>)}
-                          {email.openedAt && (<span className="text-[9px] font-semibold px-1 py-0.5 rounded" style={{ background: "#EFF6FF", color: "#3B82F6" }}>OPENED</span>)}
-                          <CurrencyFlag currency={email.currency}/>
-                          <StatusIcon status={email.status} opened={!!email.openedAt}/>
+                        <div className="flex items-center gap-1 ml-1 pr-3">
+                          {thread.hasUnread && (<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
+                              UNREAD
+                            </span>)}
+                          {thread.replyCount > 0 && !thread.hasUnread && (<span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5" style={{ background: "#ECFDF5", color: "#059669" }}><MessageCircle className="w-2.5 h-2.5"/>{thread.replyCount}</span>)}
+                          {thread.openedAt && (<span className="text-[9px] font-semibold px-1 py-0.5 rounded" style={{ background: "#EFF6FF", color: "#3B82F6" }}>OPENED</span>)}
+                          <CurrencyFlag currency={thread.currency}/>
+                          <StatusIcon status={thread.status} opened={!!thread.openedAt}/>
                         </div>
                       </div>
-                      <div className="text-[11px] text-gray-500 truncate">{email.company}</div>
-                      <div className="text-[11px] text-gray-400 truncate mt-0.5 italic">{email.subject}</div>
+                      <div className={cn("text-[11px] truncate", thread.hasUnread ? "font-semibold text-gray-800" : "text-gray-500")}>{thread.company}</div>
+                      <div className={cn("text-[11px] truncate mt-0.5 italic", thread.hasUnread ? "font-bold text-gray-900" : "text-gray-400")}>{thread.subject}</div>
                       {isGen && (<div className="text-[10px] text-amber-600 mt-0.5 font-medium animate-pulse">
                           {generating?.message}
                         </div>)}
@@ -548,8 +615,7 @@ export default function Outreach() {
               {/* Email body — Gmail-like thread for sent emails, plain for draft/failed */}
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto">
-
-                  {/* Created time */}
+{/* Created time */}
                   <div className="text-[11px] text-gray-400 mb-4">
                     Created {formatSafeDistance(selected.createdAt)}
                     {selected.auditRunId && (<span className="ml-2 px-1.5 py-0.5 rounded bg-blue-50 text-blue-600 font-medium">
@@ -558,100 +624,84 @@ export default function Outreach() {
                   </div>
 
                   {selected.status === "sent" ? (
-                    /* ── Gmail-style thread view for Sent emails ── */
+                    /* ── Gmail-style Thread View (All emails & replies in sequence) ── */
                     <div className="space-y-4">
-                      {/* Thread subject */}
-                      <div className="text-base font-semibold text-gray-900 border-b border-gray-100 pb-3">
-                        {selected.subject}
+                      {/* Thread Header */}
+                      <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                        <div className="text-base font-semibold text-gray-900">
+                          {selectedThread?.subject || selected.subject}
+                        </div>
+                        {selectedThread && selectedThread.messageCount > 1 && (
+                          <span className="text-xs font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-700">
+                            {selectedThread.messageCount} Messages
+                          </span>
+                        )}
                       </div>
 
-                      {/* Original sent email bubble */}
-                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-                        {/* Sent message header */}
-                        <div className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#CB3273" }}>A</div>
-                            <div>
-                              <div className="text-xs font-semibold text-gray-900">{SENDER_NAME} <span className="text-gray-400 font-normal">&lt;{SENDER_EMAIL}&gt;</span></div>
-                              <div className="text-[10px] text-gray-400">to {selected.toEmail} · {formatSafeDistance(selected.sentAt || selected.createdAt)}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
-                              <CheckCircle2 className="w-3 h-3"/> Sent
-                            </span>
-                            {selected.openedAt && (<span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#EFF6FF", color: "#3B82F6" }}>
-                              <Eye className="w-3 h-3"/> Opened
-                            </span>)}
-                          </div>
-                        </div>
-                        {/* Sent message body */}
-                        <div className="px-4 py-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
-                          {selected.body}
-                        </div>
-                      </div>
-
-                      {/* Thread connector + replies */}
-                      {threadReplies.length > 0 && (
-                        <div className="relative">
-                          {/* Thread line */}
-                          <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200" style={{ marginLeft: "3px" }}/>
-                          <div className="space-y-4 pl-10">
-                            {/* Separator */}
-                            <div className="flex items-center gap-2 -ml-10">
-                              <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "#059669", marginLeft: "3px" }}/>
-                              <span className="text-[11px] font-semibold text-emerald-700">{threadReplies.length} {threadReplies.length === 1 ? "Reply" : "Replies"} received</span>
-                            </div>
-                            {threadReplies.map((reply) => (
-                              <div key={reply.id} className="rounded-xl border border-emerald-200 bg-white overflow-hidden shadow-sm">
-                                {/* Reply header */}
-                                <div className="px-4 py-3 border-b flex items-center justify-between" style={{ background: "#F0FDF4", borderColor: "#BBF7D0" }}>
-                                  <div className="flex items-center gap-2.5">
-                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "#059669" }}>
-                                      {(reply.from_name?.[0] || reply.from_email?.[0] || "?").toUpperCase()}
-                                    </div>
-                                    <div>
-                                      <div className="text-xs font-semibold text-gray-900">
-                                        {reply.from_name || reply.from_email}
-                                        {reply.from_name && <span className="text-gray-400 font-normal ml-1">&lt;{reply.from_email}&gt;</span>}
-                                      </div>
-                                      <div className="text-[10px] text-gray-400">to {SENDER_EMAIL} · {formatSafeDistance(reply.received_at)}</div>
-                                    </div>
+                      {/* Stream of all messages in chronological order */}
+                      <div className="space-y-4">
+                        {fullConversationStream.map((msg) => {
+                          const isSentByUs = !msg.isReply;
+                          return (
+                            <div
+                              key={msg.id}
+                              className={cn(
+                                "rounded-xl border overflow-hidden shadow-sm transition-all",
+                                isSentByUs ? "border-gray-200 bg-white" : "border-emerald-300 bg-emerald-50/40"
+                              )}
+                            >
+                              {/* Header */}
+                              <div
+                                className={cn(
+                                  "px-4 py-3 border-b flex items-center justify-between",
+                                  isSentByUs ? "bg-gray-50 border-gray-100" : "bg-emerald-100/60 border-emerald-200"
+                                )}
+                              >
+                                <div className="flex items-center gap-2.5">
+                                  <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0"
+                                    style={{ background: isSentByUs ? "#CB3273" : "#059669" }}
+                                  >
+                                    {isSentByUs ? "A" : initials(msg.senderName, "")}
                                   </div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: "#ECFDF5", color: "#059669" }}>
-                                      <Reply className="w-3 h-3"/> Replied
-                                    </span>
-                                    {reply.from_email && (
-                                      <button onClick={() => { setComposeInitial({ leadId: selected.leadId, toEmail: reply.from_email, subject: (reply.subject || selected.subject)?.startsWith("Re:") ? (reply.subject || selected.subject) : `Re: ${reply.subject || selected.subject || ""}` }); setComposeOpen(true); }} className="flex items-center gap-1 text-[10px] font-semibold px-2.5 py-1 rounded-full text-white transition-all hover:bg-[#A4285E] shadow-sm cursor-pointer" style={{ background: "#CB3273" }}>
-                                        <Send className="w-3 h-3"/> Reply
-                                      </button>
-                                    )}
+                                  <div>
+                                    <div className="text-xs font-semibold text-gray-900">
+                                      {msg.senderName} <span className="text-gray-400 font-normal">&lt;{msg.senderEmail}&gt;</span>
+                                    </div>
+                                    <div className="text-[10px] text-gray-500">
+                                      to {msg.recipientEmail} · {formatSafeDistance(msg.date)}
+                                    </div>
                                   </div>
                                 </div>
-                                {/* Reply body */}
-                                <div className="px-4 py-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
-                                  {reply.body || "(empty message)"}
+
+                                <div className="flex items-center gap-2">
+                                  {isSentByUs ? (
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                                      <CheckCircle2 className="w-3 h-3" /> Sent
+                                    </span>
+                                  ) : (
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-600 text-white shadow-sm">
+                                      <Reply className="w-3 h-3" /> Prospect Reply
+                                    </span>
+                                  )}
+                                  {msg.openedAt && (
+                                    <span className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                                      <Eye className="w-3 h-3" /> Opened
+                                    </span>
+                                  )}
                                 </div>
                               </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
-                      {/* No replies yet */}
-                      {threadReplies.length === 0 && (
-                        <div className="flex items-center gap-2 px-4 py-3 rounded-lg text-xs text-gray-400 bg-gray-50 border border-gray-100">
-                          <MessageCircle className="w-3.5 h-3.5"/>
-                          No replies yet. Replies to this email will appear here automatically.
-                          <button onClick={checkReplies} disabled={replyPolling} className="ml-auto flex items-center gap-1 text-xs font-medium text-emerald-700 hover:underline disabled:opacity-60">
-                            <RefreshCw className={cn("w-3 h-3", replyPolling && "animate-spin")}/>
-                            {replyPolling ? "Checking…" : "Check now"}
-                          </button>
-                        </div>
-                      )}
+                              {/* Message body */}
+                              <div className="px-4 py-4 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
+                                {msg.body || "(empty message)"}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
 
-                      {/* Inline Reply Composer Box */}
+                      {/* Gmail-style Quick Reply Composer Box */}
                       <div className="mt-6 border border-gray-200 rounded-xl bg-white p-4 shadow-sm">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-xs font-semibold text-gray-700 flex items-center gap-1.5">
