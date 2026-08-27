@@ -8,6 +8,10 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, Check, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
+import SendWhatsAppModal from "@/components/SendWhatsAppModal";
+import ComposeModal from "@/components/ComposeModal";
+import NewMeetingModal from "@/components/NewMeetingModal";
+
 // ── Stage definitions ─────────────────────────────────────────────────────────
 const STAGES = [
     { id: "new_enquiry", label: "New Enquiry", short: "NEW ENQUIRY", weight: 10 },
@@ -56,16 +60,17 @@ async function patchLeadStatus(id, status) {
     return res.json();
 }
 // ── DealCard ─────────────────────────────────────────────────────────────────
-function DealCard({ lead, isDragging }) {
+function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity }) {
     const [, navigate] = useLocation();
     const l = lead;
-    const name = `${lead.firstName} ${lead.lastName}`.trim();
-    const initials = `${lead.firstName?.[0] ?? ""}${lead.lastName?.[0] ?? ""}`.toUpperCase();
+    const name = `${lead.firstName || lead.first_name || ""} ${lead.lastName || lead.last_name || ""}`.trim() || "Lead";
+    const initials = `${lead.firstName?.[0] ?? lead.first_name?.[0] ?? ""}${lead.lastName?.[0] ?? lead.last_name?.[0] ?? ""}`.toUpperCase() || "L";
     const avatarBg = AVATAR_COLORS[lead.id % AVATAR_COLORS.length];
-    const dealAmount = l.dealValue ?? null;
-    const closeDate = l.closeDate ?? null;
+    const dealAmount = l.dealValue ?? l.deal_value ?? null;
+    const closeDate = l.closeDate ?? l.close_date ?? null;
     const ownerName = l.assignedToName || null;
-    const waNum = (l.whatsapp ?? lead.phone ?? "").replace(/[^0-9]/g, "");
+    const phoneNum = lead.phone || lead.whatsapp || "";
+
     return (<div className={cn("bg-white rounded border select-none group transition-shadow", isDragging
             ? "shadow-2xl opacity-75 border-blue-400 rotate-1"
             : "border-gray-200 hover:shadow-md hover:border-blue-300 cursor-pointer")}>
@@ -100,7 +105,7 @@ function DealCard({ lead, isDragging }) {
 
         {/* Create date */}
         <div className="text-[11.5px] text-gray-500">
-          Create date: <span className="text-gray-700">{fmtDate(lead.createdAt)}</span>
+          Create date: <span className="text-gray-700">{fmtDate(lead.createdAt || lead.created_at)}</span>
         </div>
 
         {/* Assignee row */}
@@ -112,38 +117,59 @@ function DealCard({ lead, isDragging }) {
         </div>
       </div>
 
-      {/* Action icons — always visible, subtle */}
-      <div className="px-2 py-1.5 border-t border-gray-100 flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
-        <a href={`tel:${lead.phone}`} className="p-1.5 rounded hover:bg-blue-50 hover:text-blue-600 text-gray-300 transition-colors" title="Call" onClick={e => e.stopPropagation()}>
-          <Phone className="w-3 h-3"/>
-        </a>
-        <button className="p-1.5 rounded hover:bg-blue-50 hover:text-blue-600 text-gray-300 transition-colors" title="Add activity">
-          <Plus className="w-3 h-3"/>
+      {/* Action icons — high visibility & connected to Email / WhatsApp integrations */}
+      <div className="px-2 py-1.5 border-t border-gray-100 flex items-center gap-1" onClick={e => e.stopPropagation()}>
+        {/* Phone Call */}
+        {phoneNum ? (
+          <a href={`tel:${phoneNum}`} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title={`Call ${name} (${phoneNum})`} onClick={e => e.stopPropagation()}>
+            <Phone className="w-3.5 h-3.5"/>
+          </a>
+        ) : (
+          <button className="p-1.5 rounded bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors" title="No phone available" onClick={e => { e.stopPropagation(); toast.error(`No phone number for ${name}`); }}>
+            <Phone className="w-3.5 h-3.5"/>
+          </button>
+        )}
+
+        {/* Add Activity / Meeting */}
+        <button onClick={e => { e.stopPropagation(); onAddActivity?.(lead); }} className="p-1.5 rounded bg-violet-50 text-violet-600 hover:bg-violet-100 transition-colors" title={`Add activity or schedule meeting for ${name}`}>
+          <Plus className="w-3.5 h-3.5"/>
         </button>
-        <a href={`mailto:${lead.email}`} className="p-1.5 rounded hover:bg-blue-50 hover:text-blue-600 text-gray-300 transition-colors" title="Email" onClick={e => e.stopPropagation()}>
-          <Mail className="w-3 h-3"/>
-        </a>
-        {waNum && (<a href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" className="p-1.5 rounded hover:bg-green-50 hover:text-green-600 text-gray-300 transition-colors" title="WhatsApp" onClick={e => e.stopPropagation()}>
-            <MessageCircle className="w-3 h-3"/>
-          </a>)}
-        <button className="p-1.5 rounded hover:bg-blue-50 hover:text-blue-600 text-gray-300 transition-colors ml-auto" title="Edit deal" onClick={e => { e.stopPropagation(); navigate(`/leads/${lead.id}`); }}>
-          <Pencil className="w-3 h-3"/>
+
+        {/* Send Email Integration */}
+        {lead.email ? (
+          <button onClick={e => { e.stopPropagation(); onSendEmail?.(lead); }} className="p-1.5 rounded bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors" title={`Send email to ${name} (${lead.email})`}>
+            <Mail className="w-3.5 h-3.5"/>
+          </button>
+        ) : (
+          <button className="p-1.5 rounded bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors" title="No email available" onClick={e => { e.stopPropagation(); toast.error(`No email address for ${name}`); }}>
+            <Mail className="w-3.5 h-3.5"/>
+          </button>
+        )}
+
+        {/* WhatsApp Integration */}
+        <button onClick={e => { e.stopPropagation(); onSendWhatsApp?.(lead); }} className="p-1.5 rounded bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors" title={`Send WhatsApp message to ${name}`}>
+          <MessageCircle className="w-3.5 h-3.5"/>
+        </button>
+
+        {/* Edit Lead */}
+        <button className="p-1.5 rounded bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors ml-auto" title="Edit deal" onClick={e => { e.stopPropagation(); navigate(`/leads/${lead.id}`); }}>
+          <Pencil className="w-3.5 h-3.5"/>
         </button>
       </div>
     </div>);
 }
 // ── SortableCard ─────────────────────────────────────────────────────────────
-function SortableCard({ lead }) {
+function SortableCard({ lead, onSendWhatsApp, onSendEmail, onAddActivity }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: lead.id,
         data: { lead },
     });
     return (<div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1 }} {...attributes} {...listeners}>
-      <DealCard lead={lead} isDragging={isDragging}/>
+      <DealCard lead={lead} isDragging={isDragging} onSendWhatsApp={onSendWhatsApp} onSendEmail={onSendEmail} onAddActivity={onAddActivity}/>
     </div>);
 }
 // ── Column ────────────────────────────────────────────────────────────────────
-function Column({ stage, leads, collapsed, onToggleCollapse, }) {
+function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onSendEmail, onAddActivity }) {
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: stage.id });
     const totalAmount = leads.reduce((s, l) => s + Number(l.dealValue ?? 0), 0);
     const weighted = Math.round(totalAmount * stage.weight / 100);
@@ -173,7 +199,7 @@ function Column({ stage, leads, collapsed, onToggleCollapse, }) {
       {/* ── Scrollable cards area (fills remaining height) ───────────── */}
       <div ref={setDropRef} className={cn("flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-2 transition-colors", isOver && "bg-blue-50/60")}>
         <SortableContext id={stage.id} items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
-          {leads.map(lead => <SortableCard key={lead.id} lead={lead}/>)}
+          {leads.map(lead => <SortableCard key={lead.id} lead={lead} onSendWhatsApp={onSendWhatsApp} onSendEmail={onSendEmail} onAddActivity={onAddActivity}/>)}
         </SortableContext>
 
         {leads.length === 0 && (<div className={cn("flex-1 flex items-center justify-center rounded border border-dashed text-[11px] py-8 transition-colors", isOver ? "border-blue-300 text-blue-400 bg-blue-50" : "border-gray-200 text-gray-300")}>
@@ -209,6 +235,9 @@ export default function Pipeline() {
         staleTime: 0
     });
     const [activeLead, setActiveLead] = useState(null);
+    const [whatsappModalLead, setWhatsappModalLead] = useState(null);
+    const [emailModalLead, setEmailModalLead] = useState(null);
+    const [activityModalLead, setActivityModalLead] = useState(null);
     const [search, setSearch] = useState("");
     const [ownerFilter, setOwnerFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState("all");
@@ -558,7 +587,7 @@ export default function Pipeline() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             {/* items-stretch makes every column fill the full board height */}
             <div className="flex gap-2.5 px-4 py-3 h-full items-stretch min-w-max">
-              {STAGES.map(stage => (<Column key={stage.id} stage={stage} leads={g.get(stage.id) ?? []} collapsed={collapsed.has(stage.id)} onToggleCollapse={() => toggleCollapse(stage.id)}/>))}
+              {STAGES.map(stage => (<Column key={stage.id} stage={stage} leads={g.get(stage.id) ?? []} collapsed={collapsed.has(stage.id)} onToggleCollapse={() => toggleCollapse(stage.id)} onSendWhatsApp={(l) => setWhatsappModalLead(l)} onSendEmail={(l) => setEmailModalLead(l)} onAddActivity={(l) => setActivityModalLead(l)}/>))}
             </div>
 
             <DragOverlay dropAnimation={{ duration: 150, easing: "ease" }}>
@@ -566,5 +595,10 @@ export default function Pipeline() {
             </DragOverlay>
           </DndContext>
         </div>)}
+
+      {/* Integration Modals */}
+      {whatsappModalLead && (<SendWhatsAppModal lead={whatsappModalLead} isOpen={true} onClose={() => setWhatsappModalLead(null)}/>)}
+      {emailModalLead && (<ComposeModal onClose={() => setEmailModalLead(null)} initialEmail={emailModalLead.email}/>)}
+      {activityModalLead && (<NewMeetingModal onClose={() => setActivityModalLead(null)} defaultLeadId={activityModalLead.id}/>)}
     </div>);
 }
