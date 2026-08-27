@@ -160,13 +160,18 @@ export default function Outreach() {
     const byTab = (tab) => emails.filter((e) => e.status === tab);
     const tabEmails = byTab(activeTab);
     const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
+    // Filter out self-replies (emails sent by system account)
+    const genuineReplies = replies.filter((r) => {
+        const from = (r.from_email || "").toLowerCase();
+        return from && !from.includes("aurabackoffice") && !from.includes("dreamsdesign") && from !== SENDER_EMAIL.toLowerCase();
+    });
     // Replies linked to the currently selected sent email — use String() to avoid number/string type mismatch from DB
-    const threadReplies = selected ? replies.filter((r) =>
+    const threadReplies = selected ? genuineReplies.filter((r) =>
         (r.outreach_email_id && String(r.outreach_email_id) === String(selected.id)) ||
         (r.lead_id && String(r.lead_id) === String(selected.leadId))
     ) : [];
     // Map of outreach email id -> reply count for badge on list items (String keys for safe lookup)
-    const replyCountByEmailId = replies.reduce((acc, r) => {
+    const replyCountByEmailId = genuineReplies.reduce((acc, r) => {
         if (r.outreach_email_id) {
             const key = String(r.outreach_email_id);
             acc[key] = (acc[key] || 0) + 1;

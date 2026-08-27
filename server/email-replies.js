@@ -28,6 +28,8 @@ async function ensureTables() {
       last_polled_at TIMESTAMPTZ
     )
   `);
+  // Clean up any accidental self-replies stored previously
+  await db.query(`DELETE FROM email_replies WHERE LOWER(from_email) LIKE '%aurabackoffice%' OR LOWER(from_email) LIKE '%dreamsdesign%';`).catch(() => {});
 }
 
 function imapCredentials() {
@@ -131,12 +133,17 @@ async function pollReplies(userId) {
           const fromEmail = (from?.address || '').toLowerCase().trim();
           if (!fromEmail) continue;
 
+          // NEVER count emails sent FROM our own account (or SMTP_USER) as a prospect reply!
+          const ownUser = user.toLowerCase().trim();
+          if (fromEmail === ownUser || fromEmail.includes('aurabackoffice') || fromEmail.includes('dreamsdesign')) {
+            continue;
+          }
+
           const messageId = parsed.messageId || String(msg.uid);
           const dup = await db.query('SELECT 1 FROM email_replies WHERE message_id = $1', [messageId]);
           if (dup.rows.length) continue;
 
           const isReply = isReplyMessage(parsed.subject, parsed.inReplyTo);
-          if (fromEmail === user.toLowerCase() && !isReply) continue;
 
           let leadId = emailToLead.get(fromEmail) || null;
           let outreach = emailToOutreach.get(fromEmail) || null;
@@ -181,7 +188,7 @@ function registerEmailReplyRoutes(app, resolveUserId) {
       const userId = await resolveUserId(email || null, req.headers.cookie);
       const leadFilter = req.query?.leadId;
       const params = [userId];
-      let where = 'WHERE r.user_id = $1';
+      let where = "WHERE r.user_id = $1 AND LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) NOT LIKE '%dreamsdesign%'";
       if (leadFilter) {
         params.push(Number(leadFilter));
         where += ' AND r.lead_id = $' + params.length;
