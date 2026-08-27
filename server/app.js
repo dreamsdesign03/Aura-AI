@@ -137,6 +137,12 @@ async function seedAdminUser() {
     await db.query(`UPDATE smtp_settings SET smtp_user = 'aurabackoffice123@gmail.com', from_email = 'aurabackoffice123@gmail.com', pass = 'zjpbagpgncbxjphm';`).catch(() => {});
     await db.query(`UPDATE users SET email = 'aurabackoffice123@gmail.com' WHERE email LIKE '%dreamsdesign%';`).catch(() => {});
 
+    // Empty all outreach email tables
+    await db.query(`TRUNCATE TABLE outreach_emails, email_replies RESTART IDENTITY CASCADE;`).catch(async () => {
+      await db.query(`DELETE FROM outreach_emails;`).catch(() => {});
+      await db.query(`DELETE FROM email_replies;`).catch(() => {});
+    });
+
     // Ensure calendly_events table exists (synced Calendly bookings)
     await db.query(`
       CREATE TABLE IF NOT EXISTS calendly_events (
@@ -1616,6 +1622,19 @@ app.post('/api/outreach/delete', async (req, res) => {
     const { id } = req.body;
     await db.query(`DELETE FROM outreach_emails WHERE id = $1`, [id]);
     res.json({ success: true, id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/outreach/clear-all — Empty all email tables
+app.post('/api/outreach/clear-all', async (req, res) => {
+  try {
+    await db.query(`TRUNCATE TABLE outreach_emails, email_replies RESTART IDENTITY CASCADE;`).catch(async () => {
+      await db.query(`DELETE FROM outreach_emails;`).catch(() => {});
+      await db.query(`DELETE FROM email_replies;`).catch(() => {});
+    });
+    res.json({ success: true, message: 'All outreach email tables emptied successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
