@@ -1001,9 +1001,9 @@ export default function Leads() {
       {/* ── Filters row (desktop only) ─────────────────────────── */}
       <div className="flex-shrink-0 border-b border-gray-200 bg-white hidden md:block" style={{ display: viewTab === "leads" ? undefined : "none" }}>
         {/* Row 1: search + filter dropdowns */}
-        <div className="px-5 py-2.5 flex items-center gap-2 border-b border-gray-100">
+        <div className="px-5 py-2.5 flex items-center gap-2 border-b border-gray-100 flex-nowrap overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {/* Search */}
-          <div className="relative w-64">
+          <div className="relative w-60 flex-shrink-0">
             {isFetching && search ? (<Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-violet-500 animate-spin"/>) : (<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"/>)}
             <input type="text" placeholder="Search name, company, email…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-7 py-1.5 text-[12px] rounded-md border border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 transition-all"/>
             {search && (<button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
@@ -1011,7 +1011,7 @@ export default function Leads() {
               </button>)}
           </div>
           {/* Filter pills */}
-          <div className="flex items-center gap-1.5 flex-1 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-nowrap">
             <select value={filterIndustry} onChange={(e) => setFilterIndustry(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterIndustry ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
               <option value="">Industry ▾</option>
               {uniqueIndustries.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
@@ -1037,18 +1037,10 @@ export default function Leads() {
             return <option key={m.id} value={String(m.id)}>{c != null ? `${name} (${c})` : name}</option>;
         })}
             </select>
-            {(filterIndustry || filterCountry || filterSource || filterIcp || filterAssignedTo) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="flex items-center gap-1 text-[11px] text-orange-600 hover:text-orange-700 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-md px-2.5 py-1.5 transition-colors font-medium">
+            {(filterIndustry || filterCountry || filterSource || filterIcp || filterAssignedTo) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="flex items-center gap-1 text-[11px] text-orange-600 hover:text-orange-700 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-md px-2.5 py-1.5 transition-colors font-medium whitespace-nowrap">
                 <X className="w-3 h-3"/> Clear filters
               </button>)}
           </div>
-          {/* Right: advanced filters */}
-          <button className="flex items-center gap-1.5 text-[12px] text-gray-500 hover:text-violet-700 border border-gray-200 hover:border-violet-300 rounded-md px-3 py-1.5 transition-colors whitespace-nowrap ml-auto">
-            <SlidersHorizontal className="w-3.5 h-3.5"/>
-            Advanced filters
-            {(filterIndustry || filterCountry || filterSource || filterIcp || filterAssignedTo || status !== "all") && (<span className="ml-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-violet-600 text-white text-[9px] font-bold">
-                {[filterIndustry, filterCountry, filterSource, filterIcp, filterAssignedTo, status !== "all" ? "1" : ""].filter(Boolean).length}
-              </span>)}
-          </button>
         </div>
         {/* Row 2: status tabs */}
         <div className="px-5 py-2 flex gap-1.5 items-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
