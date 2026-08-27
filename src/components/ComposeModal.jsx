@@ -70,7 +70,43 @@ export default function ComposeModal({ onClose, initialEmail, initialLead }) {
     const [minimized, setMinimized] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [aiPanelOpen, setAiPanelOpen] = useState(!initialEmail);
-    const [selectedLead, setSelectedLead] = useState(null);
+    const [selectedLead, setSelectedLead] = useState(() => {
+        if (initialLead) {
+            return {
+                id: initialLead.id,
+                firstName: initialLead.firstName || initialLead.first_name || initialLead.company || "Lead",
+                lastName: initialLead.lastName || initialLead.last_name || "",
+                email: initialLead.email || (typeof initialEmail === "string" ? initialEmail : "") || "",
+                company: initialLead.company || "",
+                country: initialLead.country || "",
+                designation: initialLead.designation || "",
+                industry: initialLead.industry || "",
+                photo: initialLead.photo || initialLead.photoUrl || null,
+                isAudited: false
+            };
+        }
+        if (typeof initialEmail === "string" && initialEmail.trim()) {
+            return {
+                id: 99999,
+                firstName: initialEmail.split("@")[0],
+                lastName: "",
+                email: initialEmail,
+                company: "",
+                isAudited: false
+            };
+        }
+        if (typeof initialEmail === "object" && initialEmail) {
+            return {
+                id: initialEmail.leadId || 99999,
+                firstName: initialEmail.toName || "Lead",
+                lastName: "",
+                email: initialEmail.email || "",
+                company: initialEmail.company || "",
+                isAudited: false
+            };
+        }
+        return null;
+    });
     const [leadSearch, setLeadSearch] = useState("");
     const [leadDropdownOpen, setLeadDropdownOpen] = useState(false);
     const [showCc, setShowCc] = useState(false);
@@ -107,44 +143,23 @@ export default function ComposeModal({ onClose, initialEmail, initialLead }) {
         }
     }, []);
     useEffect(() => {
+        if (!initialLead && !initialEmail) return;
+
         const targetLeadId = initialLead?.id || (typeof initialEmail === "object" ? initialEmail?.leadId : null);
         const targetEmail = (typeof initialEmail === "string" ? initialEmail : (initialEmail?.email || initialLead?.email || "")).toLowerCase();
 
         let match = null;
         if (targetLeadId && contacts.length > 0) {
-            match = contacts.find((l) => l.id === targetLeadId);
+            match = contacts.find((l) => String(l.id) === String(targetLeadId));
         }
-        if (!match && targetEmail && contacts.length > 0) {
+        if (!match && targetEmail && targetEmail.length > 0 && contacts.length > 0) {
             match = contacts.find((l) => (l.email || "").toLowerCase() === targetEmail);
-        }
-        if (!match && initialLead) {
-            match = {
-                id: initialLead.id,
-                firstName: initialLead.firstName || initialLead.first_name || "",
-                lastName: initialLead.lastName || initialLead.last_name || "",
-                email: initialLead.email || targetEmail,
-                company: initialLead.company || "",
-                country: initialLead.country || "",
-                designation: initialLead.designation || "",
-                industry: initialLead.industry || "",
-                photo: initialLead.photo || initialLead.photoUrl || null,
-                isAudited: false
-            };
-        }
-        if (!match && targetEmail) {
-            match = {
-                id: 99999,
-                firstName: targetEmail.split("@")[0],
-                lastName: "",
-                email: targetEmail,
-                company: "",
-                isAudited: false
-            };
         }
         if (match) {
             setSelectedLead(match);
+            setLeadDropdownOpen(false);
         }
-    }, [contacts.length, initialEmail, initialLead]);
+    }, [contacts, initialEmail, initialLead]);
     const selectLead = (lead) => {
         setSelectedLead(lead);
         setLeadSearch("");
