@@ -62,9 +62,7 @@ function DealCard({ lead, isDragging }) {
     const name = `${lead.firstName} ${lead.lastName}`.trim();
     const initials = `${lead.firstName?.[0] ?? ""}${lead.lastName?.[0] ?? ""}`.toUpperCase();
     const avatarBg = AVATAR_COLORS[lead.id % AVATAR_COLORS.length];
-    const dealAmount = l.dealValue ?? null;
-    const closeDate = l.closeDate ?? null;
-    const ownerName = l.assignedToName ?? "Dreamsdesign Sales";
+    const ownerName = l.assignedToName || null;
     const waNum = (l.whatsapp ?? lead.phone ?? "").replace(/[^0-9]/g, "");
     return (<div className={cn("bg-white rounded border select-none group transition-shadow", isDragging
             ? "shadow-2xl opacity-75 border-blue-400 rotate-1"
@@ -94,9 +92,9 @@ function DealCard({ lead, isDragging }) {
           </div>)}
 
         {/* Deal owner */}
-        <div className="text-[11.5px] text-gray-500 mb-0.5">
-          Deal owner: <span className="text-gray-700">{ownerName}</span>
-        </div>
+        {ownerName && (<div className="text-[11.5px] text-gray-500 mb-0.5">
+            Deal owner: <span className="text-gray-700">{ownerName}</span>
+          </div>)}
 
         {/* Create date */}
         <div className="text-[11.5px] text-gray-500">
@@ -252,8 +250,7 @@ export default function Pipeline() {
     const uniqueOwners = useMemo(() => {
         const owners = new Set();
         for (const l of allLeads) {
-            const owner = l.assignedToName || "Dreamsdesign Sales";
-            if (owner) owners.add(owner);
+            if (l.assignedToName) owners.add(l.assignedToName);
         }
         return Array.from(owners);
     }, [allLeads]);
@@ -294,7 +291,7 @@ export default function Pipeline() {
                 if (!text.includes(q)) return false;
             }
             if (ownerFilter !== "all") {
-                const owner = (l.assignedToName || "Dreamsdesign Sales").toLowerCase();
+                const owner = (l.assignedToName || "").toLowerCase();
                 if (!owner.includes(ownerFilter.toLowerCase())) return false;
             }
             if (dateFilter !== "all" && l.createdAt) {
