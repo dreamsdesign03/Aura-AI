@@ -167,7 +167,8 @@ export default function Outreach() {
     });
     // Group activeTab emails into Gmail-style conversation threads by recipient/lead
     const threadMap = tabEmails.reduce((acc, email) => {
-        const key = (email.toEmail || email.recipientEmail || `lead-${email.leadId || email.id}`).toLowerCase().trim();
+        const emailKey = email.toEmail || email.recipientEmail;
+        const key = emailKey && emailKey.trim() !== "" ? emailKey.toLowerCase().trim() : (email.leadId ? `lead-${email.leadId}` : `email-${email.id}`);
         if (!acc[key]) {
             acc[key] = [];
         }
@@ -459,17 +460,13 @@ export default function Outreach() {
               </div>) : (threadList.map((thread) => {
             const isSelected = selectedId && thread.groupEmails.some(e => e.id === selectedId);
             const isGen = generating?.leadId === thread.leadId && generating?.status === "running";
-            return (<button key={thread.threadKey} onClick={() => handleSelectThread(thread)} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-all flex gap-2.5 relative", isSelected ? "bg-[#FBE9F1] border-l-4 border-[#CB3273]" : thread.hasUnread ? "bg-blue-50/80 border-l-4 border-blue-600 font-semibold" : "hover:bg-gray-50")}>
-                    {/* Gmail Blue Unread Dot */}
-                    {thread.hasUnread && (<span className="absolute top-3 right-3 w-2.5 h-2.5 bg-blue-600 rounded-full shadow-sm animate-pulse" title="Unread reply"/>)}
-
+            return (<button key={thread.threadKey} onClick={() => handleSelectThread(thread)} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-all flex gap-2.5 relative", isSelected ? "bg-[#FBE9F1] border-l-4 border-[#CB3273]" : thread.hasUnread ? "bg-blue-50/60 font-semibold" : "hover:bg-gray-50")}>
                     {/* Avatar */}
                     <div className="flex-shrink-0 relative">
-                      {thread.leadPhoto ? (<img src={thread.leadPhoto} className="w-8 h-8 rounded-full object-cover"/>) : thread.leadCompanyLogo ? (<img src={thread.leadCompanyLogo} className="w-8 h-8 rounded-full object-contain border border-gray-200 bg-white p-0.5"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: thread.hasUnread ? "#2563EB" : "#CB3273" }}>
+                      {thread.leadPhoto ? (<img src={thread.leadPhoto} className="w-8 h-8 rounded-full object-cover"/>) : thread.leadCompanyLogo ? (<img src={thread.leadCompanyLogo} className="w-8 h-8 rounded-full object-contain border border-gray-200 bg-white p-0.5"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: "#CB3273" }}>
                           {initials(thread.leadFirstName, thread.leadLastName)}
                         </div>)}
                       {isGen && (<div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 animate-pulse border border-white"/>)}
-                      {thread.replyCount > 0 && (<div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold text-white border border-white" style={{ background: thread.hasUnread ? "#2563EB" : "#059669" }}>{thread.replyCount}</div>)}
                     </div>
 
                     {/* Info */}
@@ -477,13 +474,8 @@ export default function Outreach() {
                       <div className="flex items-center justify-between">
                         <span className={cn("text-xs truncate", thread.hasUnread ? "font-bold text-blue-950" : "font-semibold text-gray-900")}>
                           {thread.leadFirstName} {thread.leadLastName}
-                          {thread.messageCount > 1 && (<span className="ml-1 text-[11px] font-bold text-gray-500">({thread.messageCount})</span>)}
                         </span>
-                        <div className="flex items-center gap-1 ml-1 pr-3">
-                          {thread.hasUnread && (<span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-blue-600 text-white">
-                              UNREAD
-                            </span>)}
-                          {thread.replyCount > 0 && !thread.hasUnread && (<span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-0.5" style={{ background: "#ECFDF5", color: "#059669" }}><MessageCircle className="w-2.5 h-2.5"/>{thread.replyCount}</span>)}
+                        <div className="flex items-center gap-1 ml-1 pr-1">
                           {thread.openedAt && (<span className="text-[9px] font-semibold px-1 py-0.5 rounded" style={{ background: "#EFF6FF", color: "#3B82F6" }}>OPENED</span>)}
                           <CurrencyFlag currency={thread.currency}/>
                           <StatusIcon status={thread.status} opened={!!thread.openedAt}/>
