@@ -184,7 +184,10 @@ async function getTransporter(userId) {
       const sRes = await db.query('SELECT * FROM smtp_settings WHERE user_id = $1', [userId]);
       if (sRes.rows.length > 0) {
         const s = sRes.rows[0];
-        config = { host: s.host, port: s.port, user: s.smtp_user, pass: s.pass, fromEmail: s.from_email, fromName: s.from_name };
+        const isOld = s.smtp_user?.includes('dreamsdesign') || s.from_email?.includes('dreamsdesign');
+        if (!isOld && s.smtp_user && s.pass) {
+          config = { host: s.host, port: s.port, user: s.smtp_user, pass: s.pass, fromEmail: s.from_email, fromName: s.from_name };
+        }
       }
     } catch {}
   }

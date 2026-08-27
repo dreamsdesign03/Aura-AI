@@ -133,6 +133,10 @@ async function seedAdminUser() {
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS company TEXT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS message_id TEXT;`);
 
+    // Migrate old dreamsdesign emails in database to aurabackoffice123@gmail.com
+    await db.query(`UPDATE smtp_settings SET smtp_user = 'aurabackoffice123@gmail.com', from_email = 'aurabackoffice123@gmail.com', pass = 'zjpbagpgncbxjphm' WHERE smtp_user LIKE '%dreamsdesign%' OR from_email LIKE '%dreamsdesign%';`).catch(() => {});
+    await db.query(`UPDATE users SET email = 'aurabackoffice123@gmail.com' WHERE email LIKE '%dreamsdesign%';`).catch(() => {});
+
     // Ensure calendly_events table exists (synced Calendly bookings)
     await db.query(`
       CREATE TABLE IF NOT EXISTS calendly_events (
@@ -1473,7 +1477,10 @@ async function getTransporter(userId) {
       const sRes = await db.query('SELECT * FROM smtp_settings WHERE user_id = $1', [userId]);
       if (sRes.rows.length > 0) {
         const s = sRes.rows[0];
-        config = { host: s.host, port: s.port, user: s.smtp_user, pass: s.pass, fromEmail: s.from_email, fromName: s.from_name };
+        const isOld = s.smtp_user?.includes('dreamsdesign') || s.from_email?.includes('dreamsdesign');
+        if (!isOld && s.smtp_user && s.pass) {
+          config = { host: s.host, port: s.port, user: s.smtp_user, pass: s.pass, fromEmail: s.from_email, fromName: s.from_name };
+        }
       }
     } catch {}
   }
