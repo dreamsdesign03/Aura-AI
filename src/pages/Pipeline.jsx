@@ -489,39 +489,7 @@ export default function Pipeline() {
         </div>
       </div>
 
-      {/* ── Row 3: interactive filter chips ─────────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center gap-2 px-4 py-1.5 border-b border-gray-100 bg-white flex-wrap relative">
-        {/* Deal Owner Filter */}
-        <div className="relative">
-          <button onClick={() => { setShowOwnerDropdown(!showOwnerDropdown); setShowDateDropdown(false); setShowSortDropdown(false); }} className={cn("flex items-center gap-1 px-2.5 py-1 text-[11.5px] border rounded transition-colors whitespace-nowrap", ownerFilter !== "all" ? "border-blue-500 bg-blue-50 text-blue-700 font-bold" : "text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 bg-white")}>
-            Owner: {ownerFilter === "all" ? "All Owners" : ownerFilter} <ChevronDown className="w-3 h-3"/>
-          </button>
-          {showOwnerDropdown && (<div className="absolute left-0 mt-1 w-48 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-xs">
-              <button onClick={() => { setOwnerFilter("all"); setShowOwnerDropdown(false); }} className={cn("w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between", ownerFilter === "all" ? "text-blue-600 font-bold" : "text-gray-700")}>
-                <span>All Owners</span>
-                {ownerFilter === "all" && <Check className="w-3 h-3"/>}
-              </button>
-              {uniqueOwners.map(o => (<button key={o} onClick={() => { setOwnerFilter(o); setShowOwnerDropdown(false); }} className={cn("w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between", ownerFilter === o ? "text-blue-600 font-bold" : "text-gray-700")}>
-                  <span>{o}</span>
-                  {ownerFilter === o && <Check className="w-3 h-3"/>}
-                </button>))}
-            </div>)}
-        </div>
 
-        {/* Create Date Filter */}
-        <div className="relative">
-          <button onClick={() => { setShowDateDropdown(!showDateDropdown); setShowOwnerDropdown(false); setShowSortDropdown(false); }} className={cn("flex items-center gap-1 px-2.5 py-1 text-[11.5px] border rounded transition-colors whitespace-nowrap", dateFilter !== "all" ? "border-blue-500 bg-blue-50 text-blue-700 font-bold" : "text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 bg-white")}>
-            Created: {dateFilter === "all" ? "All Time" : dateLabels[dateFilter]} <ChevronDown className="w-3 h-3"/>
-          </button>
-          {showDateDropdown && (<div className="absolute left-0 mt-1 w-44 bg-white rounded-lg shadow-xl border border-gray-200 z-50 py-1 text-xs">
-              {Object.entries(dateLabels).map(([k, lbl]) => (<button key={k} onClick={() => { setDateFilter(k); setShowDateDropdown(false); }} className={cn("w-full text-left px-3 py-1.5 hover:bg-gray-50 flex items-center justify-between", dateFilter === k ? "text-blue-600 font-bold bg-blue-50/50" : "text-gray-700")}>
-                  <span>{lbl}</span>
-                  {dateFilter === k && <Check className="w-3.5 h-3.5"/>}
-                </button>))}
-            </div>)}
-        </div>
-
-      </div>
 
       {/* ── Board ──────────────────────────────────────────────────── */}
       {isLoading ? (<div className="flex-1 flex items-center justify-center">
