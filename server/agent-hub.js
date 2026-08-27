@@ -190,9 +190,9 @@ async function getTransporter(userId) {
   }
   const host = config.host || process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = config.port || Number(process.env.SMTP_PORT) || 587;
-  const user = config.user || process.env.SMTP_USER || 'dreamsdesign.in03@gmail.com';
-  const pass = config.pass || process.env.SMTP_PASS || '';
-  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'dreamsdesign.in03@gmail.com';
+  const user = config.user || process.env.SMTP_USER || 'aurabackoffice123@gmail.com';
+  const pass = config.pass || process.env.SMTP_PASS;
+  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'aurabackoffice123@gmail.com';
   const fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura AI';
   const transporter = nodemailer.createTransport({
     host, port,

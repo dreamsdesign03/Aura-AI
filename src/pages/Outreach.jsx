@@ -7,7 +7,7 @@ import { Zap, Send, Mail, CheckCircle2, XCircle, Clock, Trash2, Edit3, Save, X, 
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
-const SENDER_EMAIL = "dreamsdesign.in03@gmail.com";
+const SENDER_EMAIL = "aurabackoffice123@gmail.com";
 const SENDER_NAME = "Aura AI";
 function initials(first, last) {
     return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();

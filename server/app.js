@@ -1479,9 +1479,9 @@ async function getTransporter(userId) {
   }
   const host = config.host || process.env.SMTP_HOST || 'smtp.gmail.com';
   const port = config.port || Number(process.env.SMTP_PORT) || 587;
-  const user = config.user || process.env.SMTP_USER || 'dreamsdesign.in03@gmail.com';
+  const user = config.user || process.env.SMTP_USER || 'aurabackoffice123@gmail.com';
   const pass = config.pass || process.env.SMTP_PASS || '';
-  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'dreamsdesign.in03@gmail.com';
+  const fromEmail = config.fromEmail || process.env.SMTP_FROM || 'aurabackoffice123@gmail.com';
   const fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura AI';
 
   const transporter = nodemailer.createTransport({
@@ -4485,7 +4485,7 @@ async function ensureUserColumns() {
 app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
   try {
     await ensureUserColumns();
-    const email = req.query?.email || 'dreamsdesign.in03@gmail.com';
+    const email = req.query?.email || 'aurabackoffice123@gmail.com';
     let userRes = await db.query('SELECT * FROM users WHERE email = $1', [email]);
     if (userRes.rows.length === 0) {
       userRes = await db.query('SELECT * FROM users ORDER BY id DESC LIMIT 1');
@@ -4516,7 +4516,7 @@ app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
 app.patch('/api/users/me', async (req, res) => {
   const body = req.body || {};
   const { firstName, lastName, phone, companyName, businessWhy, email } = body;
-  const targetEmail = email || req.query?.email || 'dreamsdesign.in03@gmail.com';
+  const targetEmail = email || req.query?.email || 'aurabackoffice123@gmail.com';
 
   try {
     await ensureUserColumns();
@@ -4687,9 +4687,9 @@ app.post('/api/settings/smtp/test', async (req, res) => {
 app.get(['/api/team', '/api/team/members', '/api/useListTeamMembers'], async (req, res) => {
   try {
     const result = await db.query("SELECT id, first_name || ' ' || last_name as name, email, 'owner' as role, 'active' as status FROM users LIMIT 10");
-    res.json(result.rows.length ? result.rows : [{ id: 1, name: 'Aura Admin', email: 'dreamsdesign.in03@gmail.com', role: 'owner', status: 'active' }]);
+    res.json(result.rows.length ? result.rows : [{ id: 1, name: 'Aura Admin', email: 'aurabackoffice123@gmail.com', role: 'owner', status: 'active' }]);
   } catch {
-    res.json([{ id: 1, name: 'Aura Admin', email: 'dreamsdesign.in03@gmail.com', role: 'owner', status: 'active' }]);
+    res.json([{ id: 1, name: 'Aura Admin', email: 'aurabackoffice123@gmail.com', role: 'owner', status: 'active' }]);
   }
 });
 
@@ -4786,7 +4786,7 @@ app.post(['/api/useComposeOutreachEmail', '/api/outreach/compose', '/api/outreac
         companyName = brandRes.rows[0].company_name || companyName;
         tagline = brandRes.rows[0].tagline || tagline;
       }
-      const userRes = await db.query("SELECT business_why FROM users WHERE email = 'dreamsdesign.in03@gmail.com' OR business_why IS NOT NULL ORDER BY id DESC LIMIT 1");
+      const userRes = await db.query("SELECT business_why FROM users WHERE email = 'aurabackoffice123@gmail.com' OR business_why IS NOT NULL ORDER BY id DESC LIMIT 1");
       if (userRes.rows.length > 0 && userRes.rows[0].business_why) {
         businessWhy = userRes.rows[0].business_why;
       }
