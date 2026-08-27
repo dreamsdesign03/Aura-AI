@@ -202,6 +202,7 @@ export default function Outreach() {
     // Currently selected thread & root email
     const selectedThread = selectedId ? threadList.find((t) => t.groupEmails.some(e => e.id === selectedId)) ?? null : null;
     const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
+    const threadReplies = selectedThread ? selectedThread.groupReplies : [];
     // Full chronological message stream for current thread (Gmail style)
     const fullConversationStream = selectedThread ? [
         ...selectedThread.groupEmails.map(s => ({
