@@ -184,3 +184,5 @@ export function NewMeetingModal({ leads, defaultLeadId, onClose, onCreated, }) {
       </div>
     </div>);
 }
+
+export default NewMeetingModal;

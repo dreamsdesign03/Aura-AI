@@ -599,6 +599,6 @@ export default function Pipeline() {
       {/* Integration Modals */}
       {whatsappModalLead && (<SendWhatsAppModal lead={whatsappModalLead} isOpen={true} onClose={() => setWhatsappModalLead(null)}/>)}
       {emailModalLead && (<ComposeModal onClose={() => setEmailModalLead(null)} initialEmail={emailModalLead.email}/>)}
-      {activityModalLead && (<NewMeetingModal onClose={() => setActivityModalLead(null)} defaultLeadId={activityModalLead.id}/>)}
+      {activityModalLead && (<NewMeetingModal leads={allLeads} onClose={() => setActivityModalLead(null)} defaultLeadId={activityModalLead.id}/>)}
     </div>);
 }
