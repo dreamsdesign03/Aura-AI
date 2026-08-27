@@ -62,6 +62,8 @@ function DealCard({ lead, isDragging }) {
     const name = `${lead.firstName} ${lead.lastName}`.trim();
     const initials = `${lead.firstName?.[0] ?? ""}${lead.lastName?.[0] ?? ""}`.toUpperCase();
     const avatarBg = AVATAR_COLORS[lead.id % AVATAR_COLORS.length];
+    const dealAmount = l.dealValue ?? null;
+    const closeDate = l.closeDate ?? null;
     const ownerName = l.assignedToName || null;
     const waNum = (l.whatsapp ?? lead.phone ?? "").replace(/[^0-9]/g, "");
     return (<div className={cn("bg-white rounded border select-none group transition-shadow", isDragging
