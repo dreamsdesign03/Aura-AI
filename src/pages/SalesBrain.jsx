@@ -929,7 +929,6 @@ export default function SalesBrain() {
         { id: "brain", label: "Lead Brain", icon: Brain, accent: "#A4285E" },
         { id: "conversations", label: "WhatsApp", icon: MessageCircle, accent: "#25D366" },
         { id: "analytics", label: "Analytics", icon: BarChart2 },
-        { id: "settings", label: "Settings", icon: Settings },
     ];
     return (<div className="flex flex-col h-full overflow-hidden" style={{ background: "#fff" }}>
       {/* Tab bar */}
@@ -946,7 +945,6 @@ export default function SalesBrain() {
         {tab === "brain" && <LeadBrainTab />}
         {tab === "conversations" && <ConversationsTab />}
         {tab === "analytics" && <AnalyticsTab />}
-        {tab === "settings" && <SettingsTab />}
       </div>
     </div>);
 }
