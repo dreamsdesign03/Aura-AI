@@ -442,6 +442,42 @@ export default function Pipeline() {
     });
     const g = grouped();
 
+    const boardScrollRef = useRef(null);
+    const [isPanning, setIsPanning] = useState(false);
+    const [panStartX, setPanStartX] = useState(0);
+    const [panScrollLeft, setPanScrollLeft] = useState(0);
+
+    const handlePanMouseDown = (e) => {
+        if (e.target.closest("button") || e.target.closest("input") || e.target.closest("a") || e.target.closest(".group")) {
+            return;
+        }
+        setIsPanning(true);
+        setPanStartX(e.pageX - (boardScrollRef.current?.offsetLeft || 0));
+        setPanScrollLeft(boardScrollRef.current?.scrollLeft || 0);
+    };
+
+    const handlePanMouseLeaveOrUp = () => {
+        setIsPanning(false);
+    };
+
+    const handlePanMouseMove = (e) => {
+        if (!isPanning || !boardScrollRef.current) return;
+        e.preventDefault();
+        const x = e.pageX - boardScrollRef.current.offsetLeft;
+        const walk = (x - panStartX) * 1.5;
+        boardScrollRef.current.scrollLeft = panScrollLeft - walk;
+    };
+
+    const handleWheelScroll = (e) => {
+        if (!boardScrollRef.current) return;
+        if (e.deltaY !== 0 && !e.shiftKey) {
+            const isInsideColumnScroll = e.target.closest(".overflow-y-auto");
+            if (!isInsideColumnScroll) {
+                boardScrollRef.current.scrollLeft += e.deltaY;
+            }
+        }
+    };
+
     // ── Render ────────────────────────────────────────────────────────────────
     return (<div className="flex flex-col bg-white" style={{ height: "calc(100vh - 56px)" }}>
 
@@ -518,7 +554,7 @@ export default function Pipeline() {
       {/* ── Board ──────────────────────────────────────────────────── */}
       {isLoading ? (<div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-blue-500"/>
-        </div>) : (<div className="flex-1 min-h-0 overflow-x-auto">
+        </div>) : (<div ref={boardScrollRef} onMouseDown={handlePanMouseDown} onMouseLeave={handlePanMouseLeaveOrUp} onMouseUp={handlePanMouseLeaveOrUp} onMouseMove={handlePanMouseMove} onWheel={handleWheelScroll} className={cn("flex-1 min-h-0 overflow-x-auto transition-colors", isPanning ? "cursor-grabbing" : "cursor-grab")}>
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             {/* items-stretch makes every column fill the full board height */}
             <div className="flex gap-2.5 px-4 py-3 h-full items-stretch min-w-max">
