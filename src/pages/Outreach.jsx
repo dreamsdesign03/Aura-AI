@@ -179,11 +179,14 @@ export default function Outreach() {
         group.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
         const root = group[0];
         // Find all genuine replies matching any email in this group or recipient key
-        const groupReplies = genuineReplies.filter((r) =>
-            (r.from_email && r.from_email.toLowerCase() === key) ||
-            (r.lead_id && group.some(g => String(g.leadId) === String(r.lead_id))) ||
-            (r.outreach_email_id && group.some(g => String(g.id) === String(r.outreach_email_id)))
-        );
+        const groupReplies = genuineReplies.filter((r) => {
+            const from = (r.from_email || "").toLowerCase().trim();
+            const rootTo = (root.toEmail || root.recipientEmail || "").toLowerCase().trim();
+            const leadMatch = r.lead_id && group.some(g => String(g.leadId) === String(r.lead_id));
+            const outreachMatch = r.outreach_email_id && group.some(g => String(g.id) === String(r.outreach_email_id));
+            const emailMatch = from && (from === key || (rootTo && rootTo.includes(from)) || (from && rootTo && from.includes(rootTo)));
+            return leadMatch || outreachMatch || emailMatch;
+        });
         // Check if there are any unread replies
         const unreadReplies = groupReplies.filter(r => !readReplyIds.has(r.id));
         return {
@@ -203,6 +206,19 @@ export default function Outreach() {
     const selectedThread = selectedId ? threadList.find((t) => t.groupEmails.some(e => e.id === selectedId)) ?? null : null;
     const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
     const threadReplies = selectedThread ? selectedThread.groupReplies : [];
+    
+    // Robust stream replies lookup (with fallback matching)
+    const activeStreamReplies = (selectedThread?.groupReplies && selectedThread.groupReplies.length > 0)
+        ? selectedThread.groupReplies
+        : genuineReplies.filter(r => {
+            const from = (r.from_email || "").toLowerCase().trim();
+            const selectedTo = (selected?.toEmail || selected?.recipientEmail || "").toLowerCase().trim();
+            const leadMatch = r.lead_id && String(r.lead_id) === String(selected?.leadId);
+            const outreachMatch = r.outreach_email_id && String(r.outreach_email_id) === String(selected?.id);
+            const emailMatch = from && selectedTo && (from === selectedTo || selectedTo.includes(from) || from.includes(selectedTo));
+            return leadMatch || outreachMatch || emailMatch;
+        });
+
     // Full chronological message stream for current thread (Gmail style)
     const fullConversationStream = selectedThread ? [
         ...selectedThread.groupEmails.map(s => ({
@@ -219,7 +235,7 @@ export default function Outreach() {
             openedAt: s.openedAt,
             errorMsg: s.errorMsg
         })),
-        ...selectedThread.groupReplies.map(r => ({
+        ...activeStreamReplies.map(r => ({
             id: `reply-${r.id}`,
             replyId: r.id,
             isReply: true,

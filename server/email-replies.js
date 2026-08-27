@@ -103,7 +103,8 @@ async function pollReplies(userId) {
     }
   }
 
-  const since = (await lastPolled(userId)) || new Date(Date.now() - 7 * 86400000);
+  // Scan past 30 days of INBOX to ensure no replies are missed
+  const since = new Date(Date.now() - 30 * 86400000);
 
   const client = new ImapFlow({
     host: HOST,
