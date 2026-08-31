@@ -134,9 +134,12 @@ async function pollReplies(userId) {
     await client.connect();
     const lock = await client.getMailboxLock('INBOX');
     let added = 0;
+    let recent = [];
+    let inboxTotal = 0;
     try {
       const seq = await client.search({ since });
-      const recent = seq.slice(-MAX_FETCH);
+      inboxTotal = seq.length;
+      recent = seq.slice(-MAX_FETCH);
       console.log(`[email-replies] Scanning ${recent.length} inbox emails for user ${userId}`);
       if (recent.length) {
         for await (const msg of client.fetch(recent, { envelope: true, source: true })) {
@@ -239,7 +242,7 @@ async function pollReplies(userId) {
     }
     await setLastPolled(userId, new Date());
     await client.logout();
-    return { ok: true, added, scanned: recent.length, inboxTotal: seq.length };
+    return { ok: true, added, scanned: recent.length, inboxTotal };
   } catch (err) {
     try { await client.logout(); } catch {}
     console.error('[email-replies] poll error:', err.message);
