@@ -19,13 +19,14 @@ function formatSafeDistance(value) {
     return isNaN(d.getTime()) ? "" : formatDistanceToNow(d, { addSuffix: true });
 }
 function normalizeEmail(r) {
+    const targetEmail = r.to_email || r.recipient_email || r.lead_email || r.email || "";
     return {
         ...r,
         id: r.id,
         userId: r.user_id,
         leadId: r.lead_id,
-        recipientEmail: r.recipient_email,
-        toEmail: r.to_email,
+        recipientEmail: targetEmail,
+        toEmail: targetEmail,
         toName: r.to_name,
         company: r.company,
         subject: r.subject,
@@ -180,12 +181,13 @@ export default function Outreach() {
         group.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
         const root = group[0];
         // Find all genuine replies matching any email in this group or recipient key
+        const groupRecipientEmails = group.map(g => (g.toEmail || g.recipientEmail || "").toLowerCase().trim()).filter(Boolean);
         const groupReplies = genuineReplies.filter((r) => {
             const from = (r.from_email || "").toLowerCase().trim();
-            const rootTo = (root.toEmail || root.recipientEmail || "").toLowerCase().trim();
+            if (!from) return false;
             const leadMatch = r.lead_id && group.some(g => String(g.leadId) === String(r.lead_id));
             const outreachMatch = r.outreach_email_id && group.some(g => String(g.id) === String(r.outreach_email_id));
-            const emailMatch = from && (from === key || (rootTo && rootTo.includes(from)) || (from && rootTo && from.includes(rootTo)));
+            const emailMatch = from === key || groupRecipientEmails.some(target => target === from || target.includes(from) || from.includes(target));
             return leadMatch || outreachMatch || emailMatch;
         });
         // Check if there are any unread replies
@@ -209,16 +211,15 @@ export default function Outreach() {
     const threadReplies = selectedThread ? selectedThread.groupReplies : [];
     
     // Robust stream replies lookup (with fallback matching)
-    const activeStreamReplies = (selectedThread?.groupReplies && selectedThread.groupReplies.length > 0)
-        ? selectedThread.groupReplies
-        : genuineReplies.filter(r => {
-            const from = (r.from_email || "").toLowerCase().trim();
-            const selectedTo = (selected?.toEmail || selected?.recipientEmail || "").toLowerCase().trim();
-            const leadMatch = r.lead_id && String(r.lead_id) === String(selected?.leadId);
-            const outreachMatch = r.outreach_email_id && String(r.outreach_email_id) === String(selected?.id);
-            const emailMatch = from && selectedTo && (from === selectedTo || selectedTo.includes(from) || from.includes(selectedTo));
-            return leadMatch || outreachMatch || emailMatch;
-        });
+    const targetRecipientEmails = (selectedThread?.groupEmails || (selected ? [selected] : [])).map(s => (s?.toEmail || s?.recipientEmail || "").toLowerCase().trim()).filter(Boolean);
+    const activeStreamReplies = genuineReplies.filter(r => {
+        const from = (r.from_email || "").toLowerCase().trim();
+        if (!from) return false;
+        const leadMatch = r.lead_id && (String(r.lead_id) === String(selected?.leadId) || selectedThread?.groupEmails?.some(g => String(g.leadId) === String(r.lead_id)));
+        const outreachMatch = r.outreach_email_id && (String(r.outreach_email_id) === String(selected?.id) || selectedThread?.groupEmails?.some(g => String(g.id) === String(r.outreach_email_id)));
+        const emailMatch = targetRecipientEmails.some(target => target === from || target.includes(from) || from.includes(target));
+        return leadMatch || outreachMatch || emailMatch;
+    });
 
     // Full chronological message stream for current thread (Gmail style)
     const fullConversationStream = selectedThread ? [
