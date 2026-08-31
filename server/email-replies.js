@@ -22,11 +22,13 @@ async function ensureTables() {
       from_name TEXT,
       subject TEXT,
       body TEXT,
+      quoted_body TEXT,
       message_id TEXT UNIQUE,
       received_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT now()
     )
   `);
+  await db.query(`ALTER TABLE email_replies ADD COLUMN IF NOT EXISTS quoted_body TEXT;`);
   await db.query(`
     CREATE TABLE IF NOT EXISTS email_reply_state (
       user_id BIGINT PRIMARY KEY,
@@ -89,6 +91,26 @@ function stripHtml(html) {
     .replace(/[ \t]+/g, ' ')
     .replace(/\n\s*\n+/g, '\n')
     .trim();
+}
+
+// Splits a reply body into [mainText, quotedText], removing the quoted email thread
+// (the portion below Gmail's "On <date> <time> <sender> wrote:" marker) so the stored
+// body holds only the actual reply text. Returns both parts for Gmail-style "-" collapsing.
+function stripReplyQuote(body) {
+  const text = String(body || '');
+  // Identify the first line that starts a quoted thread. Handles:
+  //   "On Mon, Aug 31, 2026 at 4:17 PM Aura AI <x@y> wrote:"
+  //   "> On ... wrote:" (already-blockquoted), "From: ...", "-----Original Message-----"
+  const quoteStart = text.search(
+    /(^|\n)(>?\s*On[^\n]*wrote\s*:\s*$|From\s*:.*\n(.*\n)*?Sent\s*:.*\n|-----Original Message-----)/mi
+  );
+  if (quoteStart === -1) {
+    return { mainText: text.trim(), quotedText: '' };
+  }
+  const mainText = text.slice(0, quoteStart).trim();
+  // Garbled-only replies (e.g. just ">" or empty) should fall back to the raw body
+  const quotedText = text.slice(quoteStart).trim();
+  return { mainText: mainText || text.trim(), quotedText: quotedText && mainText ? quotedText : '' };
 }
 
 function stripReplyPrefix(subject) {
