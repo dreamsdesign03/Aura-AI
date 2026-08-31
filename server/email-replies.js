@@ -30,9 +30,9 @@ async function ensureTables() {
   `);
 }
 
-function auraEmailCredentials() {
-  const user = process.env.SMTP_USER || process.env.IMAP_USER || '';
-  const pass = process.env.SMTP_PASS || process.env.IMAP_PASS || '';
+function imapCredentials() {
+  const user = process.env.IMAP_USER || process.env.SMTP_USER || '';
+  const pass = process.env.IMAP_PASS || process.env.SMTP_PASS || '';
   return { user, pass };
 }
 
@@ -75,7 +75,7 @@ function isReplyMessage(subject, inReplyTo) {
 }
 
 async function pollReplies(userId) {
-  const { user, pass } = auraEmailCredentials();
+  const { user, pass } = imapCredentials();
   if (!user || !pass) {
     return { ok: false, added: 0, error: 'IMAP credentials are not configured. Enable IMAP in Gmail and use an app password (IMAP_USER / IMAP_PASS).' };
   }
