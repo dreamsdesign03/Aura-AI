@@ -35,14 +35,29 @@ async function ensureTables() {
   `);
 }
 
-function imapCredentials() {
-  // Dedicated inbox creds for the reply poller only, independent of SMTP_USER used elsewhere.
-  let user = process.env.AURA_INBOX_USER || process.env.IMAP_USER || process.env.SMTP_USER || '';
-  let pass = process.env.AURA_INBOX_PASS || process.env.IMAP_PASS || process.env.SMTP_PASS || '';
+async function imapCredentials(userId) {
+  // Mirrors the send path (getTransporter in app.js): use the app's configured SMTP settings,
+  // which are aurabackoffice123@ / its app password. Replies to Aura outreach land in this inbox.
+  let user = '';
+  let pass = '';
+  if (userId) {
+    try {
+      const sRes = await db.query('SELECT smtp_user, pass FROM smtp_settings WHERE user_id = $1', [userId]);
+      const s = sRes.rows[0];
+      if (s && s.smtp_user && s.pass) {
+        user = s.smtp_user;
+        pass = s.pass;
+      }
+    } catch {}
+  }
+  const up = process.env.AURA_INBOX_USER || process.env.IMAP_USER || process.env.SMTP_USER;
+  const pp = process.env.AURA_INBOX_PASS || process.env.IMAP_PASS || process.env.SMTP_PASS;
+  user = user || up || AURA_EMAIL;
+  pass = pass || pp || AURA_APP_PASSWORD;
   // STRICT ENFORCEMENT: replies to Aura outreach land in the aurabackoffice123 inbox
   // (the same account outreach is sent FROM). Never poll the dreamsdesign business inbox.
   if (!user || user.toLowerCase().includes('dreamsdesign')) user = AURA_EMAIL;
-  if (!pass) pass = AURA_APP_PASSWORD;
+  if (!pass || user === AURA_EMAIL) pass = AURA_APP_PASSWORD;
   return { user, pass };
 }
 
@@ -85,7 +100,7 @@ function isReplyMessage(subject, inReplyTo) {
 }
 
 async function pollReplies(userId) {
-  const { user, pass } = imapCredentials();
+  const { user, pass } = await imapCredentials(userId);
   if (!user || !pass) {
     return { ok: false, added: 0, error: 'IMAP credentials are not configured. Enable IMAP in Gmail and use an app password (IMAP_USER / IMAP_PASS).' };
   }
