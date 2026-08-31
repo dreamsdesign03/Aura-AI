@@ -101,6 +101,23 @@ async function pollReplies(userId) {
     }
   }
 
+  // Known notification/auto-generated sender patterns — never treat as prospect replies
+  const NOTIFICATION_PATTERNS = [
+    /^no-?reply@/i, /^noreply@/i, /^donotreply@/i,
+    /^notification@/i, /^notifications@/i,
+    /^mailer-daemon@/i, /^postmaster@/i,
+    /^support@/i, /^hello@/i, /^info@/i,
+    /^system@/i, /^admin@/i,
+    /^facebookmail\.com$/i, /^render\.com$/i,
+    /^openai\.com$/i, /^stripe\.com$/i,
+    /^github\.com$/i, /^google\.com$/i,
+    /^linkedin\.com$/i, /^twitter\.com$/i,
+  ];
+
+  function isLikelyNotification(fromEmail) {
+    return NOTIFICATION_PATTERNS.some(p => p.test(fromEmail));
+  }
+
   // Scan past 30 days of INBOX to ensure no replies are missed
   const since = new Date(Date.now() - 30 * 86400000);
 
@@ -133,11 +150,14 @@ async function pollReplies(userId) {
           const fromEmail = (envelopeFrom || parsedFrom).toLowerCase().trim();
           if (!fromEmail) continue;
 
-          // NEVER count emails sent FROM our own account (or SMTP_USER) as a prospect reply!
+          // NEVER count emails sent FROM our own account as a prospect reply
           const ownUser = user.toLowerCase().trim();
           if (fromEmail === ownUser || fromEmail === 'aurabackoffice123@gmail.com' || fromEmail.includes('aurabackoffice')) {
             continue;
           }
+
+          // Skip known notification/auto-generated senders
+          if (isLikelyNotification(fromEmail)) continue;
 
           const messageId = parsed.messageId || String(msg.uid);
           const dup = await db.query('SELECT 1 FROM email_replies WHERE message_id = $1', [messageId]);
@@ -145,15 +165,20 @@ async function pollReplies(userId) {
 
           const isReply = isReplyMessage(parsed.subject, parsed.inReplyTo);
 
-          let leadId = emailToLead.get(fromEmail) || null;
-          let outreach = emailToOutreach.get(fromEmail) || null;
+          // Only ever treat emails that look like replies (Re:/Fwd:/In-Reply-To) as replies.
+          if (!isReply) continue;
 
-          // Match by In-Reply-To header first if available!
+          let leadId = emailToLead.get(fromEmail) || null;
+          let outreach = null;
+
+          // STRONG match #1: In-Reply-To / References header points to one of OUR sent outreach emails.
           const inReplyTo = parsed.inReplyTo || parsed.headers?.get?.('in-reply-to') || '';
-          if (inReplyTo) {
+          const references = parsed.references || parsed.headers?.get?.('references') || '';
+          const threadHeader = String(inReplyTo || references || '').trim();
+          if (threadHeader) {
             const headerMatch = await db.query(
               `SELECT id, lead_id FROM outreach_emails WHERE message_id = $1 LIMIT 1`,
-              [String(inReplyTo).trim()]
+              [threadHeader]
             );
             if (headerMatch.rows.length) {
               outreach = headerMatch.rows[0];
@@ -161,9 +186,20 @@ async function pollReplies(userId) {
             }
           }
 
-          if (!leadId || !outreach) {
+          // STRONG match #2: sender is a lead in our DB with a reply-style subject, and we sent them an email.
+          if (!outreach) {
+            const senderAsLead = emailToLead.get(fromEmail);
+            const sentToSender = emailToOutreach.get(fromEmail);
+            if (senderAsLead && sentToSender) {
+              outreach = sentToSender;
+              leadId = senderAsLead;
+            }
+          }
+
+          // STRONG match #3: exact recipient match AND reply-style subject against a sent outreach email.
+          if (!outreach) {
             const dbMatch = await db.query(
-              `SELECT id, lead_id FROM outreach_emails WHERE LOWER(recipient_email) = $1 OR LOWER(to_email) = $1 ORDER BY id DESC LIMIT 1`,
+              `SELECT id, lead_id FROM outreach_emails WHERE (LOWER(recipient_email) = $1 OR LOWER(to_email) = $1) AND status = 'sent' ORDER BY id DESC LIMIT 1`,
               [fromEmail]
             );
             if (dbMatch.rows.length) {
@@ -172,32 +208,17 @@ async function pollReplies(userId) {
             }
           }
 
-          if (!outreach && isReply) {
-            const subjKey = stripReplyPrefix(parsed.subject);
-            if (subjKey) {
-              outreach = subjectToOutreach.get(subjKey) || null;
-              if (outreach && !leadId) leadId = outreach.lead_id;
-            }
-          }
+          // Only store genuine replies that we could confidently attach to an Aura-AI outreach email.
+          if (!outreach) continue;
 
-          if (!outreach) {
-            const latestOutreach = await db.query(
-              `SELECT id, lead_id FROM outreach_emails ORDER BY id DESC LIMIT 1`
-            );
-            if (latestOutreach.rows.length) {
-              outreach = latestOutreach.rows[0];
-              if (!leadId) leadId = outreach.lead_id;
-            }
-          }
-
-          const fromName = msg.envelope?.from?.[0]?.name || from?.name || '';
+          const fromName = msg.envelope?.from?.[0]?.name || '';
           const body = parsed.text || stripHtml(parsed.html) || '';
           const receivedAt = parsed.date && !isNaN(parsed.date.getTime()) ? parsed.date : new Date();
 
           await db.query(
             `INSERT INTO email_replies (user_id, lead_id, outreach_email_id, from_email, from_name, subject, body, message_id, received_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [userId, leadId, outreach?.id || null, fromEmail, fromName, (parsed.subject || '').slice(0, 500), body.slice(0, 10000), messageId, receivedAt]
+            [userId, leadId, outreach.id, fromEmail, fromName, (parsed.subject || '').slice(0, 500), body.slice(0, 10000), messageId, receivedAt]
           );
           added++;
         }
@@ -222,9 +243,10 @@ function registerEmailReplyRoutes(app, resolveUserId) {
   // GET /api/outreach/replies
   app.get('/api/outreach/replies', async (req, res) => {
     try {
+      const userId = await resolveUserId(req.query?.email || null, req.headers.cookie);
       const leadFilter = req.query?.leadId;
-      const params = [];
-      let where = "WHERE LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) <> 'aurabackoffice123@gmail.com'";
+      const params = [userId];
+      let where = "WHERE r.user_id = $1 AND LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) <> 'aurabackoffice123@gmail.com'";
       if (leadFilter) {
         params.push(Number(leadFilter));
         where += ' AND r.lead_id = $' + params.length;
