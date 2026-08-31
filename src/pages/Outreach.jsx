@@ -9,8 +9,24 @@ import { formatDistanceToNow } from "date-fns";
 
 const SENDER_EMAIL = "aurabackoffice123@gmail.com";
 const SENDER_NAME = "Aura AI";
-function initials(first, last) {
-    return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
+function initials(first, last, company, email) {
+    const fn = (first || "").trim();
+    const ln = (last || "").trim();
+    const comp = (company || "").trim();
+    const em = (email || "").trim();
+
+    if (fn || ln) {
+        return `${fn[0] ?? ""}${ln[0] ?? ""}`.toUpperCase();
+    }
+    if (comp) {
+        const parts = comp.split(/\s+/).filter(Boolean);
+        if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+        return comp.slice(0, 2).toUpperCase();
+    }
+    if (em) {
+        return em.slice(0, 2).toUpperCase();
+    }
+    return "A";
 }
 function formatSafeDistance(value) {
     if (!value)
@@ -502,11 +518,14 @@ export default function Outreach() {
               </div>) : (threadList.map((thread) => {
             const isSelected = selectedId && thread.groupEmails.some(e => e.id === selectedId);
             const isGen = generating?.leadId === thread.leadId && generating?.status === "running";
+            const leadFullName = [thread.leadFirstName, thread.leadLastName].filter(Boolean).join(" ");
+            const cardTitle = leadFullName || thread.company || thread.toEmail || "Lead";
+            const cardSub = leadFullName ? thread.company : thread.toEmail;
             return (<button key={thread.threadKey} onClick={() => handleSelectThread(thread)} className={cn("w-full text-left px-3 py-3 border-b border-gray-100 transition-all flex gap-2.5 relative", isSelected ? "bg-[#FBE9F1] border-l-4 border-[#CB3273]" : thread.hasUnread ? "bg-blue-50/60 font-semibold" : "hover:bg-gray-50")}>
                     {/* Avatar */}
                     <div className="flex-shrink-0 relative">
                       {thread.leadPhoto ? (<img src={thread.leadPhoto} className="w-8 h-8 rounded-full object-cover"/>) : thread.leadCompanyLogo ? (<img src={thread.leadCompanyLogo} className="w-8 h-8 rounded-full object-contain border border-gray-200 bg-white p-0.5"/>) : (<div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white" style={{ background: "#CB3273" }}>
-                          {initials(thread.leadFirstName, thread.leadLastName)}
+                          {initials(thread.leadFirstName, thread.leadLastName, thread.company, thread.toEmail)}
                         </div>)}
                       {isGen && (<div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-amber-400 animate-pulse border border-white"/>)}
                     </div>
@@ -515,7 +534,7 @@ export default function Outreach() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <span className={cn("text-xs truncate", thread.hasUnread ? "font-bold text-blue-950" : "font-semibold text-gray-900")}>
-                          {thread.leadFirstName} {thread.leadLastName}
+                          {cardTitle}
                         </span>
                         <div className="flex items-center gap-1 ml-1 pr-1">
                           {thread.openedAt && (<span className="text-[9px] font-semibold px-1 py-0.5 rounded" style={{ background: "#EFF6FF", color: "#3B82F6" }}>OPENED</span>)}
@@ -523,7 +542,7 @@ export default function Outreach() {
                           <StatusIcon status={thread.status} opened={!!thread.openedAt}/>
                         </div>
                       </div>
-                      <div className={cn("text-[11px] truncate", thread.hasUnread ? "font-semibold text-gray-800" : "text-gray-500")}>{thread.company}</div>
+                      {cardSub && <div className={cn("text-[11px] truncate", thread.hasUnread ? "font-semibold text-gray-800" : "text-gray-500")}>{cardSub}</div>}
                       <div className={cn("text-[11px] truncate mt-0.5 italic", thread.hasUnread ? "font-bold text-gray-900" : "text-gray-400")}>{thread.subject}</div>
                       {isGen && (<div className="text-[10px] text-amber-600 mt-0.5 font-medium animate-pulse">
                           {generating?.message}
@@ -559,15 +578,17 @@ export default function Outreach() {
               <div className="px-6 py-4 border-b border-gray-200 bg-white flex items-start justify-between flex-shrink-0">
                 <div className="flex gap-3">
                   {selected.leadPhoto ? (<img src={selected.leadPhoto} className="w-10 h-10 rounded-full object-cover flex-shrink-0"/>) : (<div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white flex-shrink-0" style={{ background: "#CB3273" }}>
-                      {initials(selected.leadFirstName, selected.leadLastName)}
+                      {initials(selected.leadFirstName, selected.leadLastName, selected.company, selected.toEmail)}
                     </div>)}
                   <div>
                     <div className="font-semibold text-sm text-gray-900">
-                      {selected.leadFirstName} {selected.leadLastName}
+                      {[selected.leadFirstName, selected.leadLastName].filter(Boolean).join(" ") || selected.company || selected.toEmail || "Lead"}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      {selected.leadDesignation} · {selected.company}
-                    </div>
+                    {([selected.leadFirstName || selected.leadLastName ? selected.company : null, selected.leadDesignation].filter(Boolean).length > 0) && (
+                      <div className="text-xs text-gray-500">
+                        {[selected.leadFirstName || selected.leadLastName ? selected.company : null, selected.leadDesignation].filter(Boolean).join(" · ")}
+                      </div>
+                    )}
                     <div className="flex items-center gap-3 mt-1 flex-wrap">
                       <span className="flex items-center gap-1 text-[11px] text-gray-400">
                         <Mail className="w-3 h-3"/> To: {selected.toEmail}
