@@ -28,12 +28,6 @@ async function ensureTables() {
       last_polled_at TIMESTAMPTZ
     )
   `);
-  // Wipe all outreach emails, replies, and reply state as requested by user
-  await db.query(`TRUNCATE TABLE outreach_emails, email_replies, email_reply_state RESTART IDENTITY CASCADE;`).catch(async () => {
-    await db.query(`DELETE FROM email_replies;`).catch(() => {});
-    await db.query(`DELETE FROM outreach_emails;`).catch(() => {});
-    await db.query(`DELETE FROM email_reply_state;`).catch(() => {});
-  });
 }
 
 function imapCredentials() {
