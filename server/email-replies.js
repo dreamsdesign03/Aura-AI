@@ -30,6 +30,25 @@ async function ensureTables() {
   `);
   // Clean up any accidental self-replies stored previously
   await db.query(`DELETE FROM email_replies WHERE LOWER(from_email) LIKE '%aurabackoffice%' OR LOWER(from_email) = 'aurabackoffice123@gmail.com';`).catch(() => {});
+
+  // Backfill outreach_email_id and lead_id for any unlinked email_replies rows
+  await db.query(`
+    UPDATE email_replies r
+    SET outreach_email_id = oe.id,
+        lead_id = COALESCE(r.lead_id, oe.lead_id)
+    FROM outreach_emails oe
+    WHERE (r.outreach_email_id IS NULL OR r.lead_id IS NULL)
+      AND (LOWER(oe.recipient_email) = LOWER(r.from_email) OR LOWER(oe.to_email) = LOWER(r.from_email));
+  `).catch(() => {});
+
+  // Backfill lead_id from leads table if still null
+  await db.query(`
+    UPDATE email_replies r
+    SET lead_id = l.id
+    FROM leads l
+    WHERE r.lead_id IS NULL
+      AND LOWER(l.email) = LOWER(r.from_email);
+  `).catch(() => {});
 }
 
 function imapCredentials() {
@@ -214,7 +233,7 @@ function registerEmailReplyRoutes(app, resolveUserId) {
       const userId = await resolveUserId(email || null, req.headers.cookie);
       const leadFilter = req.query?.leadId;
       const params = [userId];
-      let where = "WHERE r.user_id = $1 AND LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) <> 'aurabackoffice123@gmail.com'";
+      let where = "WHERE (r.user_id = $1 OR r.user_id IS NULL) AND LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) <> 'aurabackoffice123@gmail.com'";
       if (leadFilter) {
         params.push(Number(leadFilter));
         where += ' AND r.lead_id = $' + params.length;
