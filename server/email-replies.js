@@ -31,8 +31,9 @@ async function ensureTables() {
 }
 
 function imapCredentials() {
-  const user = process.env.IMAP_USER || process.env.SMTP_USER || '';
-  const pass = process.env.IMAP_PASS || process.env.SMTP_PASS || '';
+  // Dedicated inbox creds for the reply poller only, independent of SMTP_USER used elsewhere.
+  const user = process.env.AURA_INBOX_USER || process.env.IMAP_USER || process.env.SMTP_USER || '';
+  const pass = process.env.AURA_INBOX_PASS || process.env.IMAP_PASS || process.env.SMTP_PASS || '';
   return { user, pass };
 }
 
