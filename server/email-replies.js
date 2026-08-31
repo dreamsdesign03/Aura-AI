@@ -128,8 +128,9 @@ async function pollReplies(userId) {
           } catch {
             continue;
           }
-          const from = parsed.from?.value?.[0];
-          const fromEmail = (from?.address || '').toLowerCase().trim();
+          const envelopeFrom = msg.envelope?.from?.[0]?.address || '';
+          const parsedFrom = parsed.from?.value?.[0]?.address || parsed.from?.text || '';
+          const fromEmail = (envelopeFrom || parsedFrom).toLowerCase().trim();
           if (!fromEmail) continue;
 
           // NEVER count emails sent FROM our own account (or SMTP_USER) as a prospect reply!
@@ -146,6 +147,19 @@ async function pollReplies(userId) {
 
           let leadId = emailToLead.get(fromEmail) || null;
           let outreach = emailToOutreach.get(fromEmail) || null;
+
+          // Match by In-Reply-To header first if available!
+          const inReplyTo = parsed.inReplyTo || parsed.headers?.get?.('in-reply-to') || '';
+          if (inReplyTo) {
+            const headerMatch = await db.query(
+              `SELECT id, lead_id FROM outreach_emails WHERE message_id = $1 LIMIT 1`,
+              [String(inReplyTo).trim()]
+            );
+            if (headerMatch.rows.length) {
+              outreach = headerMatch.rows[0];
+              if (!leadId) leadId = outreach.lead_id;
+            }
+          }
 
           if (!leadId || !outreach) {
             const dbMatch = await db.query(
@@ -168,8 +182,7 @@ async function pollReplies(userId) {
 
           if (!outreach) {
             const latestOutreach = await db.query(
-              `SELECT id, lead_id FROM outreach_emails WHERE user_id = $1 ORDER BY id DESC LIMIT 1`,
-              [userId]
+              `SELECT id, lead_id FROM outreach_emails ORDER BY id DESC LIMIT 1`
             );
             if (latestOutreach.rows.length) {
               outreach = latestOutreach.rows[0];
@@ -177,13 +190,14 @@ async function pollReplies(userId) {
             }
           }
 
+          const fromName = msg.envelope?.from?.[0]?.name || from?.name || '';
           const body = parsed.text || stripHtml(parsed.html) || '';
           const receivedAt = parsed.date && !isNaN(parsed.date.getTime()) ? parsed.date : new Date();
 
           await db.query(
             `INSERT INTO email_replies (user_id, lead_id, outreach_email_id, from_email, from_name, subject, body, message_id, received_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [userId, leadId, outreach?.id || null, fromEmail, from?.name || '', (parsed.subject || '').slice(0, 500), body.slice(0, 10000), messageId, receivedAt]
+            [userId, leadId, outreach?.id || null, fromEmail, fromName, (parsed.subject || '').slice(0, 500), body.slice(0, 10000), messageId, receivedAt]
           );
           added++;
         }
@@ -208,11 +222,9 @@ function registerEmailReplyRoutes(app, resolveUserId) {
   // GET /api/outreach/replies
   app.get('/api/outreach/replies', async (req, res) => {
     try {
-      const email = req.query?.email;
-      const userId = await resolveUserId(email || null, req.headers.cookie);
       const leadFilter = req.query?.leadId;
-      const params = [userId];
-      let where = "WHERE (r.user_id = $1 OR r.user_id IS NULL) AND LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) <> 'aurabackoffice123@gmail.com'";
+      const params = [];
+      let where = "WHERE LOWER(r.from_email) NOT LIKE '%aurabackoffice%' AND LOWER(r.from_email) <> 'aurabackoffice123@gmail.com'";
       if (leadFilter) {
         params.push(Number(leadFilter));
         where += ' AND r.lead_id = $' + params.length;
