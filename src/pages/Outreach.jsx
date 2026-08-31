@@ -263,7 +263,11 @@ export default function Outreach() {
             });
         }
     };
-    useEffect(() => { checkReplies(); }, [checkReplies]);
+    useEffect(() => {
+        checkReplies();
+        const t = setInterval(() => checkReplies(), 60000);
+        return () => clearInterval(t);
+    }, [checkReplies]);
     useEffect(() => {
         if (selected && !isEditing) {
             setEditSubject(selected.subject);
