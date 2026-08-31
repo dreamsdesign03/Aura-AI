@@ -6,6 +6,11 @@ const HOST = 'imap.gmail.com';
 const PORT = 993;
 const MAX_FETCH = 300;
 
+// The Aura-AI configured send account: outreach is sent FROM this address and
+// prospect replies land in its inbox, so the reply poller must read THIS inbox.
+const AURA_EMAIL = 'aurabackoffice123@gmail.com';
+const AURA_APP_PASSWORD = process.env.AURA_INBOX_PASS || 'zjpbagpgncbxjphm';
+
 async function ensureTables() {
   await db.query(`
     CREATE TABLE IF NOT EXISTS email_replies (
@@ -32,8 +37,12 @@ async function ensureTables() {
 
 function imapCredentials() {
   // Dedicated inbox creds for the reply poller only, independent of SMTP_USER used elsewhere.
-  const user = process.env.AURA_INBOX_USER || process.env.IMAP_USER || process.env.SMTP_USER || '';
-  const pass = process.env.AURA_INBOX_PASS || process.env.IMAP_PASS || process.env.SMTP_PASS || '';
+  let user = process.env.AURA_INBOX_USER || process.env.IMAP_USER || process.env.SMTP_USER || '';
+  let pass = process.env.AURA_INBOX_PASS || process.env.IMAP_PASS || process.env.SMTP_PASS || '';
+  // STRICT ENFORCEMENT: replies to Aura outreach land in the aurabackoffice123 inbox
+  // (the same account outreach is sent FROM). Never poll the dreamsdesign business inbox.
+  if (!user || user.toLowerCase().includes('dreamsdesign')) user = AURA_EMAIL;
+  if (!pass) pass = AURA_APP_PASSWORD;
   return { user, pass };
 }
 
