@@ -239,7 +239,7 @@ async function pollReplies(userId) {
     }
     await setLastPolled(userId, new Date());
     await client.logout();
-    return { ok: true, added };
+    return { ok: true, added, scanned: recent.length, inboxTotal: seq.length };
   } catch (err) {
     try { await client.logout(); } catch {}
     console.error('[email-replies] poll error:', err.message);
