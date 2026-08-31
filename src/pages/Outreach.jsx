@@ -32,16 +32,10 @@ function normalizeEmail(r) {
         subject: r.subject,
         body: r.body,
         status: r.status,
-        createdAt: r.created_at,
+        messageId: r.message_id,
         sentAt: r.sent_at,
         openedAt: r.opened_at,
         errorMsg: r.error_msg,
-        auditRunId: r.audit_run_id,
-        leadFirstName: r.lead_first_name ?? r.first_name,
-        leadLastName: r.lead_last_name ?? r.last_name,
-        leadDesignation: r.lead_designation ?? r.designation,
-        leadPhoto: r.lead_photo ?? r.lead_photo_url,
-        leadCompanyLogo: r.lead_company_logo,
         leadWebsite: r.lead_website ?? r.website,
         currency: r.currency,
         country: r.country,
@@ -63,6 +57,48 @@ function StatusIcon({ status, opened }) {
         return <XCircle className="w-3.5 h-3.5 text-red-500"/>;
     return <Clock className="w-3.5 h-3.5 text-amber-500"/>;
 }
+function GmailMessageBody({ body, quotedBody }) {
+    const [expanded, setExpanded] = useState(false);
+
+    let mainText = body || "";
+    let quotedText = quotedBody || "";
+
+    if (!quotedText && mainText) {
+        const quoteStart = mainText.search(
+            /(^|\n)(>?\s*On[^\n]*wrote\s*:\s*$|From\s*:.*\n(.*\n)*?Sent\s*:.*\n|-----Original Message-----)/mi
+        );
+        if (quoteStart !== -1) {
+            quotedText = mainText.slice(quoteStart).trim();
+            mainText = mainText.slice(0, quoteStart).trim();
+        }
+    }
+
+    return (
+        <div className="px-6 py-5 text-sm text-gray-800 font-sans leading-relaxed">
+            <div className="whitespace-pre-wrap">{mainText || "(empty message)"}</div>
+            
+            {quotedText ? (
+                <div className="mt-3">
+                    <button
+                        type="button"
+                        onClick={() => setExpanded(!expanded)}
+                        title={expanded ? "Hide trimmed content" : "Show trimmed content"}
+                        className="inline-flex items-center justify-center px-2.5 py-1 rounded bg-gray-200 hover:bg-gray-300 active:bg-gray-400 text-gray-600 transition-colors text-xs font-bold tracking-widest cursor-pointer border border-gray-300 shadow-xs"
+                    >
+                        •••
+                    </button>
+
+                    {expanded && (
+                        <div className="mt-3 pl-3 border-l-2 border-gray-300 text-gray-600 whitespace-pre-wrap text-xs font-mono bg-gray-50/70 py-2.5 pr-3 rounded-r leading-relaxed">
+                            {quotedText}
+                        </div>
+                    )}
+                </div>
+            ) : null}
+        </div>
+    );
+}
+
 export default function Outreach() {
     const qc = useQueryClient();
     const { data: emailsRaw = [], isLoading, refetch } = useListOutreachEmails({}, {
@@ -246,6 +282,7 @@ export default function Outreach() {
             recipientEmail: SENDER_EMAIL,
             subject: r.subject || selectedThread.subject,
             body: r.body,
+            quotedBody: r.quoted_body || r.quotedBody,
             date: r.received_at || r.created_at,
             isUnread: !readReplyIds.has(r.id)
         }))
@@ -684,9 +721,7 @@ export default function Outreach() {
                               </div>
 
                               {/* Gmail Message Body */}
-                              <div className="px-6 py-5 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
-                                {msg.body || "(empty message)"}
-                              </div>
+                              <GmailMessageBody body={msg.body} quotedBody={msg.quotedBody} />
                             </div>
                           );
                         })}
