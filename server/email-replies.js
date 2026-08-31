@@ -137,6 +137,7 @@ async function pollReplies(userId) {
     try {
       const seq = await client.search({ since });
       const recent = seq.slice(-MAX_FETCH);
+      console.log(`[email-replies] Scanning ${recent.length} inbox emails for user ${userId}`);
       if (recent.length) {
         for await (const msg of client.fetch(recent, { envelope: true, source: true })) {
           let parsed;
@@ -166,7 +167,10 @@ async function pollReplies(userId) {
           const isReply = isReplyMessage(parsed.subject, parsed.inReplyTo);
 
           // Only ever treat emails that look like replies (Re:/Fwd:/In-Reply-To) as replies.
-          if (!isReply) continue;
+          if (!isReply) {
+            console.log(`[email-replies] SKIP (not a reply): from=${fromEmail} subj="${(parsed.subject||'').slice(0,60)}" inReplyTo=${parsed.inReplyTo ? 'yes' : 'no'}`);
+            continue;
+          }
 
           let leadId = emailToLead.get(fromEmail) || null;
           let outreach = null;
@@ -183,6 +187,7 @@ async function pollReplies(userId) {
             if (headerMatch.rows.length) {
               outreach = headerMatch.rows[0];
               if (!leadId) leadId = outreach.lead_id;
+              console.log(`[email-replies] MATCH #1 (In-Reply-To): from=${fromEmail} -> outreach=${outreach.id} lead=${leadId}`);
             }
           }
 
@@ -193,6 +198,7 @@ async function pollReplies(userId) {
             if (senderAsLead && sentToSender) {
               outreach = sentToSender;
               leadId = senderAsLead;
+              console.log(`[email-replies] MATCH #2 (lead+sent): from=${fromEmail} -> outreach=${outreach.id} lead=${leadId}`);
             }
           }
 
@@ -205,11 +211,15 @@ async function pollReplies(userId) {
             if (dbMatch.rows.length) {
               outreach = dbMatch.rows[0];
               if (!leadId) leadId = outreach.lead_id;
+              console.log(`[email-replies] MATCH #3 (recipient match): from=${fromEmail} -> outreach=${outreach.id} lead=${leadId}`);
             }
           }
 
           // Only store genuine replies that we could confidently attach to an Aura-AI outreach email.
-          if (!outreach) continue;
+          if (!outreach) {
+            console.log(`[email-replies] SKIP (no outreach match): from=${fromEmail} subj="${(parsed.subject||'').slice(0,60)}" leadId=${leadId ?? 'none'}`);
+            continue;
+          }
 
           const fromName = msg.envelope?.from?.[0]?.name || '';
           const body = parsed.text || stripHtml(parsed.html) || '';
@@ -221,6 +231,7 @@ async function pollReplies(userId) {
             [userId, leadId, outreach.id, fromEmail, fromName, (parsed.subject || '').slice(0, 500), body.slice(0, 10000), messageId, receivedAt]
           );
           added++;
+          console.log(`[email-replies] ✅ STORED reply #${messageId}: from=${fromEmail} -> outreach=${outreach.id} lead=${leadId}`);
         }
       }
     } finally {

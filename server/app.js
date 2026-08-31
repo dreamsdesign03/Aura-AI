@@ -1586,7 +1586,7 @@ app.post('/api/outreach/send', async (req, res) => {
 
     await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW(), message_id = COALESCE($1, message_id) WHERE id = $2`, [messageId, id]);
 
-    console.log(`[outreach] Email sent to ${recipientEmail} (id=${id}, msgId=${messageId})`);
+    console.log(`[outreach] ✅ Email sent to ${recipientEmail} (id=${id}, msgId=${messageId}, inReplyTo=${parent?.messageId ?? 'none'})`);
     res.json({ success: true, message: 'Email sent successfully' });
   } catch (err) {
     console.error('[outreach] Send error:', err.message);
