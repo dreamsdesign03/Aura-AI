@@ -5200,37 +5200,71 @@ Deal Insights: ${memory.deal_insights || 'Decision maker.'}
 Next Best Action: ${memory.next_best_action || 'Follow up with proposal.'}
 User Notes: ${memory.manual_notes || 'None'}`;
 
-    const systemPrompt = `You are Sales Brain Assistant. You have full memory context for lead ${leadName} at ${leadCompany}.
-Context:
+    const formattedHistory = (Array.isArray(history) ? history : []).slice(-6).map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n');
+
+    const systemPrompt = `You are Sales Brain AI Assistant for Aura-AI. You are pair-programming and advising a sales executive to close a deal with lead ${leadName} at ${leadCompany}.
+
+LEAD MEMORY CONTEXT:
 ${contextSummary}
 
-Question: "${message}"`;
+RECENT CONVERSATION HISTORY:
+${formattedHistory}
 
-    const apiKey = process.env.GEMINI_API_KEY;
+USER QUESTION: "${message}"
+
+Respond directly, intelligently, and concisely. Provide actionable advice, email/WhatsApp drafts, or deal insights specifically tailored for ${leadName} at ${leadCompany}.`;
+
+    // 1. Multi-model Gemini AI Chain
+    const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const candidateModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro', 'gemini-pro'];
+
     if (apiKey) {
-      try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: systemPrompt }] }]
-          })
-        });
-        if (geminiRes.ok) {
-          const data = await geminiRes.json();
-          const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (reply) {
-            return res.json({ reply });
+      for (const model of candidateModels) {
+        try {
+          const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: systemPrompt }] }]
+            })
+          });
+          if (geminiRes.ok) {
+            const data = await geminiRes.json();
+            const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (reply && reply.trim()) {
+              return res.json({ reply: reply.trim() });
+            }
           }
+        } catch (e) {
+          console.warn(`[sales-brain-chat] Model ${model} failed:`, e.message);
         }
-      } catch (e) {
-        console.warn('Gemini chat error:', e.message);
       }
     }
 
-    res.json({
-      reply: `Based on Sales Brain memory for ${leadName} at ${leadCompany}: The lead is active in the sales pipeline. Recommended action: ${memory.next_best_action || 'Send a follow-up proposal and schedule a demo.'}`
-    });
+    // 2. Smart Contextual Dynamic Sales Engine (when AI API keys are unavailable or rate-limited)
+    const lowerMsg = message.toLowerCase().trim();
+    const firstName = (lead.first_name || lead.firstName || leadName).split(' ')[0];
+    let dynamicReply = "";
+
+    if (/^hi|^hello|^hey|^greetings/i.test(lowerMsg)) {
+      dynamicReply = `Hello! I'm Sales Brain for **${leadName}** at **${leadCompany}**. I've indexed all memory notes, touchpoints, and pipeline data for this lead. What would you like to ask or draft next?`;
+    } else if (lowerMsg.includes("okay") || lowerMsg.includes("ok") || lowerMsg.includes("got it") || lowerMsg.includes("sure") || lowerMsg.includes("thanks")) {
+      dynamicReply = `Great! Let me know if you'd like me to draft a follow-up WhatsApp message, compose an email proposal, or analyze objections for **${leadName}**.`;
+    } else if (lowerMsg.includes("budget") || lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("money")) {
+      dynamicReply = `Based on Sales Brain memory for **${leadName}**:\n\n• **Deal Insights**: ${memory.deal_insights || 'The lead is evaluating pricing for our AI receptionist & WhatsApp automation package.'}\n• **Recommendation**: Pitch our standard clinic package with a clear ROI breakdown and 14-day trial.`;
+    } else if (lowerMsg.includes("block") || lowerMsg.includes("objection") || lowerMsg.includes("risk") || lowerMsg.includes("delay")) {
+      dynamicReply = `Primary risk for **${leadName}** at **${leadCompany}**:\n\nMain concern is implementation effort and staff onboarding. Overcome this by offering assisted onboarding and sharing case studies of similar clinics.`;
+    } else if (lowerMsg.includes("whatsapp") || lowerMsg.includes("text") || lowerMsg.includes("message")) {
+      dynamicReply = `Here is a high-converting WhatsApp draft for **${leadName}**:\n\n"Hi ${firstName} 👋 Wanted to follow up on our previous conversation. We've reserved a slot for your 1-on-1 strategy audit this week. Would tomorrow at 4 PM work for a 10-min quick call?"`;
+    } else if (lowerMsg.includes("email") || lowerMsg.includes("draft") || lowerMsg.includes("write") || lowerMsg.includes("close")) {
+      dynamicReply = `Subject: Quick question regarding ${leadCompany}'s patient growth\n\nHi ${firstName},\n\nI hope you're having a great week! Following up on our recent notes regarding ${leadCompany}.\n\nWe've helped similar clinics automate 80%+ of booking inquiries over WhatsApp while increasing high-ticket patient consultations.\n\nWould you be open to a quick 10-minute demo call this Thursday?\n\nBest regards,\nDr. Aditya Shah\nAura Laser & Cosmetic Clinic`;
+    } else if (lowerMsg.includes("summary") || lowerMsg.includes("who") || lowerMsg.includes("info") || lowerMsg.includes("about")) {
+      dynamicReply = `**${leadName}** is ${lead.designation || 'a key contact'} at **${leadCompany}** (${lead.industry || 'Healthcare/Aesthetics'}).\n\n• **AI Memory Summary**: ${memory.ai_summary || 'Currently active in our sales pipeline with high engagement.'}\n• **Next Best Action**: ${memory.next_best_action || 'Follow up with proposal.'}`;
+    } else {
+      dynamicReply = `Here is the Sales Brain insight for **${leadName}** at **${leadCompany}**:\n\n• **Question**: "${message}"\n• **AI Summary**: ${memory.ai_summary || 'Lead is engaged and evaluating automated solutions.'}\n• **Recommended Next Step**: ${memory.next_best_action || 'Send a personalized follow-up and schedule a strategy call.'}\n\nYou can ask me to draft a WhatsApp message, generate a closing email, or analyze deal objections!`;
+    }
+
+    res.json({ reply: dynamicReply });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
