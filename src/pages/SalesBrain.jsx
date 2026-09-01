@@ -354,39 +354,41 @@ function LeadBrainTab() {
                   {/* ── TIMELINE ── */}
                   {subTab === "timeline" && (() => {
                     const items = [];
-                    context.context.waMessages.forEach(m => {
+                    (context?.context?.waMessages ?? []).forEach(m => {
+                        const txt = m.content || m.body || m.message || "";
                         items.push({
-                            date: new Date(m.sentAt ?? Date.now()),
+                            date: new Date(m.sentAt ?? m.createdAt ?? Date.now()),
                             type: "whatsapp",
                             icon: MessageCircle,
                             color: "#25D366",
-                            title: m.direction === "outbound" ? "You → WhatsApp" : `${sel.firstName} → WhatsApp`,
-                            body: m.content.substring(0, 200),
+                            title: m.direction === "outbound" ? "You → WhatsApp" : `${sel.firstName || "Lead"} → WhatsApp`,
+                            body: String(txt || "").substring(0, 200),
                         });
                     });
-                    [...context.context.touchpoints.filter(t => t.status === "sent"), ...context.context.sentEmails].forEach(e => {
+                    [...(context?.context?.touchpoints?.filter(t => t.status === "sent") ?? []), ...(context?.context?.sentEmails ?? [])].forEach(e => {
                         items.push({
-                            date: new Date(e.sentAt ?? e.createdAt),
+                            date: new Date(e.sentAt ?? e.createdAt ?? Date.now()),
                             type: "email",
                             icon: Mail,
                             color: "#2563EB",
                             title: `Email: ${e.subject ?? "(no subject)"}`,
-                            body: e.body?.substring(0, 200) ?? "",
+                            body: String(e.body ?? "").substring(0, 200),
                         });
                     });
-                    context.context.meetings.forEach(m => {
+                    (context?.context?.meetings ?? []).forEach(m => {
                         items.push({
-                            date: new Date(m.scheduledAt),
+                            date: new Date(m.scheduledAt ?? Date.now()),
                             type: "meeting",
                             icon: MessageSquare,
                             color: "#CB3273",
-                            title: `Meeting: ${m.type?.replace(/_/g, " ") ?? "Meeting"} (${m.status})`,
+                            title: `Meeting: ${m.type?.replace(/_/g, " ") ?? "Meeting"} (${m.status ?? "scheduled"})`,
                             body: m.meetingUrl ?? "",
                         });
                     });
-                    context.context.appointments.forEach(a => {
+                    (context?.context?.appointments ?? []).forEach(a => {
+                        const dateStr = a.scheduledDate && a.scheduledTime ? `${a.scheduledDate}T${a.scheduledTime}` : (a.createdAt ?? Date.now());
                         items.push({
-                            date: new Date(`${a.scheduledDate}T${a.scheduledTime}`),
+                            date: new Date(dateStr),
                             type: "appointment",
                             icon: MessageSquare,
                             color: "#DE377C",
@@ -394,14 +396,15 @@ function LeadBrainTab() {
                             body: a.meetingLink ?? "",
                         });
                     });
-                    context.context.transcripts.forEach(t => {
+                    (context?.context?.transcripts ?? []).forEach(t => {
+                        const text = t.summary || t.rawTranscript || "";
                         items.push({
-                            date: new Date(t.fetchedAt ?? Date.now()),
+                            date: new Date(t.fetchedAt ?? t.createdAt ?? Date.now()),
                             type: "transcript",
                             icon: FileText,
                             color: "#16A34A",
                             title: "Meeting Transcript",
-                            body: t.summary ?? t.rawTranscript?.substring(0, 200) ?? "(empty)",
+                            body: String(text || "").substring(0, 200) || "(empty)",
                         });
                     });
                     items.sort((a, b) => b.date.getTime() - a.date.getTime());
