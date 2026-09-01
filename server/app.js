@@ -5324,7 +5324,7 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
     }
     // Greetings (hi, hii, hiii, hello, heyy, etc.)
     else if (/^(hi+|hello+|hey+|helo+|greetings|yo|sup)$/i.test(lowerMsg) || lowerMsg.startsWith("hi") || lowerMsg.startsWith("hello") || lowerMsg.startsWith("hey")) {
-      dynamicReply = `Hello! I'm Sales Brain for **${leadName}** at **${leadCompany}**. I have full database access to this lead's profile, contact number, website, email, location, and pipeline notes.\n\nWhat would you like to know or draft next?`;
+      dynamicReply = `Hey there! 👋 How can I assist you with **${leadName}** at **${leadCompany}** today?`;
     }
     // Budget / Pricing
     else if (lowerMsg.includes("budget") || lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("money") || lowerMsg.includes("pricing")) {
