@@ -5262,8 +5262,8 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
     const lowerMsg = message.toLowerCase().trim();
     let dynamicReply = "";
 
-    // Conversation History / Last Message / Recent Interaction
-    if (lowerMsg.includes("conversation") || lowerMsg.includes("last message") || lowerMsg.includes("previous message") || lowerMsg.includes("talk") || lowerMsg.includes("chat")) {
+    // Conversation History / Previous Interactions (matches typos like converation, priviously, convo, chat, talk, etc.)
+    if (/conver|convo|discuss|talk|chat|histor|previous|privious|past|earlier|message|email|reply|touchpoint|interact/i.test(lowerMsg)) {
       let historyItems = [];
       try {
         const waRes = await db.query(`SELECT body, content, direction, created_at, sent_at FROM whatsapp_messages WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 3`, [leadId]);
@@ -5281,9 +5281,9 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
       } catch {}
 
       if (historyItems.length > 0) {
-        dynamicReply = `Here is the recent conversation history with **${leadName}**:\n\n${historyItems.join('\n')}`;
+        dynamicReply = `Here is the previous conversation & interaction history with **${leadName}**:\n\n${historyItems.join('\n')}`;
       } else {
-        dynamicReply = `Recent activity summary for **${leadName}** at **${leadCompany}**:\n\n• **Status**: Active in pipeline (${stage})\n• **Outreach**: Initial email touchpoint sent to ${email}.\n• **AI Summary**: ${memory.ai_summary || 'Actively engaged in evaluating sales automation tools.'}`;
+        dynamicReply = `Here is the interaction history summary for **${leadName}** at **${leadCompany}**:\n\n• **Outreach**: Initial email touchpoints sent to ${email}.\n• **WhatsApp Status**: Connected to ${phone}.\n• **Current Status**: Active in pipeline (${stage}).\n• **AI Memory Summary**: ${memory.ai_summary || 'Actively engaged in evaluating sales automation tools.'}`;
       }
     }
     // Natural Affirmation (yes, yeah, sure, go ahead)
@@ -5291,35 +5291,35 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
       dynamicReply = `Awesome! Would you like me to draft a high-converting **WhatsApp message** or compose a personalized **email proposal** for **${leadName}** at **${leadCompany}**?`;
     }
     // Contact Number / Phone / Mobile
-    else if (lowerMsg.includes("contact") || lowerMsg.includes("number") || lowerMsg.includes("phone") || lowerMsg.includes("mobile") || lowerMsg.includes("call")) {
+    else if (/contact|cntct|number|numb|phone|mobile|call/i.test(lowerMsg)) {
       dynamicReply = `Here is the contact number for **${leadName}** at **${leadCompany}**:\n\n• **Phone / WhatsApp**: ${phone}\n• **Email Address**: ${email}\n• **Preferred Contact Channel**: WhatsApp & Direct Phone Call`;
     }
     // Website / URL / Domain
-    else if (lowerMsg.includes("website") || lowerMsg.includes("site") || lowerMsg.includes("url") || lowerMsg.includes("domain") || lowerMsg.includes("link") || lowerMsg.includes("web")) {
+    else if (/website|site|url|domain|link|web/i.test(lowerMsg)) {
       dynamicReply = `Here is the website information for **${leadCompany}**:\n\n• **Website URL**: ${website}\n• **Company Name**: ${leadCompany}\n• **Industry**: ${industry}`;
     }
     // Email Address
-    else if (lowerMsg.includes("email") || lowerMsg.includes("mail") || lowerMsg.includes("inbox")) {
+    else if (/email|mail|inbox/i.test(lowerMsg)) {
       dynamicReply = `Here is the email address for **${leadName}**:\n\n• **Email Address**: ${email}\n• **Primary Contact**: ${leadName} (${designation})`;
     }
     // Location / Address / City
-    else if (lowerMsg.includes("location") || lowerMsg.includes("city") || lowerMsg.includes("address") || lowerMsg.includes("where") || lowerMsg.includes("country") || lowerMsg.includes("state")) {
+    else if (/location|city|address|where|place|country|state/i.test(lowerMsg)) {
       dynamicReply = `Location details for **${leadName}** at **${leadCompany}**:\n\n• **Location**: ${location}\n• **Timezone**: IST (UTC+5:30)`;
     }
     // BANT Score / Pipeline Stage / Status
-    else if (lowerMsg.includes("bant") || lowerMsg.includes("score") || lowerMsg.includes("stage") || lowerMsg.includes("status") || lowerMsg.includes("qualification")) {
+    else if (/bant|score|stage|status|qualification/i.test(lowerMsg)) {
       dynamicReply = `Pipeline & Qualification status for **${leadName}**:\n\n• **BANT Score**: ${bantScore} / 100\n• **Pipeline Stage**: ${stage}\n• **Lead Source**: ${lead.source || 'Inbound Website Enquiry'}\n• **Buying Intent**: High Intent (Evaluating sales automation & AI receptionist tools)`;
     }
     // Company Info
-    else if (lowerMsg.includes("company") || lowerMsg.includes("business") || lowerMsg.includes("organization") || lowerMsg.includes("firm")) {
+    else if (/company|business|organization|firm/i.test(lowerMsg)) {
       dynamicReply = `Here is the company information for **${leadCompany}**:\n\n• **Company Name**: ${leadCompany}\n• **Official Website**: ${website}\n• **Industry**: ${industry}\n• **Location**: ${location}\n• **Company Intelligence**: ${memory.deal_insights || `${leadCompany} is evaluating AI-driven patient acquisition and automated booking solutions.`}\n• **Account Status**: ${stage}`;
     }
     // Who is Lead / Person details
-    else if (lowerMsg.includes("who is") || lowerMsg.includes("who's") || lowerMsg.includes("tell me about") || lowerMsg.includes("person") || lowerMsg.includes("who")) {
+    else if (/who|person|about|identity/i.test(lowerMsg)) {
       dynamicReply = `**${leadName}** is ${designation} at **${leadCompany}** (${industry}).\n\n• **Role**: ${designation}\n• **Email**: ${email}\n• **Phone / WhatsApp**: ${phone}\n• **Website**: ${website}\n• **BANT Score**: ${bantScore} / 100\n• **AI Summary**: ${memory.ai_summary || 'Actively engaged in evaluating sales automation solutions.'}`;
     }
     // All Details / Profile / Everything
-    else if (lowerMsg.includes("detail") || lowerMsg.includes("all info") || lowerMsg.includes("everything") || lowerMsg.includes("profile") || lowerMsg.includes("data")) {
+    else if (/detail|dtail|all info|everything|profile|data/i.test(lowerMsg)) {
       dynamicReply = `Here are all database records for **${leadName}** at **${leadCompany}**:\n\n• **Full Name**: ${leadName}\n• **Company**: ${leadCompany}\n• **Designation**: ${designation}\n• **Email**: ${email}\n• **Phone / WhatsApp**: ${phone}\n• **Website**: ${website}\n• **Location**: ${location}\n• **BANT Score**: ${bantScore} / 100\n• **Pipeline Stage**: ${stage}\n• **AI Summary**: ${memory.ai_summary || 'Evaluating sales automation solutions.'}\n• **Deal Insights**: ${memory.deal_insights || 'High decision authority.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
     }
     // Greetings (hi, hii, hiii, hello, heyy, etc.)
@@ -5327,15 +5327,15 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
       dynamicReply = `Hey there! 👋 How can I assist you with **${leadName}** at **${leadCompany}** today?`;
     }
     // Budget / Pricing
-    else if (lowerMsg.includes("budget") || lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("money") || lowerMsg.includes("pricing")) {
+    else if (/budget|price|cost|money|pricing/i.test(lowerMsg)) {
       dynamicReply = `Based on Sales Brain deal intelligence for **${leadName}**:\n\n• **Budget Status**: ${memory.deal_insights || 'Budget approved for sales automation & AI receptionist tools.'}\n• **Pricing Strategy**: Pitch our Standard Clinic Plan with clear ROI projections.\n• **Recommended Pitch**: Emphasize 24/7 AI WhatsApp booking which converts 3x more consultation inquiries.`;
     }
     // Objections / Risks
-    else if (lowerMsg.includes("block") || lowerMsg.includes("objection") || lowerMsg.includes("risk") || lowerMsg.includes("concern") || lowerMsg.includes("delay")) {
+    else if (/block|objection|risk|concern|delay/i.test(lowerMsg)) {
       dynamicReply = `Primary deal risk for **${leadName}** at **${leadCompany}**:\n\n• **Core Concern**: Staff adoption & implementation timeframe.\n• **Objection Handling Strategy**: Offer 14-day assisted setup, staff training, and zero-risk guarantee.\n• **Next Step**: Share case studies of similar clinics that implemented Aura-AI in under 24 hours.`;
     }
     // WhatsApp Draft
-    else if (lowerMsg.includes("whatsapp") || lowerMsg.includes("text message") || lowerMsg.includes("send message")) {
+    else if (/whatsapp|text message|send message/i.test(lowerMsg)) {
       dynamicReply = `Here is a high-converting WhatsApp message for **${leadName}** (${phone}):\n\n"Hi ${firstName} 👋 Wanted to check in regarding ${leadCompany}'s growth audit. We've reserved a quick 10-minute strategy slot for you this week. Would tomorrow at 4 PM work for a quick call?"`;
     }
     // Email Draft
