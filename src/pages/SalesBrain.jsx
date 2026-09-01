@@ -463,7 +463,7 @@ function LeadBrainTab() {
                             borderBottomLeftRadius: msg.role === "user" ? 16 : 4,
                             border: msg.role === "assistant" ? "1px solid #E5E7EB" : "none",
                         }}>
-                              <p className="text-[13px] leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                              {renderFormattedMessage(msg.content, msg.role === "user")}
                             </div>
                           </div>))}
 
@@ -925,6 +925,36 @@ function SettingsTab() {
         </form>)}
     </div>);
 }
+function renderFormattedMessage(text, isUser = false) {
+    if (!text) return null;
+    const lines = String(text).split("\n");
+
+    return (
+        <div className="space-y-1 text-[13px] leading-relaxed">
+            {lines.map((line, idx) => {
+                if (!line.trim()) return <div key={idx} className="h-1" />;
+
+                const parts = line.split(/(\*\*[^*]+\*\*)/g);
+
+                return (
+                    <div key={idx} className={line.trim().startsWith("•") || line.trim().startsWith("-") ? "pl-2" : ""}>
+                        {parts.map((part, pIdx) => {
+                            if (part.startsWith("**") && part.endsWith("**")) {
+                                return (
+                                    <strong key={pIdx} className={cn("font-bold", isUser ? "text-white" : "text-gray-900")}>
+                                        {part.slice(2, -2)}
+                                    </strong>
+                                );
+                            }
+                            return <span key={pIdx}>{part}</span>;
+                        })}
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function SalesBrain() {
     const [tab, setTab] = useState("brain");
