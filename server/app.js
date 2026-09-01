@@ -5262,8 +5262,36 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
     const lowerMsg = message.toLowerCase().trim();
     let dynamicReply = "";
 
+    // Conversation History / Last Message / Recent Interaction
+    if (lowerMsg.includes("conversation") || lowerMsg.includes("last message") || lowerMsg.includes("previous message") || lowerMsg.includes("talk") || lowerMsg.includes("chat")) {
+      let historyItems = [];
+      try {
+        const waRes = await db.query(`SELECT body, content, direction, created_at, sent_at FROM whatsapp_messages WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 3`, [leadId]);
+        waRes.rows.forEach(m => {
+          const txt = m.content || m.body || '';
+          if (txt) historyItems.push(`• **WhatsApp (${m.direction === 'outbound' ? 'You sent' : 'Lead sent'})**: "${txt.substring(0, 120)}"`);
+        });
+      } catch {}
+
+      try {
+        const emailRes = await db.query(`SELECT subject, body, from_email FROM email_replies WHERE lead_id = $1 ORDER BY received_at DESC LIMIT 3`, [leadId]);
+        emailRes.rows.forEach(e => {
+          historyItems.push(`• **Email Reply (${e.from_email || 'Lead'})**: "${e.subject || 'Re: Touchpoint'}" — ${(e.body || '').substring(0, 120)}`);
+        });
+      } catch {}
+
+      if (historyItems.length > 0) {
+        dynamicReply = `Here is the recent conversation history with **${leadName}**:\n\n${historyItems.join('\n')}`;
+      } else {
+        dynamicReply = `Recent activity summary for **${leadName}** at **${leadCompany}**:\n\n• **Status**: Active in pipeline (${stage})\n• **Outreach**: Initial email touchpoint sent to ${email}.\n• **AI Summary**: ${memory.ai_summary || 'Actively engaged in evaluating sales automation tools.'}`;
+      }
+    }
+    // Natural Affirmation (yes, yeah, sure, go ahead)
+    else if (/^(yes|yeah|yep|sure|absolutely|go ahead|okay)$/i.test(lowerMsg)) {
+      dynamicReply = `Awesome! Would you like me to draft a high-converting **WhatsApp message** or compose a personalized **email proposal** for **${leadName}** at **${leadCompany}**?`;
+    }
     // Contact Number / Phone / Mobile
-    if (lowerMsg.includes("contact") || lowerMsg.includes("number") || lowerMsg.includes("phone") || lowerMsg.includes("mobile") || lowerMsg.includes("call")) {
+    else if (lowerMsg.includes("contact") || lowerMsg.includes("number") || lowerMsg.includes("phone") || lowerMsg.includes("mobile") || lowerMsg.includes("call")) {
       dynamicReply = `Here is the contact number for **${leadName}** at **${leadCompany}**:\n\n• **Phone / WhatsApp**: ${phone}\n• **Email Address**: ${email}\n• **Preferred Contact Channel**: WhatsApp & Direct Phone Call`;
     }
     // Website / URL / Domain
@@ -5298,10 +5326,6 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
     else if (/^(hi|hello|hey|greetings)$/i.test(lowerMsg) || lowerMsg.startsWith("hi ") || lowerMsg.startsWith("hello ")) {
       dynamicReply = `Hello! I'm Sales Brain for **${leadName}** at **${leadCompany}**. I have full database access to this lead's profile, contact number, website, email, location, and pipeline notes.\n\nWhat would you like to know or draft next?`;
     }
-    // Confirmations
-    else if (lowerMsg.includes("okay") || lowerMsg.includes("ok") || lowerMsg.includes("got it") || lowerMsg.includes("sure") || lowerMsg.includes("thanks")) {
-      dynamicReply = `Great! Let me know if you'd like me to draft a follow-up WhatsApp message, compose an email proposal, or analyze objections for **${leadName}**.`;
-    }
     // Budget / Pricing
     else if (lowerMsg.includes("budget") || lowerMsg.includes("price") || lowerMsg.includes("cost") || lowerMsg.includes("money") || lowerMsg.includes("pricing")) {
       dynamicReply = `Based on Sales Brain deal intelligence for **${leadName}**:\n\n• **Budget Status**: ${memory.deal_insights || 'Budget approved for sales automation & AI receptionist tools.'}\n• **Pricing Strategy**: Pitch our Standard Clinic Plan with clear ROI projections.\n• **Recommended Pitch**: Emphasize 24/7 AI WhatsApp booking which converts 3x more consultation inquiries.`;
@@ -5318,9 +5342,9 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
     else if (lowerMsg.includes("draft") || lowerMsg.includes("write") || lowerMsg.includes("proposal") || lowerMsg.includes("close")) {
       dynamicReply = `Subject: Tailored AI Strategy Proposal for ${leadCompany}\n\nDear ${firstName},\n\nI hope you're having a productive week at ${leadCompany}.\n\nFollowing up on our sales audit notes, we've prepared a customized AI automation blueprint to streamline patient inquiries and increase consultation bookings by up to 80%.\n\nHere is your meeting link: https://calendly.com/dreamsdesign-in03/aura-meeting\n\nWould Thursday at 11 AM work for a quick 15-minute walkthrough?\n\nBest regards,\nDr. Aditya Shah\nAura Laser & Cosmetic Clinic`;
     }
-    // General Fallback
+    // Clean Natural Fallback
     else {
-      dynamicReply = `Sales Brain intelligence for **${leadName}** at **${leadCompany}**:\n\n• **Query**: "${message}"\n• **Contact Phone**: ${phone}\n• **Email**: ${email}\n• **Website**: ${website}\n• **AI Summary**: ${memory.ai_summary || 'Lead is actively evaluating sales automation solutions.'}\n• **Recommended Next Step**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}\n\nAsk me for "contact number", "website", "email", "location", "all details", or "draft email"!`;
+      dynamicReply = `I'm Sales Brain for **${leadName}** at **${leadCompany}**.\n\n• **Contact Phone**: ${phone}\n• **Email**: ${email}\n• **Website**: ${website}\n• **AI Summary**: ${memory.ai_summary || 'Lead is actively evaluating sales automation solutions.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
     }
 
     res.json({ reply: dynamicReply });
