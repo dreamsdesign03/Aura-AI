@@ -5322,8 +5322,8 @@ Instructions: Answer the user's question directly, accurately, and concisely bas
     else if (lowerMsg.includes("detail") || lowerMsg.includes("all info") || lowerMsg.includes("everything") || lowerMsg.includes("profile") || lowerMsg.includes("data")) {
       dynamicReply = `Here are all database records for **${leadName}** at **${leadCompany}**:\n\n• **Full Name**: ${leadName}\n• **Company**: ${leadCompany}\n• **Designation**: ${designation}\n• **Email**: ${email}\n• **Phone / WhatsApp**: ${phone}\n• **Website**: ${website}\n• **Location**: ${location}\n• **BANT Score**: ${bantScore} / 100\n• **Pipeline Stage**: ${stage}\n• **AI Summary**: ${memory.ai_summary || 'Evaluating sales automation solutions.'}\n• **Deal Insights**: ${memory.deal_insights || 'High decision authority.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
     }
-    // Greetings
-    else if (/^(hi|hello|hey|greetings)$/i.test(lowerMsg) || lowerMsg.startsWith("hi ") || lowerMsg.startsWith("hello ")) {
+    // Greetings (hi, hii, hiii, hello, heyy, etc.)
+    else if (/^(hi+|hello+|hey+|helo+|greetings|yo|sup)$/i.test(lowerMsg) || lowerMsg.startsWith("hi") || lowerMsg.startsWith("hello") || lowerMsg.startsWith("hey")) {
       dynamicReply = `Hello! I'm Sales Brain for **${leadName}** at **${leadCompany}**. I have full database access to this lead's profile, contact number, website, email, location, and pipeline notes.\n\nWhat would you like to know or draft next?`;
     }
     // Budget / Pricing
