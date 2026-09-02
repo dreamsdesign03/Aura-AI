@@ -5218,6 +5218,136 @@ app.post('/api/brain/leads/:id/chat', async (req, res) => {
 
     const formattedHistory = (Array.isArray(history) ? history : []).slice(-6).map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n');
 
+    // ── REAL SEND: when the user confirms sending a drafted message, actually deliver it ──
+    const sendApiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+    const lowerForSend = message.toLowerCase().trim();
+    const sendIntent = /(send|sending|deliver|transmit|email it|mail it|whatsapp it|fire it off|go ahead)/i.test(lowerForSend)
+      && !/(draft|prepare|compose|rewrite|write (?!again)|how should|should i|would you|please draft|could you|cancel|don'?t|not now|wait|hold on|stop|instead|change|edit|modify|improve|shorten|longer|shorter|alternative|different|suggest|give me|write me)/i.test(lowerForSend);
+
+    if (sendIntent && sendApiKey) {
+      const extractModels = ['gemini-2.5-flash', 'gemini-3.6-flash'];
+      let extracted = null;
+      for (const model of extractModels) {
+        try {
+          const extRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${sendApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `The user's AI assistant just drafted a message to a lead and the user now wants it ACTUALLY SENT. Using the conversation below, extract what should be sent. If the user asked for WhatsApp use channel "whatsapp"; if they said email/mail use channel "email". Default to the channel the draft was originally for.
+
+OUTPUT ONLY valid JSON, no markdown, no explanation:
+{"channel":"whatsapp"|"email","message":"<full message text to send, exactly as drafted>","subject":"<subject line, ONLY for email>"}
+
+LEAD: ${leadName}, phone=${phone}, email=${email}
+
+RECENT CONVERSATION:
+${formattedHistory}
+
+USER INSTRUCTION: ${message}`
+                }]
+              }]
+            })
+          });
+          if (extRes.ok) {
+            const d = await extRes.json();
+            const t = d.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (t) {
+              extracted = JSON.parse(t.replace(/```json|```/gi, '').trim());
+              break;
+            }
+          }
+        } catch {}
+      }
+
+      if (extracted && extracted.channel && extracted.message) {
+        const channel = extracted.channel.toLowerCase();
+        const sendMsg = String(extracted.message).trim();
+
+        if (channel === 'email') {
+          try {
+            const subject = extracted.subject || (leadCompany ? `Re: Partnership with ${leadCompany}` : 'Message from Aura AI');
+            const { transporter, fromEmail, fromName } = await getTransporter(userId);
+            await transporter.sendMail({
+              from: `"${fromName}" <${fromEmail}>`,
+              to: lead.email || email,
+              subject,
+              text: sendMsg,
+              html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${sendMsg.replace(/\n/g, '<br>')}</div>`,
+            });
+            if (userId) {
+              try {
+                await db.query(
+                  `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, sent_at, created_at)
+                   VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sent', NOW(), NOW())`,
+                  [userId, leadId ? Number(leadId) : null, lead.email || email, lead.email || email, leadName, leadCompany, subject, sendMsg]
+                );
+              } catch (dbErr) { console.error('[sales-brain] save outreach err:', dbErr.message); }
+            }
+            return res.json({ reply: `✅ Done! Email sent to **${lead.email || email}** (${leadName}).\n\n**Subject:** ${subject}\n\n${sendMsg}` });
+          } catch (sendErr) {
+            console.error('[sales-brain] email send failed:', sendErr.message);
+            return res.json({ reply: `I wasn't able to send the email: ${sendErr.message}. You can send it manually to ${lead.email || email}.` });
+          }
+        }
+
+        // WhatsApp default
+        try {
+          const waToken = process.env.WHATSAPP_ACCESS_TOKEN || 'EAAajLrxVRe0BQuaj5Dsh4mLaUpV5prCHZCUCgHaVGEA5MzjrQ2cromOtG8YT2ziklYZBYF2ZC0NsuAyNUENXZADQgQ2ocR36t0ZB1ra4QiUotZB6f2YZAmFgO3HvpTOZC0poDKoxeZAcKpEJ44LmTRXZB15SifuRuIZAoH2iROi1JboQULQ4HryMEl8Gj81GXaE5wl0fgZDZD';
+          const waPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '890723640798276';
+          let cleanDigits = (lead.whatsapp || lead.phone || phone || '').replace(/\D/g, '');
+          if (cleanDigits.length === 10) cleanDigits = '91' + cleanDigits;
+          if (!cleanDigits) return res.json({ reply: `I don't have a phone number for ${leadName}, so I can't send a WhatsApp message.` });
+
+          const payload = {
+            messaging_product: 'whatsapp',
+            recipient_type: 'individual',
+            to: cleanDigits,
+            type: 'text',
+            text: { preview_url: false, body: sendMsg },
+          };
+          const metaRes = await fetch(`https://graph.facebook.com/v25.0/${waPhoneNumberId}/messages`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${waToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          const metaData = await metaRes.json();
+          if (metaRes.ok && metaData.messages?.[0]?.id) {
+            let convId = null;
+            try {
+              let conv = await db.query(`SELECT id FROM whatsapp_conversations WHERE lead_id = $1 OR wa_phone_number = $2`, [leadId || null, cleanDigits]);
+              if (conv.rows[0]) {
+                convId = conv.rows[0].id;
+                await db.query(`UPDATE whatsapp_conversations SET state = 'outbound_sent', updated_at = NOW() WHERE id = $1`, [convId]);
+              } else {
+                const nc = await db.query(
+                  `INSERT INTO whatsapp_conversations (lead_id, phone, state, status, last_message_at, created_at, updated_at)
+                   VALUES ($1, $2, 'outbound_sent', 'Active', NOW(), NOW(), NOW()) RETURNING id`,
+                  [leadId || null, cleanDigits]
+                );
+                convId = nc.rows[0]?.id;
+              }
+            } catch (cErr) { console.error('[sales-brain] conv upsert err:', cErr.message); }
+            try {
+              await db.query(
+                `INSERT INTO whatsapp_messages (conversation_id, lead_id, phone, direction, content, body, meta_message_id, wa_message_id, status, sent_at, timestamp, created_at)
+                 VALUES ($1, $2, $3, 'outbound', $4, $4, $5, $5, 'sent', NOW(), NOW(), NOW())`,
+                [convId, leadId || null, cleanDigits, sendMsg, metaData.messages[0].id]
+              );
+            } catch (mErr) { console.error('[sales-brain] msg save err:', mErr.message); }
+            return res.json({ reply: `✅ Sent! Your WhatsApp message was delivered to **${leadName}** at ${cleanDigits}.\n\n${sendMsg}` });
+          } else {
+            const errMsg = metaData.error?.message || 'Meta API error';
+            return res.json({ reply: `I couldn't deliver the WhatsApp message (${errMsg}). This usually means the lead hasn't messaged you recently — for new leads, WhatsApp requires an approved template. I can email it instead, or you can send manually to ${cleanDigits}.` });
+          }
+        } catch (waErr) {
+          console.error('[sales-brain] whatsapp send failed:', waErr.message);
+          return res.json({ reply: `I wasn't able to send the WhatsApp message: ${waErr.message}.` });
+        }
+      }
+    }
+
     // ── Personal assistant identity built from the logged-in Aura-AI user's profile ──
     const userName = userProfile && (userProfile.first_name || userProfile.last_name)
       ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim()
@@ -5261,7 +5391,9 @@ ${formattedHistory}
 
 USER QUESTION: "${message}"
 
-Instructions: You are ${userName}'s personal AI assistant. Answer the user's question directly, accurately, and concisely based strictly on the exact database records provided above. If they ask general personal-assistant questions (scheduling, drafting emails/messages, admin help, advice about their own business), help them warmly and professionally. If they ask about a lead or sales, use the lead data above. Provide exact data clearly, formatted in Markdown. Never invent facts not present in the records; if unknown, say so.`;
+Instructions: You are ${userName}'s personal AI assistant. Answer the user's question directly, accurately, and concisely based strictly on the exact database records provided above. If they ask general personal-assistant questions (scheduling, drafting emails/messages, admin help, advice about their own business), help them warmly and professionally. If they ask about a lead or sales, use the lead data above. Provide exact data clearly, formatted in Markdown. Never invent facts not present in the records; if unknown, say so.
+
+SENDING MESSAGES: You CAN actually send WhatsApp and email messages to the selected lead. When you draft a message for a lead, end with: "Reply 'send it' and I'll send it to ${firstName} for you." Never send anything without the user's clear confirmation to send.`;
 
     // 1. Multi-model Gemini AI Chain
     const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
