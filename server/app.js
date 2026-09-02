@@ -5179,6 +5179,22 @@ app.post('/api/brain/leads/:id/chat', async (req, res) => {
     const leadId = req.params.id;
     const { message = '', history = [] } = req.body || {};
 
+    // Resolve the logged-in Aura-AI user and load their profile so the assistant
+    // speaks as THAT user's personal assistant (name, profession, business).
+    let userId = null;
+    let userProfile = {};
+    try {
+      userId = await resolveUserId(req.body.email, req.headers.cookie);
+    } catch {}
+    try {
+      const uRes = await db.query(
+        `SELECT id, username, first_name, last_name, email, phone, company_name, business_why, designation, city
+         FROM users WHERE id = $1`,
+        [userId]
+      );
+      if (uRes.rows.length > 0) userProfile = uRes.rows[0];
+    } catch {}
+
     let lead = {};
     try {
       const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
@@ -5206,9 +5222,29 @@ app.post('/api/brain/leads/:id/chat', async (req, res) => {
 
     const formattedHistory = (Array.isArray(history) ? history : []).slice(-6).map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n');
 
-    const systemPrompt = `You are Sales Brain AI Assistant for Aura-AI. You are an expert sales strategist advising a sales executive to close a deal with lead ${leadName} at ${leadCompany}.
+    // ── Personal assistant identity built from the logged-in Aura-AI user's profile ──
+    const userName = userProfile && (userProfile.first_name || userProfile.last_name)
+      ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim()
+      : (userProfile?.username || 'Aura AI User');
+    const userTitle = userProfile?.designation ? `, ${userProfile.designation}` : '';
+    const userProfession = userProfile?.business_why || userProfile?.company_name || 'running Aura-AI';
+    const userCompany = userProfile?.company_name || 'Aura AI';
+    const userEmail = userProfile?.email || '';
+    const userPhone = userProfile?.phone || '';
+    const userCity = userProfile?.city || '';
 
-FULL DATABASE RECORD FOR THIS LEAD:
+    const systemPrompt = `You are "Sales Brain" — the personal AI assistant of ${userName}${userTitle}. You serve ${userName}, a professional${userProfession !== 'running Aura-AI' ? ' ' + userProfession + '.' : '.'} You speak TO ${userName} and help them run their business using the records in their Aura-AI account.
+
+ABOUT YOUR USER (${userName}):
+- Full Name: ${userName}
+- Designation: ${userProfile?.designation || 'Not set'}
+- Profession / Business: ${userProfession}
+- Company: ${userCompany}
+- Email: ${userEmail || 'Not set'}
+- Phone: ${userPhone || 'Not set'}
+- Location: ${userCity || 'Not set'}
+
+LEAD YOU ARE CURRENTLY HELPING WITH (from the user's sales pipeline):
 - Full Name: ${leadName}
 - Company Name: ${leadCompany}
 - Designation / Role: ${designation}
@@ -5229,7 +5265,7 @@ ${formattedHistory}
 
 USER QUESTION: "${message}"
 
-Instructions: Answer the user's question directly, accurately, and concisely based strictly on the exact database records provided above. If asked for contact details, phone numbers, email, website, location, budget, or sales advice, provide exact data clearly and formatted in Markdown.`;
+Instructions: You are ${userName}'s personal AI assistant. Answer the user's question directly, accurately, and concisely based strictly on the exact database records provided above. If they ask general personal-assistant questions (scheduling, drafting emails/messages, admin help, advice about their own business), help them warmly and professionally. If they ask about a lead or sales, use the lead data above. Provide exact data clearly, formatted in Markdown. Never invent facts not present in the records; if unknown, say so.`;
 
     // 1. Multi-model Gemini AI Chain
     const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
