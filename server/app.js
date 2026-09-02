@@ -2755,11 +2755,8 @@ CRITICAL RULES:
 
   if (apiKey && apiKey.length > 10) {
     const candidateModels = [
-      'gemini-1.5-flash-latest',
-      'gemini-2.0-flash-exp',
-      'gemini-1.5-pro-latest',
-      'gemini-1.5-pro',
-      'gemini-pro'
+      'gemini-2.5-flash',
+      'gemini-3.6-flash'
     ];
 
     for (const model of candidateModels) {
@@ -3875,7 +3872,7 @@ Return ONLY a valid JSON object matching this schema (no markdown formatting, no
 
   if (apiKey && apiKey.length > 10) {
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -4374,7 +4371,7 @@ const handleGeminiChatStream = async (req, res) => {
   try {
     let replyText = null;
     if (geminiKey && geminiKey.length > 10) {
-      const candidateModels = ['gemini-1.5-flash-latest', 'gemini-2.0-flash-exp', 'gemini-1.5-pro-latest', 'gemini-1.5-pro', 'gemini-pro'];
+      const candidateModels = ['gemini-2.5-flash', 'gemini-3.6-flash'];
       for (const model of candidateModels) {
         try {
           const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${geminiKey}`, {
@@ -4864,7 +4861,7 @@ OUTPUT FORMAT (JSON strictly):
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
       try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -5087,12 +5084,11 @@ Return JSON ONLY in this format:
     const apiKey = process.env.GEMINI_API_KEY;
     if (apiKey) {
       try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
+            contents: [{ parts: [{ text: promptText }] }]
           })
         });
         if (geminiRes.ok) {
@@ -5269,7 +5265,7 @@ Instructions: You are ${userName}'s personal AI assistant. Answer the user's que
 
     // 1. Multi-model Gemini AI Chain
     const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
-    const candidateModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-latest', 'gemini-1.5-pro', 'gemini-pro'];
+    const candidateModels = ['gemini-2.5-flash', 'gemini-3.6-flash'];
 
     if (apiKey) {
       for (const model of candidateModels) {
