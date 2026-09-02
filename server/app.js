@@ -5169,11 +5169,72 @@ app.patch('/api/brain/leads/:id/notes', async (req, res) => {
   }
 });
 
+// Helper to persist Sales Brain AI chat messages to database
+async function saveBrainChatMessage(leadId, role, content) {
+  if (!leadId || !content) return;
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sales_brain_chat_history (
+        id BIGSERIAL PRIMARY KEY,
+        lead_id BIGINT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    await db.query(
+      `INSERT INTO sales_brain_chat_history (lead_id, role, content) VALUES ($1, $2, $3)`,
+      [leadId, role, content]
+    );
+  } catch (err) {
+    console.warn('[sales-brain-chat] Error saving message:', err.message);
+  }
+}
+
+// GET /api/brain/leads/:id/chat — Get stored Sales Brain chat history for a lead
+app.get('/api/brain/leads/:id/chat', async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS sales_brain_chat_history (
+        id BIGSERIAL PRIMARY KEY,
+        lead_id BIGINT NOT NULL,
+        role TEXT NOT NULL,
+        content TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+    const result = await db.query(
+      `SELECT role, content, created_at FROM sales_brain_chat_history WHERE lead_id = $1 ORDER BY id ASC`,
+      [leadId]
+    );
+    return res.json(result.rows || []);
+  } catch (err) {
+    console.error('Error fetching Sales Brain chat history:', err.message);
+    res.json([]);
+  }
+});
+
+// DELETE /api/brain/leads/:id/chat — Clear Sales Brain chat history for a lead
+app.delete('/api/brain/leads/:id/chat', async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    await db.query(`DELETE FROM sales_brain_chat_history WHERE lead_id = $1`, [leadId]);
+    return res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/brain/leads/:id/chat — Chat with Lead Brain Memory using Gemini AI & Full DB Context
 app.post('/api/brain/leads/:id/chat', async (req, res) => {
   try {
     const leadId = req.params.id;
     const { message = '', history = [] } = req.body || {};
+
+    if (message && message.trim()) {
+      await saveBrainChatMessage(leadId, 'user', message.trim());
+    }
 
     // Resolve the logged-in Aura-AI user and load their profile so the assistant
     // speaks as THAT user's personal assistant (name, profession, business).
@@ -5413,6 +5474,7 @@ SENDING MESSAGES: You CAN actually send WhatsApp and email messages to the selec
             const data = await geminiRes.json();
             const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (reply && reply.trim()) {
+              await saveBrainChatMessage(leadId, 'assistant', reply.trim());
               return res.json({ reply: reply.trim() });
             }
           }
@@ -5511,6 +5573,7 @@ SENDING MESSAGES: You CAN actually send WhatsApp and email messages to the selec
       dynamicReply = `Here's what I have on your lead **${leadName}** at **${leadCompany}**:\n\n• **Contact Phone**: ${phone}\n• **Email**: ${email}\n• **Website**: ${website}\n• **AI Summary**: ${memory.ai_summary || 'Lead is actively evaluating sales automation solutions.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
     }
 
+    await saveBrainChatMessage(leadId, 'assistant', dynamicReply);
     res.json({ reply: dynamicReply });
   } catch (err) {
     res.status(500).json({ error: err.message });
