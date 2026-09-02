@@ -5169,60 +5169,37 @@ app.patch('/api/brain/leads/:id/notes', async (req, res) => {
   }
 });
 
-// Helper to persist Sales Brain AI chat messages to database
-async function saveBrainChatMessage(leadId, role, content) {
-  if (!leadId || !content) return;
+// ── Sales Brain Chat Persistence ──────────────────────────────────────────────
+async function ensureSalesBrainChatsTable() {
   try {
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS sales_brain_chat_history (
-        id BIGSERIAL PRIMARY KEY,
-        lead_id BIGINT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `);
-    await db.query(
-      `INSERT INTO sales_brain_chat_history (lead_id, role, content) VALUES ($1, $2, $3)`,
-      [leadId, role, content]
-    );
-  } catch (err) {
-    console.warn('[sales-brain-chat] Error saving message:', err.message);
-  }
+    await db.query(`CREATE TABLE IF NOT EXISTS sales_brain_chats (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      lead_id INTEGER NOT NULL,
+      role VARCHAR(10) NOT NULL,
+      content TEXT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`);
+    await db.query(`CREATE INDEX IF NOT EXISTS idx_sbchats_user_lead ON sales_brain_chats(user_id, lead_id, created_at)`);
+  } catch (e) { console.error('[sales-brain-chats] ensureTable error:', e.message); }
 }
 
-// GET /api/brain/leads/:id/chat — Get stored Sales Brain chat history for a lead
-app.get('/api/brain/leads/:id/chat', async (req, res) => {
+// GET /api/brain/leads/:id/chat/history — load persisted chat for a lead
+app.get('/api/brain/leads/:id/chat/history', async (req, res) => {
   try {
+    await ensureSalesBrainChatsTable();
+    let userId = null;
+    try { userId = await resolveUserId(null, req.headers.cookie); } catch {}
+    if (!userId) return res.json([]);
     const leadId = req.params.id;
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS sales_brain_chat_history (
-        id BIGSERIAL PRIMARY KEY,
-        lead_id BIGINT NOT NULL,
-        role TEXT NOT NULL,
-        content TEXT NOT NULL,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )
-    `);
-    const result = await db.query(
-      `SELECT role, content, created_at FROM sales_brain_chat_history WHERE lead_id = $1 ORDER BY id ASC`,
-      [leadId]
+    const r = await db.query(
+      `SELECT role, content, created_at FROM sales_brain_chats WHERE user_id = $1 AND lead_id = $2 ORDER BY created_at ASC LIMIT 200`,
+      [userId, leadId]
     );
-    return res.json(result.rows || []);
-  } catch (err) {
-    console.error('Error fetching Sales Brain chat history:', err.message);
+    res.json(r.rows.map(row => ({ role: row.role, content: row.content })));
+  } catch (e) {
+    console.error('[sales-brain-chats] GET history error:', e.message);
     res.json([]);
-  }
-});
-
-// DELETE /api/brain/leads/:id/chat — Clear Sales Brain chat history for a lead
-app.delete('/api/brain/leads/:id/chat', async (req, res) => {
-  try {
-    const leadId = req.params.id;
-    await db.query(`DELETE FROM sales_brain_chat_history WHERE lead_id = $1`, [leadId]);
-    return res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 });
 
@@ -5231,10 +5208,6 @@ app.post('/api/brain/leads/:id/chat', async (req, res) => {
   try {
     const leadId = req.params.id;
     const { message = '', history = [] } = req.body || {};
-
-    if (message && message.trim()) {
-      await saveBrainChatMessage(leadId, 'user', message.trim());
-    }
 
     // Resolve the logged-in Aura-AI user and load their profile so the assistant
     // speaks as THAT user's personal assistant (name, profession, business).
@@ -5251,6 +5224,17 @@ app.post('/api/brain/leads/:id/chat', async (req, res) => {
       );
       if (uRes.rows.length > 0) userProfile = uRes.rows[0];
     } catch {}
+
+    const _sbChatId = userId;
+    const _sbLeadId = Number(leadId) || null;
+    function _saveSB(role, content) {
+      if (!_sbChatId || !content) return;
+      ensureSalesBrainChatsTable().then(() =>
+        db.query(`INSERT INTO sales_brain_chats (user_id, lead_id, role, content) VALUES ($1,$2,$3,$4)`,
+          [_sbChatId, _sbLeadId, role, String(content).substring(0, 8000)])
+      ).catch(() => {});
+    }
+    if (message.trim()) _saveSB('user', message.trim());
 
     let lead = {};
     try {
@@ -5346,10 +5330,14 @@ USER INSTRUCTION: ${message}`
                 );
               } catch (dbErr) { console.error('[sales-brain] save outreach err:', dbErr.message); }
             }
-            return res.json({ reply: `✅ Done! Email sent to **${lead.email || email}** (${leadName}).\n\n**Subject:** ${subject}\n\n${sendMsg}` });
+            const _r1 = `✅ Done! Email sent to **${lead.email || email}** (${leadName}).\n\n**Subject:** ${subject}\n\n${sendMsg}`;
+            _saveSB('assistant', _r1);
+            return res.json({ reply: _r1 });
           } catch (sendErr) {
             console.error('[sales-brain] email send failed:', sendErr.message);
-            return res.json({ reply: `I wasn't able to send the email: ${sendErr.message}. You can send it manually to ${lead.email || email}.` });
+            const _r2 = `I wasn't able to send the email: ${sendErr.message}. You can send it manually to ${lead.email || email}.`;
+            _saveSB('assistant', _r2);
+            return res.json({ reply: _r2 });
           }
         }
 
@@ -5359,7 +5347,7 @@ USER INSTRUCTION: ${message}`
           const waPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '890723640798276';
           let cleanDigits = (lead.whatsapp || lead.phone || phone || '').replace(/\D/g, '');
           if (cleanDigits.length === 10) cleanDigits = '91' + cleanDigits;
-          if (!cleanDigits) return res.json({ reply: `I don't have a phone number for ${leadName}, so I can't send a WhatsApp message.` });
+          if (!cleanDigits) { const _r3 = `I don't have a phone number for ${leadName}, so I can't send a WhatsApp message.`; _saveSB('assistant', _r3); return res.json({ reply: _r3 }); }
 
           const payload = {
             messaging_product: 'whatsapp',
@@ -5397,14 +5385,20 @@ USER INSTRUCTION: ${message}`
                 [convId, leadId || null, cleanDigits, sendMsg, metaData.messages[0].id]
               );
             } catch (mErr) { console.error('[sales-brain] msg save err:', mErr.message); }
-            return res.json({ reply: `✅ Sent! Your WhatsApp message was delivered to **${leadName}** at ${cleanDigits}.\n\n${sendMsg}` });
+            const _r4 = `✅ Sent! Your WhatsApp message was delivered to **${leadName}** at ${cleanDigits}.\n\n${sendMsg}`;
+            _saveSB('assistant', _r4);
+            return res.json({ reply: _r4 });
           } else {
             const errMsg = metaData.error?.message || 'Meta API error';
-            return res.json({ reply: `I couldn't deliver the WhatsApp message (${errMsg}). This usually means the lead hasn't messaged you recently — for new leads, WhatsApp requires an approved template. I can email it instead, or you can send manually to ${cleanDigits}.` });
+            const _r5 = `I couldn't deliver the WhatsApp message (${errMsg}). This usually means the lead hasn't messaged you recently — for new leads, WhatsApp requires an approved template. I can email it instead, or you can send manually to ${cleanDigits}.`;
+            _saveSB('assistant', _r5);
+            return res.json({ reply: _r5 });
           }
         } catch (waErr) {
           console.error('[sales-brain] whatsapp send failed:', waErr.message);
-          return res.json({ reply: `I wasn't able to send the WhatsApp message: ${waErr.message}.` });
+          const _r6 = `I wasn't able to send the WhatsApp message: ${waErr.message}.`;
+          _saveSB('assistant', _r6);
+          return res.json({ reply: _r6 });
         }
       }
     }
@@ -5474,7 +5468,7 @@ SENDING MESSAGES: You CAN actually send WhatsApp and email messages to the selec
             const data = await geminiRes.json();
             const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
             if (reply && reply.trim()) {
-              await saveBrainChatMessage(leadId, 'assistant', reply.trim());
+              _saveSB('assistant', reply.trim());
               return res.json({ reply: reply.trim() });
             }
           }
@@ -5573,7 +5567,7 @@ SENDING MESSAGES: You CAN actually send WhatsApp and email messages to the selec
       dynamicReply = `Here's what I have on your lead **${leadName}** at **${leadCompany}**:\n\n• **Contact Phone**: ${phone}\n• **Email**: ${email}\n• **Website**: ${website}\n• **AI Summary**: ${memory.ai_summary || 'Lead is actively evaluating sales automation solutions.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
     }
 
-    await saveBrainChatMessage(leadId, 'assistant', dynamicReply);
+    _saveSB('assistant', dynamicReply);
     res.json({ reply: dynamicReply });
   } catch (err) {
     res.status(500).json({ error: err.message });

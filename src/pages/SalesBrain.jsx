@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, BarChart2, Settings, ChevronRight, RefreshCw, AlertTriangle, Loader2, ArrowLeft, Save, Plus, X, ExternalLink, Brain, Search, Zap, Clock, Mail, Phone, Globe, Building2, User, Target, Send, FileText, Sparkles, BookOpen, MessageSquare, Wifi, WifiOff, Check, Trash2, } from "lucide-react";
+import { MessageCircle, BarChart2, Settings, ChevronRight, RefreshCw, AlertTriangle, Loader2, ArrowLeft, Save, Plus, X, ExternalLink, Brain, Search, Zap, Clock, Mail, Phone, Globe, Building2, User, Target, Send, FileText, Sparkles, BookOpen, MessageSquare, Wifi, WifiOff, Check, } from "lucide-react";
 import { cn, scoreToBandKey, bandHexFromKey } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useGetWhatsAppConversations, useGetWhatsAppMessages, getGetWhatsAppMessagesQueryKey, useGetWhatsAppAnalytics, useGetWhatsAppSettings, useUpdateWhatsAppSettings, useTestWhatsAppConnection, } from "@workspace/api-client-react";
@@ -78,34 +78,17 @@ function LeadBrainTab() {
         setCtxLoading(true);
         setContext(null);
         setChatHistory([]);
+        apiFetch(`/brain/leads/${selectedId}/chat/history`)
+            .then(data => setChatHistory(Array.isArray(data) ? data : []))
+            .catch(() => setChatHistory([]));
         apiFetch(`/brain/leads/${selectedId}/context`)
             .then(data => { setContext(data); setNotes(data.memory?.manualNotes ?? ""); })
             .catch(() => toast({ title: "Failed to load lead context", variant: "destructive" }))
             .finally(() => setCtxLoading(false));
-
-        // Load stored AI chat history from PostgreSQL table
-        apiFetch(`/brain/leads/${selectedId}/chat`)
-            .then(history => {
-                if (Array.isArray(history) && history.length > 0) {
-                    setChatHistory(history.map(h => ({ role: h.role, content: h.content })));
-                }
-            })
-            .catch(() => {});
     }, [selectedId]);
     useEffect(() => {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chatHistory]);
-
-    async function clearChatHistory() {
-        if (!selectedId) return;
-        try {
-            await apiFetch(`/brain/leads/${selectedId}/chat`, { method: "DELETE" });
-            setChatHistory([]);
-            toast({ title: "Chat history cleared" });
-        } catch {
-            toast({ title: "Failed to clear chat", variant: "destructive" });
-        }
-    }
     const filtered = leads.filter(l => {
         const q = search.toLowerCase();
         return !q || `${l.firstName || ""} ${l.lastName || ""} ${l.company || ""} ${l.email || ""}`.toLowerCase().includes(q);
@@ -455,14 +438,6 @@ function LeadBrainTab() {
 
                   {/* ── AI CHAT ── */}
                   {subTab === "chat" && (<div className="flex flex-col h-full" style={{ height: "100%" }}>
-                      {chatHistory.length > 0 && (
-                        <div className="px-5 py-2 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center text-xs text-gray-500 flex-shrink-0">
-                          <span className="font-medium text-[11px] text-gray-600">Persisted Chat History ({chatHistory.length} messages)</span>
-                          <button onClick={clearChatHistory} className="text-gray-400 hover:text-red-600 transition-colors text-[11px] font-medium flex items-center gap-1">
-                            <Trash2 className="w-3 h-3" /> Clear Chat
-                          </button>
-                        </div>
-                      )}
                       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                         {chatHistory.length === 0 && (<div className="text-center py-8">
                             <Brain className="w-10 h-10 mx-auto mb-3" style={{ color: "#A4285E" }}/>
