@@ -5360,7 +5360,7 @@ Instructions: You are ${userName}'s personal AI assistant. Answer the user's que
     }
     // Greetings (hi, hii, hiii, hello, heyy, etc.)
     else if (/^(hi+|hello+|hey+|helo+|greetings|yo|sup)$/i.test(lowerMsg) || lowerMsg.startsWith("hi") || lowerMsg.startsWith("hello") || lowerMsg.startsWith("hey")) {
-      dynamicReply = `Hey there! 👋 How can I assist you with **${leadName}** at **${leadCompany}** today?`;
+      dynamicReply = `Hey there! 👋 I'm your personal AI assistant. Right now you're working on **${leadName}** at **${leadCompany}** — how can I help?`;
     }
     // Budget / Pricing
     else if (/budget|price|cost|money|pricing/i.test(lowerMsg)) {
@@ -5380,7 +5380,7 @@ Instructions: You are ${userName}'s personal AI assistant. Answer the user's que
     }
     // Clean Natural Fallback
     else {
-      dynamicReply = `I'm Sales Brain for **${leadName}** at **${leadCompany}**.\n\n• **Contact Phone**: ${phone}\n• **Email**: ${email}\n• **Website**: ${website}\n• **AI Summary**: ${memory.ai_summary || 'Lead is actively evaluating sales automation solutions.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
+      dynamicReply = `Here's what I have on your lead **${leadName}** at **${leadCompany}**:\n\n• **Contact Phone**: ${phone}\n• **Email**: ${email}\n• **Website**: ${website}\n• **AI Summary**: ${memory.ai_summary || 'Lead is actively evaluating sales automation solutions.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
     }
 
     res.json({ reply: dynamicReply });
