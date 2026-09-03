@@ -5403,6 +5403,94 @@ USER INSTRUCTION: ${message}`
       }
     }
 
+    // ── BOOK MEETING: when the user asks to schedule/book a meeting/call with the lead ──
+    const lowerBook = message.toLowerCase().trim();
+    const bookingIntent = /(book|schedule|set\s*up|set\s*a|arrange|plan|fix)\s+(a\s+|an\s+|the\s+|this\s+)?(meeting|call|appointment|demo|slot|session|consultation|consulation|sync)/i.test(lowerBook)
+      && !/(draft|prepare|compose|would you|how (to|do)|can (you|i) really|tell me|should|write|cancel|when (is|does)|what time|remind|invite)/i.test(lowerBook)
+      && !sendIntent;
+
+    if (bookingIntent && sendApiKey) {
+      const bookModels = ['gemini-2.5-flash', 'gemini-3.6-flash'];
+      let book = null;
+      for (const model of bookModels) {
+        try {
+          const bRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${sendApiKey}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{
+                parts: [{
+                  text: `You are a scheduling assistant. The user wants to BOOK a meeting/call with the lead. From the message and conversation, extract the meeting details. Today's date is ${new Date().toDateString()}.
+
+OUTPUT ONLY valid JSON, no markdown:
+{"date":"YYYY-MM-DD or null if not specified","time":"HH:MM 24h or null if not specified","durationMinutes":30,"type":"discovery|demo|proposal|follow_up|closing","meetingUrl":null}
+
+Rules: type must be one of discovery, demo, proposal, follow_up, closing (default discovery). If the user gave no date/time, set date and time to null (we will ask them). meetingUrl is null unless the user gave a link.
+
+LEAD: ${leadName}, company=${leadCompany}
+
+RECENT CONVERSATION:
+${formattedHistory}
+
+USER INSTRUCTION: ${message}`
+                }]
+              }]
+            })
+          });
+          if (bRes.ok) {
+            const bd = await bRes.json();
+            const bt = bd.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (bt) {
+              book = JSON.parse(bt.replace(/```json|```/gi, '').trim());
+              break;
+            }
+          }
+        } catch {}
+      }
+
+      // If no explicit date/time in the user's request, ask before creating.
+      const needDate = !book || !book.date || !book.time;
+      if (needDate) {
+        const _ask = `I can book a meeting with **${leadName}** and it'll show in your Meetings tab. 📅\n\nWhich date and time works best? (e.g. "tomorrow 4pm" or a specific date/time)`;
+        _saveSB('assistant', _ask);
+        return res.json({ reply: _ask });
+      }
+
+      // Build the scheduledAt from date + time
+      try {
+        let dateStr = String(book.date);
+        const timeStr = String(book.time);
+        let hours = 10, minutes = 0;
+        if (timeStr) {
+          const m = timeStr.match(/^(\d{1,2}):?(\d{2})?$/);
+          if (m) {
+            hours = Number(m[1]);
+            minutes = m[2] ? Number(m[2]) : 0;
+          }
+        }
+        const scheduledAt = new Date(`${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`);
+        if (isNaN(scheduledAt.getTime())) throw new Error('invalid date');
+
+        const mtype = ['discovery', 'demo', 'proposal', 'follow_up', 'closing'].includes(book.type) ? book.type : 'discovery';
+        const duration = Math.min(480, Math.max(15, Number(book.durationMinutes) || 30));
+        const ins = await db.query(
+          `INSERT INTO meetings (user_id, lead_id, title, type, scheduled_at, duration, status, meeting_url)
+           VALUES ($1, $2, $3, $4, $5, $6, 'scheduled', $7)
+           RETURNING *`,
+          [userId, leadId ? Number(leadId) : null, `Meeting with ${leadName}`, mtype, scheduledAt.toISOString(), duration, null]
+        );
+        const fmtTime = scheduledAt.toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+        const _done = `✅ Booked! A **${mtype.replace(/_/g, ' ')} meeting** with **${leadName}** (${leadCompany}) is scheduled for **${fmtTime}** (${duration} mins) and now appears in your **Meetings** tab.`;
+        _saveSB('assistant', _done);
+        return res.json({ reply: _done });
+      } catch (bookErr) {
+        console.error('[sales-brain] book meeting error:', bookErr.message);
+        const _be = `I had trouble booking that. Please give me a date and time (e.g. "tomorrow at 4pm") and I'll schedule it for **${leadName}**.`;
+        _saveSB('assistant', _be);
+        return res.json({ reply: _be });
+      }
+    }
+
     // ── Personal assistant identity built from the logged-in Aura-AI user's profile ──
     const userName = userProfile && (userProfile.first_name || userProfile.last_name)
       ? `${userProfile.first_name || ''} ${userProfile.last_name || ''}`.trim()
@@ -5448,7 +5536,9 @@ USER QUESTION: "${message}"
 
 Instructions: You are ${userName}'s personal AI assistant. Answer the user's question directly, accurately, and concisely based strictly on the exact database records provided above. If they ask general personal-assistant questions (scheduling, drafting emails/messages, admin help, advice about their own business), help them warmly and professionally. If they ask about a lead or sales, use the lead data above. Provide exact data clearly, formatted in Markdown. Never invent facts not present in the records; if unknown, say so.
 
-SENDING MESSAGES: You CAN actually send WhatsApp and email messages to the selected lead. When you draft a message for a lead, end with: "Reply 'send it' and I'll send it to ${firstName} for you." Never send anything without the user's clear confirmation to send.`;
+SENDING MESSAGES: You CAN actually send WhatsApp and email messages to the selected lead. When you draft a message for a lead, end with: "Reply 'send it' and I'll send it to ${firstName} for you." Never send anything without the user's clear confirmation to send.
+
+BOOKING MEETINGS: You CAN book meetings/calls with the selected lead — it will be saved to the Meetings tab. When the user asks to book, ask for the date and time if not given, then confirm you've booked it. Never book without a clear date and time from the user.`;
 
     // 1. Multi-model Gemini AI Chain
     const apiKey = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
