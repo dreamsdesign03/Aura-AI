@@ -931,6 +931,15 @@ function SettingsTab() {
 function renderFormattedMessage(text, isUser = false) {
     if (!text) return null;
     const lines = String(text).split("\n");
+    const HL_RE = /\b(whats\s*app|e-?mails?|mails?|meetings?|calls?|appointments?)\b/i;
+
+    const Keyword = ({ word }) => {
+        let bg = "rgba(164,40,94,0.12)", fg = "#A4285E";
+        if (isUser) { bg = "rgba(255,255,255,0.28)"; fg = "#ffffff"; }
+        else if (/whats/i.test(word)) { bg = "rgba(37,211,102,0.18)"; fg = "#128C7E"; }
+        else if (/mail/i.test(word)) { bg = "rgba(124,58,237,0.12)"; fg = "#6D28D9"; }
+        return <span className="rounded px-1 font-bold whitespace-nowrap" style={{ background: bg, color: fg }}>{word}</span>;
+    };
 
     return (
         <div className="space-y-1 text-[13px] leading-relaxed">
@@ -949,7 +958,14 @@ function renderFormattedMessage(text, isUser = false) {
                                     </strong>
                                 );
                             }
-                            return <span key={pIdx}>{part}</span>;
+                            if (!part) return <span key={pIdx} />;
+                            const sub = String(part).split(HL_RE);
+                            return sub.map((seg, sIdx) => {
+                                if (HL_RE.test(seg)) {
+                                    return <Keyword key={`${pIdx}-${sIdx}`} word={seg} />;
+                                }
+                                return <span key={`${pIdx}-${sIdx}`}>{seg}</span>;
+                            });
                         })}
                     </div>
                 );
