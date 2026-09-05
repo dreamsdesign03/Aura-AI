@@ -466,7 +466,7 @@ function LeadBrainTab() {
                             borderBottomLeftRadius: msg.role === "user" ? 16 : 4,
                             border: msg.role === "assistant" ? "1px solid #E5E7EB" : "none",
                         }}>
-                              {renderFormattedMessage(msg.content, msg.role === "user")}
+                              {renderFormattedMessage(msg.content, msg.role === "user", sel)}
                             </div>
                           </div>))}
 
@@ -928,47 +928,84 @@ function SettingsTab() {
         </form>)}
     </div>);
 }
-function renderFormattedMessage(text, isUser = false) {
+function renderFormattedMessage(text, isUser = false, lead = null) {
     if (!text) return null;
     const lines = String(text).split("\n");
-    const HL_RE = /\b(whats\s*app|e-?mails?|mails?|meetings?|calls?|appointments?)\b/i;
 
-    const Keyword = ({ word }) => {
-        let bg = "rgba(164,40,94,0.12)", fg = "#A4285E";
-        if (isUser) { bg = "rgba(255,255,255,0.28)"; fg = "#ffffff"; }
-        else if (/whats/i.test(word)) { bg = "rgba(37,211,102,0.18)"; fg = "#128C7E"; }
-        else if (/mail/i.test(word)) { bg = "rgba(124,58,237,0.12)"; fg = "#6D28D9"; }
-        return <span className="rounded px-1 font-bold whitespace-nowrap" style={{ background: bg, color: fg }}>{word}</span>;
+    const esc = s => String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pillStyle = (kind, isUser) => {
+        if (isUser) return { background: "rgba(255,255,255,0.28)", color: "#ffffff" };
+        switch (kind) {
+            case "whatsapp": return { background: "rgba(37,211,102,0.18)", color: "#128C7E" };
+            case "phone": return { background: "rgba(37,211,102,0.18)", color: "#128C7E" };
+            case "email": return { background: "rgba(124,58,237,0.12)", color: "#6D28D9" };
+            case "company": return { background: "rgba(79,70,229,0.10)", color: "#4338CA" };
+            default: return { background: "rgba(164,40,94,0.12)", color: "#A4285E" };
+        }
+    };
+
+    const phrases = [];
+    const addPhrase = (raw, kind) => {
+        const pv = String(raw || "").trim();
+        if (pv) phrases.push({ re: esc(pv), kind });
+    };
+    if (lead) {
+        const fullNames = [...new Set([
+            `${lead.firstName || ""} ${lead.lastName || ""}`.trim(),
+            lead.firstName,
+            lead.lastName,
+        ].filter(Boolean))];
+        fullNames.forEach(n => addPhrase(n, "person"));
+        addPhrase(lead.company, "company");
+        addPhrase(lead.email, "email");
+        addPhrase(lead.phone, "phone");
+    }
+    phrases.sort((a, b) => b.re.length - a.re.length);
+
+    const phraseAlt = phrases.map(p => `(?<![A-Za-z0-9])` + p.re + `(?![A-Za-z0-9])`).join("|");
+    const tokenRe = new RegExp(
+        `(\\*\\*[^*]+\\*\\*)` +
+        (phraseAlt ? `|(${phraseAlt})` : "") +
+        `|(\\+?\\d[\\d\\s()+-]{9,}\\d|\\d{10,})` +
+        `|([\\w.+-]+@[\\w-]+\\.[\\w.]+)` +
+        `|(\\bwhats\\s*app\\b|\\be-?mails?\\b|\\bmails?\\b|\\bmeetings?\\b|\\bcalls?\\b|\\bappointments?\\b)`,
+        "gi"
+    );
+
+    const kindOf = raw => phrases.find(p => p.re.toLowerCase() === String(raw).toLowerCase())?.kind ?? "person";
+
+    const renderLine = line => {
+        const out = [];
+        let cursor = 0;
+        for (const m of String(line).matchAll(tokenRe)) {
+            if (m.index > cursor) out.push(<span key={`t${out.length}`}>{line.slice(cursor, m.index)}</span>);
+            const [full, bold, entity, phone, email, keyword] = m;
+            const pill = (kind, content) => <span key={`k${out.length}`} className="rounded px-1 font-bold whitespace-nowrap" style={pillStyle(kind, isUser)}>{content}</span>;
+            if (bold) {
+                const h = bold.slice(2, -2);
+                out.push(<strong key={`b${out.length}`} className={cn("font-bold", isUser ? "text-white" : "text-gray-900")}>{h}</strong>);
+            } else if (entity) {
+                out.push(pill(kindOf(entity), entity));
+            } else if (phone) {
+                out.push(pill("phone", phone));
+            } else if (email) {
+                out.push(pill("email", email));
+            } else if (keyword) {
+                const k = /whats/i.test(keyword) ? "whatsapp" : (/mail/i.test(keyword) ? "email" : "meeting");
+                out.push(pill(k, keyword));
+            }
+            cursor = m.index + full.length;
+        }
+        if (cursor < line.length) out.push(<span key={`t${out.length}`}>{line.slice(cursor)}</span>);
+        return out;
     };
 
     return (
         <div className="space-y-1 text-[13px] leading-relaxed">
             {lines.map((line, idx) => {
                 if (!line.trim()) return <div key={idx} className="h-1" />;
-
-                const parts = line.split(/(\*\*[^*]+\*\*)/g);
-
-                return (
-                    <div key={idx} className={line.trim().startsWith("•") || line.trim().startsWith("-") ? "pl-2" : ""}>
-                        {parts.map((part, pIdx) => {
-                            if (part.startsWith("**") && part.endsWith("**")) {
-                                return (
-                                    <strong key={pIdx} className={cn("font-bold", isUser ? "text-white" : "text-gray-900")}>
-                                        {part.slice(2, -2)}
-                                    </strong>
-                                );
-                            }
-                            if (!part) return <span key={pIdx} />;
-                            const sub = String(part).split(HL_RE);
-                            return sub.map((seg, sIdx) => {
-                                if (HL_RE.test(seg)) {
-                                    return <Keyword key={`${pIdx}-${sIdx}`} word={seg} />;
-                                }
-                                return <span key={`${pIdx}-${sIdx}`}>{seg}</span>;
-                            });
-                        })}
-                    </div>
-                );
+                const isList = line.trim().startsWith("•") || line.trim().startsWith("-");
+                return <div key={idx} className={isList ? "pl-2" : ""}>{renderLine(line)}</div>;
             })}
         </div>
     );
