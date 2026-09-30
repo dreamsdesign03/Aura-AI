@@ -22,7 +22,7 @@ const INITIAL_BELIEF = {
 };
 const ROUTING_ACTIONS = {
     priority_believer: {
-        label: "Assign to Krishna",
+        label: "Assign to Dr. Aditya Shah",
         icon: <Star className="w-4 h-4"/>,
         color: "#DE377C",
         bg: "rgba(217,119,6,0.12)",
@@ -58,11 +58,11 @@ const ROUTING_ACTIONS = {
     },
     // legacy keys kept for backward compat
     assign_to_krishna: {
-        label: "Assign to Krishna",
+        label: "Assign to Dr. Aditya Shah",
         icon: <UserCheck className="w-4 h-4"/>,
         color: "#22C55E",
         bg: "rgba(34,197,94,0.1)",
-        description: "Assign to Krishna and book discovery call immediately",
+        description: "Assign to Dr. Aditya Shah and book discovery call immediately",
     },
     send_booking_email: {
         label: "Send Booking Email",

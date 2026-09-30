@@ -893,7 +893,7 @@ function SettingsTab() {
 
           <div className="rounded-2xl border border-gray-200 bg-white p-5 space-y-4">
             <div className="text-xs font-bold text-gray-500 uppercase tracking-wider">Bot Personalisation</div>
-            <Field label="Consultant Name"><Input value={form.consultantName ?? ""} onChange={v => setForm(p => ({ ...p, consultantName: v }))} placeholder="e.g. Krish Puranik"/></Field>
+            <Field label="Consultant Name"><Input value={form.consultantName ?? ""} onChange={v => setForm(p => ({ ...p, consultantName: v }))} placeholder="e.g. Dr. Aditya Shah"/></Field>
             <Field label="Booking URL"><Input value={form.bookingUrl ?? ""} onChange={v => setForm(p => ({ ...p, bookingUrl: v }))} placeholder="https://..."/></Field>
             <Field label="Portfolio URL"><Input value={form.portfolioUrl ?? ""} onChange={v => setForm(p => ({ ...p, portfolioUrl: v }))} placeholder="https://..."/></Field>
             <Field label="Case Study URL"><Input value={form.caseStudyUrl ?? ""} onChange={v => setForm(p => ({ ...p, caseStudyUrl: v }))} placeholder="https://..."/></Field>
