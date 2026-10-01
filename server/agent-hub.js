@@ -1,6 +1,24 @@
 const db = require('./db');
 const nodemailer = require('nodemailer');
 
+function getBrochureAttachments() {
+  const candidatePaths = [
+    path.join(__dirname, 'assets', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(__dirname, '..', 'public', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(__dirname, '..', 'server', 'assets', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(process.cwd(), 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(process.cwd(), 'public', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(process.cwd(), 'server', 'assets', 'Skinnonest - Gift Hampers Brochure.pdf'),
+  ];
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      return [{ filename: 'Skinnonest - Gift Hampers Brochure.pdf', path: p, contentType: 'application/pdf' }];
+    }
+  }
+  return [];
+}
+
+
 const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const APOLLO_BASE = 'https://api.apollo.io/api/v1';
@@ -217,12 +235,14 @@ async function sendAgentEmail(userId, { to, toName, subject, body }) {
     if (!configured) return { sent: false, reason: 'SMTP not configured' };
     if (!to) return { sent: false, reason: 'No recipient email' };
     const htmlBody = body ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${body.replace(/\n/g, '<br>')}</div>` : '';
+    const attachments = getBrochureAttachments();
     await transporter.sendMail({
       from: `"${fromName}" <${fromEmail}>`,
       to,
       subject: subject || 'No subject',
       text: body || '',
       html: htmlBody,
+      attachments: attachments.length > 0 ? attachments : undefined,
     });
     return { sent: true };
   } catch (err) {

@@ -4,6 +4,32 @@ const crypto = require('crypto');
 require('dotenv').config();
 const db = require('./db');
 const nodemailer = require('nodemailer');
+
+// ── Brochure Attachment Helper ──────────────────────────────────────────────
+function getBrochureAttachments() {
+  const candidatePaths = [
+    path.join(__dirname, 'assets', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(__dirname, '..', 'public', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(__dirname, '..', 'server', 'assets', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(process.cwd(), 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(process.cwd(), 'public', 'Skinnonest - Gift Hampers Brochure.pdf'),
+    path.join(process.cwd(), 'server', 'assets', 'Skinnonest - Gift Hampers Brochure.pdf'),
+  ];
+
+  for (const p of candidatePaths) {
+    if (fs.existsSync(p)) {
+      console.log('[Brochure Helper] Found brochure PDF at:', p);
+      return [{
+        filename: 'Skinnonest - Gift Hampers Brochure.pdf',
+        path: p,
+        contentType: 'application/pdf'
+      }];
+    }
+  }
+  console.warn('[Brochure Helper] ⚠️ Brochure PDF file not found in candidate paths');
+  return [];
+}
+
 const automationsApi = require('./automations');
 const agentHubApi = require('./agent-hub');
 const { registerWhatsAppRoutes } = require('./whatsapp');
@@ -1786,15 +1812,7 @@ app.post('/api/outreach/send', async (req, res) => {
     }
 
     const { transporter, fromEmail, fromName } = await getTransporter(userId);
-
-    const brochurePath = path.join(__dirname, 'assets', 'Skinnonest - Gift Hampers Brochure.pdf');
-    let attachments = [];
-    if (fs.existsSync(brochurePath)) {
-      attachments.push({
-        filename: 'Skinnonest - Gift Hampers Brochure.pdf',
-        path: brochurePath
-      });
-    }
+    const attachments = getBrochureAttachments();
 
     const mailOptions = {
       from: `"${fromName}" <${fromEmail}>`,
@@ -1812,8 +1830,8 @@ app.post('/api/outreach/send', async (req, res) => {
 
     await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW(), message_id = COALESCE($1, message_id) WHERE id = $2`, [messageId, id]);
 
-    console.log(`[outreach] ✅ Email sent to ${recipientEmail} (id=${id}, msgId=${messageId}, inReplyTo=${parent?.messageId ?? 'none'})`);
-    res.json({ success: true, message: 'Email sent successfully' });
+    console.log(`[outreach] ✅ Email with brochure PDF sent to ${recipientEmail} (id=${id}, msgId=${messageId})`);
+    res.json({ success: true, message: 'Email sent successfully with brochure PDF attached' });
   } catch (err) {
     console.error('[outreach] Send error:', err.message);
     await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [req.body.id]).catch(() => {});
@@ -1881,6 +1899,7 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
     }
 
     const { transporter, fromEmail, fromName } = await getTransporter(userId);
+    const attachments = getBrochureAttachments();
 
     const mailOptions = {
       from: `"${fromName}" <${fromEmail}>`,
@@ -1892,12 +1911,12 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
       html: finalHtml,
       inReplyTo: parent?.messageId || undefined,
       references: parent?.messageId ? [parent.messageId] : undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
 
     const info = await transporter.sendMail(mailOptions);
     const messageId = info.messageId || null;
 
-    // Save to outreach_emails if we have a lead or email
     if (userId) {
       try {
         await db.query(
@@ -1910,8 +1929,8 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
       }
     }
 
-    console.log(`[outreach] Quick email sent to ${toEmail} (msgId=${messageId})`);
-    res.json({ success: true, message: 'Email sent successfully' });
+    console.log(`[outreach] Quick email sent to ${toEmail} with brochure PDF attached (msgId=${messageId})`);
+    res.json({ success: true, message: 'Email sent successfully with brochure PDF attached' });
   } catch (err) {
     console.error('[outreach] Quick send error:', err.message);
     res.status(500).json({ error: err.message });
