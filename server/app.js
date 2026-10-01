@@ -6,6 +6,7 @@ const db = require('./db');
 const nodemailer = require('nodemailer');
 const automationsApi = require('./automations');
 const agentHubApi = require('./agent-hub');
+const { registerWhatsAppRoutes } = require('./whatsapp');
 
 const app = express();
 
@@ -245,6 +246,7 @@ async function seedAdminUser() {
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS unread_count INT DEFAULT 0;
 
       UPDATE whatsapp_messages 
       SET content = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.',
@@ -6126,24 +6128,12 @@ app.get(['/api/whatsapp/messages/:id', '/api/whatsapp/messages/:leadId', '/api/u
 
 // ─── META WHATSAPP WEBHOOK ROUTES ──────────────────────────────────────────
 
-// GET /api/whatsapp/webhook — Meta Webhook Verification
-app.get('/api/whatsapp/webhook', (req, res) => {
-  const mode = req.query['hub.mode'];
-  const token = req.query['hub.verify_token'];
-  const challenge = req.query['hub.challenge'];
+// ─── WHATSAPP ROUTES are registered from whatsapp.js ──────────────────────────
+// All WhatsApp API routes (conversations, messages, send, webhook, analytics)
+// are registered via registerWhatsAppRoutes() at the bottom of this file.
+// The duplicate handlers below are intentionally removed to avoid route conflicts.
 
-  const expectedToken = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'aura_ai_whatsapp_verify_token_2026';
-
-  if (mode === 'subscribe' && token === expectedToken) {
-    console.log('[Meta Webhook] Successfully verified webhook Token!');
-    return res.status(200).send(challenge);
-  } else {
-    console.warn('[Meta Webhook] Verification failed. Token mismatch.');
-    return res.sendStatus(403);
-  }
-});
-
-// POST /api/whatsapp/webhook — Incoming Meta & n8n WhatsApp Messages
+// POST /api/whatsapp/webhook — Incoming Meta & n8n WhatsApp Messages (handled in whatsapp.js)
 app.post('/api/whatsapp/webhook', async (req, res) => {
   // Marker 1 & Debug Log Insert: Immediately on receiving request
   console.log("===== WEBHOOK RECEIVED =====");
@@ -6794,6 +6784,9 @@ app.delete('/api/lead-lists/:id/leads/:leadId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Register WhatsApp routes from whatsapp.js
+registerWhatsAppRoutes(app, resolveUserId);
 
 module.exports = app;
 

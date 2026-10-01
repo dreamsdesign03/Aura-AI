@@ -163,8 +163,10 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           wc.phone as "waPhoneNumber",
           wc.status,
           wc.state,
-          wc.last_message_at as "lastMessageAt",
+          COALESCE(wc.last_message_at, wc.updated_at, wc.created_at) as "lastMessageAt",
+          COALESCE(wc.updated_at, wc.last_message_at, wc.created_at) as "updatedAt",
           wc.created_at as "createdAt",
+          wc.unread_count as "unreadCount",
           l.id as lead_id,
           l.first_name,
           l.last_name,
@@ -174,14 +176,14 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           l.designation,
           l.status as lead_status,
           (
-            SELECT content FROM whatsapp_messages 
+            SELECT COALESCE(content, body, '') FROM whatsapp_messages 
             WHERE conversation_id = wc.id 
-            ORDER BY sent_at DESC LIMIT 1
+            ORDER BY COALESCE(sent_at, timestamp, created_at) DESC LIMIT 1
           ) as "lastMessage"
         FROM whatsapp_conversations wc
         LEFT JOIN leads l ON wc.lead_id = l.id
-        WHERE l.user_id = $1 OR l.user_id IS NULL
-        ORDER BY wc.last_message_at DESC;
+        WHERE l.user_id = $1 OR l.user_id IS NULL OR wc.lead_id IS NULL
+        ORDER BY COALESCE(wc.last_message_at, wc.updated_at, wc.created_at) DESC;
       `;
 
       const result = await db.query(q, [userId]);
@@ -193,7 +195,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         status: row.status,
         state: row.state || 'all',
         lastMessageAt: row.lastMessageAt,
+        updatedAt: row.updatedAt || row.lastMessageAt,
         lastMessage: row.lastMessage || '',
+        unreadCount: Number(row.unreadCount || 0),
         lead: row.lead_id ? {
           id: row.lead_id,
           firstName: row.first_name,
@@ -204,7 +208,14 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           company: row.company,
           designation: row.designation,
           status: row.lead_status,
-        } : null,
+        } : {
+          id: null,
+          firstName: row.waPhoneNumber || 'WhatsApp Contact',
+          lastName: '',
+          phone: row.waPhoneNumber || '',
+          whatsapp: row.waPhoneNumber || '',
+          company: '',
+        },
       }));
 
       res.json({ conversations });
