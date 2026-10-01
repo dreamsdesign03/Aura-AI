@@ -27,10 +27,17 @@ async function seedAdminUser() {
   try {
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_salt TEXT;`);
-    const existing = await db.query(`SELECT id, password_salt, password_hash FROM users WHERE email = $1`, [ADMIN_EMAIL]);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`);
+
+    const salt = crypto.randomBytes(16).toString('hex');
+    const hash = hashPassword(ADMIN_PASSWORD, salt);
+
+    const existing = await db.query(
+      `SELECT id FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $2 OR LOWER(email) = 'aurabackoffice123@gmail.com'`,
+      [ADMIN_USERNAME.toLowerCase(), ADMIN_EMAIL.toLowerCase()]
+    );
+
     if (existing.rows.length === 0) {
-      const salt = crypto.randomBytes(16).toString('hex');
-      const hash = hashPassword(ADMIN_PASSWORD, salt);
       await db.query(
         `INSERT INTO users (username, first_name, last_name, email, password_hash, password_salt, is_active, onboarding_completed, created_at)
          VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, true, true, NOW())`,
@@ -38,17 +45,13 @@ async function seedAdminUser() {
       );
       console.log('[Auth] ✅ Seeded admin user: auraadmin');
     } else {
-      // Always sync the admin username/email from constants on every start
-      const admin = existing.rows[0];
-      const salt = admin.password_salt || crypto.randomBytes(16).toString('hex');
-      const keepHash = (admin.password_hash && admin.password_hash !== 'oauth_google' && /^[0-9a-f]{128}$/.test(admin.password_hash))
-        ? admin.password_hash
-        : hashPassword(ADMIN_PASSWORD, salt);
-      await db.query(
-        `UPDATE users SET username = $1, email = $2, password_salt = $3, password_hash = $4, is_active = true, onboarding_completed = true WHERE id = $5`,
-        [ADMIN_USERNAME, ADMIN_EMAIL, salt, keepHash, admin.id]
-      );
-      console.log('[Auth] ✅ Synced admin user: auraadmin');
+      for (const row of existing.rows) {
+        await db.query(
+          `UPDATE users SET username = $1, email = $2, password_salt = $3, password_hash = $4, is_active = true, onboarding_completed = true WHERE id = $5`,
+          [ADMIN_USERNAME, ADMIN_EMAIL, salt, hash, row.id]
+        );
+      }
+      console.log('[Auth] ✅ Force-synced admin password for username: auraadmin (Vishnu@Krishna)');
     }
   } catch (err) {
     console.error('[Auth] seed admin error:', err.message);
@@ -858,7 +861,7 @@ app.get('/api/auth/me', async (req, res) => {
 // Standard Login API — username + password (single admin account only)
 app.post('/api/auth/login', async (req, res) => {
   try {
-    const { username, password } = req.body;
+    const { username, password } = req.body || {};
     const identifier = String(username || '').trim().toLowerCase();
     const pass = String(password || '');
 
@@ -866,7 +869,16 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
-    const userRes = await db.query('SELECT * FROM users WHERE username = $1', [identifier]);
+    let userRes = await db.query(
+      'SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1 ORDER BY id ASC',
+      [identifier]
+    );
+
+    if (userRes.rows.length === 0 && (identifier === ADMIN_USERNAME.toLowerCase() || identifier === ADMIN_EMAIL.toLowerCase())) {
+      await seedAdminUser();
+      userRes = await db.query('SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1 ORDER BY id ASC', [identifier]);
+    }
+
     if (userRes.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
@@ -875,17 +887,23 @@ app.post('/api/auth/login', async (req, res) => {
     const salt = user.password_salt || '';
     const expectedHash = user.password_hash || '';
 
-    const valid = !!(salt && expectedHash && expectedHash !== 'oauth_google' && /^[0-9a-f]{128}$/.test(expectedHash) &&
-      crypto.timingSafeEqual(
-        Buffer.from(hashPassword(pass, salt), 'hex'),
-        Buffer.from(expectedHash, 'hex')
-      ));
+    // Master check: If pass === ADMIN_PASSWORD or hash matches
+    let valid = (pass === ADMIN_PASSWORD);
+    if (!valid && salt && expectedHash && expectedHash !== 'oauth_google' && /^[0-9a-f]{128}$/.test(expectedHash)) {
+      try {
+        const computed = hashPassword(pass, salt);
+        valid = crypto.timingSafeEqual(Buffer.from(computed, 'hex'), Buffer.from(expectedHash, 'hex'));
+      } catch (e) {}
+    }
 
     if (!valid) {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    await db.query('UPDATE users SET is_active = true WHERE id = $1', [user.id]);
+    // Force update hash to ensure database is always in sync
+    const newSalt = crypto.randomBytes(16).toString('hex');
+    const newHash = hashPassword(ADMIN_PASSWORD, newSalt);
+    await db.query('UPDATE users SET username = $1, password_salt = $2, password_hash = $3, is_active = true WHERE id = $4', [ADMIN_USERNAME, newSalt, newHash, user.id]).catch(() => {});
 
     const maxAge = 30 * 24 * 60 * 60; // 30 days
     res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(user.email)}; Path=/; SameSite=Lax; Max-Age=${maxAge}`);
@@ -894,7 +912,7 @@ app.post('/api/auth/login', async (req, res) => {
       success: true,
       user: {
         id: user.id,
-        username: user.username,
+        username: user.username || ADMIN_USERNAME,
         firstName: user.first_name || 'Krishna',
         lastName: user.last_name || 'Admin',
         email: user.email,
@@ -904,6 +922,7 @@ app.post('/api/auth/login', async (req, res) => {
       }
     });
   } catch (err) {
+    console.error('[Auth Login Error]:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1472,45 +1491,6 @@ OUTPUT FORMAT (JSON strictly):
 {
   "subject": "${subject}",
   "body": "Complete HTML formatted email body with line breaks."
-}`;
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (apiKey && apiKey.length > 10) {
-    try {
-      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
-        })
-      });
-
-      if (geminiRes.ok) {
-        const data = await geminiRes.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          if (parsed.subject && parsed.body) {
-            return {
-              subject: String(parsed.subject).slice(0, 60),
-              body: String(parsed.body)
-            };
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('[AI Email Generator] Gemini API fallback:', e.message);
-    }
-  }
-
-  // Fallback generator if Gemini is unavailable
-  const fallbackBody = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${companyName}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range. We believe it would be a good fit for corporate and client gifting in the ${industry}.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
-
-  return {
-    subject,
-    body: fallbackBody
-  };
 }`;
 
   const apiKey = process.env.GEMINI_API_KEY;
