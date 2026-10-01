@@ -103,7 +103,7 @@ const ACTIVITY_META = {
     icp_read: { color: "#A4285E", bg: "#FBE9F1", Icon: BookOpen, label: "ICP Read" },
     source_scan: { color: "#6B7280", bg: "#F3F4F6", Icon: Globe, label: "Source Scan" },
     lead_found: { color: "#3B82F6", bg: "#EFF6FF", Icon: Users, label: "Lead Found" },
-    brain_sync: { color: "#25D366", bg: "#F0FDF4", Icon: Brain, label: "Brain Sync" },
+    brain_sync: { color: "#262524", bg: "#F0FDF4", Icon: Brain, label: "Brain Sync" },
     lead_qualified: { color: "#059669", bg: "#ECFDF5", Icon: CheckCircle2, label: "Qualified" },
     lead_rejected: { color: "#EF4444", bg: "#FEF2F2", Icon: AlertCircle, label: "Rejected" },
     pipeline_added: { color: "#10B981", bg: "#D1FAE5", Icon: Send, label: "→ Pipeline" },
@@ -495,7 +495,7 @@ export default function LeadHunter() {
                 <div className="space-y-2.5">
                   {[
                 {
-                    name: "Sales Brain", icon: Bot, color: "#25D366", href: "/sales-brain",
+                    name: "Sales Brain", icon: Bot, color: "#262524", href: "/sales-brain",
                     role: "BANT scoring",
                     desc: "Evaluates every lead's Budget, Authority, Need, Timeline. Approves or rejects before pipeline entry.",
                 },

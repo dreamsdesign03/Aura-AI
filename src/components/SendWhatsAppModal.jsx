@@ -182,7 +182,7 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between" style={{ background: "#F0FDF4" }}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold" style={{ background: "#25D366" }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold" style={{ background: "#262524" }}>
               <MessageCircle className="w-5 h-5" />
             </div>
             <div>
@@ -338,7 +338,7 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
                 type="submit"
                 disabled={sending || (sendType === "text" && !message.trim())}
                 className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-xl transition-all disabled:opacity-50 shadow-sm"
-                style={{ background: "#25D366" }}
+                style={{ background: "#262524" }}
               >
                 {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                 {sending ? "Dispatched..." : sendType === "template" ? "Send Meta Template" : "Send WhatsApp"}

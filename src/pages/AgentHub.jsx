@@ -363,7 +363,7 @@ export default function AgentHub() {
                 { icon: <Clock size={14}/>, label: "Meetings Booked", value: today?.meetingsBookedToday ?? 0, color: GREEN },
                 { icon: <Mail size={14}/>, label: "Emails Sent", value: today?.emailsSent ?? 0, color: "#0891B2" },
                 { icon: <RefreshCw size={14}/>, label: "Follow-Ups", value: today?.followupsSent ?? 0, color: "#DE377C" },
-                { icon: <MessageSquare size={14}/>, label: "WhatsApp Sent", value: today?.whatsappSent ?? 0, color: "#25D366" },
+                { icon: <MessageSquare size={14}/>, label: "WhatsApp Sent", value: today?.whatsappSent ?? 0, color: "#262524" },
                 { icon: <Globe size={14}/>, label: "Sites Scanned", value: today?.websitesScanned ?? 0, color: "#0891B2" },
                 { icon: <FileText size={14}/>, label: "Proposals Sent", value: today?.proposalsSent ?? 0, color: "#DE377C" },
                 { icon: <AlertTriangle size={14}/>, label: "Errors Today", value: today?.errors ?? 0, color: "#DC2626" },

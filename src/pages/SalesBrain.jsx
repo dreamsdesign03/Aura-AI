@@ -278,7 +278,7 @@ function LeadBrainTab() {
                         <div className="grid grid-cols-2 gap-2">
                           {sel.email && <div className="flex items-center gap-2 text-xs text-gray-700"><Mail className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/><span className="truncate">{sel.email}</span></div>}
                           {sel.phone && <div className="flex items-center gap-2 text-xs text-gray-700"><Phone className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/><span>{sel.phone}</span></div>}
-                          {sel.whatsapp && <div className="flex items-center gap-2 text-xs text-gray-700"><MessageCircle className="w-3.5 h-3.5 text-[#25D366] flex-shrink-0"/><span>{sel.whatsapp}</span></div>}
+                          {sel.whatsapp && <div className="flex items-center gap-2 text-xs text-gray-700"><MessageCircle className="w-3.5 h-3.5 text-[#262524] flex-shrink-0"/><span>{sel.whatsapp}</span></div>}
                           {sel.website && <div className="flex items-center gap-2 text-xs text-gray-700"><Globe className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/><a href={sel.website} target="_blank" rel="noopener" className="truncate text-indigo-600 hover:underline">{sel.website}</a></div>}
                           {sel.linkedInUrl && <div className="flex items-center gap-2 text-xs text-gray-700"><ExternalLink className="w-3.5 h-3.5 text-blue-500 flex-shrink-0"/><a href={sel.linkedInUrl} target="_blank" rel="noopener" className="truncate text-blue-600 hover:underline">LinkedIn</a></div>}
                           <div className="flex items-center gap-2 text-xs text-gray-700"><Building2 className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/><span>{sel.city ? `${sel.city}, ` : ""}{sel.country}</span></div>
@@ -373,7 +373,7 @@ function LeadBrainTab() {
                             date: new Date(m.sentAt ?? m.createdAt ?? Date.now()),
                             type: "whatsapp",
                             icon: MessageCircle,
-                            color: "#25D366",
+                            color: "#262524",
                             title: m.direction === "outbound" ? "You → WhatsApp" : `${sel.firstName || "Lead"} → WhatsApp`,
                             body: String(txt || "").substring(0, 200),
                         });
@@ -801,7 +801,7 @@ function ConversationsTab() {
                   type="submit"
                   disabled={sendingWa || !waText.trim()}
                   className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white rounded-xl transition-all disabled:opacity-50 flex-shrink-0 shadow-sm"
-                  style={{ background: "#25D366" }}
+                  style={{ background: "#262524" }}
                 >
                   {sendingWa ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                   Send
@@ -1046,7 +1046,7 @@ export default function SalesBrain() {
 
     const tabs = [
         { id: "brain", label: "Lead Brain", icon: Brain, accent: "#A4285E" },
-        { id: "conversations", label: "WhatsApp", icon: MessageCircle, accent: "#25D366", unread: totalUnread },
+        { id: "conversations", label: "WhatsApp", icon: MessageCircle, accent: "#262524", unread: totalUnread },
         { id: "analytics", label: "Analytics", icon: BarChart2 },
     ];
     return (<div className="flex flex-col h-full overflow-hidden" style={{ background: "#fff" }}>

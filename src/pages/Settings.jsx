@@ -1106,7 +1106,7 @@ function WhatsAppTab() {
     if (loading)
         return <div className="flex items-center justify-center py-16"><Loader2 className="w-5 h-5 animate-spin text-gray-400"/></div>;
     return (<div className="space-y-6">
-      <SectionCard title="WhatsApp Business API" subtitle="Configure your Meta WhatsApp integration" icon={Smartphone} iconBg="#F0FDF4" iconColor="#25D366">
+      <SectionCard title="WhatsApp Business API" subtitle="Configure your Meta WhatsApp integration" icon={Smartphone} iconBg="#F0FDF4" iconColor="#262524">
         <form onSubmit={handleSave} className="space-y-4">
           <div className="rounded-lg border border-green-100 bg-green-50 px-3 py-2.5 text-[11px] text-green-800">
             Credentials from your <strong>Meta Business Manager</strong> / <strong>WhatsApp Business Platform</strong>.

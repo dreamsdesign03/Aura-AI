@@ -408,7 +408,7 @@ export default function LeadDetail() {
                       <CalendarPlus className="w-3.5 h-3.5"/>
                       Schedule Meeting
                     </button>
-                    <button onClick={() => setShowWaModal(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-95 shadow-xs" style={{ background: "#25D366" }}>
+                    <button onClick={() => setShowWaModal(true)} className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-95 shadow-xs" style={{ background: "#262524" }}>
                       <MessageCircle className="w-3.5 h-3.5"/>
                       Send WhatsApp
                     </button>
@@ -480,7 +480,7 @@ export default function LeadDetail() {
                       <a href={`tel:${lead.phone}`} className="hover:text-gray-900">{lead.phone}</a>
                     </div>)}
                   {lead.whatsapp && typeof lead.whatsapp === "string" && (<div className="flex items-center gap-2 text-xs text-gray-500">
-                      <MessageCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#25D366" }}/>
+                      <MessageCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#262524" }}/>
                       <a href={`https://wa.me/${lead.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:text-gray-900">{lead.whatsapp}</a>
                     </div>)}
                   {lead.linkedInUrl && (<div className="flex items-center gap-2 text-xs text-gray-500">

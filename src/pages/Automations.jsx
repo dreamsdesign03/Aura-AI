@@ -220,7 +220,7 @@ function NewAutomationModal({ onClose, onCreate }) {
         setError(null);
         const initialSteps = [
             { id: "s1", type: "trigger", label: `Trigger: ${TRIGGER_LABELS[trigger]}`, detail: "Configure this trigger in settings", icon: trigger === "new_lead_meta_ad" ? "Tag" : trigger === "missed_booking" ? "AlertCircle" : trigger === "no_response" ? "RotateCcw" : trigger === "call_booked" ? "Calendar" : trigger === "proposal_sent" ? "Send" : "Star", color: TRIGGER_COLORS[trigger] },
-            { id: "s2", type: "action", label: "Send WhatsApp Message", detail: "Add your message content here", icon: "MessageCircle", color: "#25D366" },
+            { id: "s2", type: "action", label: "Send WhatsApp Message", detail: "Add your message content here", icon: "MessageCircle", color: "#262524" },
         ];
         try {
             const res = await fetch(`${API_BASE}/automations`, {

@@ -62,7 +62,7 @@ const navGroups = [
     {
         group: "Intelligence",
         items: [
-            { href: "/sales-brain", label: "Sales Brain", icon: MessageCircle, accent: "#25D366" },
+            { href: "/sales-brain", label: "Sales Brain", icon: MessageCircle, accent: "#262524" },
             { href: "/agent-hub", label: "Automation 🤖", icon: Bot, accent: "#CB3273" },
         ],
     },
