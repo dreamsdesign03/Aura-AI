@@ -160,7 +160,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         SELECT 
           wc.id,
           wc.lead_id as "leadId",
-          wc.phone as "waPhoneNumber",
+          COALESCE(wc.wa_phone_number, wc.phone) as "waPhoneNumber",
           wc.status,
           wc.state,
           COALESCE(wc.last_message_at, wc.updated_at, wc.created_at) as "lastMessageAt",
@@ -439,13 +439,13 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         convId = existingConv.rows[0].id;
         await db.query(`
           UPDATE whatsapp_conversations 
-          SET last_message = $1, last_message_at = NOW(), updated_at = NOW(), phone = COALESCE($2, phone)
+          SET last_message = $1, last_message_at = NOW(), updated_at = NOW(), phone = COALESCE($2, phone), wa_phone_number = COALESCE(wa_phone_number, $2)
           WHERE id = $3
         `, [msgContent, phone, convId]);
       } else {
         const newConv = await db.query(`
-          INSERT INTO whatsapp_conversations (lead_id, phone, status, state, last_message, last_message_at, updated_at)
-          VALUES ($1, $2, 'Active', 'all', $3, NOW(), NOW())
+          INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at)
+          VALUES ($1, $2, $2, 'Active', 'all', $3, NOW(), NOW())
           RETURNING id
         `, [leadId || null, phone, msgContent]);
         convId = newConv.rows[0].id;
@@ -509,7 +509,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
 
   // ── 7. POST /api/whatsapp/webhook (Meta & n8n Inbound Webhook Listener) ───
   app.post('/api/whatsapp/webhook', async (req, res) => {
-    console.log("===== WEBHOOK RECEIVED =====");
+    console.log("===== [WHATSAPP WEBHOOK RECEIVED] =====");
     console.log("RAW BODY:", JSON.stringify(req.body, null, 2));
 
     try {
@@ -554,6 +554,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       if (value.statuses && Array.isArray(value.statuses) && value.statuses.length > 0) {
         for (const statusObj of value.statuses) {
           try {
+            console.log("[WHATSAPP STATUS UPDATE]:", statusObj.id, "->", statusObj.status);
             await db.query('UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2 OR wa_message_id = $2', [statusObj.status, statusObj.id]);
           } catch {}
         }
@@ -590,7 +591,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             messageText = msg.text?.body || `[${msg.type || 'Media'} Message]`;
           }
 
-          console.log("===== PARSED FIELDS =====");
+          console.log("===== [PARSED INBOUND MESSAGE] =====");
           console.log({ senderPhone, messageText, waMessageId, senderName });
 
           let cleanDigits = senderPhone.replace(/\D/g, '');
@@ -601,13 +602,15 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             try {
               const leadMatch = await db.query(
                 `SELECT id FROM leads 
-                 WHERE REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
-                    OR REPLACE(REPLACE(REPLACE(whatsapp, '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+                 WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+                    OR REPLACE(REPLACE(REPLACE(COALESCE(whatsapp,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
                  ORDER BY id DESC LIMIT 1`,
                 [cleanDigits]
               );
               if (leadMatch.rows[0]?.id) leadId = leadMatch.rows[0].id;
-            } catch (lErr) {}
+            } catch (lErr) {
+              console.error("[WHATSAPP WEBHOOK] Lead lookup error:", lErr.message);
+            }
           }
 
           if (!leadId && senderName) {
@@ -623,17 +626,16 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             } catch (nErr) {}
           }
 
-          console.log("===== LEAD LOOKUP =====");
-          console.log("Searched phone:", senderPhone);
-          console.log("Matched lead:", leadId ? leadId : "NO MATCH FOUND");
+          console.log("[WHATSAPP WEBHOOK] Matched lead ID:", leadId ? leadId : "NO MATCH FOUND");
 
           let convId = null;
           try {
             const convMatch = await db.query(
               `SELECT id FROM whatsapp_conversations 
                WHERE phone = $1 
+                  OR wa_phone_number = $1
                   OR (lead_id IS NOT NULL AND lead_id = $2)
-                  OR (length($3) >= 7 AND REPLACE(REPLACE(REPLACE(phone, '+', ''), '-', ''), ' ', '') LIKE '%' || $3)
+                  OR (length($3) >= 7 AND REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%' || $3)
                ORDER BY id DESC LIMIT 1`,
               [senderPhone, leadId, cleanDigits]
             );
@@ -642,28 +644,27 @@ function registerWhatsAppRoutes(app, resolveUserId) {
               convId = convMatch.rows[0].id;
               await db.query(
                 `UPDATE whatsapp_conversations 
-                 SET last_message = $1, last_message_at = NOW(), updated_at = NOW(), state = 'inbound_received', unread_count = COALESCE(unread_count, 0) + 1, lead_id = COALESCE(lead_id, $2) 
-                 WHERE id = $3`,
-                [messageText, leadId, convId]
+                 SET last_message = $1, last_message_at = NOW(), updated_at = NOW(), state = 'inbound_received', unread_count = COALESCE(unread_count, 0) + 1, lead_id = COALESCE(lead_id, $2), phone = COALESCE(phone, $3), wa_phone_number = COALESCE(wa_phone_number, $3) 
+                 WHERE id = $4`,
+                [messageText, leadId, senderPhone, convId]
               );
+              console.log("[WHATSAPP WEBHOOK] Updated conversation ID:", convId);
             } else {
               const newConv = await db.query(
-                `INSERT INTO whatsapp_conversations (lead_id, phone, status, state, last_message, last_message_at, updated_at, unread_count) 
-                 VALUES ($1, $2, 'Active', 'inbound_received', $3, NOW(), NOW(), 1) 
+                `INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at, unread_count) 
+                 VALUES ($1, $2, $2, 'Active', 'inbound_received', $3, NOW(), NOW(), 1) 
                  RETURNING id`,
                 [leadId, senderPhone, messageText]
               );
               convId = newConv.rows[0].id;
+              console.log("[WHATSAPP WEBHOOK] Created conversation ID:", convId);
             }
           } catch (cErr) {
-            console.error('[Meta Webhook] Error upserting conversation:', cErr.message);
+            console.error('[WHATSAPP WEBHOOK] Error upserting conversation:', cErr.stack || cErr.message);
           }
 
           const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
           const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
-
-          console.log("===== ATTEMPTING TO SAVE INBOUND MESSAGE =====");
-          console.log({ leadId, conversationId: convId, direction: "inbound", content: messageText, waMessageId });
 
           try {
             const savedMsg = await db.query(
@@ -672,9 +673,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
                ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, $5, 'delivered', $6, $6, NOW()) RETURNING *`,
               [convId, leadId, senderPhone, messageText, waMessageId, validTime]
             );
-            console.log("===== INBOUND MESSAGE SAVED SUCCESSFULLY =====", savedMsg.rows[0]);
+            console.log("===== [INBOUND MESSAGE SAVED SUCCESSFULLY IN DB] =====", savedMsg.rows[0]);
           } catch (mErr) {
-            console.error("===== INBOUND MESSAGE SAVE FAILED =====", mErr.stack || mErr.message);
+            console.error("===== [INBOUND MESSAGE SAVE FAILED] =====", mErr.stack || mErr.message);
           }
 
           if (leadId) {

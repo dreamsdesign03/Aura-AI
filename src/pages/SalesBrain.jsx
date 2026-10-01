@@ -556,7 +556,7 @@ function ConversationsTab() {
         const timeB = new Date(b.updatedAt || 0).getTime();
         return timeB - timeA;
     });
-    const selectedConv = selectedId ? conversations.find(c => c.id === selectedId) ?? null : null;
+    const selectedConv = selectedId ? (conversations.find(c => String(c.id) === String(selectedId) || String(c.leadId || '') === String(selectedId)) ?? conversations[0] ?? null) : null;
 
     const stateFilters = [
         { val: "all", label: "All" }, { val: "hook_sent", label: "Hook Sent" }, { val: "awaiting_yes", label: "Awaiting YES" },
