@@ -342,24 +342,41 @@ async function runSales(userId, opts = {}) {
 
   for (const lead of leadsRes.rows) {
     if (sentToday.rows[0].n >= dailyCap) break;
-    const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'there';
+    const name = (lead.first_name || '').trim() || (lead.company || '').trim() || 'Valued Client';
+    const firstName = name.split(' ')[0] || 'Valued Client';
     let subject = '';
     let body = '';
     try {
       const gen = await callGemini(
-        `You are a sales engagement engine for Aura Skin Clinic (Dr. Aditya Shah), a premium aesthetic clinic. Write a personalized PROPOSAL PITCH email (a mini pitch deck in email form) as JSON:
-        {
-          "subject": "email subject line under 60 chars, no placeholder tokens",
-          "body": "4-6 sentence proposal pitch. First line uses the contact first name. Introduce Aura Skin Clinic + Dr. Aditya Shah, then pitch the AI patient-acquisition & sales-automation proposal with 3 high-value points (24/7 AI receptionist & WhatsApp booking automation, high-ticket treatment campaigns, automated follow-ups that cut no-shows). Always include both links in the body: booking link ${BOOKING_LINK} and pitch deck ${PITCH_DECK_LINK}. End with a clear call to action to book a 15-minute discovery call. No placeholders like {{name}}."
-        }
-        LEAD: name=${name}, company=${lead.company || 'unknown'}, title=${lead.title || 'business owner'}, website=${lead.website || 'unknown'}, industry=${lead.industry || ''}, email=${lead.email}`
+        `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
+Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
+
+PROSPECT DATA:
+- First Name: ${firstName}
+- Company: ${lead.company || 'your organization'}
+- Industry: ${lead.industry || 'corporate'}
+- Designation: ${lead.title || lead.designation || ''}
+
+EXACT EMAIL SEQUENCE TO FOLLOW:
+1. Greeting: "Dear ${firstName},"
+2. Respectful Opening Line: Address the client and naturally mention their company/industry.
+3. Brochure Introduction: "Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings." Add one short line explaining why it suits their industry.
+4. Invitation Line with HYPERLINK: "Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
+5. Closing Line: "Thank you for your time and consideration."
+6. Signature: Warm regards, Dr. Aditya Shah, Aura Laser & Cosmetic Clinic | Skinnonest
+
+CRITICAL RULES:
+- 80 to 120 words max. Formal, respectful, no emojis. No pitch deck links. No placeholders.
+
+OUTPUT JSON:
+{ "subject": "subject line", "body": "HTML formatted body" }`
       );
       const parsed = JSON.parse(gen.replace(/```json|```/g, '').trim());
-      subject = parsed.subject || '';
-      body = parsed.body || '';
+      subject = parsed.subject || `Skinnonest Gift Hampers – Introduction for ${lead.company || 'your organization'}`;
+      body = parsed.body || `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     } catch {
-      subject = `Partnership with ${lead.company || 'your clinic'}`;
-      body = `Hi ${name},\n\nI run Aura Skin Clinic (Dr. Aditya Shah). We help clinics like ${lead.company || 'yours'} grow patient volume with an AI patient-acquisition engine — 24/7 AI receptionist, WhatsApp booking automation, and high-ticket treatment campaigns.\n\nHere is the tailored proposal for you:\n📅 Book your consultation: ${BOOKING_LINK}\n📊 View our pitch deck: ${PITCH_DECK_LINK}\n\nWould you be open to a quick 15-minute call this week to walk through it?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
+      subject = `Skinnonest Gift Hampers – Introduction for ${lead.company || 'your organization'}`;
+      body = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     }
 
     const ins = await db.query(
@@ -468,21 +485,22 @@ async function runFollowup(userId) {
 
   for (const { lead, followupCount, daysSince } of dueLeads) {
     summary.due++;
-    const name = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'there';
+    const rawName = (lead.first_name || lead.name || '').trim() || (lead.company || '').trim() || 'Valued Client';
+    const firstName = rawName.split(' ')[0] || 'Valued Client';
     let subject = '';
     let body = '';
     try {
       const gen = await callGemini(
-        `You are a follow-up engine for Aura Skin Clinic (Dr. Aditya Shah). Write follow-up email number ${followupCount + 1} (this is the D${FOLLOWUP_DAYS[followupCount]} follow-up, ${daysSince} days since last contact) as JSON:
-        {"subject": "subject under 60 chars, no placeholders", "body": "short warm email referencing the previous outreach, add one new value point about modern aesthetic treatments, include the booking link ${BOOKING_LINK} and pitch deck ${PITCH_DECK_LINK}, propose a 15-min call. No placeholders like {{name}}."}
-        LEAD: name=${name}, company=${lead.company || 'business'}, email=${lead.email}`
+        `You are a formal B2B follow-up email writer for Aura Laser & Cosmetic Clinic | Skinnonest. Write follow-up email number ${followupCount + 1} (${daysSince} days since last contact) as JSON:
+        {"subject": "Skinnonest Hampers – Follow-up for ${lead.company || 'your organization'}", "body": "Dear ${firstName},<br><br>I wanted to briefly follow up regarding our previous email about Skinnonest gift hampers for ${lead.company || 'your organization'}.<br><br>Should you wish to review our brochure or schedule a brief meeting, you can <a href=\\"${BOOKING_LINK}\\">Book an Appointment</a> at your convenience.<br><br>Thank you for your time.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest"}
+        LEAD: name=${firstName}, company=${lead.company || 'business'}, email=${lead.email}`
       );
       const parsed = JSON.parse(gen.replace(/```json|```/g, '').trim());
-      subject = parsed.subject || '';
-      body = parsed.body || '';
+      subject = parsed.subject || `Skinnonest Hampers – Follow-up for ${lead.company || 'your organization'}`;
+      body = parsed.body || `Dear ${firstName},<br><br>I wanted to briefly follow up regarding our previous email about Skinnonest gift hampers for ${lead.company || 'your organization'}.<br><br>Should you wish to review our brochure or schedule a brief meeting, you can <a href="${BOOKING_LINK}">Book an Appointment</a> at your convenience.<br><br>Thank you for your time.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     } catch {
-      subject = `Re: quick follow-up`;
-      body = `Hi ${name},\n\nJust bumping this — I'd love to walk you through how Aura Skin Clinic partners with clinics like ${lead.company || 'yours'}.\n\n📅 Book your consultation: ${BOOKING_LINK}\n📊 View our pitch deck: ${PITCH_DECK_LINK}\n\nAre you free for 15 minutes this week?\n\nBest,\nDr. Aditya Shah\nAura Skin Clinic`;
+      subject = `Skinnonest Hampers – Follow-up for ${lead.company || 'your organization'}`;
+      body = `Dear ${firstName},<br><br>I wanted to briefly follow up regarding our previous email about Skinnonest gift hampers for ${lead.company || 'your organization'}.<br><br>Should you wish to review our brochure or schedule a brief meeting, you can <a href="${BOOKING_LINK}">Book an Appointment</a> at your convenience.<br><br>Thank you for your time.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     }
 
     const ins = await db.query(

@@ -421,7 +421,7 @@ export default function ComposeModal({ onClose, initialEmail, initialLead }) {
                 {/* Proposal default note */}
                 <div className="flex items-start gap-1.5 text-[11px] text-purple-700 bg-purple-100/70 border border-purple-200 rounded-lg px-3 py-2">
                   <Sparkles className="w-3.5 h-3.5 flex-shrink-0"/>
-                  <span>Generates a proposal email by default — includes our booking link and pitch deck.</span>
+                  <span>Generates a formal Skinnonest outreach email with brochure attachment & booking link.</span>
                 </div>
 
                 {/* Tone + Generate row */}

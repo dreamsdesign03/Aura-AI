@@ -1428,7 +1428,8 @@ app.get('/api/outreach/emails', async (req, res) => {
 const BOOKING_LINK = process.env.BOOKING_LINK || 'https://calendly.com/dreamsdesign-in03/aura-meeting';
 
 async function generateSkinnonestOutreachEmail(lead = {}) {
-  const firstName = (lead.first_name || lead.firstName || '').trim() || (lead.full_name || lead.name || '').trim().split(' ')[0] || 'Valued Client';
+  const rawFirstName = (lead.first_name || lead.firstName || '').trim() || (lead.full_name || lead.name || '').trim();
+  const firstName = rawFirstName.split(' ')[0] || 'Valued Client';
   const companyName = (lead.company || lead.company_name || '').trim() || 'your organization';
   const industry = (lead.industry || '').trim() || 'corporate and business sector';
   const designation = (lead.designation || lead.title || '').trim();
@@ -1510,52 +1511,195 @@ OUTPUT FORMAT (JSON strictly):
     subject,
     body: fallbackBody
   };
+}`;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && apiKey.length > 10) {
+    try {
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+
+      if (geminiRes.ok) {
+        const data = await geminiRes.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const parsed = JSON.parse(rawText);
+          if (parsed.subject && parsed.body) {
+            return {
+              subject: String(parsed.subject).slice(0, 60),
+              body: String(parsed.body)
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[AI Email Generator] Gemini API fallback:', e.message);
+    }
+  }
+
+  // Fallback generator if Gemini is unavailable
+  const fallbackBody = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${companyName}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range. We believe it would be a good fit for corporate and client gifting in the ${industry}.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
+
+  return {
+    subject,
+    body: fallbackBody
+  };
 }
 
 
-// POST /api/outreach/generate — Understand lead client & products, create outreach email
-app.post('/api/outreach/generate', async (req, res) => {
+// POST /api/outreach/generate — Generate Skinnonest outreach email for a single lead
+app.post(['/api/outreach/generate', '/api/outreach-ai/generate'], async (req, res) => {
   try {
-    const { leadId } = req.body;
-    const userId = await resolveUserId(req.body.email, req.headers.cookie);
-    let lead = null;
+    const { leadId } = req.body || {};
+    const userId = await resolveUserId(req.body?.email, req.headers.cookie);
+    let lead = {};
     if (leadId) {
       const lr = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
       if (lr.rows.length > 0) lead = lr.rows[0];
     }
 
-    const company = lead?.company || lead?.first_name || 'Clinic / Healthcare Brand';
-    const contactName = lead?.first_name ? `${lead.first_name} ${lead.last_name || ''}`.trim() : 'Clinic Director';
-    const industry = lead?.industry || 'Dermatology & Cosmetic Surgery';
-    const country = lead?.country || 'India';
-    const recipientEmail = lead?.email || 'contact@clinic.com';
-
-    const subject = `Scaling Patient Appointments & High-Margin Treatments for ${company}`;
-    const body = `Hi ${contactName},
-
-I noticed ${company}'s premium presence in ${industry} across ${country}. Your reputation for delivering outstanding patient outcomes in treatments like Laser Hair Removal, Skin Rejuvenation, and Body Contouring is impressive.
-
-At Aura AI, we specialize in helping leading clinics convert website visitors and social leads into booked consultation appointments 24/7.
-
-Here is what we can implement for ${company}:
-1. 24/7 AI Receptionist & Booking Bot (Handles patient inquiries & schedules consultations directly)
-2. Automated WhatsApp Appointment Reminders (Reduces no-shows by up to 65%)
-3. High-Ticket Treatment Campaign Funnels (Targeting high-intent patients for premium packages)
-
-Would you be open to a brief 10-minute discovery call next Tuesday at 11:00 AM to explore how this can add 20-30 new monthly patient bookings for ${company}?
-
-Best regards,
-Aura AI Growth Team`;
+    const emailContent = await generateSkinnonestOutreachEmail(lead);
+    const recipientEmail = lead.email || 'contact@client.com';
+    const contactName = (lead.first_name || lead.company || 'Client').trim();
+    const company = lead.company || 'Organization';
 
     const insertRes = await db.query(
       `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'draft', NOW())
        RETURNING *`,
-      [userId, leadId ? Number(leadId) : null, recipientEmail, recipientEmail, contactName, company, subject, body]
+      [userId, leadId ? Number(leadId) : null, recipientEmail, recipientEmail, contactName, company, emailContent.subject, emailContent.body]
     );
 
     res.status(201).json(insertRes.rows[0]);
   } catch (err) {
+    console.error('[outreach/generate] Error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/outreach-ai/generate/:leadId — SSE endpoint for single lead generation
+app.get('/api/outreach-ai/generate/:leadId', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  try {
+    const leadId = req.params.leadId;
+    const userId = await resolveUserId(null, req.headers.cookie);
+    res.write(`data: ${JSON.stringify({ message: "Auditing prospect & company profile…" })}\n\n`);
+
+    let lead = {};
+    if (leadId) {
+      const lr = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+      if (lr.rows.length > 0) lead = lr.rows[0];
+    }
+
+    res.write(`data: ${JSON.stringify({ message: "Generating Skinnonest email copy…" })}\n\n`);
+    const emailContent = await generateSkinnonestOutreachEmail(lead);
+
+    const recipientEmail = lead.email || 'contact@prospect.com';
+    const contactName = (lead.first_name || lead.company || 'Client').trim();
+    const company = lead.company || 'Organization';
+
+    const insertRes = await db.query(
+      `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'draft', NOW())
+       RETURNING *`,
+      [userId, leadId ? Number(leadId) : null, recipientEmail, recipientEmail, contactName, company, emailContent.subject, emailContent.body]
+    );
+
+    const savedEmail = insertRes.rows[0];
+    res.write(`data: ${JSON.stringify({ message: "Email generated!", email: savedEmail })}\n\n`);
+    res.write(`event: done\ndata: ${JSON.stringify({ email: savedEmail })}\n\n`);
+    res.end();
+  } catch (err) {
+    console.error('[outreach-ai/generate/:leadId] SSE Error:', err.message);
+    res.write(`event: error\ndata: ${JSON.stringify({ message: err.message || "Generation failed" })}\n\n`);
+    res.end();
+  }
+});
+
+// GET /api/outreach-ai/generate-all — SSE endpoint for bulk lead email generation
+app.get('/api/outreach-ai/generate-all', async (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  try {
+    const userId = await resolveUserId(null, req.headers.cookie);
+    const leadsRes = await db.query('SELECT * FROM leads ORDER BY id DESC');
+    const leads = leadsRes.rows || [];
+
+    if (leads.length === 0) {
+      res.write(`event: done\ndata: ${JSON.stringify({ message: "No leads found to generate outreach emails." })}\n\n`);
+      return res.end();
+    }
+
+    let count = 0;
+    for (let i = 0; i < leads.length; i++) {
+      const lead = leads[i];
+      const name = (lead.first_name || lead.company || 'Lead').trim();
+      res.write(`data: ${JSON.stringify({ message: `Generating Skinnonest email for ${name} (${i + 1}/${leads.length})…` })}\n\n`);
+
+      const emailContent = await generateSkinnonestOutreachEmail(lead);
+      const recipientEmail = lead.email || `${lead.id}@prospect.com`;
+      const contactName = (lead.first_name || lead.company || 'Client').trim();
+
+      // Check if draft exists
+      const existing = await db.query("SELECT id FROM outreach_emails WHERE lead_id = $1 AND status = 'draft' ORDER BY id DESC LIMIT 1", [lead.id]);
+      if (existing.rows.length > 0) {
+        await db.query(
+          `UPDATE outreach_emails SET subject = $1, body = $2, updated_at = NOW() WHERE id = $3`,
+          [emailContent.subject, emailContent.body, existing.rows[0].id]
+        );
+      } else {
+        await db.query(
+          `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'draft', NOW())`,
+          [userId, lead.id, recipientEmail, recipientEmail, contactName, lead.company || '', emailContent.subject, emailContent.body]
+        );
+      }
+      count++;
+    }
+
+    res.write(`event: done\ndata: ${JSON.stringify({ message: `Successfully generated ${count} Skinnonest emails!` })}\n\n`);
+    res.end();
+  } catch (err) {
+    console.error('[outreach-ai/generate-all] SSE Error:', err.message);
+    res.write(`event: error\ndata: ${JSON.stringify({ message: err.message || "Bulk generation encountered an error" })}\n\n`);
+    res.end();
+  }
+});
+
+// POST /api/outreach/regenerate-drafts — Bulk regenerate existing drafts using Skinnonest template
+app.post('/api/outreach/regenerate-drafts', async (req, res) => {
+  try {
+    const draftsRes = await db.query("SELECT o.*, l.first_name, l.last_name, l.company, l.industry, l.designation FROM outreach_emails o LEFT JOIN leads l ON o.lead_id = l.id WHERE o.status = 'draft' OR o.body LIKE '%pitch deck%' OR o.body LIKE '%finds you well%' OR o.body LIKE '%Aura AI Growth Team%'");
+    const drafts = draftsRes.rows || [];
+    let updatedCount = 0;
+
+    for (const draft of drafts) {
+      const lead = {
+        first_name: draft.first_name || draft.to_name,
+        company: draft.company,
+        industry: draft.industry,
+        designation: draft.designation
+      };
+      const emailContent = await generateSkinnonestOutreachEmail(lead);
+      await db.query(
+        `UPDATE outreach_emails SET subject = $1, body = $2, updated_at = NOW() WHERE id = $3`,
+        [emailContent.subject, emailContent.body, draft.id]
+      );
+      updatedCount++;
+    }
+
+    res.json({ success: true, count: updatedCount, message: `Successfully regenerated ${updatedCount} email drafts with Skinnonest template.` });
+  } catch (err) {
+    console.error('[regenerate-drafts] Error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
@@ -1663,6 +1807,15 @@ app.post('/api/outreach/send', async (req, res) => {
 
     const { transporter, fromEmail, fromName } = await getTransporter(userId);
 
+    const brochurePath = path.join(__dirname, 'assets', 'Skinnonest - Gift Hampers Brochure.pdf');
+    let attachments = [];
+    if (fs.existsSync(brochurePath)) {
+      attachments.push({
+        filename: 'Skinnonest - Gift Hampers Brochure.pdf',
+        path: brochurePath
+      });
+    }
+
     const mailOptions = {
       from: `"${fromName}" <${fromEmail}>`,
       to: recipientEmail,
@@ -1671,6 +1824,7 @@ app.post('/api/outreach/send', async (req, res) => {
       html: htmlBody,
       inReplyTo: parent?.messageId || undefined,
       references: parent?.messageId ? [parent.messageId] : undefined,
+      attachments: attachments.length > 0 ? attachments : undefined,
     };
 
     const info = await transporter.sendMail(mailOptions);
@@ -4867,11 +5021,7 @@ app.post('/api/branding/settings', saveBrandingHandler);
 app.post(['/api/useComposeOutreachEmail', '/api/outreach/compose', '/api/outreach-ai/compose'], async (req, res) => {
   try {
     const payload = req.body?.data || req.body || {};
-    const { leadId, ctaTypes = ['proposal'], tone = 'professional' } = payload;
-
-    console.log('[AI Outreach Engine] Composing email with Gemini for payload:', { leadId, ctaTypes, tone });
-
-    // 1. Fetch Lead Details from database if leadId provided
+    const { leadId } = payload;
     let lead = {};
     if (leadId) {
       try {
@@ -4881,112 +5031,8 @@ app.post(['/api/useComposeOutreachEmail', '/api/outreach/compose', '/api/outreac
         console.warn('Error fetching lead for compose:', e.message);
       }
     }
-
-    const leadName = (lead.first_name || lead.firstName ? `${lead.first_name || lead.firstName} ${lead.last_name || lead.lastName || ''}` : 'Valued Client').trim();
-    const leadCompany = lead.company || lead.company_name || 'your organization';
-    const leadDesignation = lead.designation || 'Decision Maker';
-    const leadIndustry = lead.industry || 'Healthcare / Aesthetics / Wellness';
-
-    // 2. Fetch Company Branding & Business WHY from PostgreSQL
-    let companyName = 'Aura Laser & Cosmetic Clinic | Skinnonest';
-    let tagline = 'Dermatologist-Backed Skincare & Laser Cosmetology';
-    let businessWhy = 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.';
-    let doctorName = 'Dr. Aditya Shah';
-
-    try {
-      const brandRes = await db.query('SELECT * FROM branding_settings ORDER BY id DESC LIMIT 1');
-      if (brandRes.rows.length > 0) {
-        companyName = brandRes.rows[0].company_name || companyName;
-        tagline = brandRes.rows[0].tagline || tagline;
-      }
-      const userRes = await db.query("SELECT business_why FROM users WHERE email = 'aurabackoffice123@gmail.com' OR business_why IS NOT NULL ORDER BY id DESC LIMIT 1");
-      if (userRes.rows.length > 0 && userRes.rows[0].business_why) {
-        businessWhy = userRes.rows[0].business_why;
-      }
-    } catch (e) {
-      console.warn('Error reading branding/why for email compose:', e.message);
-    }
-
-    // 3. Format Call To Action Label
-    const BOOKING_LINK = 'https://calendly.com/dreamsdesign-in03/aura-meeting';
-    const PITCH_DECK_LINK = 'https://drive.google.com/file/d/1zFKYiPI69TK1izNQOyj9g-TmK3Yvsfe9/view?usp=sharing';
-    const ctaLabels = {
-      consultation: `Book a Personal Dermatological Consultation with Dr. Aditya Shah — ${BOOKING_LINK}`,
-      proposal: `Review a Tailored Clinical & Skincare Proposal — ${BOOKING_LINK}`,
-      pitch_deck: `Explore Our Product & Treatment Pitch Deck — ${PITCH_DECK_LINK}`
-    };
-    const activeCtas = (Array.isArray(ctaTypes) ? ctaTypes : [ctaTypes]).map(k => ctaLabels[k] || ctaLabels.proposal).join(' & ');
-
-    // 4. Formulate Prompt for Gemini AI
-    const systemPrompt = `You are the lead AI Communications Strategist for ${companyName} (${tagline}), led by ${doctorName}.
-Our Core Business WHY: "${businessWhy}"
-
-Write a highly personalized, high-converting outreach email to a prospective client/partner.
-
-PROSPECT DETAILS:
-- Name: ${leadName}
-- Title: ${leadDesignation}
-- Company: ${leadCompany}
-- Industry: ${leadIndustry}
-
-EMAIL CONFIGURATION:
-- Tone of Voice: ${tone.toUpperCase()} (Match this tone exactly: Professional, Warm & Friendly, Direct & Impactful, or Consultative)
-- Primary Call to Action: ${activeCtas}
-
-REQUIREMENTS:
-1. Subject Line: Create an engaging, high-open-rate subject line.
-2. Body: Personalize the hook to ${leadCompany}. Connect their needs with ${companyName}'s dermatologist-backed expertise and clinical precision.
-3. Integrate our Business WHY naturally without forcing it.
-4. Always include both of these links in the email body (use them as clickable URLs):
-   - Booking link: ${BOOKING_LINK}
-   - Pitch deck: ${PITCH_DECK_LINK}
-5. End with a clear, frictionless Call To Action requesting them to ${activeCtas}.
-6. Signature: From ${doctorName} & The ${companyName} Team.
-
-OUTPUT FORMAT (JSON strictly):
-{
-  "subject": "Subject line text here",
-  "body": "Complete email body formatted nicely with line breaks."
-}`;
-
-    // 5. Call Gemini API
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
-      try {
-        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: systemPrompt }] }],
-            generationConfig: { responseMimeType: "application/json" }
-          })
-        });
-
-        if (geminiRes.ok) {
-          const geminiData = await geminiRes.json();
-          const rawText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            console.log('[AI Outreach Engine] ✅ Gemini successfully generated email:', parsed.subject);
-            return res.json({
-              subject: parsed.subject,
-              body: parsed.body
-            });
-          }
-        }
-      } catch (geminiErr) {
-        console.error('Gemini API call error in email compose:', geminiErr.message);
-      }
-    }
-
-    // 6. Smart Fallback if API key rate limited or unavailable
-    const fallbackSubject = `${leadCompany} x ${companyName}: A Tailored Proposal for You`;
-    const fallbackBody = `Dear ${leadName},\n\nI hope this email finds you well at ${leadCompany}.\n\nAt ${companyName}, led by Dr. Aditya Shah, we operate on a core belief:\n"${businessWhy}"\n\nGiven your focus in ${leadIndustry}, I would love to connect and share how our dermatologist-backed laser cosmetology and specialized formulations can deliver transformative results for your clients.\n\nHere is the tailored proposal we have prepared for ${leadCompany}:\n\n📅 Book your consultation here: ${BOOKING_LINK}\n📊 View our pitch deck here: ${PITCH_DECK_LINK}\n\nWould you be open to a quick 15-minute call this week to walk through it together?\n\nWarm regards,\n\nDr. Aditya Shah\n${companyName}\n${tagline}`;
-
-    res.json({
-      subject: fallbackSubject,
-      body: fallbackBody
-    });
+    const emailContent = await generateSkinnonestOutreachEmail(lead);
+    res.json(emailContent);
   } catch (err) {
     console.error('Error composing AI email:', err.message);
     res.status(500).json({ error: err.message });
@@ -6653,6 +6699,35 @@ app.delete('/api/lead-lists/:id/leads/:leadId', async (req, res) => {
 
 // Register WhatsApp routes from whatsapp.js
 registerWhatsAppRoutes(app, resolveUserId);
+
+
+// Auto-regenerate legacy email drafts on startup
+async function autoRegenerateOldDrafts() {
+  try {
+    const draftsRes = await db.query("SELECT o.*, l.first_name, l.last_name, l.company, l.industry, l.designation FROM outreach_emails o LEFT JOIN leads l ON o.lead_id = l.id WHERE o.status = 'draft' AND (o.body LIKE '%pitch deck%' OR o.body LIKE '%finds you well%' OR o.body LIKE '%Aura AI Growth Team%')");
+    const drafts = draftsRes.rows || [];
+    if (drafts.length > 0) {
+      console.log(`[Auto-Regenerate] Updating ${drafts.length} legacy email drafts to Skinnonest template…`);
+      for (const draft of drafts) {
+        const lead = {
+          first_name: draft.first_name || draft.to_name,
+          company: draft.company,
+          industry: draft.industry,
+          designation: draft.designation
+        };
+        const emailContent = await generateSkinnonestOutreachEmail(lead);
+        await db.query(
+          `UPDATE outreach_emails SET subject = $1, body = $2, updated_at = NOW() WHERE id = $3`,
+          [emailContent.subject, emailContent.body, draft.id]
+        );
+      }
+      console.log(`[Auto-Regenerate] ✅ ${drafts.length} drafts updated successfully.`);
+    }
+  } catch (err) {
+    console.warn('[Auto-Regenerate] Notice:', err.message);
+  }
+}
+setTimeout(() => autoRegenerateOldDrafts(), 3000);
 
 module.exports = app;
 
