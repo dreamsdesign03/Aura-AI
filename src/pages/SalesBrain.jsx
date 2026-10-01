@@ -515,7 +515,14 @@ function ConversationsTab() {
     const { data: rawConversations, isLoading: loading, refetch: refetchConvs } = useGetWhatsAppConversations({ refetchInterval: 3000 });
     const conversations = Array.isArray(rawConversations) ? rawConversations : (rawConversations?.conversations || []);
 
-    const { data: msgData, isLoading: msgLoading } = useGetWhatsAppMessages(selectedId || 0, { enabled: Boolean(selectedId), refetchInterval: 3000 });
+    // Auto-select first conversation if none selected on page load/refresh
+    useEffect(() => {
+        if (!selectedId && conversations.length > 0) {
+            setSelectedId(conversations[0].id);
+        }
+    }, [conversations, selectedId]);
+
+    const { data: msgData, isLoading: msgLoading, refetch: refetchMsgs } = useGetWhatsAppMessages(selectedId || 0, { enabled: Boolean(selectedId), refetchInterval: 3000 });
     useEffect(() => {
         if (selectedId) {
             fetch('/api/whatsapp/read', {
@@ -530,9 +537,12 @@ function ConversationsTab() {
         setLocalMsgs(msgs);
     }, [msgData, selectedId]);
     useEffect(() => {
-        if (threadRef.current)
-            threadRef.current.scrollTop = threadRef.current.scrollHeight;
-    }, [localMsgs]);
+        if (threadRef.current) {
+            setTimeout(() => {
+                if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
+            }, 100);
+        }
+    }, [localMsgs, selectedId]);
     const filtered = conversations.filter(c => {
         if (filterState !== "all" && c.state !== filterState)
             return false;
@@ -602,6 +612,7 @@ function ConversationsTab() {
                 description: `Delivered via Meta WhatsApp Cloud API`
             });
             refetchConvs();
+            refetchMsgs();
         } catch (err) {
             console.error('Meta WhatsApp Send Error:', err);
             toast({
@@ -706,8 +717,8 @@ function ConversationsTab() {
                 </div>);
             })()}
 
-            <div ref={threadRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-2" style={{ background: "#F0F4F0" }}>
-              {msgLoading ? (<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-gray-400"/></div>) : localMsgs.length === 0 ? (<div className="text-center text-xs text-gray-400 py-12">No messages yet</div>) : (localMsgs.map(msg => {
+            <div ref={threadRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3" style={{ background: "#efeae2", backgroundImage: "radial-gradient(#00000008 1px, transparent 1px)", backgroundSize: "16px 16px" }}>
+              {msgLoading && localMsgs.length === 0 ? (<div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-emerald-600"/></div>) : localMsgs.length === 0 ? (<div className="text-center text-xs text-gray-400 py-12 bg-white/80 rounded-xl max-w-xs mx-auto p-4 shadow-sm border">No messages in conversation thread</div>) : (localMsgs.map(msg => {
                 const isOut = msg.direction === "outbound";
                 const rawContent = msg.content || msg.body || "";
                 let displayContent = rawContent;
@@ -720,10 +731,15 @@ function ConversationsTab() {
                   displayContent = `[${tName}]`;
                 }
 
-                return (<div key={msg.id} className={cn("flex", isOut ? "justify-end" : "justify-start")}>
-                      <div className="max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm" style={{ background: isOut ? "#25D366" : "#ffffff", color: isOut ? "#ffffff" : "#111827", borderBottomRightRadius: isOut ? 4 : 16, borderBottomLeftRadius: isOut ? 16 : 4 }}>
-                        <p className="text-[13px] leading-snug whitespace-pre-wrap">{displayContent}</p>
-                        <div className={cn("mt-1 text-[10px]", isOut ? "text-right" : "text-left")} style={{ color: isOut ? "rgba(255,255,255,0.75)" : "#9CA3AF" }}>{timeAgo(msg.sentAt || msg.timestamp)}</div>
+                const msgTime = msg.sentAt || msg.timestamp ? new Date(msg.sentAt || msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+
+                return (<div key={msg.id || msg.timestamp} className={cn("flex my-1", isOut ? "justify-end" : "justify-start")}>
+                      <div className={cn("max-w-[75%] rounded-2xl px-3.5 py-2 shadow-sm border text-xs leading-relaxed relative", isOut ? "bg-[#d9fdd3] text-gray-900 border-emerald-200/60 rounded-br-none" : "bg-white text-gray-900 border-gray-200/80 rounded-bl-none")}>
+                        <p className="text-[13px] leading-snug whitespace-pre-wrap font-normal">{displayContent}</p>
+                        <div className={cn("mt-1 text-[10px] flex items-center gap-1", isOut ? "justify-end text-emerald-800/70" : "justify-start text-gray-400")}>
+                          <span>{msgTime || timeAgo(msg.sentAt || msg.timestamp)}</span>
+                          {isOut && <span className="text-emerald-600 font-bold ml-0.5">✓✓</span>}
+                        </div>
                       </div>
                     </div>);
             }))}
