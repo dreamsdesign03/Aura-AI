@@ -1423,6 +1423,96 @@ app.get('/api/outreach/emails', async (req, res) => {
   }
 });
 
+
+// ─── SKINNONEST OUTREACH EMAIL GENERATOR HELPER ─────────────────────────────
+const BOOKING_LINK = process.env.BOOKING_LINK || 'https://calendly.com/dreamsdesign-in03/aura-meeting';
+
+async function generateSkinnonestOutreachEmail(lead = {}) {
+  const firstName = (lead.first_name || lead.firstName || '').trim() || (lead.full_name || lead.name || '').trim().split(' ')[0] || 'Valued Client';
+  const companyName = (lead.company || lead.company_name || '').trim() || 'your organization';
+  const industry = (lead.industry || '').trim() || 'corporate and business sector';
+  const designation = (lead.designation || lead.title || '').trim();
+
+  const subject = `Skinnonest Gift Hampers – Introduction for ${companyName}`.slice(0, 60);
+
+  const systemPrompt = `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
+Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
+
+PROSPECT DATA:
+- First Name: ${firstName}
+- Company: ${companyName}
+- Industry: ${industry}
+- Designation: ${designation}
+
+EXACT EMAIL SEQUENCE TO FOLLOW:
+1. Greeting: "Dear ${firstName},"
+2. Respectful Opening Line: Address the client and naturally mention their company/industry (e.g. "It is a pleasure to reach out to you and the team at ${companyName}.")
+3. Brochure Introduction: One or two lines introducing Skinnonest and pointing to the attached brochure:
+"Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings."
+Add one short line explaining why it suits their industry (personalized, no hype or exaggeration).
+4. Invitation Line with HYPERLINK:
+"Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
+5. Closing Line: "Thank you for your time and consideration."
+6. Signature:
+Warm regards,
+
+Dr. Aditya Shah
+Aura Laser & Cosmetic Clinic | Skinnonest
+
+CRITICAL RULES:
+- Total body length: 80 to 120 words max.
+- Tone: Formal, respectful, professional. No emojis, no slang, no hype.
+- NEVER use: "I hope this email finds you well", "key Decision Maker", "impressed by your innovative approach", or long quoted slogans.
+- NEVER write placeholders like "[Name]" or "undefined". Skip missing fields gracefully.
+- Do NOT paste raw URLs in prose. The booking link MUST be a clickable HTML hyperlink: <a href="${BOOKING_LINK}">Book an Appointment</a>.
+- Do NOT include any Google Drive pitch deck links.
+
+OUTPUT FORMAT (JSON strictly):
+{
+  "subject": "${subject}",
+  "body": "Complete HTML formatted email body with line breaks."
+}`;
+
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && apiKey.length > 10) {
+    try {
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: { responseMimeType: "application/json" }
+        })
+      });
+
+      if (geminiRes.ok) {
+        const data = await geminiRes.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (rawText) {
+          const parsed = JSON.parse(rawText);
+          if (parsed.subject && parsed.body) {
+            return {
+              subject: String(parsed.subject).slice(0, 60),
+              body: String(parsed.body)
+            };
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[AI Email Generator] Gemini API fallback:', e.message);
+    }
+  }
+
+  // Fallback generator if Gemini is unavailable
+  const fallbackBody = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${companyName}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range. We believe it would be a good fit for corporate and client gifting in the ${industry}.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
+
+  return {
+    subject,
+    body: fallbackBody
+  };
+}
+
+
 // POST /api/outreach/generate — Understand lead client & products, create outreach email
 app.post('/api/outreach/generate', async (req, res) => {
   try {
