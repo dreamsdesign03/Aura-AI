@@ -92,7 +92,17 @@ function LeadBrainTab() {
     const filtered = leads.filter(l => {
         const q = search.toLowerCase();
         return !q || `${l.firstName || ""} ${l.lastName || ""} ${l.company || ""} ${l.email || ""}`.toLowerCase().includes(q);
+    }).sort((a, b) => {
+        if (a.hasBrain && !b.hasBrain) return -1;
+        if (!a.hasBrain && b.hasBrain) return 1;
+        return (b.bantScore || 0) - (a.bantScore || 0);
     });
+
+    useEffect(() => {
+        if (!selectedId && filtered.length > 0) {
+            setSelectedId(filtered[0].id);
+        }
+    }, [leads, selectedId]);
     const sel = selectedId ? leads.find(l => l.id === selectedId) ?? null : null;
     async function refreshMemory() {
         if (!selectedId)
@@ -1030,17 +1040,26 @@ function renderFormattedMessage(text, isUser = false, lead = null) {
 // ─── MAIN PAGE ────────────────────────────────────────────────────────────────
 export default function SalesBrain() {
     const [tab, setTab] = useState("brain");
+    const { data: rawConversations } = useGetWhatsAppConversations({ refetchInterval: 3000 });
+    const conversations = Array.isArray(rawConversations) ? rawConversations : (rawConversations?.conversations || []);
+    const totalUnread = conversations.reduce((sum, c) => sum + Number(c.unreadCount || 0), 0);
+
     const tabs = [
         { id: "brain", label: "Lead Brain", icon: Brain, accent: "#A4285E" },
-        { id: "conversations", label: "WhatsApp", icon: MessageCircle, accent: "#25D366" },
+        { id: "conversations", label: "WhatsApp", icon: MessageCircle, accent: "#25D366", unread: totalUnread },
         { id: "analytics", label: "Analytics", icon: BarChart2 },
     ];
     return (<div className="flex flex-col h-full overflow-hidden" style={{ background: "#fff" }}>
       {/* Tab bar */}
       <div className="flex border-b border-gray-200 bg-white flex-shrink-0 px-4">
-        {tabs.map(({ id, label, icon: Icon, accent }) => (<button key={id} onClick={() => setTab(id)} className={cn("flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-colors", tab === id ? "border-current" : "border-transparent text-gray-400 hover:text-gray-700")} style={tab === id ? { color: accent ?? "#111827", borderColor: accent ?? "#111827" } : {}}>
+        {tabs.map(({ id, label, icon: Icon, accent, unread }) => (<button key={id} onClick={() => setTab(id)} className={cn("flex items-center gap-2 px-4 py-3 text-xs font-semibold border-b-2 transition-colors relative", tab === id ? "border-current" : "border-transparent text-gray-400 hover:text-gray-700")} style={tab === id ? { color: accent ?? "#111827", borderColor: accent ?? "#111827" } : {}}>
             <Icon className="w-3.5 h-3.5"/>
             {label}
+            {unread > 0 && (
+              <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-emerald-500 text-white min-w-[18px] text-center shadow-sm ml-1 animate-pulse">
+                {unread}
+              </span>
+            )}
             {id === "brain" && tab !== "brain" && (<span className="w-2 h-2 rounded-full ml-0.5" style={{ background: "#A4285E" }}/>)}
           </button>))}
       </div>
