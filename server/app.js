@@ -1872,6 +1872,17 @@ app.post('/api/outreach/clear-all', async (req, res) => {
       await db.query(`DELETE FROM email_replies;`).catch(() => {});
     });
     res.json({ success: true, message: 'All outreach email tables emptied successfully.' });
+// POST /api/outreach/clear-sent — Delete sent email records from DB
+app.post('/api/outreach/clear-sent', async (req, res) => {
+  try {
+    const sentRes = await db.query("DELETE FROM outreach_emails WHERE status = 'sent' OR status = 'failed' OR sent_at IS NOT NULL");
+    await db.query("DELETE FROM email_replies");
+    res.json({ success: true, count: sentRes.rowCount, message: 'All sent emails removed from database successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
