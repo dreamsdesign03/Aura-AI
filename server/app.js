@@ -2096,18 +2096,18 @@ app.post('/api/ai-call', async (req, res) => {
 
     const elData = await elRes.json().catch(() => ({}));
 
-    if (!elRes.ok) {
-      const errMsg = elData.detail?.message || elData.detail || elData.error || elData.message || `ElevenLabs API error (${elRes.status})`;
-      console.error('[AI Call] ElevenLabs API error:', errMsg, elData);
-      return res.status(elRes.status || 500).json({ success: false, error: typeof errMsg === 'object' ? JSON.stringify(errMsg) : String(errMsg) });
-    }
-
     const conversationId = elData.conversation_id || elData.conversationId;
     const callSid = elData.call_sid || elData.callSid || elData.sid || null;
 
-    if (!conversationId) {
-      return res.status(500).json({ success: false, error: 'ElevenLabs did not return a conversation_id.' });
+    if (!elRes.ok || elData.success === false || !conversationId) {
+      const errMsg = elData.message || elData.detail?.message || (typeof elData.detail === 'string' ? elData.detail : (elData.error || (typeof elData === 'object' ? JSON.stringify(elData) : 'Failed to initiate ElevenLabs call.')));
+      console.error('[AI Call] ElevenLabs API error response:', errMsg, elData);
+      return res.status(400).json({
+        success: false,
+        error: typeof errMsg === 'object' ? JSON.stringify(errMsg) : String(errMsg)
+      });
     }
+
 
     let parsedLeadId = leadId ? parseInt(leadId, 10) : null;
     if (isNaN(parsedLeadId)) parsedLeadId = null;
