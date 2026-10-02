@@ -2898,44 +2898,57 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
   const company = lead.company || "—";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onCancel}>
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-md shadow-2xl text-slate-100 space-y-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📞</span>
-            <h3 className="text-base font-bold text-slate-100">Confirm AI Proposal Call</h3>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150 text-gray-800" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-pink-100 flex items-center justify-between" style={{ background: "#FDF2F8" }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-sm" style={{ background: "#CB3273" }}>
+              <Phone className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Confirm AI Proposal Call</h3>
+              <p className="text-xs text-pink-700 font-medium">{leadName} · {company}</p>
+            </div>
           </div>
-          <button onClick={onCancel} disabled={isCalling} className="text-slate-400 hover:text-slate-200 text-sm">
-            <X className="w-4 h-4" />
+          <button onClick={onCancel} disabled={isCalling} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="py-2 space-y-3 text-sm">
-          <p className="text-slate-300">
-            Call <strong className="text-white">{leadName}</strong> on <strong className="text-pink-400">{phone}</strong>?
+        {/* Content */}
+        <div className="p-6 space-y-4 text-xs">
+          <p className="text-gray-700 leading-relaxed">
+            Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong>?
           </p>
-          <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-3 space-y-1.5 text-xs text-slate-400">
-            <div className="flex justify-between">
-              <span>Company:</span>
-              <span className="text-slate-200 font-medium">{company}</span>
+
+          <div className="bg-pink-50/50 border border-pink-100/80 rounded-xl p-3.5 space-y-2 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-medium">Company:</span>
+              <span className="text-gray-900 font-semibold">{company}</span>
             </div>
-            <div className="flex justify-between">
-              <span>Call Type:</span>
-              <span className="text-emerald-400 font-semibold px-2 py-0.5 rounded bg-emerald-950/50 border border-emerald-800/40">Proposal Call</span>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-medium">Call Type:</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-200">
+                proposal_call
+              </span>
             </div>
-            <div className="flex justify-between">
-              <span>AI Agent:</span>
-              <span className="text-slate-200">ElevenLabs AI Voice</span>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-medium">AI Agent:</span>
+              <span className="text-gray-800 font-medium flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-pink-500" /> ElevenLabs Voice
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-end gap-3 pt-2">
+        {/* Footer Actions */}
+        <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
             disabled={isCalling}
-            className="px-4 py-2 rounded-xl text-xs font-semibold border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
           >
             Cancel
           </button>
@@ -2943,16 +2956,17 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             type="button"
             onClick={onConfirm}
             disabled={isCalling}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-pink-600 hover:bg-pink-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-pink-600/20"
+            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-sm disabled:opacity-50"
+            style={{ background: "#CB3273" }}
           >
             {isCalling ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
                 Initiating Call...
               </>
             ) : (
               <>
-                <span>📞</span>
+                <Phone className="w-3.5 h-3.5" />
                 Start AI Call
               </>
             )}
@@ -3009,25 +3023,25 @@ function AiCallHistoryView({ leadId }) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-8 text-slate-400 text-xs gap-2">
-        <Loader2 className="w-4 h-4 animate-spin text-pink-500" />
-        Loading call history...
+      <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
+        <Loader2 className="w-4 h-4 animate-spin text-pink-600" />
+        <span>Loading call history...</span>
       </div>
     );
   }
 
   if (calls.length === 0) {
     return (
-      <div className="text-center py-8 px-4 rounded-xl border border-dashed border-slate-800 bg-slate-950/40">
-        <span className="text-2xl block mb-2">📞</span>
-        <h4 className="text-xs font-bold text-slate-300">No AI Calls Placed Yet</h4>
-        <p className="text-[11px] text-slate-500 mt-1">Click the phone 📞 icon next to this lead to trigger an ElevenLabs AI proposal call.</p>
+      <div className="text-center py-8 px-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/50">
+        <Phone className="w-8 h-8 mx-auto text-gray-300 mb-2" />
+        <h4 className="text-xs font-bold text-gray-700">No AI Calls Placed Yet</h4>
+        <p className="text-[11px] text-gray-400 mt-1">Click the phone 📞 icon next to this lead to trigger an ElevenLabs AI proposal call.</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 text-xs">
       {calls.map((call) => {
         const isCompleted = call.status === "completed";
         const isInProgress = call.status === "in-progress" || call.status === "processing";
@@ -3035,49 +3049,49 @@ function AiCallHistoryView({ leadId }) {
         const isExpanded = expandedTranscriptId === call.id;
 
         return (
-          <div key={call.id} className="bg-slate-900 border border-slate-800 rounded-xl p-3.5 space-y-3 text-xs">
+          <div key={call.id} className="bg-white border border-gray-200/80 rounded-xl p-4 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="text-sm">📞</span>
-                <span className="font-semibold text-slate-200">Proposal Call</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-950/60 text-pink-300 border border-pink-800/40">proposal_call</span>
+                <span className="w-6 h-6 rounded-lg bg-pink-100 text-pink-700 flex items-center justify-center text-xs">📞</span>
+                <span className="font-bold text-gray-900 text-xs">Proposal Call</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-50 text-pink-700 border border-pink-200">proposal_call</span>
               </div>
               <div className="flex items-center gap-2">
                 {isInProgress && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/60 text-amber-400 border border-amber-800/50 animate-pulse">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
                     <Loader2 className="w-2.5 h-2.5 animate-spin" /> In Progress...
                   </span>
                 )}
                 {isCompleted && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
                     ✓ Completed
                   </span>
                 )}
                 {isFailed && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-950/60 text-red-400 border border-red-800/50">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
                     ✕ Failed
                   </span>
                 )}
-                <span className="text-[10px] text-slate-500">{formatDate(call.startedAt)}</span>
+                <span className="text-[10px] text-gray-400">{formatDate(call.startedAt)}</span>
               </div>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-800/60 pt-2">
-              <div>To: <span className="text-slate-200 font-medium">{call.to}</span></div>
-              <div>Duration: <span className="text-slate-200 font-medium">{formatDuration(call.duration)}</span></div>
+            <div className="flex items-center justify-between text-[11px] text-gray-500 border-t border-gray-100 pt-2">
+              <div>To: <span className="text-gray-900 font-semibold">{call.to}</span></div>
+              <div>Duration: <span className="text-gray-900 font-semibold">{formatDuration(call.duration)}</span></div>
             </div>
 
             {call.transcriptSummary && (
-              <div className="bg-slate-950/80 border border-slate-800/80 rounded-lg p-2.5 text-slate-300 space-y-1">
-                <div className="text-[10px] font-bold text-pink-400 uppercase tracking-wider">Call Summary</div>
-                <p className="text-[11px] leading-relaxed text-slate-300">{call.transcriptSummary}</p>
+              <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-gray-700 space-y-1">
+                <div className="text-[10px] font-bold text-pink-600 uppercase tracking-wider">Call Summary</div>
+                <p className="text-[11px] leading-relaxed text-gray-700">{call.transcriptSummary}</p>
               </div>
             )}
 
             {isCompleted && call.conversation_id && (
               <div className="pt-1">
-                <div className="text-[10px] font-semibold text-slate-400 mb-1">Audio Recording</div>
-                <audio controls src={`/api/ai-rec/${call.conversation_id}`} className="w-full h-8 rounded bg-slate-950" />
+                <div className="text-[10px] font-semibold text-gray-500 mb-1">Audio Recording</div>
+                <audio controls src={`/api/ai-rec/${call.conversation_id}`} className="w-full h-8 rounded bg-gray-50 border border-gray-200" />
               </div>
             )}
 
@@ -3086,14 +3100,14 @@ function AiCallHistoryView({ leadId }) {
                 <button
                   type="button"
                   onClick={() => setExpandedTranscriptId(isExpanded ? null : call.id)}
-                  className="text-[10px] font-semibold text-pink-400 hover:text-pink-300 flex items-center gap-1 mt-1"
+                  className="text-[10px] font-bold text-pink-600 hover:text-pink-700 flex items-center gap-1 mt-1"
                 >
                   {isExpanded ? "Hide Transcript ▲" : `View Transcript (${call.transcript.length} turns) ▼`}
                 </button>
                 {isExpanded && (
-                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto p-2 rounded-lg bg-slate-950 border border-slate-800 text-[11px]">
+                  <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto p-2.5 rounded-lg bg-gray-50 border border-gray-200 text-[11px]">
                     {call.transcript.map((t, idx) => (
-                      <div key={idx} className={cn("p-1.5 rounded", t.role === "user" ? "bg-slate-900 text-slate-200 ml-4" : "bg-pink-950/40 text-pink-200 mr-4 border border-pink-900/30")}>
+                      <div key={idx} className={cn("p-2 rounded-lg", t.role === "user" ? "bg-white text-gray-800 border border-gray-200 ml-4" : "bg-pink-50 text-pink-900 border border-pink-100 mr-4")}>
                         <span className="font-bold text-[10px] block opacity-70 uppercase mb-0.5">{t.role || t.speaker || "Agent"}</span>
                         <span>{t.message || t.text || t.content}</span>
                       </div>
@@ -3114,30 +3128,35 @@ function AiCallsModal({ lead, onClose }) {
   const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || lead.name || "Lead";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 w-full max-w-xl shadow-2xl text-slate-100 space-y-4 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">📞</span>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-xl overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150 max-h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between" style={{ background: "#FDF2F8" }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-sm" style={{ background: "#CB3273" }}>
+              <Phone className="w-5 h-5" />
+            </div>
             <div>
-              <h3 className="text-base font-bold text-slate-100">AI Call History — {leadName}</h3>
-              <p className="text-[11px] text-slate-400">{lead.phone || lead.whatsapp || "No phone"}</p>
+              <h3 className="text-base font-bold text-gray-900">AI Call History — {leadName}</h3>
+              <p className="text-xs text-pink-700 font-medium">{lead.phone || lead.whatsapp || "No phone"}</p>
             </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-200 text-sm p-1 rounded-lg hover:bg-slate-800">
-            <X className="w-4 h-4" />
+          <button onClick={onClose} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto pr-1">
+        {/* Body */}
+        <div className="p-6 flex-1 overflow-y-auto">
           <AiCallHistoryView leadId={lead.id} />
         </div>
 
-        <div className="flex justify-end pt-3 border-t border-slate-800 flex-shrink-0">
+        {/* Footer */}
+        <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-1.5 rounded-xl text-xs font-semibold border border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 transition-colors"
+            className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition-colors"
           >
             Close
           </button>
@@ -3146,4 +3165,5 @@ function AiCallsModal({ lead, onClose }) {
     </div>
   );
 }
+
 
