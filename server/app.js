@@ -2078,7 +2078,9 @@ app.post('/api/ai-call', async (req, res) => {
           booking_type: 'proposal_call',
           lead_name: name || 'there',
           company_name: company || '',
-          lead_phone: leadPhone
+          lead_phone: leadPhone,
+          phone: leadPhone,
+          to_number: toNumber
         }
       }
     };
