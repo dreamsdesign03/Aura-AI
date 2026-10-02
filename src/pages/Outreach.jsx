@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
 const SENDER_EMAIL = "aurabackoffice123@gmail.com";
-const SENDER_NAME = "Aura AI";
+const SENDER_NAME = "Aura Laser & Cosmetic Clinic | Skinnonest";
 function initials(first, last, company, email) {
     const fn = (first || "").trim();
     const ln = (last || "").trim();
