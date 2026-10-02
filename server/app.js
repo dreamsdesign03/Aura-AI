@@ -2066,26 +2066,26 @@ app.post('/api/ai-call', async (req, res) => {
       return res.status(400).json({ success: false, error: `Invalid phone number format: ${toNumber}. Must be valid E.164 (e.g. +91XXXXXXXXXX).` });
     }
 
-    const digits = String(phone).replace(/\D/g, '');
-    const leadPhone = digits.length >= 10 ? digits.slice(-10) : digits;
+    const leadPhone = String(toNumber).replace(/\D/g, '').slice(-10);
+
+    const dynamicVariables = {
+      booking_type: 'proposal_call',
+      lead_name: name || 'there',
+      company_name: company || '',
+      lead_phone: leadPhone
+    };
 
     const payload = {
       agent_id: agentId,
       agent_phone_number_id: phoneNumberId,
       to_number: toNumber,
       conversation_initiation_client_data: {
-        dynamic_variables: {
-          booking_type: 'proposal_call',
-          lead_name: name || 'there',
-          company_name: company || '',
-          lead_phone: leadPhone,
-          phone: leadPhone,
-          to_number: toNumber
-        }
+        dynamic_variables: dynamicVariables
       }
     };
 
-    console.log('[AI Call] Initiating outbound call to ElevenLabs:', { toNumber, leadPhone, agentId, leadId });
+    console.log('[AI Call] Final dynamic_variables sent to ElevenLabs:', dynamicVariables);
+    console.log('[AI Call] Initiating outbound call to ElevenLabs:', { toNumber, agentId, leadId });
 
     const elRes = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
       method: 'POST',
