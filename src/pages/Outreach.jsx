@@ -73,7 +73,7 @@ function StatusIcon({ status, opened }) {
         return <XCircle className="w-3.5 h-3.5 text-red-500"/>;
     return <Clock className="w-3.5 h-3.5 text-amber-500"/>;
 }
-function GmailMessageBody({ body, quotedBody }) {
+function GmailMessageBody({ body, quotedBody, highlight = false }) {
     const [expanded, setExpanded] = useState(false);
 
     let mainText = body || "";
@@ -91,8 +91,12 @@ function GmailMessageBody({ body, quotedBody }) {
 
     return (
         <div className="px-6 py-5 text-sm text-gray-800 font-sans leading-relaxed">
-            <div className="whitespace-pre-wrap">{mainText || "(empty message)"}</div>
-            
+            {highlight ? (
+                <div>{renderHighlightedEmail(mainText, null)}</div>
+            ) : (
+                <div className="whitespace-pre-wrap">{mainText || "(empty message)"}</div>
+            )}
+
             {quotedText ? (
                 <div className="mt-3">
                     <button
@@ -111,6 +115,102 @@ function GmailMessageBody({ body, quotedBody }) {
                     )}
                 </div>
             ) : null}
+        </div>
+    );
+}
+
+// ── Keyword Highlighting for AI-generated outreach emails ─────────────────────
+const escRx = s => String(s || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const EMAIL_KEYWORDS = [
+    { re: "aura laser & cosmetic clinic", kind: "brand" },
+    { re: "aura laser", kind: "brand" },
+    { re: "skinnonest", kind: "brand" },
+    { re: "gift hampers", kind: "offer" },
+    { re: "hampers", kind: "offer" },
+    { re: "corporate gifting", kind: "offer" },
+    { re: "client gifting", kind: "offer" },
+    { re: "gifting", kind: "offer" },
+    { re: "brochure", kind: "brochure" },
+    { re: "catalog", kind: "brochure" },
+    { re: "attached", kind: "brochure" },
+    { re: "dermatologist", kind: "proof" },
+    { re: "clinical", kind: "proof" },
+    { re: "book an appointment", kind: "booking" },
+    { re: "appointment", kind: "booking" },
+    { re: "schedule a meeting", kind: "booking" },
+    { re: "schedule a call", kind: "booking" },
+    { re: "meeting", kind: "booking" },
+    { re: "call", kind: "booking" },
+    { re: "dr\\. aditya shah", kind: "person" },
+];
+const keywordStyle = kind => {
+    switch (kind) {
+        case "brand": return { background: "rgba(203,50,115,0.12)", color: "#CB3273" };
+        case "offer": return { background: "rgba(217,119,6,0.12)", color: "#C2410C" };
+        case "brochure": return { background: "rgba(79,70,229,0.10)", color: "#4338CA" };
+        case "proof": return { background: "rgba(124,58,237,0.12)", color: "#6D28D9" };
+        case "booking": return { background: "rgba(18,140,126,0.12)", color: "#128C7E" };
+        case "company": return { background: "rgba(29,78,216,0.10)", color: "#1D4ED8" };
+        case "person": return { background: "rgba(51,65,85,0.10)", color: "#334155" };
+        default: return { background: "rgba(164,40,94,0.12)", color: "#A4285E" };
+    }
+};
+function emailBodyToPlainLines(text) {
+    if (!text) return [];
+    return String(text)
+        .replace(/\r/g, "")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<\/p>/gi, "\n")
+        .replace(/<\/(div|span|li|h[1-6])>/gi, "\n")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/g, "'")
+        .split("\n");
+}
+function buildEmailHighlightWords(lead) {
+    const words = EMAIL_KEYWORDS.map(k => ({ ...k }));
+    const add = (raw, kind) => {
+        const v = String(raw || "").trim();
+        if (v && !/^(your|the|a|an|organization|client)$/i.test(v)) words.push({ re: escRx(v), kind });
+    };
+    if (lead) {
+        const fullName = [lead.leadFirstName || lead.firstName, lead.leadLastName || lead.lastName].filter(Boolean).join(" ").trim();
+        add(fullName, "person");
+        add(lead.leadFirstName || lead.firstName, "person");
+        add(lead.leadLastName || lead.lastName, "person");
+        add(lead.company, "company");
+    }
+    return words.sort((a, b) => b.re.length - a.re.length);
+}
+function renderHighlightedEmail(text, lead) {
+    const lines = emailBodyToPlainLines(text);
+    if (lines.length === 0) return null;
+    const words = buildEmailHighlightWords(lead);
+    const tokenRe = new RegExp("(" + words.map(w => `(?<![A-Za-z0-9])${w.re}(?![A-Za-z0-9])`).join("|") + ")", "gi");
+    const kindOf = raw => {
+        const lc = String(raw).toLowerCase();
+        const hit = words.find(w => new RegExp(`^${w.re}$`, "i").test(lc));
+        return hit ? hit.kind : "default";
+    };
+    const renderLine = line => {
+        const out = [];
+        let cursor = 0;
+        for (const m of String(line).matchAll(tokenRe)) {
+            if (m.index > cursor) out.push(<span key={`t${out.length}`}>{line.slice(cursor, m.index)}</span>);
+            const raw = m[0];
+            out.push(<span key={`k${out.length}`} className="rounded px-1 font-semibold whitespace-nowrap" style={keywordStyle(kindOf(raw))}>{raw}</span>);
+            cursor = m.index + raw.length;
+        }
+        if (cursor < line.length) out.push(<span key={`t${out.length}`}>{line.slice(cursor)}</span>);
+        return out.length > 0 ? out : line;
+    };
+    return (
+        <div className="whitespace-pre-wrap leading-relaxed">
+            {lines.map((line, idx) => (line ? <div key={idx}>{renderLine(line)}</div> : <div key={idx} className="h-2" />))}
         </div>
     );
 }
@@ -742,7 +842,7 @@ export default function Outreach() {
                               </div>
 
                               {/* Gmail Message Body */}
-                              <GmailMessageBody body={msg.body} quotedBody={msg.quotedBody} />
+                              <GmailMessageBody body={msg.body} quotedBody={msg.quotedBody} highlight={isSentByUs} />
                             </div>
                           );
                         })}
@@ -842,8 +942,8 @@ export default function Outreach() {
                       {/* Body */}
                       <div>
                         <label className="block text-[11px] font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Email Body</label>
-                        {isEditing ? (<textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={20} className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm text-gray-800 font-mono focus:outline-none focus:ring-2 focus:ring-green-800/20 resize-none"/>) : (<div className="px-4 py-4 rounded-lg bg-white border border-gray-200 text-sm text-gray-800 whitespace-pre-wrap leading-relaxed font-sans">
-                            {selected.body}
+                        {isEditing ? (<textarea value={editBody} onChange={(e) => setEditBody(e.target.value)} rows={20} className="w-full px-4 py-3 rounded-lg border border-gray-200 text-sm text-gray-800 font-mono focus:outline-none focus:ring-2 focus:ring-green-800/20 resize-none"/>) : (<div className="px-4 py-4 rounded-lg bg-white border border-gray-200 text-sm text-gray-800 leading-relaxed font-sans">
+                            {renderHighlightedEmail(selected.body, selected)}
                           </div>)}
                       </div>
                     </>

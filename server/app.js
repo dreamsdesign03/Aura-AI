@@ -1483,7 +1483,7 @@ async function generateSkinnonestOutreachEmail(lead = {}) {
 
   const subject = `Skinnonest Gift Hampers – Introduction for ${companyName}`.slice(0, 60);
 
-  const systemPrompt = `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
+const systemPrompt = `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
 Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
 
 PROSPECT DATA:
@@ -1491,6 +1491,13 @@ PROSPECT DATA:
 - Company: ${companyName}
 - Industry: ${industry}
 - Designation: ${designation}
+
+SUBJECT / OFFER NAME (MOST IMPORTANT):
+Create a compelling, personalized subject line that works as a strong proposition name tailored to the prospect.
+- Max 10 words (will be truncated to 60 chars).
+- Make it feel bespoke to their company/industry — never generic like "Introduction" or "Outreach".
+- Examples of the style: "Premium Client Gifting for ${companyName}", "Elevate ${companyName}'s Client Gifting", "${companyName} × Skinnonest: Gifting That Builds Trust".
+- Always reference the prospect's company or industry when available.
 
 EXACT EMAIL SEQUENCE TO FOLLOW:
 1. Greeting: "Dear ${firstName},"
@@ -1517,7 +1524,7 @@ CRITICAL RULES:
 
 OUTPUT FORMAT (JSON strictly):
 {
-  "subject": "${subject}",
+  "subject": "Your personalized subject line",
   "body": "Complete HTML formatted email body with line breaks."
 }`;
 
