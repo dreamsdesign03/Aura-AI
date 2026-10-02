@@ -371,7 +371,8 @@ async function runSales(userId, opts = {}) {
     try {
       const gen = await callGemini(
         `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
-Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
+Today is ${new Date().toDateString()}.
+Write a professional, short B2B outreach email tailored to WHO the prospect is and WHAT their business does.
 
 PROSPECT DATA:
 - First Name: ${firstName}
@@ -379,25 +380,23 @@ PROSPECT DATA:
 - Industry: ${lead.industry || 'corporate'}
 - Designation: ${lead.title || lead.designation || ''}
 
-SUBJECT — ANALYZE THE PERSON AND THEIR COMPANY FIRST:
-Analyze the person (name, designation/role) and their company (industry). Then write a subject line that speaks directly to that person at that company.
-- Max 10 words. Bespoke, never generic like "Introduction" or "Outreach".
-- Tone must be STRICTLY professional, formal, and corporate — no playful, casual, hype, or marketing-slogan phrasing.
-- Reference the company/industry (and role when sensible).
+STEP 1 — ANALYZE THE CONTEXT and choose ONE angle:
+ANGLE A — FESTIVAL / EMPLOYEE GIFTING: major festival/holiday within 1-2 months from today OR the company gifts its own employees/teams (HR/corporate, IT, banks, retail, hospitality). Offer premium hampers for their team.
+ANGLE B — BEAUTY / SKINCARE PARTNERSHIP: business is a clinic, salon, spa, pharmacy, dermatology, cosmetics retailer or beauty brand. Propose working WITH Skinnonest as a professional partner.
+ANGLE C — PREMIUM CLIENT / CORPORATE GIFTING (default): everything else. Offer premium hampers for their clients and partners.
 
-EXACT EMAIL SEQUENCE TO FOLLOW:
-1. Greeting: "Dear ${firstName},"
-2. Respectful Opening Line: Address the client and naturally mention their company/industry.
-3. Brochure Introduction: "Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings." Add one short line explaining why it suits their industry.
-4. Invitation Line with HYPERLINK: "Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
-5. Closing Line: "Thank you for your time and consideration."
-6. Signature: Warm regards, Dr. Aditya Shah, Aura Laser & Cosmetic Clinic | Skinnonest
+STEP 2 — SUBJECT must match the chosen angle, be STRICTLY professional (no playful/hype/slogan phrasing), max 10 words, and reference the company/industry. Never generic like "Introduction".
+
+STEP 3 — EMAIL BODY per chosen angle:
+Format A: greeting → reference the festival/occasion + company → hampers for employees/team (dermatologist-backed, customizable) + "Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf'" → "To arrange festive gifting for your team, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>" → closing → signature.
+Format B: greeting → peer-to-peer skincare line acknowledging their work → propose Skinnonest partnership/products + brochure line above → "We would be delighted to discuss how Skinnonest and ${lead.company || 'your organization'} could work together. <a href="${BOOKING_LINK}">Book an Appointment</a>" → closing → signature.
+Format C: greeting → courteous line about ${lead.company || 'your organization'} + industry → hampers for clients/partners + brochure line above → "Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>" → closing → signature.
 
 CRITICAL RULES:
-- 80 to 120 words max. Formal, respectful, no emojis. No pitch deck links. No placeholders.
+- 80 to 120 words max. Strictly professional, no emojis, no hype. No pitch deck links. No placeholders. Always keep the exact brochure filename: 'Skinnonest - Gift Hampers Brochure.pdf'. Booking link MUST be the HTML hyperlink above.
 
 OUTPUT JSON:
-{ "subject": "subject line", "body": "HTML formatted body" }`
+{ "subject": "Professional subject for the chosen angle", "body": "HTML formatted body per chosen angle" }`
       );
       const parsed = JSON.parse(gen.replace(/```json|```/g, '').trim());
       subject = parsed.subject || `Premium Corporate Gifting by Skinnonest for ${lead.company || 'your organization'}`;

@@ -1483,9 +1483,11 @@ async function generateSkinnonestOutreachEmail(lead = {}) {
   const companyWebsite = (lead.website || lead.site || '').trim();
 
   const subject = `Premium Corporate Gifting by Skinnonest for ${companyName}`.slice(0, 60);
+  const today = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
 const systemPrompt = `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
-Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
+Today's date is ${today}.
+Write a professional, short B2B outreach email to the prospect below, tailored to WHO they are and WHAT their business is about.
 
 PROSPECT DATA:
 - First Name: ${firstName}
@@ -1493,45 +1495,85 @@ PROSPECT DATA:
 - Industry: ${industry}
 - Designation: ${designation}
 - Website: ${companyWebsite || 'N/A'}
+- Country: ${lead.country || 'N/A'}
 
-SUBJECT — ANALYZE THE PERSON AND THEIR COMPANY FIRST (MOST IMPORTANT):
-Before writing the subject, briefly analyze:
-1. THE PERSON: their name and designation/role — what a decision-maker in that role cares about.
-2. THE COMPANY: the company name, industry (and website, if available) — what kind of business it is and what gifting would mean to them.
-Then write a subject line that speaks directly to that person at that company.
+STEP 1 — ANALYZE THE CONTEXT (in your reasoning):
+Look at the person's role and the company's business, then CHOOSE the single best angle below:
+
+ANGLE A — FESTIVAL / EMPLOYEE GIFTING: Choose when there is a major upcoming festival, holiday, or occasion within the next 1–2 months from today's date (e.g. Diwali, Christmas, New Year, Eid, Holi, Raksha Bandhan, anniversaries), OR when the company is the type that gifts its own employees/teams (e.g. HR/corporate, IT services, banks, sales teams, retail chains, hospitality).
+Goal: offer premium Skinnonest gift hampers for gifting their employees/team for the occasion.
+
+ANGLE B — BEAUTY / SKINCARE PARTNERSHIP: Choose when the prospect's business operates in beauty, skincare, wellness, or clinical categories (clinic, salon, spa, dermatology, aesthetician, pharmacy, cosmetics retailer, beauty brand) — a business that could work WITH Skinnonest professionally.
+Goal: open as a professional peer in the same industry and propose a business partnership / product collaboration with Skinnonest.
+
+ANGLE C — PREMIUM CLIENT / CORPORATE GIFTING (DEFAULT): Choose for everything else.
+Goal: offer premium Skinnonest gift hampers to delight their clients and business partners.
+
+STEP 2 — WRITE THE SUBJECT to reflect the chosen angle.
+STEP 3 — WRITE THE EMAIL BODY using the format for the chosen angle below.
+
+SUBJECT — STRICTLY PROFESSIONAL & MATCHES THE ANGLE:
 - Max 10 words (will be truncated to 60 chars).
-- Make it feel bespoke to the person and their company/industry — never generic like "Introduction" or "Outreach".
-- Tone must be STRICTLY professional, formal, and corporate — no playful, casual, hype, or marketing-slogan phrasing.
-- Examples of the style: "Premium Client Gifting for ${companyName}", "Elevate ${companyName}'s Client Gifting", "${companyName} × Skinnonest: Gifting That Builds Trust".
-- Reference the prospect's company or industry (and their role when sensible) in the subject.
+- Tone MUST be strictly professional, formal, corporate — no playful, casual, hype, or marketing-slogan phrasing.
+- Must match the chosen angle and reference the prospect's company/industry (role when sensible).
+- Never generic like "Introduction" or "Outreach".
+- Examples: A: "Festive Gifting for ${companyName}'s Team", B: "A Skincare Partnership with ${companyName}", C: "Premium Client Gifting for ${companyName}".
 
-EXACT EMAIL SEQUENCE TO FOLLOW:
+ANGLE A FORMAT (festival / employee gifting):
 1. Greeting: "Dear ${firstName},"
-2. Respectful Opening Line: Address the client and naturally mention their company/industry (e.g. "It is a pleasure to reach out to you and the team at ${companyName}.")
-3. Brochure Introduction: One or two lines introducing Skinnonest and pointing to the attached brochure:
+2. Opening: reference the upcoming festival/occasion and ${companyName}.
+3. Offer (2-3 lines): Skinnonest premium gift hampers as thoughtful festival gifts for their employees/team; dermatologist-backed, customizable to their budget and count. Mention the attached brochure:
 "Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings."
-Add one short line explaining why it suits their industry (personalized, no hype or exaggeration).
-4. Invitation Line with HYPERLINK:
-"Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
-5. Closing Line: "Thank you for your time and consideration."
+4. Next step with hyperlink:
+"To arrange festive gifting for your team, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
+5. Closing: "Thank you for your time and consideration."
 6. Signature:
 Warm regards,
 
 Dr. Aditya Shah
 Aura Laser & Cosmetic Clinic | Skinnonest
 
-CRITICAL RULES:
+ANGLE B FORMAT (skincare partnership):
+1. Greeting: "Dear ${firstName},"
+2. Opening: professional peer-to-peer line in the skincare/beauty space, acknowledging ${companyName}'s work in ${industry}.
+3. Offer (2-3 lines): propose working with Skinnonest (products/range suited to their clinic/spa/retail), dermatologist-backed quality, and refer to the attachment:
+"Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings."
+4. Next step with hyperlink:
+"We would be delighted to discuss how Skinnonest and ${companyName} could work together. <a href="${BOOKING_LINK}">Book an Appointment</a>"
+5. Closing: "Thank you for your time and consideration."
+6. Signature:
+Warm regards,
+
+Dr. Aditya Shah
+Aura Laser & Cosmetic Clinic | Skinnonest
+
+ANGLE C FORMAT (client / corporate gifting):
+1. Greeting: "Dear ${firstName},"
+2. Opening: courteous line referencing ${companyName} and ${industry}.
+3. Offer (2-3 lines): Skinnonest premium gift hampers to delight their clients and partners; dermatologist-backed, customizable. Mention the attached brochure:
+"Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings."
+4. Invitation with hyperlink:
+"Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
+5. Closing: "Thank you for your time and consideration."
+6. Signature:
+Warm regards,
+
+Dr. Aditya Shah
+Aura Laser & Cosmetic Clinic | Skinnonest
+
+CRITICAL RULES (ALL ANGLES):
 - Total body length: 80 to 120 words max.
-- Tone: Formal, respectful, professional. No emojis, no slang, no hype.
+- Tone: strictly professional, respectful, factual. No emojis, no slang, no hype.
 - NEVER use: "I hope this email finds you well", "key Decision Maker", "impressed by your innovative approach", or long quoted slogans.
 - NEVER write placeholders like "[Name]" or "undefined". Skip missing fields gracefully.
 - Do NOT paste raw URLs in prose. The booking link MUST be a clickable HTML hyperlink: <a href="${BOOKING_LINK}">Book an Appointment</a>.
 - Do NOT include any Google Drive pitch deck links.
+- Keep the exact brochure filename: 'Skinnonest - Gift Hampers Brochure.pdf'.
 
 OUTPUT FORMAT (JSON strictly):
 {
-  "subject": "Your personalized subject line",
-  "body": "Complete HTML formatted email body with line breaks."
+  "subject": "Professional subject matching the chosen angle",
+  "body": "Complete HTML formatted email body per the chosen angle."
 }`;
 
   const apiKey = process.env.GEMINI_API_KEY;
