@@ -371,7 +371,7 @@ async function runSales(userId, opts = {}) {
     try {
       const gen = await callGemini(
         `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
-Write a concise business PROPOSAL email (pitch-deck style) inviting the prospect's company to partner with Skinnonest for premium corporate and client gifting. Tailor it to the prospect below.
+Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
 
 PROSPECT DATA:
 - First Name: ${firstName}
@@ -379,32 +379,31 @@ PROSPECT DATA:
 - Industry: ${lead.industry || 'corporate'}
 - Designation: ${lead.title || lead.designation || ''}
 
-SUBJECT (PROPOSAL TITLE — MOST IMPORTANT):
-Create a polished proposal title as the subject line, tailored to the prospect's company/industry.
-- Max 10 words. It MUST read like a formal business proposal title — start with "Business Proposal", "Proposal:", or a strong pitch phrase.
-- Examples: "Business Proposal: Premium Gifting for ${lead.company || 'your organization'}", "Proposal — Skinnonest Corporate Gifting Solutions".
-- Always reference the prospect's company/industry when available. Never generic like "Introduction" or "Outreach".
+SUBJECT — ANALYZE THE PERSON AND THEIR COMPANY FIRST:
+Analyze the person (name, designation/role) and their company (industry). Then write a subject line that speaks directly to that person at that company.
+- Max 10 words. Bespoke, never generic like "Introduction" or "Outreach".
+- Reference the company/industry (and role when sensible).
 
 EXACT EMAIL SEQUENCE TO FOLLOW:
 1. Greeting: "Dear ${firstName},"
-2. Proposal Opening: One courteous line presenting this email as a short business proposal to the prospect's company.
-3. The Offer (2-3 short lines): Introduce Skinnonest's premium gift hampers for their clients/employees/partners; summarize the value (dermatologist-backed, premium, customizable gifting) concisely — no hype. Then: "Please find attached our proposal, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products, offerings, and gifting solutions."
-4. Next Step with HYPERLINK: "To explore how this could work, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
+2. Respectful Opening Line: Address the client and naturally mention their company/industry.
+3. Brochure Introduction: "Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings." Add one short line explaining why it suits their industry.
+4. Invitation Line with HYPERLINK: "Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
 5. Closing Line: "Thank you for your time and consideration."
 6. Signature: Warm regards, Dr. Aditya Shah, Aura Laser & Cosmetic Clinic | Skinnonest
 
 CRITICAL RULES:
-- 80 to 120 words max. Formal proposal tone, respectful, no emojis. No pitch deck links. No placeholders.
+- 80 to 120 words max. Formal, respectful, no emojis. No pitch deck links. No placeholders.
 
 OUTPUT JSON:
-{ "subject": "Proper proposal title subject line", "body": "HTML formatted body" }`
+{ "subject": "subject line", "body": "HTML formatted body" }`
       );
       const parsed = JSON.parse(gen.replace(/```json|```/g, '').trim());
-      subject = parsed.subject || `Business Proposal: Skinnonest Premium Gift Hampers for ${lead.company || 'your organization'}`;
-      body = parsed.body || `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our proposal, "Skinnonest - Gift Hampers Brochure.pdf", which details our premium, dermatologist-backed gift hampers and corporate gifting solutions.<br><br>To explore this further, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
+      subject = parsed.subject || `Skinnonest Gift Hampers – Introduction for ${lead.company || 'your organization'}`;
+      body = parsed.body || `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     } catch {
-      subject = `Business Proposal: Skinnonest Premium Gift Hampers for ${lead.company || 'your organization'}`;
-      body = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our proposal, "Skinnonest - Gift Hampers Brochure.pdf", which details our premium, dermatologist-backed gift hampers and corporate gifting solutions.<br><br>To explore this further, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
+      subject = `Skinnonest Gift Hampers – Introduction for ${lead.company || 'your organization'}`;
+      body = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     }
 
     const ins = await db.query(
