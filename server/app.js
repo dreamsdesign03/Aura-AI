@@ -1481,10 +1481,10 @@ async function generateSkinnonestOutreachEmail(lead = {}) {
   const industry = (lead.industry || '').trim() || 'corporate and business sector';
   const designation = (lead.designation || lead.title || '').trim();
 
-  const subject = `Skinnonest Gift Hampers – Introduction for ${companyName}`.slice(0, 60);
+const subject = `Business Proposal: Skinnonest Premium Gift Hampers for ${companyName}`.slice(0, 60);
 
 const systemPrompt = `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
-Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
+Write a concise business PROPOSAL email (pitch-deck style) inviting the prospect's company to partner with Skinnonest for premium corporate and client gifting. Tailor the proposal to the prospect below.
 
 PROSPECT DATA:
 - First Name: ${firstName}
@@ -1492,21 +1492,20 @@ PROSPECT DATA:
 - Industry: ${industry}
 - Designation: ${designation}
 
-SUBJECT / OFFER NAME (MOST IMPORTANT):
-Create a compelling, personalized subject line that works as a strong proposition name tailored to the prospect.
+SUBJECT (PROPOSAL TITLE — MOST IMPORTANT):
+Create a polished proposal title as the subject line, tailored to the prospect's company/industry.
 - Max 10 words (will be truncated to 60 chars).
-- Make it feel bespoke to their company/industry — never generic like "Introduction" or "Outreach".
-- Examples of the style: "Premium Client Gifting for ${companyName}", "Elevate ${companyName}'s Client Gifting", "${companyName} × Skinnonest: Gifting That Builds Trust".
-- Always reference the prospect's company or industry when available.
+- It MUST read like a formal business proposal title — start with "Business Proposal", "Proposal:", or a strong pitch phrase.
+- Examples of the style: "Business Proposal: Premium Gifting for ${companyName}", "Proposal — Skinnonest Corporate Gifting Solutions", "${companyName} × Skinnonest: A Gifting Proposal".
+- Always reference the prospect's company or industry when available. Never generic like "Introduction" or "Outreach".
 
 EXACT EMAIL SEQUENCE TO FOLLOW:
 1. Greeting: "Dear ${firstName},"
-2. Respectful Opening Line: Address the client and naturally mention their company/industry (e.g. "It is a pleasure to reach out to you and the team at ${companyName}.")
-3. Brochure Introduction: One or two lines introducing Skinnonest and pointing to the attached brochure:
-"Please find attached our brochure, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products and offerings."
-Add one short line explaining why it suits their industry (personalized, no hype or exaggeration).
-4. Invitation Line with HYPERLINK:
-"Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
+2. Proposal Opening: One courteous line presenting this email as a short business proposal to ${companyName}, naturally mentioning their company/industry.
+3. The Offer (2-3 short lines): Introduce Skinnonest's premium gift hampers as a way to delight their clients, employees, and partners. Summarize the value proposition (dermatologist-backed, premium, customizable corporate gifting) concisely — no hype, no exaggeration. Then point to the attached proposal:
+"Please find attached our proposal, 'Skinnonest - Gift Hampers Brochure.pdf', which details our products, offerings, and gifting solutions."
+4. Next Step with HYPERLINK:
+"To explore how this could work for ${companyName}, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a>"
 5. Closing Line: "Thank you for your time and consideration."
 6. Signature:
 Warm regards,
@@ -1516,7 +1515,7 @@ Aura Laser & Cosmetic Clinic | Skinnonest
 
 CRITICAL RULES:
 - Total body length: 80 to 120 words max.
-- Tone: Formal, respectful, professional. No emojis, no slang, no hype.
+- Tone: Formal proposal/pitch — respectful, confident, factual. No emojis, no slang, no hype.
 - NEVER use: "I hope this email finds you well", "key Decision Maker", "impressed by your innovative approach", or long quoted slogans.
 - NEVER write placeholders like "[Name]" or "undefined". Skip missing fields gracefully.
 - Do NOT paste raw URLs in prose. The booking link MUST be a clickable HTML hyperlink: <a href="${BOOKING_LINK}">Book an Appointment</a>.
@@ -1524,7 +1523,7 @@ CRITICAL RULES:
 
 OUTPUT FORMAT (JSON strictly):
 {
-  "subject": "Your personalized subject line",
+  "subject": "Proper proposal title subject line",
   "body": "Complete HTML formatted email body with line breaks."
 }`;
 
@@ -1558,8 +1557,8 @@ OUTPUT FORMAT (JSON strictly):
     }
   }
 
-  // Fallback generator if Gemini is unavailable
-  const fallbackBody = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${companyName}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range. We believe it would be a good fit for corporate and client gifting in the ${industry}.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
+// Fallback generator if Gemini is unavailable
+  const fallbackBody = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${companyName}.<br><br>Please find attached our proposal, "Skinnonest - Gift Hampers Brochure.pdf", which details our premium, dermatologist-backed gift hampers and corporate gifting solutions. We believe Skinnonest would be a strong gifting partner for ${companyName} in the ${industry}.<br><br>To explore this further, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
 
   return {
     subject,

@@ -73,7 +73,7 @@ function StatusIcon({ status, opened }) {
         return <XCircle className="w-3.5 h-3.5 text-red-500"/>;
     return <Clock className="w-3.5 h-3.5 text-amber-500"/>;
 }
-function GmailMessageBody({ body, quotedBody, highlight = false }) {
+function GmailMessageBody({ body, quotedBody, highlight = false, lead = null }) {
     const [expanded, setExpanded] = useState(false);
 
     let mainText = body || "";
@@ -92,7 +92,7 @@ function GmailMessageBody({ body, quotedBody, highlight = false }) {
     return (
         <div className="px-6 py-5 text-sm text-gray-800 font-sans leading-relaxed">
             {highlight ? (
-                <div>{renderHighlightedEmail(mainText, null)}</div>
+                <div>{renderHighlightedEmail(mainText, lead)}</div>
             ) : (
                 <div className="whitespace-pre-wrap">{mainText || "(empty message)"}</div>
             )}
@@ -142,6 +142,9 @@ const EMAIL_KEYWORDS = [
     { re: "meeting", kind: "booking" },
     { re: "call", kind: "booking" },
     { re: "dr\\. aditya shah", kind: "person" },
+    { re: "skinnonest - gift hampers brochure\\.pdf", kind: "attachment" },
+    { re: "skinnonest - gift hampers brochure", kind: "attachment" },
+    { re: "gift hampers brochure\\.pdf", kind: "attachment" },
 ];
 const keywordStyle = kind => {
     switch (kind) {
@@ -152,6 +155,7 @@ const keywordStyle = kind => {
         case "booking": return { background: "rgba(18,140,126,0.12)", color: "#128C7E" };
         case "company": return { background: "rgba(29,78,216,0.10)", color: "#1D4ED8" };
         case "person": return { background: "rgba(51,65,85,0.10)", color: "#334155" };
+        case "attachment": return { background: "rgba(15,118,110,0.12)", color: "#0F766E" };
         default: return { background: "rgba(164,40,94,0.12)", color: "#A4285E" };
     }
 };
@@ -162,14 +166,16 @@ function emailBodyToPlainLines(text) {
         .replace(/<br\s*\/?>/gi, "\n")
         .replace(/<\/p>/gi, "\n")
         .replace(/<\/(div|span|li|h[1-6])>/gi, "\n")
-        .replace(/<[^>]+>/g, "")
+        .split("\n");
+}
+function decodeEmailEntities(s) {
+    return String(s || "")
         .replace(/&nbsp;/gi, " ")
         .replace(/&amp;/gi, "&")
         .replace(/&lt;/gi, "<")
         .replace(/&gt;/gi, ">")
         .replace(/&quot;/gi, '"')
-        .replace(/&#39;/g, "'")
-        .split("\n");
+        .replace(/&#39;/g, "'");
 }
 function buildEmailHighlightWords(lead) {
     const words = EMAIL_KEYWORDS.map(k => ({ ...k }));
@@ -191,26 +197,51 @@ function renderHighlightedEmail(text, lead) {
     if (lines.length === 0) return null;
     const words = buildEmailHighlightWords(lead);
     const tokenRe = new RegExp("(" + words.map(w => `(?<![A-Za-z0-9])${w.re}(?![A-Za-z0-9])`).join("|") + ")", "gi");
+    const anchorRe = /<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
     const kindOf = raw => {
         const lc = String(raw).toLowerCase();
         const hit = words.find(w => new RegExp(`^${w.re}$`, "i").test(lc));
         return hit ? hit.kind : "default";
     };
+    const stripTags = s => String(s).replace(/<[^>]+>/g, "");
+    const renderPlain = (txt, keyPrefix) => {
+        const clean = decodeEmailEntities(stripTags(txt));
+        if (!clean) return null;
+        const out = [];
+        let cursor = 0;
+        for (const m of String(clean).matchAll(tokenRe)) {
+            if (m.index > cursor) out.push(<span key={`${keyPrefix}t${out.length}`}>{clean.slice(cursor, m.index)}</span>);
+            const raw = m[0];
+            out.push(<span key={`${keyPrefix}k${out.length}`} className="rounded px-1 font-semibold whitespace-nowrap" style={keywordStyle(kindOf(raw))}>{raw}</span>);
+            cursor = m.index + raw.length;
+        }
+        if (cursor < clean.length) out.push(<span key={`${keyPrefix}t${out.length}`}>{clean.slice(cursor)}</span>);
+        return out.length > 0 ? out : clean;
+    };
     const renderLine = line => {
         const out = [];
         let cursor = 0;
-        for (const m of String(line).matchAll(tokenRe)) {
-            if (m.index > cursor) out.push(<span key={`t${out.length}`}>{line.slice(cursor, m.index)}</span>);
-            const raw = m[0];
-            out.push(<span key={`k${out.length}`} className="rounded px-1 font-semibold whitespace-nowrap" style={keywordStyle(kindOf(raw))}>{raw}</span>);
-            cursor = m.index + raw.length;
+        for (const m of String(line).matchAll(anchorRe)) {
+            if (m.index > cursor) {
+                const seg = renderPlain(line.slice(cursor, m.index), `s${out.length}-`);
+                if (seg) out.push(<span key={`l${out.length}`}>{seg}</span>);
+            }
+            const href = m[1];
+            const label = decodeEmailEntities(stripTags(m[2])).trim() || "Book an Appointment";
+            out.push(<a key={`a${out.length}`} href={href} target="_blank" rel="noopener noreferrer" className="inline-block rounded px-2 py-1 font-bold whitespace-nowrap no-underline hover:underline" style={keywordStyle("booking")}>{label}</a>);
+            cursor = m.index + m[0].length;
         }
-        if (cursor < line.length) out.push(<span key={`t${out.length}`}>{line.slice(cursor)}</span>);
-        return out.length > 0 ? out : line;
+        if (cursor < line.length) {
+            const seg = renderPlain(line.slice(cursor), `e${out.length}-`);
+            if (seg) out.push(<span key={`l${out.length}`}>{seg}</span>);
+        }
+        if (out.length > 0) return out;
+        const clean = decodeEmailEntities(stripTags(line));
+        return clean ? <span>{clean}</span> : null;
     };
     return (
         <div className="whitespace-pre-wrap leading-relaxed">
-            {lines.map((line, idx) => (line ? <div key={idx}>{renderLine(line)}</div> : <div key={idx} className="h-2" />))}
+            {lines.map((line, idx) => (line && line.trim() ? <div key={idx}>{renderLine(line)}</div> : <div key={idx} className="h-2" />))}
         </div>
     );
 }
@@ -842,7 +873,7 @@ export default function Outreach() {
                               </div>
 
                               {/* Gmail Message Body */}
-                              <GmailMessageBody body={msg.body} quotedBody={msg.quotedBody} highlight={isSentByUs} />
+                              <GmailMessageBody body={msg.body} quotedBody={msg.quotedBody} highlight={isSentByUs} lead={selected} />
                             </div>
                           );
                         })}
