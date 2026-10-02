@@ -382,6 +382,7 @@ PROSPECT DATA:
 SUBJECT — ANALYZE THE PERSON AND THEIR COMPANY FIRST:
 Analyze the person (name, designation/role) and their company (industry). Then write a subject line that speaks directly to that person at that company.
 - Max 10 words. Bespoke, never generic like "Introduction" or "Outreach".
+- Tone must be STRICTLY professional, formal, and corporate — no playful, casual, hype, or marketing-slogan phrasing.
 - Reference the company/industry (and role when sensible).
 
 EXACT EMAIL SEQUENCE TO FOLLOW:
@@ -399,10 +400,10 @@ OUTPUT JSON:
 { "subject": "subject line", "body": "HTML formatted body" }`
       );
       const parsed = JSON.parse(gen.replace(/```json|```/g, '').trim());
-      subject = parsed.subject || `Skinnonest Gift Hampers – Introduction for ${lead.company || 'your organization'}`;
+      subject = parsed.subject || `Premium Corporate Gifting by Skinnonest for ${lead.company || 'your organization'}`;
       body = parsed.body || `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     } catch {
-      subject = `Skinnonest Gift Hampers – Introduction for ${lead.company || 'your organization'}`;
+      subject = `Premium Corporate Gifting by Skinnonest for ${lead.company || 'your organization'}`;
       body = `Dear ${firstName},<br><br>It is a pleasure to reach out to you and the team at ${lead.company || 'your organization'}.<br><br>Please find attached our brochure, "Skinnonest - Gift Hampers Brochure.pdf", which details our dermatologist-backed products and gifting range.<br><br>Should you be interested, we would be delighted to schedule a meeting with you. <a href="${BOOKING_LINK}">Book an Appointment</a><br><br>Thank you for your time and consideration.<br><br>Warm regards,<br><br>Dr. Aditya Shah<br>Aura Laser & Cosmetic Clinic | Skinnonest`;
     }
 

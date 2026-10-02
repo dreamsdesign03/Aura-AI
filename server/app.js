@@ -1482,7 +1482,7 @@ async function generateSkinnonestOutreachEmail(lead = {}) {
   const designation = (lead.designation || lead.title || '').trim();
   const companyWebsite = (lead.website || lead.site || '').trim();
 
-  const subject = `Skinnonest Gift Hampers – Introduction for ${companyName}`.slice(0, 60);
+  const subject = `Premium Corporate Gifting by Skinnonest for ${companyName}`.slice(0, 60);
 
 const systemPrompt = `You are a formal, professional AI email writer for Aura Laser & Cosmetic Clinic | Skinnonest.
 Write a formal, short B2B outreach email for Skinnonest gift hampers personalized for the prospect below.
@@ -1501,6 +1501,7 @@ Before writing the subject, briefly analyze:
 Then write a subject line that speaks directly to that person at that company.
 - Max 10 words (will be truncated to 60 chars).
 - Make it feel bespoke to the person and their company/industry — never generic like "Introduction" or "Outreach".
+- Tone must be STRICTLY professional, formal, and corporate — no playful, casual, hype, or marketing-slogan phrasing.
 - Examples of the style: "Premium Client Gifting for ${companyName}", "Elevate ${companyName}'s Client Gifting", "${companyName} × Skinnonest: Gifting That Builds Trust".
 - Reference the prospect's company or industry (and their role when sensible) in the subject.
 
