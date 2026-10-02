@@ -1,5 +1,7 @@
 const db = require('./db');
 const nodemailer = require('nodemailer');
+const fs = require('fs');
+const path = require('path');
 
 function getBrochureAttachments() {
   const candidatePaths = [

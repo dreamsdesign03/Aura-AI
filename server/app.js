@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
 const db = require('./db');
 const nodemailer = require('nodemailer');
