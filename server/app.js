@@ -303,12 +303,31 @@ async function seedAdminUser() {
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_dead_website BOOLEAN DEFAULT FALSE;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS website_status TEXT DEFAULT 'unknown';
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_fake BOOLEAN DEFAULT FALSE;
+
+      CREATE TABLE IF NOT EXISTS ai_calls (
+        id SERIAL PRIMARY KEY,
+        lead_id INT REFERENCES leads(id) ON DELETE CASCADE,
+        conversation_id TEXT UNIQUE,
+        call_sid TEXT,
+        to_phone TEXT,
+        lead_name TEXT,
+        company_name TEXT,
+        status TEXT DEFAULT 'in-progress',
+        booking_type TEXT DEFAULT 'proposal_call',
+        started_at TIMESTAMPTZ DEFAULT NOW(),
+        duration_secs INT DEFAULT 0,
+        transcript_summary TEXT,
+        transcript JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
-    console.log('[Startup Migration] ✅ All migrations complete including leads dead pool & lead_lists.');
+    console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, & ai_calls.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
 })();
+
 
 async function recordDebugLog(eventType, data) {
   try {
@@ -2004,6 +2023,240 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+// ── ELEVENLABS AI CALL HELPERS & ENDPOINTS ──────────────────────────────────
+function norm(phone) {
+  if (!phone) return '';
+  const digits = String(phone).replace(/\D/g, '');
+  if (digits.length === 10) {
+    return '+91' + digits;
+  }
+  if (digits.length === 12 && digits.startsWith('91')) {
+    return '+' + digits;
+  }
+  if (String(phone).trim().startsWith('+')) {
+    return '+' + digits;
+  }
+  return '+' + digits;
+}
+
+// POST /api/ai-call
+app.post('/api/ai-call', async (req, res) => {
+  try {
+    const { leadId, name, phone, company } = req.body || {};
+
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+    const agentId = process.env.ELEVENLABS_AGENT_ID || 'agent_7601m3xprgr7ekkvbeyawvs6dkj6';
+    const phoneNumberId = process.env.ELEVENLABS_PHONE_NUMBER_ID;
+
+    if (!apiKey) {
+      return res.status(400).json({ success: false, error: 'ELEVENLABS_API_KEY environment variable is missing on server.' });
+    }
+    if (!phoneNumberId) {
+      return res.status(400).json({ success: false, error: 'ELEVENLABS_PHONE_NUMBER_ID environment variable is missing on server.' });
+    }
+
+    if (!phone) {
+      return res.status(400).json({ success: false, error: 'Phone number is required.' });
+    }
+
+    const toNumber = norm(phone);
+    const e164Regex = /^\+[1-9]\d{7,14}$/;
+    if (!e164Regex.test(toNumber)) {
+      return res.status(400).json({ success: false, error: `Invalid phone number format: ${toNumber}. Must be valid E.164 (e.g. +91XXXXXXXXXX).` });
+    }
+
+    const digits = String(phone).replace(/\D/g, '');
+    const leadPhone = digits.length >= 10 ? digits.slice(-10) : digits;
+
+    const payload = {
+      agent_id: agentId,
+      agent_phone_number_id: phoneNumberId,
+      to_number: toNumber,
+      conversation_initiation_client_data: {
+        dynamic_variables: {
+          booking_type: 'proposal_call',
+          lead_name: name || 'there',
+          company_name: company || '',
+          lead_phone: leadPhone
+        }
+      }
+    };
+
+    console.log('[AI Call] Initiating outbound call to ElevenLabs:', { toNumber, leadPhone, agentId, leadId });
+
+    const elRes = await fetch('https://api.elevenlabs.io/v1/convai/twilio/outbound-call', {
+      method: 'POST',
+      headers: {
+        'xi-api-key': apiKey,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const elData = await elRes.json().catch(() => ({}));
+
+    if (!elRes.ok) {
+      const errMsg = elData.detail?.message || elData.detail || elData.error || elData.message || `ElevenLabs API error (${elRes.status})`;
+      console.error('[AI Call] ElevenLabs API error:', errMsg, elData);
+      return res.status(elRes.status || 500).json({ success: false, error: typeof errMsg === 'object' ? JSON.stringify(errMsg) : String(errMsg) });
+    }
+
+    const conversationId = elData.conversation_id || elData.conversationId;
+    const callSid = elData.call_sid || elData.callSid || elData.sid || null;
+
+    if (!conversationId) {
+      return res.status(500).json({ success: false, error: 'ElevenLabs did not return a conversation_id.' });
+    }
+
+    let parsedLeadId = leadId ? parseInt(leadId, 10) : null;
+    if (isNaN(parsedLeadId)) parsedLeadId = null;
+
+    await db.query(
+      `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status, booking_type, started_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'in-progress', 'proposal_call', NOW())
+       ON CONFLICT (conversation_id) DO NOTHING;`,
+      [parsedLeadId, conversationId, callSid, toNumber, name || null, company || null]
+    );
+
+    if (parsedLeadId) {
+      await db.query(
+        `INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+         VALUES ($1, 'AI Call', 'AI proposal call placed', $2, 'Sent', NOW())`,
+        [parsedLeadId, `AI proposal call placed to ${name || 'lead'} (${toNumber})`]
+      ).catch(err => console.error('[AI Call] Touchpoint insert error:', err.message));
+    }
+
+    return res.json({
+      success: true,
+      conversation_id: conversationId,
+      callSid: callSid
+    });
+  } catch (err) {
+    console.error('[AI Call] Unexpected error:', err);
+    return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
+  }
+});
+
+// GET /api/ai-calls?leadId=...
+app.get('/api/ai-calls', async (req, res) => {
+  try {
+    const { leadId } = req.query;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+
+    let queryText = 'SELECT * FROM ai_calls';
+    const queryParams = [];
+
+    if (leadId) {
+      queryText += ' WHERE lead_id = $1';
+      queryParams.push(parseInt(leadId, 10));
+    }
+    queryText += ' ORDER BY started_at DESC LIMIT 50';
+
+    const dbRes = await db.query(queryText, queryParams);
+    const calls = dbRes.rows;
+
+    if (apiKey && calls.length > 0) {
+      for (const call of calls) {
+        if (call.status === 'in-progress' || call.status === 'processing') {
+          try {
+            const elRes = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${call.conversation_id}`, {
+              headers: { 'xi-api-key': apiKey }
+            });
+            if (elRes.ok) {
+              const elData = await elRes.json();
+              const rawStatus = (elData.status || '').toLowerCase();
+
+              let mappedStatus = 'in-progress';
+              if (rawStatus === 'done' || rawStatus === 'completed') {
+                mappedStatus = 'completed';
+              } else if (rawStatus === 'failed') {
+                mappedStatus = 'failed';
+              } else if (rawStatus === 'processing' || rawStatus === 'in-progress') {
+                mappedStatus = 'in-progress';
+              } else if (rawStatus) {
+                mappedStatus = rawStatus;
+              }
+
+              const durationSecs = elData.metadata?.call_duration_secs || elData.duration_secs || 0;
+              const summary = elData.analysis?.transcript_summary || elData.analysis?.call_summary || call.transcript_summary || '';
+              const transcript = elData.transcript || call.transcript || [];
+
+              await db.query(
+                `UPDATE ai_calls
+                 SET status = $1, duration_secs = $2, transcript_summary = $3, transcript = $4, updated_at = NOW()
+                 WHERE conversation_id = $5`,
+                [mappedStatus, durationSecs, summary, JSON.stringify(transcript), call.conversation_id]
+              );
+
+              call.status = mappedStatus;
+              call.duration_secs = durationSecs;
+              call.transcript_summary = summary;
+              call.transcript = transcript;
+            }
+          } catch (err) {
+            console.error(`[AI Call Sync] Error syncing conversation ${call.conversation_id}:`, err.message);
+          }
+        }
+      }
+    }
+
+    const formatted = calls.map(c => ({
+      id: c.id,
+      leadId: c.lead_id,
+      conversation_id: c.conversation_id,
+      callSid: c.call_sid,
+      to: c.to_phone,
+      leadName: c.lead_name,
+      companyName: c.company_name,
+      status: c.status,
+      bookingType: c.booking_type || 'proposal_call',
+      startedAt: c.started_at,
+      duration: c.duration_secs || 0,
+      transcriptSummary: c.transcript_summary || '',
+      transcript: typeof c.transcript === 'string' ? JSON.parse(c.transcript || '[]') : (c.transcript || [])
+    }));
+
+    return res.json(formatted);
+  } catch (err) {
+    console.error('[AI Call] Error fetching calls:', err);
+    return res.status(500).json({ error: err.message || 'Failed to fetch AI calls' });
+  }
+});
+
+// GET /api/ai-rec/:conversationId
+app.get('/api/ai-rec/:conversationId', async (req, res) => {
+  try {
+    const { conversationId } = req.params;
+    const apiKey = process.env.ELEVENLABS_API_KEY;
+
+    if (!apiKey) {
+      return res.status(400).send('ELEVENLABS_API_KEY environment variable is missing.');
+    }
+
+    const elRes = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${conversationId}/audio`, {
+      headers: { 'xi-api-key': apiKey }
+    });
+
+    if (!elRes.ok) {
+      return res.status(elRes.status).send('Recording not found or unavailable.');
+    }
+
+    const contentType = elRes.headers.get('content-type') || 'audio/mpeg';
+    res.setHeader('Content-Type', contentType);
+
+    if (elRes.body && typeof elRes.body.pipe === 'function') {
+      elRes.body.pipe(res);
+    } else {
+      const buffer = await elRes.arrayBuffer();
+      res.send(Buffer.from(buffer));
+    }
+  } catch (err) {
+    console.error('[AI Call Rec] Audio proxy error:', err);
+    return res.status(500).send('Error streaming recording audio.');
+  }
+});
+
 
 // GET /api/proposals
 app.get('/api/proposals', async (req, res) => {

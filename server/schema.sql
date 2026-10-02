@@ -265,3 +265,23 @@ CREATE TABLE IF NOT EXISTS whatsapp_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 15. ElevenLabs AI Calls Table
+CREATE TABLE IF NOT EXISTS ai_calls (
+  id SERIAL PRIMARY KEY,
+  lead_id INT REFERENCES leads(id) ON DELETE CASCADE,
+  conversation_id TEXT UNIQUE,
+  call_sid TEXT,
+  to_phone TEXT,
+  lead_name TEXT,
+  company_name TEXT,
+  status TEXT DEFAULT 'in-progress',
+  booking_type TEXT DEFAULT 'proposal_call',
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  duration_secs INT DEFAULT 0,
+  transcript_summary TEXT,
+  transcript JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
