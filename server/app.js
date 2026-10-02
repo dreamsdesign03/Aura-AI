@@ -493,96 +493,158 @@ function mapCalendlyToAppointment(row) {
   };
 }
 
-// Sync bookings from Calendly API
-app.get('/api/calendly/sync', async (req, res) => {
+// ── Cal.com & Calendly Integration ───────────────────────────────────────────
+async function syncCalComBookings(userId) {
+  const apiKey = process.env.CAL_API_KEY || process.env.CALCOM_API_KEY || 'cal_live_92ae6d6107040c70be9b0930559ffa17';
+  if (!apiKey) return { added: 0, updated: 0, total: 0 };
+
+  const res = await fetch('https://api.cal.com/v2/bookings', {
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'cal-api-version': '2024-08-13'
+    }
+  });
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Cal.com API failed (${res.status}): ${txt.slice(0, 200)}`);
+  }
+  const body = await res.json();
+  const bookings = body.data || [];
+
+  const hidden = await db.query('SELECT calendly_uri FROM hidden_calendly_uris WHERE user_id = $1', [userId]);
+  const hiddenUris = new Set(hidden.rows.map(r => r.calendly_uri));
+
+  let added = 0;
+  let updated = 0;
+
+  for (const b of bookings) {
+    const bookingUri = `cal_${b.id || b.uid}`;
+    if (hiddenUris.has(bookingUri)) continue;
+
+    const attendee = (b.attendees && b.attendees[0]) || {};
+    const bfr = b.bookingFieldsResponses || {};
+    
+    const inviteeName = attendee.name || bfr.name || b.title?.split(' and ').pop()?.trim() || 'Invitee';
+    const inviteeEmail = attendee.email || bfr.email || '';
+    const phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
+    const notes = b.description || bfr.notes || '';
+    const rawStatus = (b.status || '').toLowerCase();
+
+    const startIso = b.start ? new Date(b.start).toISOString() : null;
+    const endIso = b.end ? new Date(b.end).toISOString() : null;
+    const isPast = startIso && new Date(startIso).getTime() < Date.now();
+
+    let status = 'confirmed';
+    if (rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === 'rejected') {
+      status = 'cancelled';
+    } else if (isPast) {
+      status = 'completed';
+    } else if (rawStatus === 'accepted' || rawStatus === 'confirmed') {
+      status = 'confirmed';
+    }
+
+    const locationStr = typeof bfr.location === 'object' ? (bfr.location?.optionValue || 'inperson') : (b.location || 'inperson');
+    const meetingLink = b.meetingUrl || (typeof locationStr === 'string' && locationStr.startsWith('http') ? locationStr : '');
+
+    const questionsObj = {
+      "Phone / WhatsApp": phone,
+      "phone": phone,
+      "notes": notes,
+      "Please provide a brief summary of your business & what it is that you do?": notes
+    };
+
+    const existing = await db.query('SELECT id, is_deleted, status FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
+    if (existing.rows.length > 0 && existing.rows[0].is_deleted) {
+      continue;
+    }
+
+    const wasNew = existing.rows.length === 0;
+
+    const insertRes = await db.query(
+      `INSERT INTO calendly_events (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, location, meeting_link, questions, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+       ON CONFLICT (calendly_uri) DO UPDATE SET
+         invitee_name = EXCLUDED.invitee_name,
+         invitee_email = EXCLUDED.invitee_email,
+         event_name = EXCLUDED.event_name,
+         start_time = EXCLUDED.start_time,
+         end_time = EXCLUDED.end_time,
+         status = EXCLUDED.status,
+         location = EXCLUDED.location,
+         meeting_link = EXCLUDED.meeting_link,
+         questions = EXCLUDED.questions
+       RETURNING id`,
+      [userId, bookingUri, attendee.email || null, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, locationStr, meetingLink, JSON.stringify(questionsObj)]
+    );
+
+    const eventId = insertRes.rows[0]?.id;
+    if (wasNew && status === 'confirmed' && typeof automationsApi !== 'undefined' && automationsApi?.triggerAutomation) {
+      await automationsApi.triggerAutomation(userId, 'call_booked', {
+        entity_type: 'appointment',
+        entity_id: eventId,
+        entity_name: inviteeName,
+        first_name: inviteeName.split(' ')[0],
+        last_name: inviteeName.split(' ').slice(1).join(' '),
+        name: inviteeName,
+        email: inviteeEmail,
+        phone: phone,
+        date: startIso,
+        time: startIso,
+        meeting_link: meetingLink,
+        service: 'Aura Skin Clinic',
+      }).catch(() => {});
+    }
+
+    if (wasNew) added++;
+    else updated++;
+  }
+
+  return { added, updated, total: bookings.length };
+}
+
+// Sync bookings from Cal.com API
+const handleSyncBookings = async (req, res) => {
   try {
-    const token = process.env.CALENDLY_TOKEN;
-    if (!token) return res.status(400).json({ error: 'CALENDLY_TOKEN is not configured.' });
-
     const userId = await resolveUserId(req.query.email, req.headers.cookie);
-
-    const meRes = await fetch('https://api.calendly.com/users/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!meRes.ok) {
-      const txt = await meRes.text();
-      return res.status(502).json({ error: `Calendly /users/me failed (${meRes.status}): ${txt.slice(0, 200)}` });
-    }
-    const me = await meRes.json();
-    const userUri = me.resource?.uri;
-
-    // Sync last 365 days
-    const min = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
-    const max = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString();
-    const evRes = await fetch(`https://api.calendly.com/scheduled_events?user=${encodeURIComponent(userUri)}&status=active&count=100&min_start_time=${encodeURIComponent(min)}&max_start_time=${encodeURIComponent(max)}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!evRes.ok) {
-      const txt = await evRes.text();
-      return res.status(502).json({ error: `Calendly /scheduled_events failed (${evRes.status}): ${txt.slice(0, 200)}` });
-    }
-    const evData = await evRes.json();
-    const events = evData.collection || [];
-
-    // User-hidden Calendly bookings (deleted in the app) must never come back
-    const hidden = await db.query('SELECT calendly_uri FROM hidden_calendly_uris WHERE user_id = $1', [userId]);
-    const hiddenUris = new Set(hidden.rows.map(r => r.calendly_uri));
-
-    let added = 0;
-    let updated = 0;
-    for (const ev of events) {
-      if (hiddenUris.has(ev.uri)) continue;
-      let invitee = null;
-      try {
-        const invRes = await fetch(`${ev.uri}/invitees?count=100`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (invRes.ok) {
-          const invData = await invRes.json();
-          invitee = (invData.collection || [])[0] || null;
-        }
-      } catch (e) {
-        console.error('[calendly] invitees fetch error:', e.message);
-      }
-
-      // Skip events the user has deleted (hidden) in the app
-      const existing = await db.query('SELECT id, is_deleted FROM calendly_events WHERE calendly_uri = $1', [ev.uri]);
-      if (existing.rows.length > 0 && existing.rows[0].is_deleted) {
-        continue;
-      }
-      const status = ev.status === 'canceled' ? 'cancelled' : 'confirmed';
-      if (existing.rows.length > 0) {
-        await db.query('UPDATE calendly_events SET status = $1 WHERE calendly_uri = $2', [status, ev.uri]);
-        if (status === 'cancelled') {
-          updated++;
-          continue;
-        }
-      }
-      await upsertCalendlyEvent(userId, ev, invitee);
-      if (existing.rows.length > 0) updated++;
-      else added++;
-    }
-
-    // Mark local events not seen in the range as cancelled if their time passed and Calendly no longer lists them
-    const local = await db.query('SELECT id, calendly_uri, start_time FROM calendly_events WHERE user_id = $1 AND status != $2 AND NOT COALESCE(is_deleted, false)', [userId, 'cancelled']);
-    const seenUris = new Set(events.map(e => e.uri));
-    let pruned = 0;
-    for (const row of local.rows) {
-      if (!seenUris.has(row.calendly_uri) && row.start_time && new Date(row.start_time).getTime() < Date.now() - 30 * 60 * 1000) {
-        await db.query('UPDATE calendly_events SET status = $1 WHERE id = $2', ['cancelled', row.id]);
-        pruned++;
-      }
-    }
-
-    console.log(`[calendly] Sync complete: ${added} added, ${updated} updated, ${pruned} cancelled`);
-    res.json({ success: true, added, updated, cancelled: pruned, total: events.length });
+    const result = await syncCalComBookings(userId);
+    console.log(`[cal.com] Sync complete: ${result.added} added, ${result.updated} updated, ${result.total} total`);
+    res.json({ success: true, ...result });
   } catch (err) {
-    console.error('[calendly] Sync error:', err.message);
+    console.error('[cal.com] Sync error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+app.get('/api/cal/sync', handleSyncBookings);
+app.get('/api/calendly/sync', handleSyncBookings);
+
+// Cal.com webhook
+app.post('/api/cal/webhook', async (req, res) => {
+  try {
+    const payload = req.body || {};
+    const triggerEvent = payload.triggerEvent || req.body.event || '';
+    const booking = payload.payload || payload.booking || payload;
+
+    if (booking && (booking.id || booking.uid)) {
+      const userId = await resolveUserId(null, null);
+      const bookingUri = `cal_${booking.id || booking.uid}`;
+
+      if (triggerEvent === 'BOOKING_CANCELLED') {
+        await db.query('UPDATE calendly_events SET status = $1 WHERE calendly_uri = $2', ['cancelled', bookingUri]);
+        console.log(`[cal.com] Webhook cancelled booking: ${bookingUri}`);
+      } else {
+        await syncCalComBookings(userId);
+        console.log(`[cal.com] Webhook synced booking: ${bookingUri}`);
+      }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[cal.com] Webhook error:', err.message);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Calendly webhook (real-time: invitee.created / invitee.canceled)
+// Calendly webhook (legacy support)
 app.post('/api/calendly/webhook', async (req, res) => {
   try {
     const signingKey = process.env.CALENDLY_WEBHOOK_SIGNING_KEY;
@@ -595,8 +657,6 @@ app.post('/api/calendly/webhook', async (req, res) => {
         console.warn('[calendly] Webhook signature mismatch, ignoring');
         return res.status(401).json({ error: 'Invalid signature' });
       }
-    } else {
-      console.warn('[calendly] No CALENDLY_WEBHOOK_SIGNING_KEY set, skipping signature verification');
     }
 
     const eventName = req.body?.event || '';
@@ -605,17 +665,14 @@ app.post('/api/calendly/webhook', async (req, res) => {
     const invitee = payload.invitee || null;
 
     if (!scheduledEvent) {
-      console.log('[calendly] Webhook received with no scheduled_event:', eventName);
       return res.json({ success: true });
     }
 
     const userId = await resolveUserId(null, null);
     if (eventName === 'invitee.canceled') {
       await db.query('UPDATE calendly_events SET status = $1 WHERE calendly_uri = $2', ['cancelled', scheduledEvent.uri]);
-      console.log(`[calendly] Webhook cancelled event: ${scheduledEvent.uri}`);
-    } else {
+    } else if (typeof upsertCalendlyEvent === 'function') {
       await upsertCalendlyEvent(userId, scheduledEvent, invitee);
-      console.log(`[calendly] Webhook upserted event: ${scheduledEvent.name} -> ${invitee?.name || 'invitee'}`);
     }
     res.json({ success: true });
   } catch (err) {
@@ -623,6 +680,7 @@ app.post('/api/calendly/webhook', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ── Appointments (powered by Calendly-synced events) ──────────────────────────
 app.get('/api/appointments', async (req, res) => {
@@ -1491,7 +1549,7 @@ app.get('/api/outreach/emails', async (req, res) => {
 
 
 // ─── SKINNONEST OUTREACH EMAIL GENERATOR HELPER ─────────────────────────────
-const BOOKING_LINK = process.env.BOOKING_LINK || 'https://calendly.com/dreamsdesign-in03/aura-meeting';
+const BOOKING_LINK = process.env.CAL_BOOKING_URL || process.env.BOOKING_LINK || 'https://cal.com/aura-laser-cosmetic-clinic/30min';
 
 async function generateSkinnonestOutreachEmail(lead = {}) {
   const rawFirstName = (lead.first_name || lead.firstName || '').trim() || (lead.full_name || lead.name || '').trim();

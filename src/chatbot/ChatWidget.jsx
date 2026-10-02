@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 // ── Config ────────────────────────────────────────────────────────────────────
 const PRIMARY = "#5B2FC9";
-const CALENDLY = "https://calendly.com/dreamsdesign-in/consulting";
+const CALENDLY = "https://cal.com/aura-laser-cosmetic-clinic/30min";
 const INTENT_OPTS = ["Grow my business 🚀", "Looking for a job 💼", "Just browsing 👀", "Something else 💬"];
 const BUDGET_OPTS = ["Under ₹50k", "₹50k – ₹1L", "₹1L – ₹2L", "₹2L – ₹5L", "₹5L+"];
 const DM_OPTS = ["Yes, I decide", "I'm part of the decision", "Need to consult others"];

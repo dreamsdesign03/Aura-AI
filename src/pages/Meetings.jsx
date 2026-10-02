@@ -69,7 +69,7 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
       </div>
     </div>);
 }
-// ── Booking Widget (Calendly embed) ───────────────────────────────────────────
+// ── Booking Widget (Cal.com embed) ───────────────────────────────────────────
 function BookingWidget() {
     return (<div className="flex items-start justify-center py-8 px-4">
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(1050px, 100%)", minHeight: "780px" }}>
@@ -77,7 +77,7 @@ function BookingWidget() {
         <div className="flex-1 p-6 md:p-8 flex flex-col min-w-0">
           <div className="mb-4">
             <div className="text-base font-bold text-gray-900">Schedule your Clinic Consultation</div>
-            <div className="text-xs text-gray-500 mt-0.5">Pick a time — confirmation &amp; calendar invite are sent automatically by Calendly.</div>
+            <div className="text-xs text-gray-500 mt-0.5">Pick a time — confirmation &amp; calendar invite are sent automatically by Cal.com.</div>
           </div>
           <CalendlyEmbed height={750}/>
         </div>
@@ -95,29 +95,29 @@ function AdminView() {
     });
     const [syncing, setSyncing] = useState(false);
     const [syncError, setSyncError] = useState("");
-    const syncCalendly = useCallback(async () => {
+    const syncCalCom = useCallback(async () => {
         setSyncing(true);
         setSyncError("");
         try {
-            const r = await fetch("/api/calendly/sync");
+            const r = await fetch("/api/cal/sync");
             const j = await r.json();
             if (!r.ok || j.error) {
-                setSyncError(j.error ?? "Calendly sync failed. Is CALENDLY_TOKEN set?");
+                setSyncError(j.error ?? "Cal.com sync failed.");
             }
             qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() });
         }
         catch {
-            setSyncError("Network error during Calendly sync.");
+            setSyncError("Network error during Cal.com sync.");
         }
         finally {
             setSyncing(false);
         }
     }, [qc]);
     useEffect(() => {
-        syncCalendly();
-        const interval = setInterval(syncCalendly, 5 * 60 * 1000);
+        syncCalCom();
+        const interval = setInterval(syncCalCom, 5 * 60 * 1000);
         return () => clearInterval(interval);
-    }, [syncCalendly]);
+    }, [syncCalCom]);
     const [activeId, setActiveId] = useState(null);
     const active = appointments.find(a => a.id === activeId);
     async function handleStatusChange(id, status) {
@@ -150,9 +150,9 @@ function AdminView() {
           </span>
           <div className="flex items-center gap-1.5">
             {syncError && <span className="text-[10px] text-red-500 max-w-[140px] truncate">{syncError}</span>}
-            <button onClick={syncCalendly} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-green-700 text-green-800 hover:bg-green-50 disabled:opacity-60" title="Sync bookings from Calendly">
+            <button onClick={syncCalCom} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-pink-700 text-pink-800 hover:bg-pink-50 disabled:opacity-60" title="Sync bookings from Cal.com">
               <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")}/>
-              {syncing ? "Syncing…" : "Sync Calendly"}
+              {syncing ? "Syncing…" : "Sync Cal.com"}
             </button>
           </div>
         </div>

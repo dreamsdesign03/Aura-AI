@@ -25,7 +25,7 @@ const GEMINI_MODEL = 'gemini-2.5-flash';
 const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const APOLLO_BASE = 'https://api.apollo.io/api/v1';
 
-const BOOKING_LINK = 'https://calendly.com/dreamsdesign-in03/aura-meeting';
+const BOOKING_LINK = process.env.CAL_BOOKING_URL || 'https://cal.com/aura-laser-cosmetic-clinic/30min';
 const PITCH_DECK_LINK = 'https://drive.google.com/file/d/1zFKYiPI69TK1izNQOyj9g-TmK3Yvsfe9/view?usp=sharing';
 
 const AGENT_DEFAULTS = {

@@ -3,7 +3,7 @@ import { useListAuditedLeads, useListLeads, useComposeOutreachEmail, useQuickSen
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Minus, Maximize2, Minimize2, Bold, Italic, Underline, List, Link, Paperclip, Send, Save, Sparkles, CheckCircle2, AlertCircle, Loader2, AlignLeft, AlignCenter, AlignRight, FileText, ChevronDown, ChevronUp, } from "lucide-react";
 import { cn, auditScoreColors } from "@/lib/utils";
-export const BOOKING_LINK = "https://calendly.com/dreamsdesign-in03/aura-meeting";
+export const BOOKING_LINK = "https://cal.com/aura-laser-cosmetic-clinic/30min";
 export const PITCH_DECK_LINK = "https://drive.google.com/file/d/1zFKYiPI69TK1izNQOyj9g-TmK3Yvsfe9/view?usp=sharing";
 const TONE_OPTIONS = [
     { key: "professional", label: "Professional", emoji: "🎯" },
