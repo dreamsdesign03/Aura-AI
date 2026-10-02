@@ -1787,7 +1787,7 @@ async function getTransporter(userId) {
   let user = config.user || process.env.SMTP_USER || 'aurabackoffice123@gmail.com';
   let pass = config.pass || process.env.SMTP_PASS || 'zjpbagpgncbxjphm';
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || 'aurabackoffice123@gmail.com';
-  let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic | Skinnonest';
+  let fromName = 'Aura Laser & Cosmetic Clinic | Skinnonest';
 
   // STRICT ENFORCEMENT: Never allow dreamsdesign.in03@gmail.com or old credentials
   if (!user || user.toLowerCase().includes('dreamsdesign')) user = 'aurabackoffice123@gmail.com';
