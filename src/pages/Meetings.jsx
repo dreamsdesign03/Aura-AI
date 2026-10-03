@@ -96,8 +96,8 @@ function BookingWidget() {
 // ── Admin Bookings View ───────────────────────────────────────────────────────
 function AdminView() {
     const qc = useQueryClient();
-    const { data: appts = [], isLoading } = useListAppointments();
-    const appointments = appts;
+    const { data: apptsData = [], isLoading } = useListAppointments();
+    const appointments = Array.isArray(apptsData) ? apptsData : (Array.isArray(apptsData?.appointments) ? apptsData.appointments : []);
     const updateAppt = useUpdateAppointment();
     const deleteAppt = useDeleteAppointment({
         mutation: { onSuccess: () => qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() }) },
@@ -278,7 +278,8 @@ function toDatetimeLocal(isoStr) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function CrmMeetingsView() {
-    const { data: meetings = [], isLoading } = useListMeetings();
+    const { data: meetingsData = [], isLoading } = useListMeetings();
+    const meetings = Array.isArray(meetingsData) ? meetingsData : (Array.isArray(meetingsData?.meetings) ? meetingsData.meetings : []);
     const { data: leadsResp } = useListLeads();
     const queryClient = useQueryClient();
     const { toast } = useToast();

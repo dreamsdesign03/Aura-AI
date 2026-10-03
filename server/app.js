@@ -700,7 +700,8 @@ app.get('/api/appointments', async (req, res) => {
     );
     res.json(result.rows.map(mapCalendlyToAppointment));
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[GET /api/appointments error]:', err.message);
+    res.json([]);
   }
 });
 
