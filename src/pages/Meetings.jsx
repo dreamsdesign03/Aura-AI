@@ -177,23 +177,24 @@ function AdminView() {
                   <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">{label}</div>
                   {items.map(appt => {
                     const sc = statusColor(appt.status);
-                    const [hh, mm] = appt.scheduledTime.split(":");
+                    const [hh, mm] = (appt.scheduledTime || "00:00").split(":");
                     const hnum = Number(hh);
                     const suf = hnum >= 12 ? "PM" : "AM";
                     const h12a = hnum > 12 ? hnum - 12 : hnum === 0 ? 12 : hnum;
                     const tl = `${h12a}:${mm} ${suf}`;
+                    const isSynthetic = !appt.email || appt.email.includes("@sms.cal.com") || appt.email.endsWith("@cal.com");
+                    const displayEmail = isSynthetic ? "" : appt.email;
+                    const displaySub = displayEmail || appt.phone || (isSynthetic && appt.email ? appt.email.split("@")[0] : "");
                     return (<button key={appt.id} onClick={() => setActiveId(appt.id)} className={cn("w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors", activeId === appt.id && "bg-green-50 border-l-2 border-green-700")}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
                             <div className="text-xs font-semibold text-gray-900 truncate">{appt.name}</div>
-                            <div className="text-[11px] text-gray-500 truncate">{appt.email}</div>
+                            {displaySub && <div className="text-[11px] text-gray-500 truncate">{displaySub}</div>}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ color: sc.text, background: sc.bg }}>
                                 {appt.status}
                               </span>
-                              {appt.location === "meet"
-                            ? <Video className="w-3 h-3 text-blue-400"/>
-                            : <MapPin className="w-3 h-3 text-red-400"/>}
+                              {appt.location === "meet" && <Video className="w-3 h-3 text-blue-400"/>}
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
@@ -220,8 +221,12 @@ function AdminView() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <div className="text-base font-bold text-gray-900">{active.name}</div>
-                  <div className="text-sm text-gray-500">{active.email}</div>
-                  {active.phone && <div className="text-sm text-gray-500">{active.phone}</div>}
+                  {active.email && !active.email.includes("@sms.cal.com") && !active.email.endsWith("@cal.com") && (
+                    <div className="text-sm text-gray-500">{active.email}</div>
+                  )}
+                  {(active.phone || (active.email && active.email.includes("@sms.cal.com"))) && (
+                    <div className="text-sm text-gray-500">{active.phone || active.email.split("@")[0]}</div>
+                  )}
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
                     <CalendarDays className="w-3.5 h-3.5 text-gray-400"/>
                     {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {activeTimeLabel}

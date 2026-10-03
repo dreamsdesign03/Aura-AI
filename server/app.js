@@ -490,11 +490,22 @@ function mapCalendlyToAppointment(row) {
 
   const isMeet = validLink.length > 0;
 
+  const rawEmail = row.invitee_email || '';
+  const isSynthetic = rawEmail.includes('@sms.cal.com') || rawEmail.endsWith('@cal.com');
+
+  let phoneVal = q['Phone / WhatsApp'] || q['phone'] || '';
+  if (!phoneVal && isSynthetic) {
+    const match = rawEmail.match(/^(\d+)/);
+    if (match) phoneVal = match[1];
+  }
+
+  const cleanEmail = isSynthetic ? '' : rawEmail;
+
   return {
     id: row.id,
     name: row.invitee_name,
-    email: row.invitee_email,
-    phone: q['Phone / WhatsApp'] || q['phone'] || '',
+    email: cleanEmail,
+    phone: phoneVal,
     scheduledDate: dateStr,
     scheduledTime: timeStr,
     location: isMeet ? 'meet' : 'inperson',
@@ -541,7 +552,12 @@ async function syncCalComBookings(userId) {
     
     const inviteeName = attendee.name || bfr.name || b.title?.split(' and ').pop()?.trim() || 'Invitee';
     const inviteeEmail = attendee.email || bfr.email || '';
-    const phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
+    let phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
+    if (!phone && inviteeEmail.includes('@sms.cal.com')) {
+      const match = inviteeEmail.match(/^(\d+)/);
+      if (match) phone = match[1];
+    }
+
     const notes = b.description || bfr.notes || '';
     const rawStatus = (b.status || '').toLowerCase();
 
