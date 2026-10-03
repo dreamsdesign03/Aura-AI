@@ -188,6 +188,7 @@ async function seedAdminUser() {
       );
     `);
     await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS source TEXT;`);
     // Ensure whatsapp_conversations & whatsapp_messages tables exist
     await db.query(`
       CREATE TABLE IF NOT EXISTS whatsapp_conversations (
@@ -696,7 +697,7 @@ app.post('/api/calendly/webhook', async (req, res) => {
 app.get('/api/appointments', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT * FROM calendly_events WHERE (calendly_uri LIKE 'cal_%' OR source = 'cal.com') AND (is_deleted IS NOT TRUE) ORDER BY start_time DESC`
+      `SELECT * FROM calendly_events WHERE COALESCE(is_deleted, false) = false ORDER BY start_time DESC`
     );
     res.json(result.rows.map(mapCalendlyToAppointment));
   } catch (err) {
