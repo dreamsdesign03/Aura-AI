@@ -473,6 +473,17 @@ function mapCalendlyToAppointment(row) {
   const dateStr = dt ? `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}` : null;
   const timeStr = dt ? `${String(dt.getUTCHours()).padStart(2, '0')}:${String(dt.getUTCMinutes()).padStart(2, '0')}` : null;
   const q = row.questions || {};
+
+  const rawLoc = String(row.location || '').trim();
+  const rawLink = String(row.meeting_link || '').trim();
+
+  // A meeting link is ONLY valid if it starts with http:// or https://
+  const validLink = (rawLink.startsWith('http://') || rawLink.startsWith('https://'))
+    ? rawLink
+    : ((rawLoc.startsWith('http://') || rawLoc.startsWith('https://')) ? rawLoc : '');
+
+  const isMeet = validLink.length > 0;
+
   return {
     id: row.id,
     name: row.invitee_name,
@@ -480,14 +491,12 @@ function mapCalendlyToAppointment(row) {
     phone: q['Phone / WhatsApp'] || q['phone'] || '',
     scheduledDate: dateStr,
     scheduledTime: timeStr,
-    location: row.location === 'inperson' ? 'inperson' : 'meet',
+    location: isMeet ? 'meet' : 'inperson',
     status: row.status,
-    meetingLink: row.meeting_link || '',
-    businessSummary: q['Please provide a brief summary of your business & what it is that you do?'] || q['business'] || '',
-    specificProblem: q['What specific problem are you facing right now in your business and would you like us to talk about?'] || '',
-    desiredResult: q['What is your Desired Result in terms of Income Goal that you want to achieve in the next 3-6 months?'] || '',
-    investmentWillingness: q['How willing and able are you to invest in solving your problem right now?'] || '',
-    source: 'calendly',
+    meetingLink: validLink,
+    notes: q['notes'] || q['Please provide a brief summary of your business & what it is that you do?'] || q['business'] || '',
+    businessSummary: q['businessSummary'] || q['business'] || '',
+    source: 'cal.com',
     calendlyUri: row.calendly_uri,
     createdAt: row.created_at,
   };
@@ -687,7 +696,7 @@ app.post('/api/calendly/webhook', async (req, res) => {
 app.get('/api/appointments', async (req, res) => {
   try {
     const result = await db.query(
-      `SELECT * FROM calendly_events WHERE NOT COALESCE(is_deleted, false) ORDER BY start_time DESC`
+      `SELECT * FROM calendly_events WHERE (calendly_uri LIKE 'cal_%' OR source = 'cal.com') AND (is_deleted IS NOT TRUE) ORDER BY start_time DESC`
     );
     res.json(result.rows.map(mapCalendlyToAppointment));
   } catch (err) {

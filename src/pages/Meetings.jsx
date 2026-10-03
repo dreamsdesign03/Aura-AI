@@ -227,12 +227,12 @@ function AdminView() {
                     {new Date(active.scheduledDate + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {activeTimeLabel}
                   </div>
                   <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
-                    {active.location === "meet"
+                    {active.location === "meet" && active.meetingLink
                 ? <><Video className="w-3.5 h-3.5 text-blue-500"/> Google Meet</>
-                : <><MapPin className="w-3.5 h-3.5 text-red-500"/> In-person – Vadodara</>}
+                : <><MapPin className="w-3.5 h-3.5 text-pink-600 font-semibold"/> In-person – Vadodara Clinic</>}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
-                    {active.meetingLink && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
+                    {active.location === "meet" && active.meetingLink && active.meetingLink.startsWith("http") && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
                         <Video className="w-2.5 h-2.5"/> Join Meeting <ExternalLink className="w-2.5 h-2.5"/>
                       </a>)}
                     {active.googleCalendarEventId && (<span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-700 bg-green-50 border border-green-100 px-2 py-0.5 rounded-full">
@@ -248,7 +248,7 @@ function AdminView() {
                     <button onClick={() => { if (confirm("Delete this appointment?")) {
             deleteAppt.mutate({ id: active.id });
             setActiveId(null);
-        } }} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors">
+        } }} className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition-colors" title="Delete appointment">
                       <Trash2 className="w-3.5 h-3.5"/>
                     </button>
                   </div>
@@ -256,35 +256,15 @@ function AdminView() {
               </div>
             </div>
 
-            {/* Form responses */}
-            <div className="rounded-xl border border-gray-200 bg-white p-5">
-              <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-4">Qualification Answers</div>
-              <div className="space-y-3">
-                {[
-                { label: "Business Summary", val: active.businessSummary },
-                { label: "Specific Problem", val: active.specificProblem },
-                { label: "Desired Result (3-6 months)", val: active.desiredResult },
-                { label: "Why I Can Help", val: active.whyCanHelp },
-                { label: "Investment Willingness", val: active.investmentWillingness },
-                { label: "Min Investment Confirmation", val: active.minInvestmentConfirm },
-                { label: "How Soon Can They Start", val: active.startSoon },
-                { label: "Business Partner on Call", val: active.businessPartner || "None mentioned" },
-            ].map(({ label, val }) => val ? (<div key={label} className="border-b border-gray-50 pb-3 last:border-0 last:pb-0">
-                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">{label}</div>
-                    <div className="text-xs text-gray-800 leading-relaxed">{val}</div>
-                  </div>) : null)}
-
-                {(active.services?.length ?? 0) > 0 && (<div>
-                    <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Services Interested In</div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {(active.services ?? []).map(svc => (<span key={svc} className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-green-50 text-green-800 border border-green-200">
-                          {svc}
-                        </span>))}
-                    </div>
-                    {active.otherService && <div className="text-xs text-gray-600 mt-1">Other: {active.otherService}</div>}
-                  </div>)}
+            {/* Cal.com Details / Notes — Only shown if data exists */}
+            {(active.notes || active.businessSummary) && (
+              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Booking Notes &amp; Details</div>
+                <div className="text-xs text-gray-800 leading-relaxed whitespace-pre-line">
+                  {active.notes || active.businessSummary}
+                </div>
               </div>
-            </div>
+            )}
           </div>)}
       </div>
     </div>
