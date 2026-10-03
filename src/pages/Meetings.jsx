@@ -71,16 +71,25 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
 }
 // ── Booking Widget (Cal.com embed) ───────────────────────────────────────────
 function BookingWidget() {
-    return (<div className="flex items-start justify-center py-8 px-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl flex overflow-hidden" style={{ width: "min(1050px, 100%)", minHeight: "780px" }}>
-        <HostPanel/>
-        <div className="flex-1 p-6 md:p-8 flex flex-col min-w-0">
-          <div className="mb-4">
-            <div className="text-base font-bold text-gray-900">Schedule your Clinic Consultation</div>
-            <div className="text-xs text-gray-500 mt-0.5">Pick a time — confirmation &amp; calendar invite are sent automatically by Cal.com.</div>
+    return (<div className="max-w-6xl mx-auto py-6 px-4">
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl p-6 md:p-8">
+        <div className="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-100 pb-4">
+          <div>
+            <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <span>Schedule Clinic Consultation</span>
+              <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
+                Cal.com Live
+              </span>
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              Pick a time — instant confirmation &amp; calendar invite are sent automatically by Cal.com.
+            </div>
           </div>
-          <CalendlyEmbed height={750}/>
+          <a href="https://cal.com/aura-laser-cosmetic-clinic/30min" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-3 py-1.5 rounded-lg transition-colors border border-pink-200">
+            Open in Cal.com <ExternalLink className="w-3.5 h-3.5"/>
+          </a>
         </div>
+        <CalendlyEmbed height={720}/>
       </div>
     </div>);
 }

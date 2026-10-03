@@ -564,6 +564,7 @@ async function syncCalComBookings(userId) {
       `INSERT INTO calendly_events (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, location, meeting_link, questions, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
        ON CONFLICT (calendly_uri) DO UPDATE SET
+         user_id = EXCLUDED.user_id,
          invitee_name = EXCLUDED.invitee_name,
          invitee_email = EXCLUDED.invitee_email,
          event_name = EXCLUDED.event_name,
@@ -682,13 +683,11 @@ app.post('/api/calendly/webhook', async (req, res) => {
 });
 
 
-// ── Appointments (powered by Calendly-synced events) ──────────────────────────
+// ── Appointments (powered by Cal.com synced events) ──────────────────────────
 app.get('/api/appointments', async (req, res) => {
   try {
-    const userId = await resolveUserId(req.query.email, req.headers.cookie);
     const result = await db.query(
-      `SELECT * FROM calendly_events WHERE user_id = $1 AND NOT COALESCE(is_deleted, false) ORDER BY start_time DESC`,
-      [userId]
+      `SELECT * FROM calendly_events WHERE NOT COALESCE(is_deleted, false) ORDER BY start_time DESC`
     );
     res.json(result.rows.map(mapCalendlyToAppointment));
   } catch (err) {
