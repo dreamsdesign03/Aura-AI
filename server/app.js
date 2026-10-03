@@ -471,8 +471,13 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
 
 function mapCalendlyToAppointment(row) {
   const dt = row.start_time ? new Date(row.start_time) : null;
-  const dateStr = dt ? `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}` : null;
-  const timeStr = dt ? `${String(dt.getUTCHours()).padStart(2, '0')}:${String(dt.getUTCMinutes()).padStart(2, '0')}` : null;
+  let dateStr = null;
+  let timeStr = null;
+  if (dt && !isNaN(dt.getTime())) {
+    const istDt = new Date(dt.getTime() + (5.5 * 60 * 60 * 1000));
+    dateStr = `${istDt.getUTCFullYear()}-${String(istDt.getUTCMonth() + 1).padStart(2, '0')}-${String(istDt.getUTCDate()).padStart(2, '0')}`;
+    timeStr = `${String(istDt.getUTCHours()).padStart(2, '0')}:${String(istDt.getUTCMinutes()).padStart(2, '0')}`;
+  }
   const q = row.questions || {};
 
   const rawLoc = String(row.location || '').trim();
