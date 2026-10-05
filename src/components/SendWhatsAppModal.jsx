@@ -4,28 +4,10 @@ import { useToast } from "@/hooks/use-toast";
 
 const META_TEMPLATES = [
   {
-    name: "lead_welcome_confirmation",
-    label: "lead_welcome_confirmation (Marketing - English)",
+    name: "aura_lead_appointment_booking",
+    label: "aura_lead_appointment_booking · English (IND)",
     type: "meta",
-    description: "Welcome confirmation template (Requires 2 params)"
-  },
-  {
-    name: "weekly_client_reviews",
-    label: "weekly_client_reviews (Marketing - English US)",
-    type: "meta",
-    description: "Weekly client review request template"
-  },
-  {
-    name: "new_lead_dreamsdesign",
-    label: "new_lead_dreamsdesign (Utility - English)",
-    type: "meta",
-    description: "New lead details notification template"
-  },
-  {
-    name: "hello_world",
-    label: "hello_world (Utility Sandbox - English US)",
-    type: "meta",
-    description: "Standard Meta WhatsApp test template"
+    description: "Appointment booking confirmation template"
   }
 ];
 
@@ -39,7 +21,7 @@ const QUICK_TEXT_TEMPLATES = [
 
 export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) {
   const [sendType, setSendType] = useState("template"); // "template" by default for Meta compliance
-  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState("hello_world");
+  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState("aura_lead_appointment_booking");
   const [message, setMessage] = useState("");
   const [phoneOverride, setPhoneOverride] = useState("");
   const [sending, setSending] = useState(false);
@@ -153,8 +135,8 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
         const errMsg = data.error || data.details?.error?.message || "Failed to send WhatsApp message";
         if (errMsg.includes("131047") || errMsg.includes("24") || errMsg.includes("window") || errMsg.includes("re-engagement")) {
           setSendType("template");
-          setSelectedMetaTemplate("hello_world");
-          throw new Error("Meta 24-hour Policy Rule: Customer window expired. Auto-switched to official Meta template (hello_world). Click Send again to dispatch!");
+          setSelectedMetaTemplate("aura_lead_appointment_booking");
+          throw new Error("Meta 24-hour Policy Rule: Customer window expired. Auto-switched to official Meta template (aura_lead_appointment_booking). Click Send again to dispatch!");
         }
         throw new Error(errMsg);
       }
