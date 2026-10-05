@@ -154,9 +154,14 @@ function AdminView() {
       {/* List panel */}
       <div className="md:col-span-2 rounded-xl border border-gray-200 bg-white flex flex-col overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
-          <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-            Appointments ({appointments.length})
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+              Cal.com Bookings ({appointments.length})
+            </span>
+            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
+              Synced
+            </span>
+          </div>
           <div className="flex items-center gap-1.5">
             {syncError && <span className="text-[10px] text-red-500 max-w-[140px] truncate">{syncError}</span>}
             <button onClick={syncCalCom} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-pink-700 text-pink-800 hover:bg-pink-50 disabled:opacity-60" title="Sync bookings from Cal.com">
@@ -170,8 +175,8 @@ function AdminView() {
             {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse"/>)}
           </div>) : appointments.length === 0 ? (<div className="flex flex-col items-center justify-center flex-1 p-10 text-center">
             <CalendarDays className="w-8 h-8 text-gray-200 mb-3"/>
-            <div className="text-sm text-gray-400">No appointments yet</div>
-            <div className="text-xs text-gray-300 mt-1">Bookings will appear here</div>
+            <div className="text-sm text-gray-400">No Cal.com bookings yet</div>
+            <div className="text-xs text-gray-300 mt-1">Only live Cal.com bookings are shown here</div>
           </div>) : (<div className="flex-1 overflow-y-auto divide-y divide-gray-50">
             {[{ label: "Upcoming", items: upcoming }, { label: "Past / Other", items: past }].map(({ label, items }) => items.length > 0 ? (<div key={label}>
                   <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">{label}</div>

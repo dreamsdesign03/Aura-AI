@@ -543,9 +543,17 @@ async function syncCalComBookings(userId) {
   let added = 0;
   let updated = 0;
 
+  const presentUris = new Set(bookings.map(b => `cal_${b.id || b.uid}`));
+
   for (const b of bookings) {
     const bookingUri = `cal_${b.id || b.uid}`;
     if (hiddenUris.has(bookingUri)) continue;
+
+    const rawStatus = (b.status || '').toLowerCase();
+    if (rawStatus === 'cancelled' || rawStatus === 'canceled' || rawStatus === 'rejected') {
+      await db.query('UPDATE calendly_events SET status = $1, is_deleted = TRUE WHERE calendly_uri = $2', ['cancelled', bookingUri]);
+      continue;
+    }
 
     const attendee = (b.attendees && b.attendees[0]) || {};
     const bfr = b.bookingFieldsResponses || {};
@@ -559,7 +567,6 @@ async function syncCalComBookings(userId) {
     }
 
     const notes = b.description || bfr.notes || '';
-    const rawStatus = (b.status || '').toLowerCase();
 
     const startIso = b.start ? new Date(b.start).toISOString() : null;
     const endIso = b.end ? new Date(b.end).toISOString() : null;
@@ -631,6 +638,14 @@ async function syncCalComBookings(userId) {
     else updated++;
   }
 
+  // Fully remove Cal.com bookings that no longer exist on Cal.com
+  await db.query(
+    `UPDATE calendly_events SET is_deleted = TRUE
+     WHERE user_id = $1 AND calendly_uri LIKE 'cal_%' AND COALESCE(is_deleted, false) = false
+       AND calendly_uri <> ALL($2::text[])`,
+    [userId, presentUris.size > 0 ? [...presentUris] : ['cal_never_exists']]
+  );
+
   return { added, updated, total: bookings.length };
 }
 
@@ -662,7 +677,7 @@ app.post('/api/cal/webhook', async (req, res) => {
       const bookingUri = `cal_${booking.id || booking.uid}`;
 
       if (triggerEvent === 'BOOKING_CANCELLED') {
-        await db.query('UPDATE calendly_events SET status = $1 WHERE calendly_uri = $2', ['cancelled', bookingUri]);
+        await db.query('UPDATE calendly_events SET status = $1, is_deleted = TRUE WHERE calendly_uri = $2', ['cancelled', bookingUri]);
         console.log(`[cal.com] Webhook cancelled booking: ${bookingUri}`);
       } else {
         await syncCalComBookings(userId);
@@ -763,10 +778,35 @@ app.post('/api/appointments/delete', async (req, res) => {
     if (!id) return res.status(400).json({ error: 'id is required' });
     const row = await db.query('SELECT calendly_uri FROM calendly_events WHERE id = $1', [id]);
     if (row.rows.length > 0 && row.rows[0].calendly_uri) {
+      const bookingUri = row.rows[0].calendly_uri;
       await db.query(
         'INSERT INTO hidden_calendly_uris (user_id, calendly_uri) VALUES ($1, $2) ON CONFLICT (user_id, calendly_uri) DO NOTHING',
-        [userId, row.rows[0].calendly_uri]
+        [userId, bookingUri]
       );
+      // Also cancel it on Cal.com so both sides stay in sync
+      const uid = bookingUri.startsWith('cal_') ? bookingUri.slice(4) : '';
+      if (uid) {
+        try {
+          const apiKey = process.env.CAL_API_KEY || process.env.CALCOM_API_KEY || 'cal_live_92ae6d6107040c70be9b0930559ffa17';
+          const cRes = await fetch(`https://api.cal.com/v2/bookings/${encodeURIComponent(uid)}/cancel`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'cal-api-version': '2024-08-13',
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ reason: 'Cancelled by clinic' })
+          });
+          if (!cRes.ok) {
+            const cTxt = await cRes.text();
+            console.warn(`[cal.com] Cancel via API failed (${cRes.status}): ${cTxt.slice(0, 200)}`);
+          } else {
+            console.log(`[cal.com] Cancelled booking on Cal.com: ${uid}`);
+          }
+        } catch (cancelErr) {
+          console.warn('[cal.com] Cancel error:', cancelErr.message);
+        }
+      }
     }
     await db.query('UPDATE calendly_events SET is_deleted = TRUE WHERE id = $1', [id]);
     res.json({ success: true });
