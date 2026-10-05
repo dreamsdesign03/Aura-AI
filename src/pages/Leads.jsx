@@ -1501,12 +1501,6 @@ export default function Leads() {
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button onClick={() => navigate(`/leads/${lead.id}`)} title="Open"><ExternalLink className="w-3.5 h-3.5 text-gray-300 hover:text-gray-700"/></button>
-                        <button title={lead.whatsapp || lead.phone ? "Send WhatsApp message" : "No phone"} onClick={(e) => {
-                          e.stopPropagation();
-                          setWaModalLead(lead);
-                        }}>
-                          <MessageCircle className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
-                        </button>
                         <button title={lead.whatsapp || lead.phone ? "Send WhatsApp template" : "No phone"} onClick={(e) => {
                           e.stopPropagation();
                           setTplLeads([lead]);
