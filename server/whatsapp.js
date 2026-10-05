@@ -336,6 +336,8 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       let metaPayload = {};
 
       if (isTemplate) {
+        const isAuraTemplate = templateName === 'auraai_lead_send_template';
+        const codeLang = isAuraTemplate ? 'en' : (templateLang || 'en');
         metaPayload = {
           messaging_product: 'whatsapp',
           recipient_type: 'individual',
@@ -343,19 +345,33 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           type: 'template',
           template: {
             name: templateName,
-            language: { code: templateLang || 'en_US' },
+            language: { code: codeLang },
           },
         };
         if (Array.isArray(templateParams) && templateParams.length > 0 && templateName !== 'hello_world') {
-          metaPayload.template.components = [
-            {
-              type: 'body',
-              parameters: templateParams.map(param => ({
-                type: 'text',
-                text: String(param),
-              })),
-            },
-          ];
+          if (isAuraTemplate) {
+            const firstNameVal = String(templateParams[0] || '').trim().split(/\s+/)[0] || 'there';
+            const companyVal = String(templateParams[1] || '').trim() || 'your store';
+            metaPayload.template.components = [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', parameter_name: 'first_name', text: firstNameVal },
+                  { type: 'text', parameter_name: 'company', text: companyVal },
+                ],
+              },
+            ];
+          } else {
+            metaPayload.template.components = [
+              {
+                type: 'body',
+                parameters: templateParams.map(param => ({
+                  type: 'text',
+                  text: String(param),
+                })),
+              },
+            ];
+          }
         }
       } else {
         metaPayload = {

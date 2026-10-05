@@ -6474,36 +6474,46 @@ app.post('/api/whatsapp/send', async (req, res) => {
       };
 
       if (templateName) {
+        const isAuraTemplate = templateName === 'auraai_lead_send_template';
         let resolvedLang = languageCode;
         if (!resolvedLang) {
-          if (templateName === 'lead_welcome_confirmation' || templateName === 'new_lead_dreamsdesign') {
+          if (templateName === 'lead_welcome_confirmation' || templateName === 'new_lead_dreamsdesign' || isAuraTemplate) {
             resolvedLang = 'en';
           } else if (templateName.includes('invoice') || templateName.includes('prescription')) {
             resolvedLang = 'en_IND';
           } else {
-            resolvedLang = 'en_US';
+            resolvedLang = 'en';
           }
         }
 
         finalParams = templateParams || [];
-        if (templateName === 'hello_world') {
-          finalParams = [];
-        } else if (templateName === 'lead_welcome_confirmation' && finalParams.length === 0) {
-          finalParams = [leadName || 'Contact', companyName || 'Dreamsdesign'];
-        } else if (templateName === 'new_lead_dreamsdesign' && finalParams.length === 0) {
-          finalParams = Array(14).fill(leadName || 'Contact');
+        let bodyComponents = [];
+        if (isAuraTemplate) {
+          const fn = String(finalParams[0] || leadName || '').trim().split(/\s+/)[0] || 'there';
+          const cmp = String(finalParams[1] || companyName || '').trim() || 'your store';
+          bodyComponents = [
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', parameter_name: 'first_name', text: fn },
+                { type: 'text', parameter_name: 'company', text: cmp },
+              ],
+            },
+          ];
+        } else if (finalParams.length > 0 && templateName !== 'hello_world') {
+          bodyComponents = [
+            {
+              type: 'body',
+              parameters: finalParams.map(param => ({ type: 'text', text: String(param) })),
+            },
+          ];
         }
 
         payload.type = 'template';
         payload.template = {
           name: templateName,
           language: { code: resolvedLang },
-          components: finalParams.length > 0 ? [
-            {
-              type: 'body',
-              parameters: finalParams.map(param => ({ type: 'text', text: String(param) }))
-            }
-          ] : []
+          components: bodyComponents,
         };
       } else {
         payload.type = 'text';
