@@ -1476,7 +1476,6 @@ export default function Leads() {
                           }}>
                             <Send className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
                           </button>
-                          {waNum && <a href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-green-100 text-[11px]" title="WhatsApp" onClick={e => e.stopPropagation()}>💬</a>}
                         </div>) : (
                         <div className="flex items-center gap-1" title="No phone number available">
                           <span className="text-gray-300 text-[11px]">—</span>
