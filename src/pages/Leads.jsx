@@ -10,10 +10,11 @@ import { useBatchPoller } from "@/hooks/useBatchPoller";
 import { StatusBadge } from "@/components/Badge";
 import { formatDate, scoreToBandKey, bandHexFromKey, bantBandDarkColor, bantBandDarkGradient, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, } from "lucide-react";
+import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, } from "lucide-react";
 import FetchLeads from "./FetchLeads";
 import { AiBanner } from "@/components/AiLoader";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
+import SendTemplateModal from "@/components/SendTemplateModal";
 const BANT_KEYS = ["budget", "authority", "need", "timeline"];
 const CSV_COLUMNS = ["firstName", "lastName", "email", "company", "designation", "industry", "country", "phone", "whatsapp", "website", "city", "companySize", "linkedInUrl", "notes"];
 const CSV_COLUMN_LABELS = {
@@ -101,6 +102,7 @@ export default function Leads() {
     const fileRef = useRef(null);
     const [drawerLeadId, setDrawerLeadId] = useState(null);
     const [waModalLead, setWaModalLead] = useState(null);
+    const [tplLeads, setTplLeads] = useState(null);
     const [whcStatus, setWhcStatus] = useState(null);
     const [whcStarting, setWhcStarting] = useState(false);
     const [deadPoolLeads, setDeadPoolLeads] = useState([]);
@@ -1221,6 +1223,9 @@ export default function Leads() {
             {waInitiating ? "Sending…" : "WA Hook"}
           </button>
           {waMsg && <span className="text-[11px] text-green-700 font-medium">{waMsg}</span>}
+          <button onClick={() => setTplLeads(filteredLeads.filter((l) => selected.includes(l.id)))} className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 underline">
+            <Send className="w-3 h-3"/> Send Template
+          </button>
           <button onClick={() => setShowListModal(true)} className="flex items-center gap-1 text-[11px] text-indigo-700 hover:text-indigo-800 underline">
             <ListPlus className="w-3 h-3"/> Save to List
           </button>
@@ -1502,6 +1507,12 @@ export default function Leads() {
                         }}>
                           <MessageCircle className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
                         </button>
+                        <button title={lead.whatsapp || lead.phone ? "Send WhatsApp template" : "No phone"} onClick={(e) => {
+                          e.stopPropagation();
+                          setTplLeads([lead]);
+                        }}>
+                          <Send className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
+                        </button>
                         <button onClick={() => { if (confirm("Delete this lead?"))
                 deleteLead.mutate({ id: lead.id }); }}>
                           <Trash2 className="w-3.5 h-3.5 text-gray-300 hover:text-red-500"/>
@@ -1769,6 +1780,8 @@ export default function Leads() {
         </div>)}
 
       {showListModal && (<SaveToListModal BASE="" selectedIds={selected} onClose={() => setShowListModal(false)} toast={toast}/>)}
+
+      <SendTemplateModal leads={tplLeads} isOpen={!!tplLeads} onClose={() => setTplLeads(null)} />
 
       {/* ── Export Modal ─────────────────────────────────────────── */}
       {showExportModal && (<ExportModal rowCount={selected.length > 0 ? selected.length : filteredLeads.length} defaultName={selected.length > 0 ? `${selected.length} leads selected` : "All leads"} onExport={(format, filename) => { exportLeads(format, filename); setShowExportModal(false); }} onClose={() => setShowExportModal(false)}/>)}

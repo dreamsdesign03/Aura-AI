@@ -269,6 +269,8 @@ async function seedAdminUser() {
       ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS error_code TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS error_message TEXT;
 
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS lead_id INT;
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS phone TEXT;

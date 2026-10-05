@@ -1,4 +1,5 @@
 const db = require('./db');
+const { WHATSAPP_TEMPLATES } = require('./whatsapp-templates');
 
 // Helper to sanitize phone numbers into E.164 format (numeric only)
 function cleanPhoneNumber(phone) {
@@ -17,6 +18,24 @@ function cleanPhoneNumber(phone) {
   }
   
   return cleaned;
+}
+
+// Template variable cleanup: Meta rejects newlines, tabs and 4+ consecutive spaces.
+function sanitizeTplValue(v) {
+  return String(v == null ? '' : v)
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/ {4,}/g, ' ')
+    .trim();
+}
+
+// Map a Meta error object to a status + user-facing message.
+function classifyTemplateError(err) {
+  const code = Number(err?.code);
+  if (code === 131026) return { status: 'not_whatsapp', message: 'This is not a WhatsApp active number' };
+  if (code === 132001) return { status: 'failed', message: 'Template not approved yet' };
+  if (code === 131030) return { status: 'failed', message: 'Number not in allowed recipient list' };
+  if (code === 131049) return { status: 'failed', message: 'Meta blocked this marketing message for this number, try later' };
+  return { status: 'failed', message: err?.error_data?.details || err?.error_user_msg || err?.message || 'Meta WhatsApp delivery failed.' };
 }
 
 
@@ -482,6 +501,137 @@ function registerWhatsAppRoutes(app, resolveUserId) {
     }
   });
 
+  // ── 5b. GET /api/whatsapp/templates ─────────────────────────────────────────
+  app.get('/api/whatsapp/templates', (req, res) => {
+    res.json({ templates: WHATSAPP_TEMPLATES });
+  });
+
+  // ── 5c. POST /api/whatsapp/send-template ────────────────────────────────────
+  // Manual template send with NAMED variables. No opt-in gating. Never auto-retries.
+  app.post('/api/whatsapp/send-template', async (req, res) => {
+    try {
+      const userId = await resolveUserId(req.body.email, req.headers.cookie);
+      const { leadId, phone, name, company, templateId } = req.body;
+
+      const tpl = WHATSAPP_TEMPLATES.find(t => t.id === templateId);
+      if (!tpl) return res.status(400).json({ success: false, status: 'failed', error: 'Unknown template.' });
+
+      const targetPhone = cleanPhoneNumber(phone);
+      if (!/^\d{11,15}$/.test(targetPhone)) {
+        return res.status(400).json({ success: false, status: 'skipped', error: 'No valid phone number.' });
+      }
+
+      const values = {
+        first_name: sanitizeTplValue(String(name || '').trim().split(/\s+/)[0]) || 'there',
+        company: sanitizeTplValue(company) || 'your store',
+      };
+      const renderedText = tpl.body.replace(/{{(\w+)}}/g, (_, k) => values[k] ?? '');
+
+      const metaPayload = {
+        messaging_product: 'whatsapp',
+        to: targetPhone,
+        type: 'template',
+        template: {
+          name: tpl.name,
+          language: { code: tpl.language },
+          components: [
+            {
+              type: 'body',
+              parameters: tpl.variables.map(v => ({ type: 'text', parameter_name: v, text: values[v] })),
+            },
+          ],
+        },
+      };
+
+      const { phoneNumberId, accessToken } = await getWhatsAppCredentials(userId);
+      console.log('[whatsapp] TEMPLATE SEND ->', targetPhone, JSON.stringify(metaPayload));
+
+      let status = 'sent';
+      let wamid = null;
+      let errCode = null;
+      let errMsg = null;
+
+      try {
+        const metaRes = await fetch(`https://graph.facebook.com/v25.0/${phoneNumberId}/messages`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(metaPayload),
+        });
+        const metaData = await metaRes.json().catch(() => ({}));
+        console.log('[whatsapp] TEMPLATE SEND RESPONSE', metaRes.status, JSON.stringify(metaData));
+
+        if (!metaRes.ok || metaData?.error) {
+          const c = classifyTemplateError(metaData?.error);
+          status = c.status;
+          errCode = metaData?.error?.code != null ? String(metaData.error.code) : null;
+          errMsg = c.message;
+        } else {
+          wamid = metaData?.messages?.[0]?.id || null;
+        }
+      } catch (netErr) {
+        status = 'failed';
+        errMsg = `Network error: ${netErr.message}`;
+      }
+
+      // Log in the same tables the existing send uses (failures must never turn a sent message into an error)
+      try {
+        let convId = null;
+        let conv = null;
+        if (leadId) conv = await db.query('SELECT id FROM whatsapp_conversations WHERE lead_id = $1', [leadId]);
+        if (!conv || conv.rows.length === 0) conv = await db.query('SELECT id FROM whatsapp_conversations WHERE phone = $1 OR phone = $2', [targetPhone, String(phone)]);
+        if (conv.rows.length > 0) {
+          convId = conv.rows[0].id;
+          if (status === 'sent') {
+            await db.query('UPDATE whatsapp_conversations SET last_message = $1, last_message_at = NOW(), updated_at = NOW() WHERE id = $2', [renderedText, convId]);
+          }
+        } else if (status === 'sent') {
+          const nc = await db.query(`
+            INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at)
+            VALUES ($1, $2, $2, 'Active', 'all', $3, NOW(), NOW()) RETURNING id
+          `, [leadId || null, targetPhone, renderedText]);
+          convId = nc.rows[0].id;
+        }
+
+        await db.query(`
+          INSERT INTO whatsapp_messages (
+            conversation_id, lead_id, phone, direction, content, body, template_name, meta_message_id, wa_message_id, status, error_code, error_message, sent_at, timestamp, created_at
+          ) VALUES ($1, $2, $3, 'outbound', $4, $4, $5, $6, $6, $7, $8, $9, NOW(), NOW(), NOW())
+        `, [convId, leadId || null, targetPhone, renderedText, tpl.name, wamid, status, errCode, errMsg]);
+
+        if (leadId && status === 'sent') {
+          await db.query(`
+            INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+            VALUES ($1, 'WhatsApp', $2, $3, 'Sent', NOW())
+          `, [leadId, `Template: ${tpl.name}`, renderedText]);
+        }
+      } catch (logErr) {
+        console.warn('[whatsapp] template log error:', logErr.message);
+      }
+
+      res.json({ success: status === 'sent', status, wamid, errorCode: errCode, error: errMsg, renderedText });
+    } catch (err) {
+      console.error('[whatsapp] POST /api/whatsapp/send-template error:', err.message);
+      res.status(500).json({ success: false, status: 'failed', error: err.message });
+    }
+  });
+
+  // ── 5d. POST /api/whatsapp/template-status ──────────────────────────────────
+  // Lets the UI pick up async webhook results (e.g. 131026) for wamids it just sent.
+  app.post('/api/whatsapp/template-status', async (req, res) => {
+    try {
+      const ids = (Array.isArray(req.body.wamids) ? req.body.wamids : []).filter(Boolean);
+      if (ids.length === 0) return res.json({ statuses: [] });
+      const r = await db.query(
+        `SELECT meta_message_id AS wamid, status, error_code AS "errorCode", error_message AS "errorMessage"
+         FROM whatsapp_messages WHERE meta_message_id = ANY($1::text[])`,
+        [ids]
+      );
+      res.json({ statuses: r.rows });
+    } catch (err) {
+      res.status(500).json({ error: err.message, statuses: [] });
+    }
+  });
+
   // ── 6. GET /api/whatsapp/webhook (Meta Webhook Verification) ─────────────
   app.get('/api/whatsapp/webhook', async (req, res) => {
     try {
@@ -555,7 +705,17 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         for (const statusObj of value.statuses) {
           try {
             console.log("[WHATSAPP STATUS UPDATE]:", statusObj.id, "->", statusObj.status);
-            await db.query('UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2 OR wa_message_id = $2', [statusObj.status, statusObj.id]);
+            const statusErr = statusObj.status === 'failed' && Array.isArray(statusObj.errors) ? statusObj.errors[0] : null;
+            if (statusErr) {
+              // 131026 = recipient not on WhatsApp
+              const failStatus = Number(statusErr.code) === 131026 ? 'not_whatsapp' : 'failed';
+              await db.query(
+                'UPDATE whatsapp_messages SET status = $1, error_code = $2, error_message = $3 WHERE meta_message_id = $4 OR wa_message_id = $4',
+                [failStatus, String(statusErr.code), statusErr.error_data?.details || statusErr.message || statusErr.title || null, statusObj.id]
+              );
+            } else {
+              await db.query('UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2 OR wa_message_id = $2', [statusObj.status, statusObj.id]);
+            }
           } catch {}
         }
       }
