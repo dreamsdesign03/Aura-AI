@@ -86,7 +86,9 @@ export default function SendTemplateModal({ leads, isOpen, onClose }) {
 
   const tpl = templates.find((t) => t.id === templateId);
   const previewVars = leadVars(leads[0]);
-  const preview = tpl ? tpl.body.replace(/{{(\w+)}}/g, (_, k) => previewVars[k] ?? "") : "";
+  const previewHeader = tpl?.header ? tpl.header.replace(/{{(\w+)}}/g, (_, k) => previewVars[k] ?? "") : "";
+  const previewBody = tpl?.body ? tpl.body.replace(/{{(\w+)}}/g, (_, k) => previewVars[k] ?? "") : "";
+  const preview = tpl ? (previewHeader ? `${previewHeader}\n\n${previewBody}` : previewBody) : "";
 
   async function handleSend() {
     if (!tpl) return;

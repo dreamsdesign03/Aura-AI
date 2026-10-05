@@ -354,12 +354,17 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             const companyVal = String(templateParams[1] || '').trim() || 'your store';
             metaPayload.template.components = [
               {
+                type: 'header',
+                parameters: [
+                  { type: 'text', parameter_name: 'first_name', text: firstNameVal }
+                ]
+              },
+              {
                 type: 'body',
                 parameters: [
-                  { type: 'text', parameter_name: 'first_name', text: firstNameVal },
-                  { type: 'text', parameter_name: 'company', text: companyVal },
-                ],
-              },
+                  { type: 'text', parameter_name: 'company', text: companyVal }
+                ]
+              }
             ];
           } else {
             metaPayload.template.components = [
@@ -541,7 +546,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         first_name: sanitizeTplValue(String(name || '').trim().split(/\s+/)[0]) || 'there',
         company: sanitizeTplValue(company) || 'your store',
       };
-      const renderedText = tpl.body.replace(/{{(\w+)}}/g, (_, k) => values[k] ?? '');
+      const renderedText = `Hi ${values.first_name},\n\n` + tpl.body.replace(/{{(\w+)}}/g, (_, k) => values[k] ?? '');
 
       const metaPayload = {
         messaging_product: 'whatsapp',
@@ -552,9 +557,17 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           language: { code: tpl.language },
           components: [
             {
-              type: 'body',
-              parameters: tpl.variables.map(v => ({ type: 'text', parameter_name: v, text: values[v] })),
+              type: 'header',
+              parameters: [
+                { type: 'text', parameter_name: 'first_name', text: values.first_name }
+              ]
             },
+            {
+              type: 'body',
+              parameters: [
+                { type: 'text', parameter_name: 'company', text: values.company }
+              ]
+            }
           ],
         },
       };

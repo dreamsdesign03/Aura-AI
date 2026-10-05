@@ -4,10 +4,11 @@ const WHATSAPP_TEMPLATES = [
     name: 'auraai_lead_send_template',
     label: 'auraai_lead_send_template · English (en)',
     language: 'en',
+    headerVariables: ['first_name'],
+    bodyVariables: ['company'],
     variables: ['first_name', 'company'],
-    body: `Hi {{first_name}},
-
-This is Dr. Aditya Shah, founder of Skinnonest and Aura Laser & Cosmetic Clinic.
+    header: 'Hi {{first_name}},',
+    body: `This is Dr. Aditya Shah, founder of Skinnonest and Aura Laser & Cosmetic Clinic.
 
 We're onboarding dealers and retail partners for our skincare range, and we have festive gift hampers (₹599 to ₹1999) ready for the season. Brochure attached
 

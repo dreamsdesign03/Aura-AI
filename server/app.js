@@ -6493,12 +6493,17 @@ app.post('/api/whatsapp/send', async (req, res) => {
           const cmp = String(finalParams[1] || companyName || '').trim() || 'your store';
           bodyComponents = [
             {
+              type: 'header',
+              parameters: [
+                { type: 'text', parameter_name: 'first_name', text: fn }
+              ]
+            },
+            {
               type: 'body',
               parameters: [
-                { type: 'text', parameter_name: 'first_name', text: fn },
-                { type: 'text', parameter_name: 'company', text: cmp },
-              ],
-            },
+                { type: 'text', parameter_name: 'company', text: cmp }
+              ]
+            }
           ];
         } else if (finalParams.length > 0 && templateName !== 'hello_world') {
           bodyComponents = [
