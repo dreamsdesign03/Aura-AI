@@ -6,12 +6,89 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getListLeadsQueryKey, getGetQualifyQueueQueryKey } from "@workspace/api-client-react";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, Check, Filter } from "lucide-react";
+import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, Check, Filter, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 import ComposeModal from "@/components/ComposeModal";
 import NewMeetingModal from "@/components/NewMeetingModal";
 import AddLeadModal from "@/components/AddLeadModal";
+
+function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
+  if (!lead) return null;
+  const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || lead.name || "Lead";
+  const phone = lead.phone || lead.whatsapp || "No phone";
+  const company = lead.company || "—";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150 text-gray-800" onClick={e => e.stopPropagation()}>
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-pink-100 flex items-center justify-between" style={{ background: "#FDF2F8" }}>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold shadow-sm" style={{ background: "#CB3273" }}>
+              <Phone className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-gray-900">Confirm AI Proposal Call</h3>
+              <p className="text-xs text-pink-700 font-medium">{leadName} · {company}</p>
+            </div>
+          </div>
+          <button onClick={onCancel} disabled={isCalling} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 space-y-4 text-xs">
+          <p className="text-gray-700 leading-relaxed">
+            Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong>?
+          </p>
+
+          <div className="bg-pink-50/50 border border-pink-100/80 rounded-xl p-3.5 space-y-2 text-xs">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-medium">Company:</span>
+              <span className="text-gray-900 font-semibold">{company}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-medium">Call Type:</span>
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-200">
+                proposal_call
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-500 font-medium">AI Agent:</span>
+              <span className="text-gray-800 font-medium flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-pink-500" /> ElevenLabs Voice
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Actions */}
+        <div className="px-6 py-4 bg-gray-50/50 border-t border-gray-100 flex items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isCalling}
+            className="px-4 py-2 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isCalling}
+            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-sm disabled:opacity-50"
+            style={{ background: "#CB3273" }}
+          >
+            {isCalling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Phone className="w-4 h-4" />}
+            {isCalling ? "Initiating Call..." : "Start AI Call"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ── Stage definitions ─────────────────────────────────────────────────────────
 const STAGES = [
@@ -61,7 +138,7 @@ async function patchLeadStatus(id, status) {
     return res.json();
 }
 // ── DealCard ─────────────────────────────────────────────────────────────────
-function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity }) {
+function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity, onPhoneCall }) {
     const [, navigate] = useLocation();
     const l = lead;
     const name = `${lead.firstName || lead.first_name || ""} ${lead.lastName || lead.last_name || ""}`.trim() || "Lead";
@@ -122,9 +199,9 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
       <div className="px-2 py-1.5 border-t border-gray-100 flex items-center gap-1" onClick={e => e.stopPropagation()}>
         {/* Phone Call */}
         {phoneNum ? (
-          <a href={`tel:${phoneNum}`} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title={`Call ${name} (${phoneNum})`} onClick={e => e.stopPropagation()}>
+          <button onClick={e => { e.stopPropagation(); onPhoneCall ? onPhoneCall(lead) : (window.location.href = `tel:${phoneNum}`); }} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title={`AI Proposal Call to ${name} (${phoneNum})`}>
             <Phone className="w-3.5 h-3.5"/>
-          </a>
+          </button>
         ) : (
           <button className="p-1.5 rounded bg-gray-50 text-gray-400 hover:bg-gray-100 transition-colors" title="No phone available" onClick={e => { e.stopPropagation(); toast.error(`No phone number for ${name}`); }}>
             <Phone className="w-3.5 h-3.5"/>
@@ -160,17 +237,17 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
     </div>);
 }
 // ── SortableCard ─────────────────────────────────────────────────────────────
-function SortableCard({ lead, onSendWhatsApp, onSendEmail, onAddActivity }) {
+function SortableCard({ lead, onSendWhatsApp, onSendEmail, onAddActivity, onPhoneCall }) {
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
         id: lead.id,
         data: { lead },
     });
     return (<div ref={setNodeRef} style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.35 : 1 }} {...attributes} {...listeners}>
-      <DealCard lead={lead} isDragging={isDragging} onSendWhatsApp={onSendWhatsApp} onSendEmail={onSendEmail} onAddActivity={onAddActivity}/>
+      <DealCard lead={lead} isDragging={isDragging} onSendWhatsApp={onSendWhatsApp} onSendEmail={onSendEmail} onAddActivity={onAddActivity} onPhoneCall={onPhoneCall}/>
     </div>);
 }
 // ── Column ────────────────────────────────────────────────────────────────────
-function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onSendEmail, onAddActivity, onAddDeal }) {
+function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onSendEmail, onAddActivity, onAddDeal, onPhoneCall }) {
     const { setNodeRef: setDropRef, isOver } = useDroppable({ id: stage.id });
     const totalAmount = leads.reduce((s, l) => s + Number(l.dealValue ?? 0), 0);
     const weighted = Math.round(totalAmount * stage.weight / 100);
@@ -200,7 +277,7 @@ function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onS
       {/* ── Scrollable cards area (fills remaining height) ───────────── */}
       <div ref={setDropRef} className={cn("flex-1 min-h-0 overflow-y-auto p-2 flex flex-col gap-2 transition-colors", isOver && "bg-blue-50/60")}>
         <SortableContext id={stage.id} items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
-          {leads.map(lead => <SortableCard key={lead.id} lead={lead} onSendWhatsApp={onSendWhatsApp} onSendEmail={onSendEmail} onAddActivity={onAddActivity}/>)}
+          {leads.map(lead => <SortableCard key={lead.id} lead={lead} onSendWhatsApp={onSendWhatsApp} onSendEmail={onSendEmail} onAddActivity={onAddActivity} onPhoneCall={onPhoneCall}/>)}
         </SortableContext>
 
         {leads.length === 0 && (<div className={cn("flex-1 flex items-center justify-center rounded border border-dashed text-[11px] py-8 transition-colors", isOver ? "border-blue-300 text-blue-400 bg-blue-50" : "border-gray-200 text-gray-300")}>
@@ -227,8 +304,45 @@ export default function Pipeline() {
     const [whatsappModalLead, setWhatsappModalLead] = useState(null);
     const [emailModalLead, setEmailModalLead] = useState(null);
     const [activityModalLead, setActivityModalLead] = useState(null);
+    const [confirmCallLead, setConfirmCallLead] = useState(null);
+    const [isCallInFlight, setIsCallInFlight] = useState(false);
     const [isAddLeadModalOpen, setIsAddLeadModalOpen] = useState(false);
     const [addLeadStage, setAddLeadStage] = useState("new_enquiry");
+
+    const handleStartAiCall = async () => {
+        if (!confirmCallLead) return;
+        setIsCallInFlight(true);
+        try {
+            const leadName = [confirmCallLead.firstName, confirmCallLead.lastName].filter(Boolean).join(" ") || confirmCallLead.name || "Lead";
+            const leadPhone = confirmCallLead.phone || confirmCallLead.whatsapp || "";
+            const leadCompany = confirmCallLead.company || "";
+            const leadEmail = confirmCallLead.email || "";
+
+            const res = await fetch("/api/ai-call", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    leadId: confirmCallLead.id,
+                    name: leadName,
+                    phone: leadPhone,
+                    company: leadCompany,
+                    email: leadEmail,
+                }),
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                toast.success(`Outbound AI proposal call placed to ${leadName} (${leadPhone}).`);
+                setConfirmCallLead(null);
+            } else {
+                toast.error(data.error || "Could not place AI call.");
+            }
+        } catch (err) {
+            toast.error("Failed to place AI call: " + err.message);
+        } finally {
+            setIsCallInFlight(false);
+        }
+    };
     const [search, setSearch] = useState("");
     const [ownerFilter, setOwnerFilter] = useState("all");
     const [dateFilter, setDateFilter] = useState("all");
@@ -571,7 +685,7 @@ export default function Pipeline() {
           <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
             {/* items-stretch makes every column fill the full board height */}
             <div className="flex gap-2.5 px-4 py-3 h-full items-stretch min-w-max">
-              {STAGES.map(stage => (<Column key={stage.id} stage={stage} leads={g.get(stage.id) ?? []} collapsed={collapsed.has(stage.id)} onToggleCollapse={() => toggleCollapse(stage.id)} onSendWhatsApp={(l) => setWhatsappModalLead(l)} onSendEmail={(l) => setEmailModalLead(l)} onAddActivity={(l) => setActivityModalLead(l)} onAddDeal={(stageId) => handleOpenAddLead(stageId)}/>))}
+              {STAGES.map(stage => (<Column key={stage.id} stage={stage} leads={g.get(stage.id) ?? []} collapsed={collapsed.has(stage.id)} onToggleCollapse={() => toggleCollapse(stage.id)} onSendWhatsApp={(l) => setWhatsappModalLead(l)} onSendEmail={(l) => setEmailModalLead(l)} onAddActivity={(l) => setActivityModalLead(l)} onPhoneCall={(l) => setConfirmCallLead(l)} onAddDeal={(stageId) => handleOpenAddLead(stageId)}/>))}
             </div>
 
             <DragOverlay dropAnimation={{ duration: 150, easing: "ease" }}>
@@ -584,6 +698,14 @@ export default function Pipeline() {
       {whatsappModalLead && (<SendWhatsAppModal lead={whatsappModalLead} isOpen={true} onClose={() => setWhatsappModalLead(null)}/>)}
       {emailModalLead && (<ComposeModal onClose={() => setEmailModalLead(null)} initialLead={emailModalLead} initialEmail={emailModalLead.email}/>)}
       {activityModalLead && (<NewMeetingModal leads={allLeads} onClose={() => setActivityModalLead(null)} defaultLeadId={activityModalLead.id}/>)}
+      {confirmCallLead && (
+        <AiCallConfirmModal
+          lead={confirmCallLead}
+          onConfirm={handleStartAiCall}
+          onCancel={() => setConfirmCallLead(null)}
+          isCalling={isCallInFlight}
+        />
+      )}
       
       {/* Add Lead / Deal Modal */}
       <AddLeadModal isOpen={isAddLeadModalOpen} initialStage={addLeadStage} onClose={() => setIsAddLeadModalOpen(false)}/>
