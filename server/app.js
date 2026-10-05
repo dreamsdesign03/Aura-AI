@@ -6422,16 +6422,13 @@ app.get(['/api/whatsapp/analytics', '/api/useGetWhatsAppAnalytics'], async (req,
 });
 
 // GET /api/whatsapp/templates — List available Meta WhatsApp templates
+const { WHATSAPP_TEMPLATES } = require('./whatsapp-templates');
 app.get('/api/whatsapp/templates', (req, res) => {
   res.json({
-    templates: [
-      { name: 'lead_welcome_confirmation', label: 'lead_welcome_confirmation (Marketing)', language: 'en', components: [{ type: 'body', params: ['lead_name', 'company'] }] },
-      { name: 'weekly_client_reviews', label: 'weekly_client_reviews (Marketing)', language: 'en_US', components: [] },
-      { name: 'new_lead_dreamsdesign', label: 'new_lead_dreamsdesign (Utility Lead Details)', language: 'en', components: [{ type: 'body', params: Array(14).fill('param') }] },
-      { name: 'hello_world', label: 'hello_world (Utility Sandbox)', language: 'en_US', components: [] }
-    ]
+    templates: WHATSAPP_TEMPLATES
   });
 });
+
 
 
 // POST /api/whatsapp/send — Send text or official Meta Template message

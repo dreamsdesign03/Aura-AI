@@ -4,14 +4,18 @@ import { useToast } from "@/hooks/use-toast";
 
 const META_TEMPLATES = [
   {
+    name: "auraai_lead_send_template",
+    label: "auraai_lead_send_template · English (en)",
+    type: "meta",
+    description: "Official Skinnonest & Aura Laser Dealer Onboarding Template"
+  },
+  {
     name: "aura_lead_appointment_booking",
     label: "aura_lead_appointment_booking · English (IND)",
     type: "meta",
     description: "Appointment booking confirmation template"
   }
 ];
-
-
 
 const QUICK_TEXT_TEMPLATES = [
   { label: "Intro Hook", text: "Hi {{name}} 👋 I noticed you're leading {{company}} and wanted to connect about boosting lead acquisition. Would you be open to a quick 5-min chat?" },
@@ -21,7 +25,7 @@ const QUICK_TEXT_TEMPLATES = [
 
 export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) {
   const [sendType, setSendType] = useState("template"); // "template" by default for Meta compliance
-  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState("aura_lead_appointment_booking");
+  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState("auraai_lead_send_template");
   const [message, setMessage] = useState("");
   const [phoneOverride, setPhoneOverride] = useState("");
   const [sending, setSending] = useState(false);
@@ -77,66 +81,51 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
     setSending(true);
 
     try {
-      const bodyPayload = {
-        leadId: lead.id,
-        phone: phone,
-      };
-
-      if (sendType === "template") {
-        bodyPayload.templateName = selectedMetaTemplate;
-        if (selectedMetaTemplate === "hello_world") {
-          bodyPayload.templateParams = [];
-        } else {
-          bodyPayload.templateParams = [firstName, company];
-        }
-      } else {
-        bodyPayload.message = message.trim();
-      }
-
-      console.log('\n===== WHATSAPP SEND ATTEMPT =====');
-      console.log('Full URL:', 'https://graph.facebook.com/v25.0/890723640798276/messages (via /api/whatsapp/send)');
-      console.log('Headers:', JSON.stringify({ "Content-Type": "application/json" }, null, 2));
-      console.log('Full Request Body:', JSON.stringify(bodyPayload, null, 2));
-
       let res;
-      try {
+      if (sendType === "template" && selectedMetaTemplate === "auraai_lead_send_template") {
+        res = await fetch("/api/whatsapp/send-template", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            leadId: lead.id,
+            phone: phone,
+            name: firstName,
+            company: company,
+            templateId: "auraai_lead_send_template"
+          })
+        });
+      } else {
+        const bodyPayload = {
+          leadId: lead.id,
+          phone: phone,
+        };
+        if (sendType === "template") {
+          bodyPayload.templateName = selectedMetaTemplate;
+          if (selectedMetaTemplate === "hello_world") {
+            bodyPayload.templateParams = [];
+          } else {
+            bodyPayload.templateParams = [firstName, company];
+          }
+        } else {
+          bodyPayload.message = message.trim();
+        }
         res = await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify(bodyPayload)
         });
-      } catch (netErr) {
-        console.error('===== WHATSAPP NETWORK EXCEPTION =====');
-        console.error('Request failed to send (Network-level exception):', netErr.message);
-        console.error('Error Stack:', netErr.stack);
-        console.error('======================================\n');
-        throw netErr;
       }
 
       const data = await res.json();
 
-      console.log('--- META API / BACKEND RAW RESPONSE ---');
-      console.log('HTTP Status Code:', res.status, res.statusText);
-      console.log('Full Response Body (JSON):');
-      console.log(JSON.stringify(data, null, 2));
-
-      const metaErr = data?.details?.error || data?.metaResult?.error;
-      if (metaErr && typeof metaErr === 'object') {
-        console.log('--- META ERROR OBJECT DETAILS ---');
-        console.log('error.code:', metaErr.code);
-        console.log('error.type:', metaErr.type);
-        console.log('error.message:', metaErr.message);
-        console.log('error.error_data:', metaErr.error_data !== undefined ? JSON.stringify(metaErr.error_data, null, 2) : undefined);
-      }
-      console.log('=================================\n');
-
-      if (!res.ok || !data.success) {
+      if (!res.ok || (data.success === false && data.status !== "sent")) {
         const errMsg = data.error || data.details?.error?.message || "Failed to send WhatsApp message";
         if (errMsg.includes("131047") || errMsg.includes("24") || errMsg.includes("window") || errMsg.includes("re-engagement")) {
           setSendType("template");
-          setSelectedMetaTemplate("aura_lead_appointment_booking");
-          throw new Error("Meta 24-hour Policy Rule: Customer window expired. Auto-switched to official Meta template (aura_lead_appointment_booking). Click Send again to dispatch!");
+          setSelectedMetaTemplate("auraai_lead_send_template");
+          throw new Error("Meta 24-hour Policy Rule: Customer window expired. Auto-switched to official Meta template (auraai_lead_send_template). Click Send again to dispatch!");
         }
         throw new Error(errMsg);
       }
