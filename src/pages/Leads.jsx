@@ -140,6 +140,7 @@ export default function Leads() {
                     name: leadName,
                     phone: leadPhone,
                     company: leadCompany,
+                    email: confirmCallLead.email || "",
                 }),
             });
 
