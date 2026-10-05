@@ -630,6 +630,8 @@ async function syncCalComBookings(userId) {
         date: startIso,
         time: startIso,
         meeting_link: meetingLink,
+        location: locationStr,
+        location_type: meetingLink ? 'meet' : (locationStr === 'inperson' ? 'inperson' : 'inperson'),
         service: 'Aura Skin Clinic',
       }).catch(() => {});
     }

@@ -43,6 +43,9 @@ function personalizeMessage(text, ctx) {
     '{{service}}': c.service || 'Aura Skin Clinic',
     '{{doctor}}': 'Dr. Aditya Shah',
     '{{clinic}}': 'Aura Skin Clinic',
+    '{{meeting_link}}': c.meeting_link || c.meetingLink || '',
+    '{{location}}': c.location || (c.location_type === 'inperson' ? '608 Sterling Center, Alkapuri, Vadodara' : (c.meeting_link || '')),
+    '{{link}}': c.meeting_link || c.meetingLink || '',
   };
   let out = String(text || '');
   for (const [key, value] of Object.entries(replacers)) {
@@ -444,11 +447,11 @@ const TEMPLATES = [
     description: 'Warm up booked discovery calls with confirmations and a pre-call checklist.',
     steps: templateSteps(4, [
       { type: 'trigger', label: 'Trigger: Discovery Call Booked', detail: 'Fires the moment a call is booked via Calendly', icon: 'Calendar', color: '#3B82F6' },
-      { type: 'action', label: 'Send Confirmation', detail: 'Hi {{name}}, thanks for booking your discovery call with Dr. Aditya Shah 🎉 You’re all set for {{date}} at {{time}}. I’ll send you a short pre-call checklist shortly!', icon: 'MessageCircle', color: '#25D366' },
+      { type: 'action', label: 'Send Confirmation', detail: 'Hi {{name}}, thanks for booking your discovery call with Dr. Aditya Shah 🎉 You’re all set for {{date}} at {{time}}. {{#if meeting_link}}Here’s your Google Meet link: {{meeting_link}}{{/if}}{{#unless meeting_link}}Location: 608 Sterling Center, Alkapuri, Vadodara{{/unless}}', icon: 'MessageCircle', color: '#25D366' },
       { type: 'delay', label: 'Wait 24 hours', detail: 'Wait 24 hours before the pre-call checklist', icon: 'Clock', color: '#6B7280' },
       { type: 'action', label: 'Send Pre-Call Checklist', detail: 'Hi {{name}}, here’s what to expect on our call: 1) Quick intro of your goals 2) We’ll review your current situation 3) You’ll leave with clear next steps. Nothing to prepare — just bring yourself!', icon: 'MessageCircle', color: '#25D366' },
       { type: 'delay', label: 'Wait 1 hour', detail: 'Send the final reminder 1 hour before', icon: 'Clock', color: '#6B7280' },
-      { type: 'action', label: 'Send Call Reminder', detail: '⏰ Reminder {{name}} — your call with Dr. Aditya Shah is today at {{time}}. Here’s your link: {{meeting_link}}. See you there!', icon: 'MessageCircle', color: '#25D366' },
+      { type: 'action', label: 'Send Call Reminder', detail: '⏰ Reminder {{name}} — your call with Dr. Aditya Shah is today at {{time}}. {{#if meeting_link}}Here’s your link: {{meeting_link}}{{/if}}{{#unless meeting_link}}We’ll see you at 608 Sterling Center, Alkapuri, Vadodara{{/unless}}. See you there!', icon: 'MessageCircle', color: '#25D366' },
     ]),
   },
   {
