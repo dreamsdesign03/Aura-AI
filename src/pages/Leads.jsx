@@ -1470,11 +1470,20 @@ export default function Leads() {
                       {phoneDisplay ? (<div className="flex items-center gap-1">
                           <span className="text-gray-500 truncate text-[11px]" style={{ maxWidth: "80px" }}>{phoneDisplay}</span>
                           <button type="button" onClick={e => { e.stopPropagation(); setConfirmCallLead(lead); }} className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-[11px] transition-colors" title={`AI Proposal Call to ${lead.firstName || lead.name || 'Lead'}`}>📞</button>
+                          <button title={lead.whatsapp || lead.phone ? "Send WhatsApp template" : "No phone"} onClick={(e) => {
+                            e.stopPropagation();
+                            setTplLeads([lead]);
+                          }}>
+                            <Send className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
+                          </button>
                           {waNum && <a href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-green-100 text-[11px]" title="WhatsApp" onClick={e => e.stopPropagation()}>💬</a>}
                         </div>) : (
                         <div className="flex items-center gap-1" title="No phone number available">
                           <span className="text-gray-300 text-[11px]">—</span>
                           <button type="button" disabled className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded opacity-40 cursor-not-allowed text-[11px]" title="No phone number available">📞</button>
+                          <button disabled title="No phone" className="opacity-40 cursor-not-allowed">
+                            <Send className="w-3.5 h-3.5 text-gray-300"/>
+                          </button>
                         </div>
                       )}
                     </td>
@@ -1501,12 +1510,6 @@ export default function Leads() {
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button onClick={() => navigate(`/leads/${lead.id}`)} title="Open"><ExternalLink className="w-3.5 h-3.5 text-gray-300 hover:text-gray-700"/></button>
-                        <button title={lead.whatsapp || lead.phone ? "Send WhatsApp template" : "No phone"} onClick={(e) => {
-                          e.stopPropagation();
-                          setTplLeads([lead]);
-                        }}>
-                          <Send className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
-                        </button>
                         <button onClick={() => { if (confirm("Delete this lead?"))
                 deleteLead.mutate({ id: lead.id }); }}>
                           <Trash2 className="w-3.5 h-3.5 text-gray-300 hover:text-red-500"/>
