@@ -6396,23 +6396,34 @@ app.post(['/api/whatsapp/read', '/api/whatsapp/conversations/:id/read', '/api/us
 app.get(['/api/whatsapp/analytics', '/api/useGetWhatsAppAnalytics'], async (req, res) => {
   try {
     const totalRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_conversations`);
-    const sentRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'outbound'`);
-    const recvRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_messages WHERE direction = 'inbound'`);
+    const outboundRes = await db.query(`SELECT COUNT(DISTINCT conversation_id)::int as count FROM whatsapp_messages WHERE direction = 'outbound'`);
+    const inboundRes = await db.query(`SELECT COUNT(DISTINCT conversation_id)::int as count FROM whatsapp_messages WHERE direction = 'inbound'`);
+    const reportRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_conversations WHERE state IN ('report_sent', 'qualifying', 'appointment_pitched', 'appointment_booked')`);
+    const bookedRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_conversations WHERE state = 'appointment_booked'`);
+    const optedRes = await db.query(`SELECT COUNT(*)::int as count FROM whatsapp_conversations WHERE state = 'opted_out' OR status = 'Opted Out'`);
+
+    const convCount = totalRes.rows[0]?.count || 0;
+    const outboundConvCount = outboundRes.rows[0]?.count || 0;
+    const totalInitiated = Math.max(convCount, outboundConvCount);
     
-    const totalInitiated = totalRes.rows[0]?.count || 1;
-    const replies = recvRes.rows[0]?.count || 0;
-    const yesRate = Math.min(100, Math.round((replies / totalInitiated) * 100));
+    const yesCount = inboundRes.rows[0]?.count || 0;
+    const yesRate = totalInitiated > 0 ? Math.min(100, Math.round((yesCount / totalInitiated) * 100)) : 0;
+    const reportsSent = reportRes.rows[0]?.count || 0;
+    const appointmentsBooked = bookedRes.rows[0]?.count || 0;
+    const optedOut = optedRes.rows[0]?.count || 0;
 
     res.json({
-      totalInitiated: totalInitiated || 1,
-      yesRate: yesRate || 0,
-      reportsSent: sentRes.rows[0]?.count || 0,
-      appointmentsBooked: 0,
-      optedOut: 0
+      totalInitiated,
+      yesCount,
+      yesRate,
+      reportsSent,
+      appointmentsBooked,
+      optedOut
     });
   } catch (err) {
     res.json({
       totalInitiated: 0,
+      yesCount: 0,
       yesRate: 0,
       reportsSent: 0,
       appointmentsBooked: 0,

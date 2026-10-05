@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { MessageCircle, BarChart2, Settings, ChevronRight, RefreshCw, AlertTriangle, Loader2, ArrowLeft, Save, Plus, X, ExternalLink, Brain, Search, Zap, Clock, Mail, Phone, Globe, Building2, User, Target, Send, FileText, Sparkles, BookOpen, MessageSquare, Wifi, WifiOff, Check, } from "lucide-react";
+import { MessageCircle, BarChart2, Settings, ChevronRight, RefreshCw, AlertTriangle, Loader2, ArrowLeft, Save, Plus, X, ExternalLink, Brain, Search, Zap, Clock, Mail, Phone, Globe, Building2, User, Target, Send, FileText, Sparkles, BookOpen, MessageSquare, Wifi, WifiOff, Check, Calendar } from "lucide-react";
 import { cn, scoreToBandKey, bandHexFromKey } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useGetWhatsAppConversations, useGetWhatsAppMessages, getGetWhatsAppMessagesQueryKey, useGetWhatsAppAnalytics, useGetWhatsAppSettings, useUpdateWhatsAppSettings, useTestWhatsAppConnection, } from "@workspace/api-client-react";
@@ -815,36 +815,197 @@ function ConversationsTab() {
 }
 // ─── ANALYTICS TAB ────────────────────────────────────────────────────────────
 function AnalyticsTab() {
-    const { data: analytics, isLoading: loading } = useGetWhatsAppAnalytics();
-    const yesCount = analytics ? Math.round(analytics.totalInitiated * (analytics.yesRate / 100)) : 0;
-    const funnelSteps = analytics ? [
-        { label: "Initiated", count: analytics.totalInitiated, color: "#6B7280" },
-        { label: "YES (replied)", count: yesCount, color: "#DE377C" },
-        { label: "Report Sent", count: analytics.reportsSent, color: "#2563EB" },
-        { label: "Appt. Booked", count: analytics.appointmentsBooked, color: "#16A34A" },
-        { label: "Opted Out", count: analytics.optedOut, color: "#DC2626" },
-    ] : [];
-    const maxCount = analytics ? Math.max(...funnelSteps.map(s => s.count), 1) : 1;
-    return (<div className="p-4 md:p-6 space-y-5 overflow-y-auto flex-1">
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">WhatsApp Conversation Funnel</div>
-        {loading ? <div className="space-y-2.5">{Array.from({ length: 5 }).map((_, i) => <div key={i} className="flex items-center gap-3"><div className="w-24 h-2.5 bg-gray-100 rounded animate-pulse"/><div className="flex-1 h-5 bg-gray-100 rounded animate-pulse"/></div>)}</div> : (<div className="space-y-2.5">
-            {funnelSteps.map(step => (<div key={step.label} className="flex items-center gap-3">
-                <span className="text-[11px] text-gray-600 w-28 flex-shrink-0 text-right">{step.label}</span>
-                <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
-                  <div className="h-full rounded-full flex items-center justify-end pr-2 transition-all" style={{ width: `${(step.count / maxCount) * 100}%`, minWidth: step.count > 0 ? 24 : 0, background: step.color }}>
-                    <span className="text-[10px] font-bold text-white">{step.count > 0 ? step.count : ""}</span>
-                  </div>
+    const { data: analytics, isLoading: loading, refetch } = useGetWhatsAppAnalytics();
+    
+    const totalInitiated = analytics?.totalInitiated ?? 0;
+    const yesCount = analytics?.yesCount ?? (analytics ? Math.round(totalInitiated * (analytics.yesRate / 100)) : 0);
+    const reportsSent = analytics?.reportsSent ?? 0;
+    const appointmentsBooked = analytics?.appointmentsBooked ?? 0;
+    const optedOut = analytics?.optedOut ?? 0;
+
+    const yesRate = totalInitiated > 0 ? Math.round((yesCount / totalInitiated) * 100) : (analytics?.yesRate ?? 0);
+    const reportRate = totalInitiated > 0 ? Math.round((reportsSent / totalInitiated) * 100) : 0;
+    const bookingRate = totalInitiated > 0 ? Math.round((appointmentsBooked / totalInitiated) * 100) : 0;
+    const optOutRate = totalInitiated > 0 ? Math.round((optedOut / totalInitiated) * 100) : 0;
+
+    const funnelSteps = [
+        { key: "initiated", label: "Outreach Initiated", sub: "Initial Hook message delivered", count: totalInitiated, pct: 100, color: "from-indigo-500 to-blue-600", icon: Send },
+        { key: "yes", label: "YES (Replied)", sub: "Leads expressing interest", count: yesCount, pct: yesRate, convRate: totalInitiated > 0 ? `${yesRate}% response` : "0%", color: "from-pink-500 to-rose-600", icon: MessageSquare },
+        { key: "report", label: "Report Delivered", sub: "Audit reports sent to prospect", count: reportsSent, pct: reportRate, convRate: yesCount > 0 ? `${Math.round((reportsSent / yesCount) * 100)}% of replies` : "0%", color: "from-blue-500 to-cyan-600", icon: FileText },
+        { key: "booked", label: "Appt. Booked", sub: "Meetings & demos scheduled", count: appointmentsBooked, pct: bookingRate, convRate: reportsSent > 0 ? `${Math.round((appointmentsBooked / reportsSent) * 100)}% of reports` : "0%", color: "from-emerald-500 to-teal-600", icon: Calendar },
+        { key: "optout", label: "Opted Out", sub: "Unsubscribed / requested STOP", count: optedOut, pct: optOutRate, color: "from-red-500 to-rose-600", icon: AlertTriangle },
+    ];
+
+    const maxCount = Math.max(...funnelSteps.map(s => s.count), 1);
+
+    return (
+      <div className="p-4 md:p-6 space-y-6 overflow-y-auto flex-1 bg-gray-50/50">
+        {/* Key Metrics Overview Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Initiated</span>
+              <div className="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <Send className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-gray-900">{totalInitiated.toLocaleString()}</div>
+              <p className="text-[11px] text-gray-500 mt-0.5">Outreach conversations</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">YES Replied</span>
+              <div className="w-8 h-8 rounded-lg bg-pink-50 text-pink-600 flex items-center justify-center">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">{yesCount.toLocaleString()}</span>
+                <span className="text-xs font-semibold text-pink-600 bg-pink-50 px-1.5 py-0.5 rounded">{yesRate}%</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-0.5">Engagement rate</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Reports Sent</span>
+              <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <FileText className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="text-2xl font-bold text-gray-900">{reportsSent.toLocaleString()}</div>
+              <p className="text-[11px] text-gray-500 mt-0.5">Audit reports delivered</p>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Appts. Booked</span>
+              <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <Calendar className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold text-gray-900">{appointmentsBooked.toLocaleString()}</span>
+                <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded">{bookingRate}%</span>
+              </div>
+              <p className="text-[11px] text-gray-500 mt-0.5">Final conversion rate</p>
+            </div>
+          </div>
+        </div>
+
+        {/* WhatsApp Conversation Funnel */}
+        <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-6 pb-3 border-b border-gray-100">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <BarChart2 className="w-4 h-4 text-emerald-600" />
+                WhatsApp Conversation Funnel
+              </h3>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Conversion progress across each stage of automated WhatsApp outreach
+              </p>
+            </div>
+            <button
+              onClick={() => refetch()}
+              className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              title="Refresh Analytics"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+
+          {loading ? (
+            <div className="space-y-4 py-4">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div key={i} className="flex items-center gap-4">
+                  <div className="w-36 h-4 bg-gray-100 rounded animate-pulse" />
+                  <div className="flex-1 h-8 bg-gray-100 rounded-lg animate-pulse" />
                 </div>
-                <span className="text-xs font-semibold text-gray-700 w-6 text-right">{step.count}</span>
-              </div>))}
-          </div>)}
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {funnelSteps.map((step, idx) => {
+                const StepIcon = step.icon;
+                const widthPct = totalInitiated > 0 ? Math.max((step.count / maxCount) * 100, step.count > 0 ? 5 : 0) : 0;
+                
+                return (
+                  <div key={step.key} className="group relative">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-gray-100 flex items-center justify-center text-gray-600 font-semibold text-[11px]">
+                          {idx + 1}
+                        </div>
+                        <span className="font-semibold text-gray-800 flex items-center gap-1.5">
+                          <StepIcon className="w-3.5 h-3.5 text-gray-500" />
+                          {step.label}
+                        </span>
+                        <span className="text-[11px] text-gray-400 hidden sm:inline">• {step.sub}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {step.convRate && (
+                          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                            {step.convRate}
+                          </span>
+                        )}
+                        <span className="font-bold text-gray-900 text-sm">
+                          {step.count.toLocaleString()} <span className="text-xs font-normal text-gray-400">({step.pct}%)</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="w-full bg-gray-100 rounded-lg h-7 p-1 overflow-hidden relative flex items-center">
+                      <div
+                        className={cn(
+                          "h-full rounded-md transition-all duration-500 ease-out flex items-center justify-end px-2.5 shadow-xs bg-gradient-to-r",
+                          step.color
+                        )}
+                        style={{ width: `${widthPct}%` }}
+                      >
+                        {step.count > 0 && widthPct > 15 && (
+                          <span className="text-[11px] font-bold text-white drop-shadow-xs">
+                            {step.count}
+                          </span>
+                        )}
+                      </div>
+
+                      {(step.count === 0 || widthPct <= 15) && (
+                        <span className="text-[11px] font-medium text-gray-500 ml-3">
+                          {step.count} ({step.pct}%)
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Opted out notice if applicable */}
+        {analytics && analytics.optedOut > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50/80 p-4 flex items-start gap-3 shadow-xs">
+            <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <div className="text-xs font-bold text-red-800 uppercase tracking-wider">
+                {analytics.optedOut} Lead{analytics.optedOut !== 1 ? "s" : ""} Opted Out
+              </div>
+              <p className="text-xs text-red-600 mt-1">
+                Leads who replied STOP, NO, or unsubscribe phrases are automatically excluded from future WhatsApp automation sequences.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
-      {analytics && analytics.optedOut > 0 && (<div className="rounded-xl border border-red-100 bg-red-50 p-4">
-          <div className="flex items-center gap-2 text-sm text-red-700 font-medium"><AlertTriangle className="w-4 h-4"/>{analytics.optedOut} lead{analytics.optedOut !== 1 ? "s" : ""} opted out</div>
-          <p className="text-xs text-red-500 mt-1">These leads replied STOP, NO, or similar opt-out phrases and have been removed from the sequence.</p>
-        </div>)}
-    </div>);
+    );
 }
 // ─── SETTINGS TAB ─────────────────────────────────────────────────────────────
 function SettingsTab() {
