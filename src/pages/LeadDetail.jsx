@@ -481,7 +481,7 @@ export default function LeadDetail() {
                     </div>)}
                   {lead.whatsapp && typeof lead.whatsapp === "string" && (<div className="flex items-center gap-2 text-xs text-gray-500">
                       <MessageCircle className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#262524" }}/>
-                      <a href={`https://wa.me/${lead.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noreferrer" className="hover:text-gray-900">{lead.whatsapp}</a>
+                      <a href="#" onClick={(e) => { e.preventDefault(); setShowWaModal(true); }} className="hover:text-gray-900">{lead.whatsapp}</a>
                     </div>)}
                   {lead.linkedInUrl && (<div className="flex items-center gap-2 text-xs text-gray-500">
                       <Linkedin className="w-3.5 h-3.5 flex-shrink-0" style={{ color: "#0A66C2" }}/>
