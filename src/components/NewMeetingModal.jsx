@@ -106,10 +106,19 @@ export function NewMeetingModal({ leads, defaultLeadId, onClose, onCreated, }) {
             });
             const selectedLead = leads.find(l => l.id === Number(leadId));
             const meetingWithLead = {
-                ...created,
-                lead: selectedLead,
+                ...(created || {}),
+                lead: created?.lead || selectedLead || { firstName: "Lead", lastName: "", company: "" },
             };
-            onCreated(meetingWithLead, downloadIcsFlag);
+            if (typeof onCreated === "function") {
+                onCreated(meetingWithLead, downloadIcsFlag);
+            } else {
+                if (downloadIcsFlag) {
+                    downloadICS(meetingWithLead);
+                }
+                if (typeof onClose === "function") {
+                    onClose();
+                }
+            }
         }
         catch (e) {
             setError(e.message ?? "Failed to create meeting.");
