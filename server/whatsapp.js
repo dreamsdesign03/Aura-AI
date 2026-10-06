@@ -34,7 +34,8 @@ function classifyTemplateError(err) {
   if (code === 131026) return { status: 'not_whatsapp', message: 'This is not a WhatsApp active number' };
   if (code === 132001) return { status: 'failed', message: 'Template not approved yet' };
   if (code === 131030) return { status: 'failed', message: 'Number not in allowed recipient list' };
-  if (code === 131049) return { status: 'failed', message: 'Meta blocked this marketing message for this number, try later' };
+  if (code === 131049) return { status: 'failed', message: 'Meta blocked this marketing message (Meta Error 131049: Frequency cap reached, recipient opted out, or self-messaging limit)' };
+  if (code === 131047) return { status: 'failed', message: '24-hour window expired. Send an approved Meta template.' };
   return { status: 'failed', message: err?.error_data?.details || err?.error_user_msg || err?.message || 'Meta WhatsApp delivery failed.' };
 }
 
@@ -482,6 +483,8 @@ function registerWhatsAppRoutes(app, resolveUserId) {
 
           if (code === 131047) {
             errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
+          } else if (code === 131049) {
+            errorMsg = 'Meta Ecosystem Protection (Error 131049): Meta blocked delivery because this recipient reached Meta’s daily marketing template limit, opted out of marketing, or is the registered sender phone number.';
           } else if (code === 131030) {
             errorMsg = 'Recipient phone number is not added to your Meta Test Number allowed list in Meta Developer Portal.';
           } else if (code === 190) {
