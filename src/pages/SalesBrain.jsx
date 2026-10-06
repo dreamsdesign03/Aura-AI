@@ -756,23 +756,6 @@ function ConversationsTab() {
             </div>
 
             <form onSubmit={handleSendWa} className="p-3 border-t border-gray-200 bg-white flex-shrink-0 space-y-2">
-              <div className="flex items-center gap-2 bg-emerald-50/70 p-2 rounded-xl border border-emerald-200">
-                <span className="text-[11px] font-bold text-emerald-900 flex-shrink-0">⚡ Official Meta Template:</span>
-                <select
-                  defaultValue=""
-                  onChange={(e) => { if (e.target.value) { handleSendWa(e, e.target.value); e.target.value = ""; } }}
-                  className="flex-1 text-xs p-1.5 rounded-lg border border-emerald-300 bg-white text-emerald-900 font-bold focus:outline-none"
-                >
-                  <option value="" disabled>-- Select & Send Approved Meta Template --</option>
-                  <option value="lead_welcome_confirmation">⚡ lead_welcome_confirmation (Marketing - English)</option>
-                  <option value="weekly_client_reviews">⚡ weekly_client_reviews (Marketing - English US)</option>
-                  <option value="new_lead_dreamsdesign">⚡ new_lead_dreamsdesign (Utility - English)</option>
-                  <option value="hello_world">⚡ hello_world (Utility Sandbox - English US)</option>
-
-
-                </select>
-              </div>
-
               <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
                 {[
                   "Hi {{name}} 👋 Wanted to check in on your audit.",
