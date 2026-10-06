@@ -366,6 +366,16 @@ function registerWhatsAppRoutes(app, resolveUserId) {
                 ]
               }
             ];
+          } else if (templateName === 'aura_lead_appointment_booking' || templateName.includes('appointment')) {
+            const firstNameVal = String(templateParams[0] || '').trim().split(/\s+/)[0] || 'there';
+            metaPayload.template.components = [
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', text: firstNameVal }
+                ]
+              }
+            ];
           } else {
             metaPayload.template.components = [
               {
@@ -446,19 +456,42 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       if (!metaRes.ok) {
         console.error('[whatsapp] Meta API call failed:', JSON.stringify(metaData));
         let errorMsg = metaData?.error?.message || metaData?.error?.error_user_msg || 'Meta WhatsApp delivery failed.';
-        const code = metaData?.error?.code;
 
-        if (code === 131047) {
-          errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
-        } else if (code === 131030) {
-          errorMsg = 'Recipient phone number is not added to your Meta Test Number allowed list in Meta Developer Portal.';
-        } else if (code === 190) {
-          errorMsg = 'Meta Access Token has expired or is invalid. Please update your token in Settings -> WhatsApp.';
-        } else if (code === 21212) {
-          errorMsg = 'Invalid phone number format. Please ensure country code is included.';
+        // Auto-retry if parameter count mismatch (e.g. 2 params sent when Meta expects 1)
+        if (isTemplate && errorMsg.includes('localizable_params') && metaPayload.template?.components?.[0]?.parameters?.length > 1) {
+          console.log('[whatsapp] Retrying template send with 1 parameter...');
+          metaPayload.template.components[0].parameters = [metaPayload.template.components[0].parameters[0]];
+          const retryRes = await fetch(targetUrl, {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(metaPayload),
+          });
+          const retryData = await retryRes.json().catch(() => ({}));
+          if (retryRes.ok && retryData?.messages?.[0]?.id) {
+            metaMessageId = retryData.messages[0].id;
+            metaData = retryData;
+            metaRes = retryRes;
+          }
         }
 
-        return res.status(400).json({ error: errorMsg, details: metaData });
+        if (!metaRes.ok) {
+          const code = metaData?.error?.code;
+
+          if (code === 131047) {
+            errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
+          } else if (code === 131030) {
+            errorMsg = 'Recipient phone number is not added to your Meta Test Number allowed list in Meta Developer Portal.';
+          } else if (code === 190) {
+            errorMsg = 'Meta Access Token has expired or is invalid. Please update your token in Settings -> WhatsApp.';
+          } else if (code === 21212) {
+            errorMsg = 'Invalid phone number format. Please ensure country code is included.';
+          }
+
+          return res.status(400).json({ error: errorMsg, details: metaData });
+        }
       }
 
       if (metaData.messages && metaData.messages.length > 0) {
