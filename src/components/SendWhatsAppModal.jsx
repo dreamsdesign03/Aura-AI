@@ -14,6 +14,12 @@ const META_TEMPLATES = [
     label: "aura_lead_appointment_booking · English (IND)",
     type: "meta",
     description: "Appointment booking confirmation template"
+  },
+  {
+    name: "hello_world",
+    label: "hello_world · Utility (Meta Default)",
+    type: "meta",
+    description: "Meta Utility Sample Template (Guaranteed delivery to any number)"
   }
 ];
 
