@@ -19,7 +19,7 @@ export default function CalEmbed({ url = DEFAULT_CAL_URL, height = 700 }) {
       {loading && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white/90 z-10 py-20 text-gray-400">
           <div className="w-7 h-7 rounded-full border-2 border-gray-200 border-t-pink-600 animate-spin" />
-          <span className="text-xs font-semibold text-gray-600">Loading Cal.com scheduling calendar…</span>
+          <span className="text-xs font-semibold text-gray-600">Loading scheduling calendar…</span>
         </div>
       )}
       <iframe
@@ -30,7 +30,7 @@ export default function CalEmbed({ url = DEFAULT_CAL_URL, height = 700 }) {
         onLoad={() => setLoading(false)}
         className="w-full rounded-xl border-0 overflow-hidden bg-white"
         style={{ minHeight: `${height}px`, height: `${height}px`, background: "#ffffff" }}
-        title="Cal.com Booking Calendar"
+        title="Booking Calendar"
       />
     </div>
   );

@@ -59,7 +59,7 @@ export default function Booking() {
                 </div>
                 <div className="flex items-center gap-2.5">
                   <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: "#CB3273" }}/>
-                  <span className="text-[13px] text-white">Powered by Cal.com</span>
+                  <span className="text-[13px] text-white">Instant Online Booking</span>
                 </div>
               </div>
             </div>

@@ -78,15 +78,15 @@ function BookingWidget() {
             <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
               <span>Schedule Clinic Consultation</span>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
-                Cal.com Live
+                Live
               </span>
             </div>
             <div className="text-xs text-gray-500 mt-0.5">
-              Pick a time — instant confirmation &amp; calendar invite are sent automatically by Cal.com.
+              Pick a time — instant confirmation &amp; calendar invite are sent automatically.
             </div>
           </div>
           <a href="https://cal.com/aura-laser-cosmetic-clinic/30min" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-3 py-1.5 rounded-lg transition-colors border border-pink-200">
-            Open in Cal.com <ExternalLink className="w-3.5 h-3.5"/>
+            Open Booking Page <ExternalLink className="w-3.5 h-3.5"/>
           </a>
         </div>
         <CalendlyEmbed height={720}/>
@@ -111,12 +111,12 @@ function AdminView() {
             const r = await fetch("/api/cal/sync");
             const j = await r.json();
             if (!r.ok || j.error) {
-                setSyncError(j.error ?? "Cal.com sync failed.");
+                setSyncError(j.error ?? "Booking sync failed.");
             }
             qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() });
         }
         catch {
-            setSyncError("Network error during Cal.com sync.");
+            setSyncError("Network error during booking sync.");
         }
         finally {
             setSyncing(false);
@@ -156,7 +156,7 @@ function AdminView() {
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Cal.com Bookings ({appointments.length})
+              Bookings ({appointments.length})
             </span>
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
               Synced
@@ -164,9 +164,9 @@ function AdminView() {
           </div>
           <div className="flex items-center gap-1.5">
             {syncError && <span className="text-[10px] text-red-500 max-w-[140px] truncate">{syncError}</span>}
-            <button onClick={syncCalCom} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-pink-700 text-pink-800 hover:bg-pink-50 disabled:opacity-60" title="Sync bookings from Cal.com">
+            <button onClick={syncCalCom} disabled={syncing} className="flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-all border border-pink-700 text-pink-800 hover:bg-pink-50 disabled:opacity-60" title="Sync bookings">
               <RefreshCw className={cn("w-3.5 h-3.5", syncing && "animate-spin")}/>
-              {syncing ? "Syncing…" : "Sync Cal.com"}
+              {syncing ? "Syncing…" : "Sync Bookings"}
             </button>
           </div>
         </div>
@@ -175,8 +175,8 @@ function AdminView() {
             {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse"/>)}
           </div>) : appointments.length === 0 ? (<div className="flex flex-col items-center justify-center flex-1 p-10 text-center">
             <CalendarDays className="w-8 h-8 text-gray-200 mb-3"/>
-            <div className="text-sm text-gray-400">No Cal.com bookings yet</div>
-            <div className="text-xs text-gray-300 mt-1">Only live Cal.com bookings are shown here</div>
+            <div className="text-sm text-gray-400">No bookings yet</div>
+            <div className="text-xs text-gray-300 mt-1">Only live confirmed bookings are shown here</div>
           </div>) : (<div className="flex-1 overflow-y-auto divide-y divide-gray-50">
             {[{ label: "Upcoming", items: upcoming }, { label: "Past / Other", items: past }].map(({ label, items }) => items.length > 0 ? (<div key={label}>
                   <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">{label}</div>
