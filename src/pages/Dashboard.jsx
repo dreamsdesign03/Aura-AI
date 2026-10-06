@@ -57,9 +57,15 @@ function loadChecked() {
     return new Set();
 }
 export default function Dashboard() {
-    const { data: summary, isLoading } = useGetDashboardSummary();
-    const { data: activity = [] } = useGetDashboardActivity();
-    const { data: funnel } = useGetPipelineFunnel();
+    const { data: summary, isLoading } = useGetDashboardSummary({
+        query: { refetchInterval: 5000 }
+    });
+    const { data: activity = [] } = useGetDashboardActivity({
+        query: { refetchInterval: 5000 }
+    });
+    const { data: funnel } = useGetPipelineFunnel({
+        query: { refetchInterval: 5000 }
+    });
     const { data: planData } = usePlan();
     const [checked, setChecked] = useState(loadChecked);
     const [hub, setHub] = useState(null);
@@ -162,12 +168,12 @@ export default function Dashboard() {
 
       {/* KPI Grid — 2 cols mobile, 3 cols desktop */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
-        <StatCard label="Leads This Month" value={summary?.totalLeadsThisMonth ?? 0} icon={Users} color="teal" loading={isLoading} trend="New prospects"/>
+        <StatCard label="Total Leads" value={summary?.totalLeads ?? summary?.totalLeadsThisMonth ?? 0} icon={Users} color="teal" loading={isLoading} trend="All prospects"/>
         <StatCard label="Qualified" value={summary?.qualifiedLeads ?? 0} icon={Award} color="green" loading={isLoading} trend="Ready to close"/>
         <StatCard label="Meetings This Week" value={summary?.meetingsThisWeek ?? 0} icon={Calendar} color="purple" loading={isLoading} trend="Scheduled"/>
         <StatCard label="Pipeline Value" value={formatCurrency(summary?.pipelineValue ?? 0)} icon={DollarSign} color="amber" loading={isLoading} trend="Active proposals"/>
-        <StatCard label="Proposals Sent" value={summary?.proposalsSent ?? 0} icon={FileText} color="blue" loading={isLoading} trend="This month"/>
-        <StatCard label="Deals Closed" value={summary?.dealsClosedThisMonth ?? 0} icon={TrendingUp} color="green" loading={isLoading} trend="This month"/>
+        <StatCard label="Proposals Sent" value={summary?.proposalsSent ?? 0} icon={FileText} color="blue" loading={isLoading} trend="Total sent"/>
+        <StatCard label="Deals Closed" value={summary?.dealsClosedThisMonth ?? 0} icon={TrendingUp} color="green" loading={isLoading} trend="Total won"/>
       </div>
 
       {/* Autonomous Sales Agent Status Bar */}
