@@ -4355,17 +4355,20 @@ async function fetchDashboardSummaryData(userId) {
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
 
     const [leadsMonth, qualified, meetingsWeek, proposalsRes, dealsWon, pipelineVal] = await Promise.all([
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE user_id = $1 AND created_at >= $2`, [userId, startOfMonth]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE user_id = $1 AND (
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND created_at >= $2`, [userId, startOfMonth]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND (
           pipeline_stage ILIKE '%qualif%' OR pipeline_stage ILIKE '%meeting%'
           OR pipeline_stage ILIKE '%proposal%' OR pipeline_stage ILIKE '%booked%'
           OR pipeline_stage ILIKE '%won%' OR bant_score >= 60
           OR status ILIKE '%qualif%' OR status ILIKE '%meeting%'
           OR status ILIKE '%proposal%' OR status ILIKE '%won%')`, [userId]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM calendly_events WHERE user_id = $1 AND (created_at >= $2 OR start_time >= $2) AND COALESCE(is_deleted, false) = false`, [userId, startOfWeek]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM proposals WHERE user_id = $1 AND created_at >= $2`, [userId, startOfMonth]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE user_id = $1 AND (pipeline_stage ILIKE '%won%' OR status ILIKE '%won%')`, [userId]),
-      db.query(`SELECT COALESCE(SUM(deal_value), 0)::numeric AS v FROM leads WHERE user_id = $1 AND pipeline_stage NOT ILIKE '%won%' AND pipeline_stage NOT ILIKE '%lost%'`, [userId]),
+      db.query(`SELECT (
+          COALESCE((SELECT COUNT(*)::int FROM meetings WHERE (user_id = $1 OR user_id IS NULL) AND scheduled_at >= $2), 0) +
+          COALESCE((SELECT COUNT(*)::int FROM calendly_events WHERE (user_id = $1 OR user_id IS NULL) AND (created_at >= $2 OR start_time >= $2) AND COALESCE(is_deleted, false) = false), 0)
+        )::int as cnt`, [userId, startOfWeek]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM proposals WHERE (user_id = $1 OR user_id IS NULL) AND created_at >= $2`, [userId, startOfMonth]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND (pipeline_stage ILIKE '%won%' OR status ILIKE '%won%')`, [userId]),
+      db.query(`SELECT COALESCE(SUM(deal_value), 0)::numeric AS v FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND pipeline_stage NOT ILIKE '%won%' AND pipeline_stage NOT ILIKE '%lost%'`, [userId]),
     ]);
 
     return {
@@ -4394,7 +4397,7 @@ async function fetchDashboardActivityData(userId) {
     const r = await db.query(
       `SELECT id, agent_name, activity_type, status, lead_name, company_name, detail, executed_at
        FROM agent_activity 
-       WHERE user_id = $1
+       WHERE user_id = $1 OR user_id IS NULL
        ORDER BY executed_at DESC LIMIT 30`,
       [userId]
     );
@@ -4415,7 +4418,7 @@ async function fetchPipelineFunnelData(userId) {
   try {
     const r = await db.query(
       `SELECT COALESCE(NULLIF(pipeline_stage, ''), 'Lead In') AS stage, COUNT(*)::int AS n
-       FROM leads WHERE user_id = $1 GROUP BY 1`,
+       FROM leads WHERE (user_id = $1 OR user_id IS NULL) GROUP BY 1`,
       [userId]
     );
 
