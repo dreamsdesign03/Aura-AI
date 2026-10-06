@@ -625,8 +625,8 @@ export default function Layout({ children }) {
             borderRight: "1px solid hsl(220 13% 91%)",
         }}>
           {/* Logo */}
-          <div className="w-full flex items-center justify-center overflow-hidden" style={{ borderBottom: "1px solid hsl(220 13% 91%)", background: "#FDE8F2", padding: 0, minHeight: 70 }}>
-            <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ width: "100%", height: "100%", maxHeight: 72, objectFit: "cover", display: "block" }}/>
+          <div className="w-full flex items-center justify-center overflow-hidden" style={{ borderBottom: "1px solid hsl(220 13% 91%)", background: "#ffffff", padding: "10px 14px", minHeight: 70 }}>
+            <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ width: "auto", height: "auto", maxHeight: 54, maxWidth: "100%", objectFit: "contain", display: "block" }}/>
           </div>
 
           {/* Nav */}
