@@ -708,6 +708,141 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       if (typeof rawBody === 'string') {
         try { rawBody = JSON.parse(rawBody); } catch (pErr) {}
       }
+
+      // ── Outbound Agent Reply Handling (from n8n / AI Agent Aria) ──
+      if (rawBody && rawBody.direction === 'outbound') {
+        const content = rawBody.content ? String(rawBody.content).trim() : '';
+        let leadId = rawBody.lead_id ? Number(rawBody.lead_id) : null;
+        let phone = rawBody.phone ? String(rawBody.phone).trim() : '';
+        const waMessageId = rawBody.wa_message_id ? String(rawBody.wa_message_id).trim() : null;
+
+        // Validation check
+        if (!content || (!leadId && !phone)) {
+          return res.status(400).json({
+            success: false,
+            error: "Missing required fields: 'content' and at least 'phone' or 'lead_id' must be provided."
+          });
+        }
+
+        // Extract last 10 digits for phone matching
+        let cleanDigits = phone.replace(/\D/g, '');
+        if (cleanDigits.length > 10) cleanDigits = cleanDigits.slice(-10);
+
+        // Resolve lead if missing
+        if (!leadId && cleanDigits && cleanDigits.length >= 7) {
+          try {
+            const leadMatch = await db.query(
+              `SELECT id, phone, whatsapp FROM leads 
+               WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+                  OR REPLACE(REPLACE(REPLACE(COALESCE(whatsapp,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+               ORDER BY id DESC LIMIT 1`,
+              [cleanDigits]
+            );
+            if (leadMatch.rows[0]?.id) {
+              leadId = leadMatch.rows[0].id;
+            }
+          } catch (lErr) {
+            console.error('[WHATSAPP WEBHOOK] Outbound lead lookup error:', lErr.message);
+          }
+        }
+
+        // If leadId present but phone empty, fetch phone from lead
+        if (leadId && !phone) {
+          try {
+            const leadRes = await db.query(`SELECT phone, whatsapp FROM leads WHERE id = $1`, [leadId]);
+            if (leadRes.rows[0]) {
+              phone = leadRes.rows[0].phone || leadRes.rows[0].whatsapp || '';
+              if (!cleanDigits && phone) {
+                cleanDigits = phone.replace(/\D/g, '');
+                if (cleanDigits.length > 10) cleanDigits = cleanDigits.slice(-10);
+              }
+            }
+          } catch (pErr) {}
+        }
+
+        // Idempotency check: if wa_message_id exists, skip insert & return success
+        if (waMessageId) {
+          try {
+            const existing = await db.query(
+              `SELECT id FROM whatsapp_messages WHERE wa_message_id = $1 OR meta_message_id = $1 LIMIT 1`,
+              [waMessageId]
+            );
+            if (existing.rows.length > 0) {
+              return res.status(200).json({
+                success: true,
+                message: "OUTBOUND_EXISTS",
+                id: existing.rows[0].id
+              });
+            }
+          } catch (eErr) {}
+        }
+
+        // Upsert conversation in whatsapp_conversations
+        let convId = null;
+        try {
+          const convMatch = await db.query(
+            `SELECT id FROM whatsapp_conversations 
+             WHERE (lead_id IS NOT NULL AND lead_id = $1)
+                OR phone = $2 
+                OR wa_phone_number = $2
+                OR (length($3) >= 7 AND REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%' || $3)
+             ORDER BY id DESC LIMIT 1`,
+            [leadId, phone, cleanDigits]
+          );
+
+          if (convMatch.rows.length > 0) {
+            convId = convMatch.rows[0].id;
+            await db.query(
+              `UPDATE whatsapp_conversations 
+               SET last_message = $1, last_message_at = NOW(), updated_at = NOW(), state = 'ai_replied', lead_id = COALESCE(lead_id, $2), phone = COALESCE(phone, $3), wa_phone_number = COALESCE(wa_phone_number, $3) 
+               WHERE id = $4`,
+              [content, leadId, phone, convId]
+            );
+          } else {
+            const newConv = await db.query(
+              `INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at, unread_count) 
+               VALUES ($1, $2, $2, 'Active', 'ai_replied', $3, NOW(), NOW(), 0) 
+               RETURNING id`,
+              [leadId, phone, content]
+            );
+            convId = newConv.rows[0].id;
+          }
+        } catch (cErr) {
+          console.error('[WHATSAPP WEBHOOK] Error upserting conversation for outbound:', cErr.message);
+        }
+
+        // Insert message row into whatsapp_messages
+        const finalWaMsgId = waMessageId || `wamid_outbound_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        const insertedMsg = await db.query(
+          `INSERT INTO whatsapp_messages (
+             conversation_id, lead_id, phone, direction, content, body, meta_message_id, wa_message_id, status, sent_at, timestamp, created_at
+           ) VALUES ($1, $2, $3, 'outbound', $4, $4, $5, $5, 'sent', NOW(), NOW(), NOW())
+           RETURNING id`,
+          [convId, leadId, phone, content, finalWaMsgId]
+        );
+
+        const insertedId = insertedMsg.rows[0].id;
+
+        // Record touchpoint and touch lead's updated_at
+        if (leadId) {
+          try {
+            await db.query(
+              `INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+               VALUES ($1, 'WhatsApp', 'Aria AI WhatsApp Reply', $2, 'Sent', NOW())`,
+              [leadId, content]
+            );
+          } catch (tpErr) {}
+          try {
+            await db.query(`UPDATE leads SET updated_at = NOW() WHERE id = $1`, [leadId]);
+          } catch (lErr) {}
+        }
+
+        return res.status(200).json({
+          success: true,
+          message: "OUTBOUND_SAVED",
+          id: insertedId
+        });
+      }
       let root = Array.isArray(rawBody) ? (rawBody[0] || {}) : rawBody;
       if (root.body) root = root.body;
       if (typeof root === 'string') {
