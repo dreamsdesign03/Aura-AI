@@ -1996,11 +1996,20 @@ async function findThreadParent(leadId, recipientEmail) {
   return null;
 }
 
+// Helper to safely extract numeric integer ID from string IDs like "sent-12" or "reply-5"
+function cleanNumericId(rawId) {
+  if (!rawId) return null;
+  const str = String(rawId).replace(/^(sent-|reply-|draft-)/i, '').trim();
+  const num = Number(str);
+  return isNaN(num) || num <= 0 ? null : num;
+}
+
 // POST /api/outreach/send
 app.post('/api/outreach/send', async (req, res) => {
   try {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ error: 'Email ID is required' });
+    const rawId = req.body?.id;
+    const id = cleanNumericId(rawId);
+    if (!id) return res.status(400).json({ error: 'Valid numeric Email ID is required' });
 
     const emailRes = await db.query(
       `SELECT o.*, l.first_name, l.last_name, l.company 
@@ -2054,7 +2063,10 @@ app.post('/api/outreach/send', async (req, res) => {
     res.json({ success: true, message: 'Email sent successfully with brochure PDF attached' });
   } catch (err) {
     console.error('[outreach] Send error:', err.message);
-    await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [req.body.id]).catch(() => {});
+    const cleanId = cleanNumericId(req.body?.id);
+    if (cleanId) {
+      await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [cleanId]).catch(() => {});
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -2062,7 +2074,10 @@ app.post('/api/outreach/send', async (req, res) => {
 // POST /api/outreach/update
 app.post('/api/outreach/update', async (req, res) => {
   try {
-    const { id, subject, body } = req.body;
+    const { id: rawId, subject, body } = req.body;
+    const id = cleanNumericId(rawId);
+    if (!id) return res.status(400).json({ error: 'Valid numeric Email ID is required' });
+
     const updateRes = await db.query(
       `UPDATE outreach_emails SET subject = COALESCE($1, subject), body = COALESCE($2, body) WHERE id = $3 RETURNING *`,
       [subject, body, id]
@@ -2076,9 +2091,12 @@ app.post('/api/outreach/update', async (req, res) => {
 // POST /api/outreach/delete
 app.post('/api/outreach/delete', async (req, res) => {
   try {
-    const { id } = req.body;
-    await db.query(`DELETE FROM outreach_emails WHERE id = $1`, [id]);
-    res.json({ success: true, id });
+    const { id: rawId } = req.body;
+    const id = cleanNumericId(rawId);
+    if (id) {
+      await db.query(`DELETE FROM outreach_emails WHERE id = $1`, [id]);
+    }
+    res.json({ success: true, id: rawId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
