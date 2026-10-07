@@ -168,8 +168,9 @@ async function pollReplies(userId) {
   // Scan past 30 days of INBOX to ensure no replies are missed
   const since = new Date(Date.now() - 30 * 86400000);
 
+  const imapHost = process.env.IMAP_HOST || (user.includes('auralaserclinic') || user.includes('office365') || user.includes('outlook') ? 'outlook.office365.com' : HOST);
   const client = new ImapFlow({
-    host: HOST,
+    host: imapHost,
     port: PORT,
     secure: true,
     auth: { user, pass },

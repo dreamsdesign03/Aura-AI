@@ -211,22 +211,32 @@ async function getTransporter(userId) {
       }
     } catch {}
   }
-  let host = config.host || process.env.SMTP_HOST || 'smtp.gmail.com';
-  let port = config.port || Number(process.env.SMTP_PORT) || 587;
-  let user = config.user || process.env.SMTP_USER || 'aurabackoffice123@gmail.com';
+  let user = config.user || process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
   let pass = config.pass || process.env.SMTP_PASS || 'zjpbagpgncbxjphm';
-  let fromEmail = config.fromEmail || process.env.SMTP_FROM || 'aurabackoffice123@gmail.com';
-  let fromName = 'Aura Laser & Cosmetic Clinic | Skinnonest';
+  let host = config.host || process.env.SMTP_HOST || (user.includes('auralaserclinic') || user.includes('office365') || user.includes('outlook') ? 'smtp.office365.com' : 'smtp.gmail.com');
+  let port = config.port || Number(process.env.SMTP_PORT) || 587;
+  let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
+  let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic | Skinnonest';
 
-  // STRICT ENFORCEMENT: Never allow dreamsdesign.in03@gmail.com or old credentials
-  if (!user || user.toLowerCase().includes('dreamsdesign')) user = 'aurabackoffice123@gmail.com';
-  if (!fromEmail || fromEmail.toLowerCase().includes('dreamsdesign')) fromEmail = 'aurabackoffice123@gmail.com';
-  if (!pass || pass === 'tquoqenjxkwuffob') pass = 'zjpbagpgncbxjphm';
+  if (user.toLowerCase().includes('dreamsdesign')) {
+    user = process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
+  }
+  if (fromEmail.toLowerCase().includes('dreamsdesign')) {
+    fromEmail = process.env.SMTP_FROM || user;
+  }
+
+  const isOffice365 = host.includes('office365') || host.includes('outlook') || user.includes('auralaserclinic.com');
 
   const transporter = nodemailer.createTransport({
-    host, port,
+    host,
+    port,
     secure: port === 465,
+    requireTLS: isOffice365 || port === 587,
     auth: { user, pass },
+    tls: {
+      ciphers: 'SSLv3',
+      rejectUnauthorized: false
+    }
   });
   return { transporter, fromEmail, fromName, configured: true };
 }
