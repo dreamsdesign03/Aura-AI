@@ -7,7 +7,7 @@ import { Zap, Send, Mail, CheckCircle2, XCircle, Clock, Trash2, Edit3, Save, X, 
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 
-const SENDER_EMAIL = "aurabackoffice123@gmail.com";
+const SENDER_EMAIL = "Backoffice@auralaserclinic.com";
 const SENDER_NAME = "Aura Laser & Cosmetic Clinic | Skinnonest";
 function initials(first, last, company, email) {
     const fn = (first || "").trim();
@@ -336,19 +336,23 @@ export default function Outreach() {
     const [bulkStatus, setBulkStatus] = useState("idle");
     const [bulkMessage, setBulkMessage] = useState("");
     const sseRef = useRef(null);
-    const tabs = [
-        { key: "draft", label: "Drafts", icon: <Edit3 className="w-3.5 h-3.5"/> },
-        { key: "sent", label: "Sent", icon: <CheckCircle2 className="w-3.5 h-3.5"/> },
-        { key: "failed", label: "Failed", icon: <XCircle className="w-3.5 h-3.5"/> },
-    ];
     const byTab = (tab) => emails.filter((e) => e.status === tab);
     const tabEmails = byTab(activeTab);
     const [readReplyIds, setReadReplyIds] = useState(new Set());
+
     // Filter out self-replies (emails sent by system account)
     const genuineReplies = replies.filter((r) => {
         const from = (r.from_email || "").toLowerCase();
-        return from && !from.includes("aurabackoffice") && from !== SENDER_EMAIL.toLowerCase();
+        return from && !from.includes("aurabackoffice") && !from.includes("backoffice@auralaserclinic") && from !== SENDER_EMAIL.toLowerCase();
     });
+
+    const tabs = [
+        { key: "inbox", label: "Inbox (Responses)", icon: <Mail className="w-3.5 h-3.5"/>, count: genuineReplies.length },
+        { key: "draft", label: "Drafts", icon: <Edit3 className="w-3.5 h-3.5"/>, count: byTab("draft").length },
+        { key: "sent", label: "Sent", icon: <CheckCircle2 className="w-3.5 h-3.5"/>, count: byTab("sent").length },
+        { key: "failed", label: "Failed", icon: <XCircle className="w-3.5 h-3.5"/>, count: byTab("failed").length },
+    ];
+
     // Group activeTab emails into Gmail-style conversation threads by recipient/lead
     const threadMap = tabEmails.reduce((acc, email) => {
         const emailKey = email.toEmail || email.recipientEmail;
@@ -359,11 +363,10 @@ export default function Outreach() {
         acc[key].push(email);
         return acc;
     }, {});
-    const threadList = Object.entries(threadMap).map(([key, group]) => {
-        // Sort emails in group DESC (newest first for root representation)
+
+    const outboundThreadList = Object.entries(threadMap).map(([key, group]) => {
         group.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
         const root = group[0];
-        // Find all genuine replies matching any email in this group or recipient key
         const groupRecipientEmails = group.map(g => (g.toEmail || g.recipientEmail || "").toLowerCase().trim()).filter(Boolean);
         const groupReplies = genuineReplies.filter((r) => {
             const from = (r.from_email || "").toLowerCase().trim();
@@ -373,7 +376,6 @@ export default function Outreach() {
             const emailMatch = from === key || groupRecipientEmails.some(target => target === from || target.includes(from) || from.includes(target));
             return leadMatch || outreachMatch || emailMatch;
         });
-        // Check if there are any unread replies
         const unreadReplies = groupReplies.filter(r => !readReplyIds.has(r.id));
         return {
             ...root,
@@ -386,7 +388,39 @@ export default function Outreach() {
             unreadCount: unreadReplies.length
         };
     });
-    // Sort threads DESC by latest activity
+
+    const inboxThreadList = genuineReplies.map((r) => {
+        const leadName = [r.first_name, r.last_name].filter(Boolean).join(" ").trim() || r.from_name || r.from_email;
+        const rootItem = {
+            id: `reply-${r.id}`,
+            leadId: r.lead_id,
+            toEmail: r.from_email,
+            recipientEmail: r.from_email,
+            leadFirstName: r.first_name || (r.from_name || "").split(/\s+/)[0] || "Prospect",
+            leadLastName: r.last_name || "",
+            company: r.company || "",
+            subject: r.subject || "User Response",
+            body: r.body,
+            quotedBody: r.quoted_body,
+            sentAt: r.received_at,
+            createdAt: r.received_at,
+            status: "received",
+            isReplyItem: true,
+            replyId: r.id
+        };
+        return {
+            ...rootItem,
+            threadKey: `reply-${r.id}`,
+            groupEmails: [rootItem],
+            groupReplies: [r],
+            messageCount: 1,
+            replyCount: 1,
+            hasUnread: !readReplyIds.has(r.id),
+            unreadCount: !readReplyIds.has(r.id) ? 1 : 0
+        };
+    });
+
+    const threadList = activeTab === "inbox" ? inboxThreadList : outboundThreadList;
     threadList.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
     // Currently selected thread & root email
     const selectedThread = selectedId ? threadList.find((t) => t.groupEmails.some(e => e.id === selectedId)) ?? null : null;
@@ -613,7 +647,7 @@ export default function Outreach() {
           {/* Tabs */}
           <div className="flex border-b border-gray-200">
             {tabs.map((t) => {
-            const count = byTab(t.key).length;
+            const count = t.count !== undefined ? t.count : byTab(t.key).length;
             return (<button key={t.key} onClick={() => { setActiveTab(t.key); setSelectedId(null); }} className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors", activeTab === t.key
                     ? "border-b-2 text-gray-900"
                     : "text-gray-400 hover:text-[#CB3273] hover:bg-[#FBE9F1]")} style={activeTab === t.key ? { borderBottomColor: "#CB3273", color: "#CB3273" } : {}}>
