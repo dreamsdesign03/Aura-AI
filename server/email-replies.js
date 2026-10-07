@@ -294,7 +294,11 @@ async function pollReplies(userId) {
   } catch (err) {
     try { await client.logout(); } catch {}
     console.error('[email-replies] poll error:', err.message);
-    return { ok: false, added: 0, error: err.message || 'IMAP poll failed. Enable IMAP in Gmail and use an app password.' };
+    let errorText = err.message || 'IMAP poll failed.';
+    if (errorText.includes('Login is disabled') || errorText.includes('AUTHENTICATE') || errorText.includes('535')) {
+      errorText = 'Microsoft 365 IMAP authentication disabled: Enable IMAP4 under Microsoft 365 Admin Center (Org Settings -> Email apps) or use a Microsoft App Password.';
+    }
+    return { ok: false, added: 0, error: errorText };
   }
 }
 
