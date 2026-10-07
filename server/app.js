@@ -2013,7 +2013,7 @@ app.post('/api/outreach/send', async (req, res) => {
 
     const email = emailRes.rows[0];
     const userId = email.user_id;
-    const recipientEmail = email.recipient_email;
+    const recipientEmail = email.recipient_email || email.to_email;
     const subject = email.subject;
     const body = email.body;
 
