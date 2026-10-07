@@ -347,7 +347,7 @@ export default function Outreach() {
     });
 
     const tabs = [
-        { key: "inbox", label: "Inbox (Responses)", icon: <Mail className="w-3.5 h-3.5"/>, count: genuineReplies.length },
+        { key: "inbox", label: "Inbox", icon: <Mail className="w-3.5 h-3.5"/>, count: genuineReplies.length },
         { key: "draft", label: "Drafts", icon: <Edit3 className="w-3.5 h-3.5"/>, count: byTab("draft").length },
         { key: "sent", label: "Sent", icon: <CheckCircle2 className="w-3.5 h-3.5"/>, count: byTab("sent").length },
         { key: "failed", label: "Failed", icon: <XCircle className="w-3.5 h-3.5"/>, count: byTab("failed").length },
