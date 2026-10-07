@@ -266,23 +266,18 @@ async function pollReplies(userId) {
             }
           }
 
-          // Only store genuine replies that we could confidently attach to an Aura-AI outreach email.
-          if (!outreach) {
-            console.log(`[email-replies] SKIP (no outreach match): from=${fromEmail} subj="${(parsed.subject||'').slice(0,60)}" leadId=${leadId ?? 'none'}`);
-            continue;
-          }
-
           const fromName = msg.envelope?.from?.[0]?.name || '';
           const body = parsed.text || stripHtml(parsed.html) || '';
           const receivedAt = parsed.date && !isNaN(parsed.date.getTime()) ? parsed.date : new Date();
 
+          const outreachId = outreach ? outreach.id : null;
           await db.query(
             `INSERT INTO email_replies (user_id, lead_id, outreach_email_id, from_email, from_name, subject, body, message_id, received_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-            [userId, leadId, outreach.id, fromEmail, fromName, (parsed.subject || '').slice(0, 500), body.slice(0, 10000), messageId, receivedAt]
+            [userId, leadId, outreachId, fromEmail, fromName, (parsed.subject || '').slice(0, 500), body.slice(0, 10000), messageId, receivedAt]
           );
           added++;
-          console.log(`[email-replies] ✅ STORED reply #${messageId}: from=${fromEmail} -> outreach=${outreach.id} lead=${leadId}`);
+          console.log(`[email-replies] ✅ STORED reply #${messageId}: from=${fromEmail} -> outreach=${outreachId ?? 'none'} lead=${leadId ?? 'none'}`);
         }
       }
     } finally {
