@@ -299,6 +299,46 @@ export default function Outreach() {
     const [inlineReplyText, setInlineReplyText] = useState("");
     const [inlineReplySending, setInlineReplySending] = useState(false);
 
+    const [logReplyOpen, setLogReplyOpen] = useState(false);
+    const [logReplyFromEmail, setLogReplyFromEmail] = useState("");
+    const [logReplyFromName, setLogReplyFromName] = useState("");
+    const [logReplySubject, setLogReplySubject] = useState("");
+    const [logReplyBody, setLogReplyBody] = useState("");
+    const [logReplySubmitting, setLogReplySubmitting] = useState(false);
+
+    const handleLogReplySubmit = async (e) => {
+        e.preventDefault();
+        if (!logReplyFromEmail.trim() || !logReplyBody.trim() || logReplySubmitting) return;
+        setLogReplySubmitting(true);
+        try {
+            const res = await fetch("/api/outreach/replies/add", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    fromEmail: logReplyFromEmail.trim(),
+                    fromName: logReplyFromName.trim() || logReplyFromEmail.trim(),
+                    subject: logReplySubject.trim() || "Prospect Reply",
+                    body: logReplyBody.trim(),
+                })
+            });
+            const data = await res.json();
+            if (data.success && data.reply) {
+                setLogReplyOpen(false);
+                setLogReplyFromEmail("");
+                setLogReplyFromName("");
+                setLogReplySubject("");
+                setLogReplyBody("");
+                await refetchReplies();
+                setActiveTab("inbox");
+                setSelectedId(`reply-${data.reply.id}`);
+            }
+        } catch (err) {
+            console.error("Failed to log reply:", err);
+        } finally {
+            setLogReplySubmitting(false);
+        }
+    };
+
     const handleInlineReply = async (recipientEmail, leadId, subjectTitle) => {
         if (!inlineReplyText.trim() || inlineReplySending) return;
         setInlineReplySending(true);
@@ -642,6 +682,10 @@ export default function Outreach() {
           <button onClick={checkReplies} disabled={replyPolling} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-60">
             <RefreshCw className={cn("w-3.5 h-3.5", replyPolling && "animate-spin")}/>
             {replyPolling ? "Checking…" : "Check Replies"}
+          </button>
+          <button onClick={() => setLogReplyOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-purple-700 bg-purple-50 border border-purple-200 hover:bg-purple-100 transition-colors">
+            <MessageCircle className="w-3.5 h-3.5"/>
+            Log Reply
           </button>
           <button onClick={() => setComposeOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
             <Pencil className="w-3.5 h-3.5"/>
@@ -1057,6 +1101,83 @@ export default function Outreach() {
       {activeTab === "draft" && tabEmails.length > 0 && !selected && (<div className="px-6 py-3 border-t border-gray-200 bg-white flex-shrink-0 flex items-center justify-between">
           <span className="text-xs text-gray-500">Select a draft to preview, edit, and send</span>
         </div>)}
+
+      {/* Log Incoming Prospect Reply Modal */}
+      {logReplyOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-purple-600" />
+                Log Incoming Prospect Reply
+              </h3>
+              <button onClick={() => setLogReplyOpen(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <form onSubmit={handleLogReplySubmit} className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">From Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={logReplyFromEmail}
+                  onChange={(e) => setLogReplyFromEmail(e.target.value)}
+                  placeholder="e.g. dreamsdesign.in03@gmail.com"
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-sans"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Sender Name</label>
+                <input
+                  type="text"
+                  value={logReplyFromName}
+                  onChange={(e) => setLogReplyFromName(e.target.value)}
+                  placeholder="e.g. Mansi Shah"
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-sans"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Subject</label>
+                <input
+                  type="text"
+                  value={logReplySubject}
+                  onChange={(e) => setLogReplySubject(e.target.value)}
+                  placeholder="e.g. Re: Festive Gifting for dreamsdesign's Team"
+                  className="w-full px-3 py-2 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 font-sans"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-gray-600 mb-1">Reply Message Body *</label>
+                <textarea
+                  required
+                  rows={4}
+                  value={logReplyBody}
+                  onChange={(e) => setLogReplyBody(e.target.value)}
+                  placeholder="Paste or write the prospect reply here..."
+                  className="w-full p-3 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500/30 resize-none font-sans"
+                />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setLogReplyOpen(false)}
+                  className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 font-medium cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={logReplySubmitting || !logReplyFromEmail.trim() || !logReplyBody.trim()}
+                  className="px-4 py-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-700 rounded-lg disabled:opacity-50 transition-all cursor-pointer shadow-xs"
+                >
+                  {logReplySubmitting ? "Saving…" : "Save to Inbox"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Compose Modal */}
       {composeOpen && (<ComposeModal initialEmail={composeInitial} onClose={() => {
