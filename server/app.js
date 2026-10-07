@@ -1935,7 +1935,7 @@ async function getTransporter(userId) {
     } catch {}
   }
   let user = config.user || process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
-  let pass = config.pass || process.env.SMTP_PASS || 'zjpbagpgncbxjphm';
+  let pass = config.pass || process.env.SMTP_PASS || 'Aurabackend@1';
   let host = config.host || process.env.SMTP_HOST || (user.includes('auralaserclinic') || user.includes('office365') || user.includes('outlook') ? 'smtp.office365.com' : 'smtp.gmail.com');
   let port = config.port || Number(process.env.SMTP_PORT) || 587;
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
@@ -2105,6 +2105,16 @@ app.post('/api/outreach/clear-sent', async (req, res) => {
     res.json({ success: true, count: sentRes.rowCount, message: 'All sent emails removed from database successfully.' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/useListAuditedLeads
+app.get('/api/useListAuditedLeads', async (req, res) => {
+  try {
+    const result = await db.query(`SELECT id, first_name AS "firstName", last_name AS "lastName", email, company, country, designation, industry, health_score AS "healthScore", critical_count AS "criticalCount", high_count AS "highCount", medium_count AS "mediumCount", photo, company_logo AS "companyLogo" FROM leads WHERE health_score IS NOT NULL ORDER BY id DESC LIMIT 500`);
+    res.json(result.rows || []);
+  } catch (err) {
+    res.json([]);
   }
 });
 
