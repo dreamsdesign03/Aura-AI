@@ -423,8 +423,8 @@ export default function Outreach() {
     const threadList = activeTab === "inbox" ? inboxThreadList : outboundThreadList;
     threadList.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
     // Currently selected thread & root email
-    const selectedThread = selectedId ? threadList.find((t) => t.groupEmails.some(e => e.id === selectedId)) ?? null : null;
-    const selected = selectedId ? emails.find((e) => e.id === selectedId) ?? null : null;
+    const selectedThread = selectedId ? threadList.find((t) => t.id === selectedId || t.threadKey === selectedId || t.groupEmails.some(e => String(e.id) === String(selectedId))) ?? null : null;
+    const selected = selectedId ? (emails.find((e) => String(e.id) === String(selectedId)) || selectedThread || null) : null;
     const threadReplies = selectedThread ? selectedThread.groupReplies : [];
     
     // Robust stream replies lookup (with fallback matching)
@@ -440,7 +440,19 @@ export default function Outreach() {
 
     // Full chronological message stream for current thread (Gmail style)
     const fullConversationStream = selectedThread ? [
-        ...selectedThread.groupEmails.map(s => ({
+        ...selectedThread.groupEmails.map(s => (s.isReplyItem ? {
+            id: s.id,
+            replyId: s.replyId,
+            isReply: true,
+            senderName: [s.leadFirstName, s.leadLastName].filter(Boolean).join(" ").trim() || s.toEmail,
+            senderEmail: s.toEmail,
+            recipientEmail: SENDER_EMAIL,
+            subject: s.subject,
+            body: s.body,
+            quotedBody: s.quotedBody,
+            date: s.sentAt || s.createdAt,
+            isUnread: !readReplyIds.has(s.replyId)
+        } : {
             id: `sent-${s.id}`,
             isReply: false,
             rawId: s.id,
@@ -454,7 +466,7 @@ export default function Outreach() {
             openedAt: s.openedAt,
             errorMsg: s.errorMsg
         })),
-        ...activeStreamReplies.map(r => ({
+        ...activeStreamReplies.filter(r => !selectedThread.groupEmails.some(s => s.replyId === r.id)).map(r => ({
             id: `reply-${r.id}`,
             replyId: r.id,
             isReply: true,
