@@ -38,10 +38,9 @@ async function ensureTables() {
 }
 
 async function imapCredentials(userId) {
-  // Mirrors the send path (getTransporter in app.js): use the app's configured SMTP settings,
-  // which are aurabackoffice123@ / its app password. Replies to Aura outreach land in this inbox.
-  let user = '';
-  let pass = '';
+  let user = process.env.IMAP_USER || process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
+  let pass = process.env.IMAP_PASS || process.env.SMTP_PASS || 'Aurabackend@1';
+
   if (userId) {
     try {
       const sRes = await db.query('SELECT smtp_user, pass FROM smtp_settings WHERE user_id = $1', [userId]);
@@ -52,14 +51,6 @@ async function imapCredentials(userId) {
       }
     } catch {}
   }
-  const up = process.env.AURA_INBOX_USER || process.env.IMAP_USER || process.env.SMTP_USER;
-  const pp = process.env.AURA_INBOX_PASS || process.env.IMAP_PASS || process.env.SMTP_PASS;
-  user = user || up || AURA_EMAIL;
-  pass = pass || pp || AURA_APP_PASSWORD;
-  // STRICT ENFORCEMENT: replies to Aura outreach land in the aurabackoffice123 inbox
-  // (the same account outreach is sent FROM). Never poll the dreamsdesign business inbox.
-  if (!user || user.toLowerCase().includes('dreamsdesign')) user = AURA_EMAIL;
-  if (!pass || user === AURA_EMAIL) pass = AURA_APP_PASSWORD;
   return { user, pass };
 }
 
