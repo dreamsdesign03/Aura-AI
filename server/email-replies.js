@@ -363,6 +363,42 @@ function registerEmailReplyRoutes(app, resolveUserId) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // POST /api/webhooks/incoming-email — Webhook for incoming prospect replies (e.g. from n8n / Outlook forwarder / SendGrid)
+  app.post('/api/webhooks/incoming-email', async (req, res) => {
+    try {
+      const payload = req.body || {};
+      const fromEmail = payload.from || payload.fromEmail || payload.sender || payload.headers?.from || '';
+      const fromName = payload.fromName || payload.name || fromEmail;
+      const subject = payload.subject || 'Prospect Reply';
+      const body = payload.body || payload.text || payload.html || '';
+
+      if (!fromEmail || !body) {
+        return res.status(400).json({ error: 'from and body are required' });
+      }
+
+      const cleanFromEmail = String(fromEmail).replace(/<.*?>/g, '').trim();
+      const leadRes = await db.query(`SELECT id FROM leads WHERE LOWER(email) = LOWER($1) LIMIT 1`, [cleanFromEmail.toLowerCase()]);
+      const targetLeadId = leadRes.rows[0]?.id || null;
+
+      const outreachRes = await db.query(`SELECT id FROM outreach_emails WHERE LOWER(to_email) = LOWER($1) OR LOWER(recipient_email) = LOWER($1) ORDER BY id DESC LIMIT 1`, [cleanFromEmail.toLowerCase()]);
+      const targetOutreachId = outreachRes.rows[0]?.id || null;
+
+      const msgId = `webhook-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const result = await db.query(
+        `INSERT INTO email_replies (user_id, lead_id, outreach_email_id, from_email, from_name, subject, body, message_id, received_at)
+         VALUES (1, $1, $2, $3, $4, $5, $6, $7, NOW())
+         RETURNING *`,
+        [targetLeadId, targetOutreachId, cleanFromEmail, fromName, subject, body, msgId]
+      );
+
+      console.log(`[webhook-reply] ✅ STORED incoming email from ${cleanFromEmail}`);
+      res.json({ success: true, reply: result.rows[0] });
+    } catch (err) {
+      console.error('[webhook-reply] error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
 }
 
 module.exports = { registerEmailReplyRoutes, pollReplies, ensureTables };
