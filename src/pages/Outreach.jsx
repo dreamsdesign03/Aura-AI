@@ -391,15 +391,24 @@ export default function Outreach() {
 
     const inboxThreadList = genuineReplies.map((r) => {
         const leadName = [r.first_name, r.last_name].filter(Boolean).join(" ").trim() || r.from_name || r.from_email;
+        const fromEmail = (r.from_email || "").toLowerCase().trim();
+        const matchingSentEmails = emails.filter((e) => {
+            const to = (e.toEmail || "").toLowerCase().trim();
+            const leadMatch = r.lead_id && String(e.leadId) === String(r.lead_id);
+            const outreachMatch = r.outreach_email_id && String(e.id) === String(r.outreach_email_id);
+            const emailMatch = to && fromEmail && (to === fromEmail || to.includes(fromEmail) || fromEmail.includes(to));
+            return leadMatch || outreachMatch || emailMatch;
+        });
+
         const rootItem = {
             id: `reply-${r.id}`,
-            leadId: r.lead_id,
+            leadId: r.lead_id || matchingSentEmails[0]?.leadId,
             toEmail: r.from_email,
             recipientEmail: r.from_email,
-            leadFirstName: r.first_name || (r.from_name || "").split(/\s+/)[0] || "Prospect",
-            leadLastName: r.last_name || "",
-            company: r.company || "",
-            subject: r.subject || "User Response",
+            leadFirstName: r.first_name || matchingSentEmails[0]?.leadFirstName || (r.from_name || "").split(/\s+/)[0] || "Prospect",
+            leadLastName: r.last_name || matchingSentEmails[0]?.leadLastName || "",
+            company: r.company || matchingSentEmails[0]?.company || "",
+            subject: r.subject || matchingSentEmails[0]?.subject || "User Response",
             body: r.body,
             quotedBody: r.quoted_body,
             sentAt: r.received_at,
@@ -408,12 +417,15 @@ export default function Outreach() {
             isReplyItem: true,
             replyId: r.id
         };
+
+        const groupEmails = matchingSentEmails.length > 0 ? [...matchingSentEmails, rootItem] : [rootItem];
+
         return {
             ...rootItem,
             threadKey: `reply-${r.id}`,
-            groupEmails: [rootItem],
+            groupEmails,
             groupReplies: [r],
-            messageCount: 1,
+            messageCount: groupEmails.length,
             replyCount: 1,
             hasUnread: !readReplyIds.has(r.id),
             unreadCount: !readReplyIds.has(r.id) ? 1 : 0
@@ -837,6 +849,12 @@ export default function Outreach() {
                       Sent {formatSafeDistance(selected.sentAt)}
                     </div>
                   )}
+                  {(selected.status === "received" || selected.isReplyItem) && (
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-emerald-600 shadow-xs">
+                      <Reply className="w-3.5 h-3.5"/>
+                      Received Reply {formatSafeDistance(selected.sentAt || selected.createdAt)}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -861,7 +879,7 @@ export default function Outreach() {
               <div className="flex-1 overflow-y-auto p-6 bg-white">
                 <div className="max-w-3xl mx-auto space-y-6">
 
-                  {selected.status === "sent" ? (
+                  {(selected.status === "sent" || selected.status === "received" || selected.isReplyItem || activeTab === "inbox") ? (
                     /* ── Gmail-style Thread View (Exact Gmail UI) ── */
                     <div className="space-y-6">
                       {/* Thread Header / Subject */}
