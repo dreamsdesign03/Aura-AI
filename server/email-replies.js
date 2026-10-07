@@ -349,6 +349,34 @@ function registerEmailReplyRoutes(app, resolveUserId) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // POST /api/outreach/replies/add — Manual or webhook reply logger
+  app.post('/api/outreach/replies/add', async (req, res) => {
+    try {
+      const userId = await resolveUserId(req.body?.email || null, req.headers.cookie);
+      const { fromEmail, fromName, subject, body, leadId } = req.body;
+      if (!fromEmail || !body) return res.status(400).json({ error: 'fromEmail and body are required' });
+
+      let targetLeadId = leadId ? Number(leadId) : null;
+      if (!targetLeadId) {
+        const leadRes = await db.query(`SELECT id FROM leads WHERE LOWER(email) = LOWER($1) LIMIT 1`, [fromEmail.trim()]);
+        targetLeadId = leadRes.rows[0]?.id || null;
+      }
+
+      const msgId = `reply-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`;
+      const result = await db.query(
+        `INSERT INTO email_replies (user_id, lead_id, from_email, from_name, subject, body, message_id, received_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+         RETURNING *`,
+        [userId, targetLeadId, fromEmail.trim(), fromName || fromEmail, subject || 'Prospect Reply', body, msgId]
+      );
+
+      res.json({ success: true, reply: result.rows[0] });
+    } catch (err) {
+      console.error('[email-replies] add error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
 }
 
 module.exports = { registerEmailReplyRoutes, pollReplies, ensureTables };
