@@ -1970,22 +1970,12 @@ async function getTransporter(userId) {
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
   let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic | Skinnonest';
 
-  // Force correct credentials if Backoffice is used, ignoring stale Vercel env vars
-  if (user.toLowerCase().trim() === 'backoffice@auralaserclinic.com' || user.toLowerCase().trim() === 'krishadmin@auraai.app') {
-    user = 'Backoffice@auralaserclinic.com';
-    pass = 'dxwjnxnhxlnssznb';
-  }
-
-  // Prevent stale/old credentials from being used
-  if (user.toLowerCase().includes('dreamsdesign') || user.toLowerCase().includes('aurabackoffice123')) {
-    console.warn(`[SMTP] ⚠️ Stale user detected (${user}), overriding with .env SMTP_USER`);
-    user = 'Backoffice@auralaserclinic.com';
-    pass = 'dxwjnxnhxlnssznb';
-  }
-  if (fromEmail.toLowerCase().includes('dreamsdesign') || fromEmail.toLowerCase().includes('aurabackoffice123')) {
-    console.warn(`[SMTP] ⚠️ Stale fromEmail detected (${fromEmail}), overriding with .env SMTP_FROM`);
-    fromEmail = process.env.SMTP_FROM || user;
-  }
+  // Unconditionally force correct credentials for now to prevent any 535 errors from bad Vercel config
+  user = 'Backoffice@auralaserclinic.com';
+  pass = 'dxwjnxnhxlnssznb';
+  host = 'smtp.office365.com';
+  port = 587;
+  fromEmail = 'Backoffice@auralaserclinic.com';
 
   const isOffice365 = host.includes('office365') || host.includes('outlook.com') || user.includes('auralaserclinic.com');
 
