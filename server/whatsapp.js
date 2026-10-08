@@ -627,12 +627,22 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             
             const n8nData = await n8nRes.json().catch(() => ({}));
             
-            if (n8nRes.ok && (n8nData.ok || n8nData.success)) {
-              wamid = n8nData.wamid || null;
+            if (n8nRes.ok) {
+              if (n8nData.error && typeof n8nData.error === 'object') {
+                status = 'failed';
+                errCode = n8nData.error.code ? String(n8nData.error.code) : null;
+                errMsg = n8nData.error.message || 'Meta API error from n8n';
+              } else if (n8nData.ok === false || n8nData.success === false) {
+                status = 'failed';
+                errCode = n8nData.error_code != null ? String(n8nData.error_code) : null;
+                errMsg = typeof n8nData.error === 'string' ? n8nData.error : 'N8N webhook logic failed';
+              } else {
+                wamid = n8nData.wamid || (n8nData.messages && n8nData.messages[0] ? n8nData.messages[0].id : null);
+              }
             } else {
               status = 'failed';
               errCode = n8nData.error_code != null ? String(n8nData.error_code) : null;
-              errMsg = n8nData.error || 'N8N webhook failed';
+              errMsg = typeof n8nData.error === 'string' ? n8nData.error : 'N8N webhook failed';
             }
           } catch (err) {
             status = 'failed';
