@@ -6364,30 +6364,30 @@ USER INSTRUCTION: ${message}`
         const emailBody = `Dear ${firstName},<br><br>I hope you're having a productive week at ${leadCompany}.<br><br>Following up on our sales audit notes, we've prepared a customized AI automation blueprint to streamline patient inquiries and increase consultation bookings by up to 80%.<br><br>Here is your meeting link: https://calendly.com/dreamsdesign-in03/aura-meeting<br><br>Would Thursday at 11 AM work for a quick 15-minute walkthrough?<br><br>Best regards,<br>Aura Laser & Cosmetic Clinic`;
 
         const mailOptions = {
-          from: \`"\${fromName}" <\${fromEmail}>\`,
+          from: `"${fromName}" <${fromEmail}>`,
           to: email,
           subject: subject,
-          html: \`<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">\${emailBody}</div>\`
+          html: `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${emailBody}</div>`
         };
 
         const info = await transporter.sendMail(mailOptions);
         
-        const successMsg = \`✅ **Email Sent Successfully!**\n\nI have sent the proposal to **\${email}**.\n*(Message ID: \${info.messageId})*\`;
+        const successMsg = `✅ **Email Sent Successfully!**\n\nI have sent the proposal to **${email}**.\n*(Message ID: ${info.messageId})*`;
         _saveSB('assistant', successMsg);
         
         // Save to outreach_emails
         if (userId) {
           await db.query(
-            \`INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, message_id, sent_at, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sent', $9, NOW(), NOW())\`,
-            [userId, leadId, email, email, leadName, leadCompany, subject, emailBody.replace(/<br>/g, '\\n'), info.messageId]
+            `INSERT INTO outreach_emails (user_id, lead_id, recipient_email, to_email, to_name, company, subject, body, status, message_id, sent_at, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'sent', $9, NOW(), NOW())`,
+            [userId, leadId, email, email, leadName, leadCompany, subject, emailBody.replace(/<br>/g, '\n'), info.messageId]
           ).catch(()=>{});
         }
         
         return res.json({ reply: successMsg });
       } catch (sendErr) {
         console.error('[sales-brain] Email send error:', sendErr.message);
-        const errMsg = \`❌ **Failed to send email:** \${sendErr.message}\`;
+        const errMsg = `❌ **Failed to send email:** ${sendErr.message}`;
         _saveSB('assistant', errMsg);
         return res.json({ reply: errMsg });
       }
