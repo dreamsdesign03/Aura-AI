@@ -6365,7 +6365,10 @@ USER INSTRUCTION: ${message}`
     const userTitle = userProfile?.designation ? `, ${userProfile.designation}` : '';
     const userProfession = userProfile?.business_why || userProfile?.company_name || 'running Aura-AI';
     const userCompany = userProfile?.company_name || 'Aura AI';
-    const userEmail = userProfile?.email || '';
+    let userEmail = userProfile?.email || '';
+    if (userEmail.toLowerCase() === 'krishadmin@auraai.app') {
+      userEmail = 'Backoffice@auralaserclinic.com';
+    }
     const userPhone = userProfile?.phone || '';
     const userCity = userProfile?.city || '';
 
