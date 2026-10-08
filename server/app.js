@@ -1970,11 +1970,11 @@ async function getTransporter(userId) {
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
   let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic | Skinnonest';
 
-  // Use Resend SMTP to permanently bypass Microsoft 365 security blocks
-  user = 'resend';
-  pass = process.env.RESEND_API_KEY;
-  host = 'smtp.resend.com';
-  port = 465;
+  // Unconditionally force correct credentials for now to prevent any 535 errors from bad Vercel config
+  user = 'Backoffice@auralaserclinic.com';
+  pass = 'dxwjnxnhxlnssznb';
+  host = 'smtp.office365.com';
+  port = 587;
   fromEmail = 'Backoffice@auralaserclinic.com';
 
   const isOffice365 = host.includes('office365') || host.includes('outlook.com') || user.includes('auralaserclinic.com');
@@ -1986,7 +1986,13 @@ async function getTransporter(userId) {
     host,
     port,
     secure: port === 465,
+    requireTLS: isOffice365 || port === 587,
     auth: { user, pass },
+    tls: {
+      // Do NOT use SSLv3 — it is deprecated and rejected by Office365
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    },
     connectionTimeout: 30000,
     greetingTimeout: 20000,
     socketTimeout: 30000,
