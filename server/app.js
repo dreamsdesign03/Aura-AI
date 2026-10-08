@@ -1964,7 +1964,7 @@ async function getTransporter(userId) {
   }
 
   let user = config.user || process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
-  let pass = config.pass || process.env.SMTP_PASS || 'Aurabackend@1';
+  let pass = config.pass || process.env.SMTP_PASS || 'dxwjnxnhxlnssznb';
   let host = config.host || process.env.SMTP_HOST || (user.includes('auralaserclinic') || user.includes('office365') || user.includes('outlook') ? 'smtp.office365.com' : 'smtp.gmail.com');
   let port = config.port || Number(process.env.SMTP_PORT) || 587;
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
@@ -1974,7 +1974,7 @@ async function getTransporter(userId) {
   if (user.toLowerCase().includes('dreamsdesign') || user.toLowerCase().includes('aurabackoffice123')) {
     console.warn(`[SMTP] ⚠️ Stale user detected (${user}), overriding with .env SMTP_USER`);
     user = process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
-    pass = process.env.SMTP_PASS || 'Aurabackend@1';
+    pass = process.env.SMTP_PASS || 'dxwjnxnhxlnssznb';
   }
   if (fromEmail.toLowerCase().includes('dreamsdesign') || fromEmail.toLowerCase().includes('aurabackoffice123')) {
     console.warn(`[SMTP] ⚠️ Stale fromEmail detected (${fromEmail}), overriding with .env SMTP_FROM`);
