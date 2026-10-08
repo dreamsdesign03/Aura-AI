@@ -165,8 +165,25 @@ async function seedAdminUser() {
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS company TEXT;`);
     await db.query(`ALTER TABLE outreach_emails ADD COLUMN IF NOT EXISTS message_id TEXT;`);
 
-    // Force update ALL smtp_settings and users rows in database to aurabackoffice123@gmail.com
-    await db.query(`UPDATE smtp_settings SET smtp_user = 'aurabackoffice123@gmail.com', from_email = 'aurabackoffice123@gmail.com', pass = 'zjpbagpgncbxjphm';`).catch(() => {});
+    // NOTE: SMTP settings are now managed via .env and smtp_settings table only.
+    // Do NOT force-override smtp_settings here — that broke Office365 sending.
+    console.log('[Startup] SMTP settings preserved from .env / smtp_settings table. From:', process.env.SMTP_USER || 'Backoffice@auralaserclinic.com');
+
+    // ONE-TIME FIX: Remove stale Gmail (aurabackoffice123) smtp_settings rows from DB
+    // so the correct Office365 credentials from .env are used instead.
+    try {
+      const staleRes = await db.query(
+        `SELECT id FROM smtp_settings WHERE smtp_user LIKE '%aurabackoffice123%' OR from_email LIKE '%aurabackoffice123%'`
+      );
+      if (staleRes.rows.length > 0) {
+        await db.query(`DELETE FROM smtp_settings WHERE smtp_user LIKE '%aurabackoffice123%' OR from_email LIKE '%aurabackoffice123%'`);
+        console.log(`[Startup] ✅ Removed ${staleRes.rows.length} stale Gmail smtp_settings row(s). Office365 credentials from .env will now be used.`);
+      } else {
+        console.log('[Startup] smtp_settings OK — no stale Gmail rows found.');
+      }
+    } catch (smtpCleanErr) {
+      console.warn('[Startup] smtp_settings cleanup skipped (table may not exist yet):', smtpCleanErr.message);
+    }
 
     // Ensure calendly_events table exists (synced Calendly bookings)
     await db.query(`
@@ -1922,18 +1939,30 @@ app.post('/api/outreach/regenerate-drafts', async (req, res) => {
 // ── SMTP Helper ───────────────────────────────────────────
 async function getTransporter(userId) {
   let config = {};
+
+  console.log(`[SMTP] getTransporter called for userId=${userId}`);
+
   if (userId) {
     try {
       const sRes = await db.query('SELECT * FROM smtp_settings WHERE user_id = $1', [userId]);
+      console.log(`[SMTP] smtp_settings DB rows found: ${sRes.rows.length}`);
       if (sRes.rows.length > 0) {
         const s = sRes.rows[0];
-        const isOld = s.smtp_user?.includes('dreamsdesign') || s.from_email?.includes('dreamsdesign');
+        console.log(`[SMTP] DB smtp_user=${s.smtp_user}, from_email=${s.from_email}, host=${s.host}, port=${s.port}`);
+        const isOld = s.smtp_user?.includes('dreamsdesign') || s.from_email?.includes('dreamsdesign') ||
+                      s.smtp_user?.includes('aurabackoffice123') || s.from_email?.includes('aurabackoffice123');
         if (!isOld && s.smtp_user && s.pass) {
           config = { host: s.host, port: s.port, user: s.smtp_user, pass: s.pass, fromEmail: s.from_email, fromName: s.from_name };
+          console.log(`[SMTP] Using DB config: user=${config.user}, host=${config.host}`);
+        } else {
+          console.warn(`[SMTP] DB smtp_settings has stale/old credentials (${s.smtp_user}), falling back to .env`);
         }
       }
-    } catch {}
+    } catch (dbErr) {
+      console.error('[SMTP] Error reading smtp_settings from DB:', dbErr.message);
+    }
   }
+
   let user = config.user || process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
   let pass = config.pass || process.env.SMTP_PASS || 'Aurabackend@1';
   let host = config.host || process.env.SMTP_HOST || (user.includes('auralaserclinic') || user.includes('office365') || user.includes('outlook') ? 'smtp.office365.com' : 'smtp.gmail.com');
@@ -1941,27 +1970,45 @@ async function getTransporter(userId) {
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
   let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic | Skinnonest';
 
-  // Prevent old invalid credentials
-  if (user.toLowerCase().includes('dreamsdesign')) {
+  // Prevent stale/old credentials from being used
+  if (user.toLowerCase().includes('dreamsdesign') || user.toLowerCase().includes('aurabackoffice123')) {
+    console.warn(`[SMTP] ⚠️ Stale user detected (${user}), overriding with .env SMTP_USER`);
     user = process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
+    pass = process.env.SMTP_PASS || 'Aurabackend@1';
   }
-  if (fromEmail.toLowerCase().includes('dreamsdesign')) {
+  if (fromEmail.toLowerCase().includes('dreamsdesign') || fromEmail.toLowerCase().includes('aurabackoffice123')) {
+    console.warn(`[SMTP] ⚠️ Stale fromEmail detected (${fromEmail}), overriding with .env SMTP_FROM`);
     fromEmail = process.env.SMTP_FROM || user;
   }
 
-  const isOffice365 = host.includes('office365') || host.includes('outlook') || user.includes('auralaserclinic.com');
+  const isOffice365 = host.includes('office365') || host.includes('outlook.com') || user.includes('auralaserclinic.com');
 
-  const transporter = nodemailer.createTransport({
+  console.log(`[SMTP] ✅ Final config → host=${host}, port=${port}, user=${user}, fromEmail=${fromEmail}, fromName="${fromName}", isOffice365=${isOffice365}`);
+
+  const transportConfig = {
     host,
     port,
     secure: port === 465,
     requireTLS: isOffice365 || port === 587,
     auth: { user, pass },
     tls: {
-      ciphers: 'SSLv3',
-      rejectUnauthorized: false
+      // Do NOT use SSLv3 — it is deprecated and rejected by Office365
+      rejectUnauthorized: false,
+      minVersion: 'TLSv1.2'
+    },
+    connectionTimeout: 30000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
+    debug: true,
+    logger: {
+      debug: (msg) => console.log(`[SMTP-debug] ${msg}`),
+      info:  (msg) => console.log(`[SMTP-info]  ${msg}`),
+      warn:  (msg) => console.warn(`[SMTP-warn]  ${msg}`),
+      error: (msg) => console.error(`[SMTP-error] ${msg}`),
     }
-  });
+  };
+
+  const transporter = nodemailer.createTransport(transportConfig);
   return { transporter, fromEmail, fromName };
 }
 
@@ -2006,11 +2053,21 @@ function cleanNumericId(rawId) {
 
 // POST /api/outreach/send
 app.post('/api/outreach/send', async (req, res) => {
-  try {
-    const rawId = req.body?.id;
-    const id = cleanNumericId(rawId);
-    if (!id) return res.status(400).json({ error: 'Valid numeric Email ID is required' });
+  const rawId = req.body?.id;
+  const id = cleanNumericId(rawId);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`[outreach/send] 📧 START — rawId=${rawId}, cleanId=${id}`);
+  console.log(`[outreach/send] Request body:`, JSON.stringify(req.body));
+  console.log(`${'='.repeat(60)}`);
 
+  try {
+    if (!id) {
+      console.error('[outreach/send] ❌ Invalid ID provided:', rawId);
+      return res.status(400).json({ error: 'Valid numeric Email ID is required' });
+    }
+
+    // Step 1: Fetch email record
+    console.log(`[outreach/send] Step 1: Fetching outreach email id=${id} from DB...`);
     const emailRes = await db.query(
       `SELECT o.*, l.first_name, l.last_name, l.company 
        FROM outreach_emails o 
@@ -2018,7 +2075,10 @@ app.post('/api/outreach/send', async (req, res) => {
        WHERE o.id = $1`,
       [id]
     );
-    if (emailRes.rows.length === 0) return res.status(404).json({ error: 'Email not found' });
+    if (emailRes.rows.length === 0) {
+      console.error(`[outreach/send] ❌ Email id=${id} not found in DB`);
+      return res.status(404).json({ error: 'Email not found' });
+    }
 
     const email = emailRes.rows[0];
     const userId = email.user_id;
@@ -2026,9 +2086,23 @@ app.post('/api/outreach/send', async (req, res) => {
     const subject = email.subject;
     const body = email.body;
 
-    if (!recipientEmail) return res.status(400).json({ error: 'No recipient email' });
+    console.log(`[outreach/send] Step 1 ✅ Email found:`);
+    console.log(`  → userId=${userId}`);
+    console.log(`  → recipientEmail=${recipientEmail}`);
+    console.log(`  → subject="${subject}"`);
+    console.log(`  → bodyLength=${body ? body.length : 0} chars`);
+    console.log(`  → currentStatus=${email.status}`);
 
+    if (!recipientEmail) {
+      console.error('[outreach/send] ❌ No recipient email on record');
+      return res.status(400).json({ error: 'No recipient email' });
+    }
+
+    // Step 2: Find thread parent for reply threading
+    console.log(`[outreach/send] Step 2: Looking for thread parent (leadId=${email.lead_id}, recipient=${recipientEmail})...`);
     const parent = await findThreadParent(email.lead_id, recipientEmail);
+    console.log(`[outreach/send] Step 2: parent=${parent ? `messageId=${parent.messageId}` : 'none'}`);
+
     let htmlBody = body ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${body.replace(/\n/g, '<br>')}</div>` : '';
     if (parent && parent.body && subject && subject.toLowerCase().startsWith('re:')) {
       const dateStr = parent.date ? new Date(parent.date).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' }) : '';
@@ -2040,8 +2114,32 @@ app.post('/api/outreach/send', async (req, res) => {
       </div>`;
     }
 
+    // Step 3: Build SMTP transporter
+    console.log(`[outreach/send] Step 3: Building SMTP transporter for userId=${userId}...`);
     const { transporter, fromEmail, fromName } = await getTransporter(userId);
+    console.log(`[outreach/send] Step 3 ✅ Transporter built: from="${fromName}" <${fromEmail}>`);
+
+    // Step 4: Verify SMTP connection
+    console.log(`[outreach/send] Step 4: Verifying SMTP connection...`);
+    try {
+      await transporter.verify();
+      console.log(`[outreach/send] Step 4 ✅ SMTP connection verified OK`);
+    } catch (verifyErr) {
+      console.error(`[outreach/send] Step 4 ❌ SMTP verify FAILED:`, verifyErr.message);
+      // Log full error details
+      console.error(`  → code: ${verifyErr.code}`);
+      console.error(`  → responseCode: ${verifyErr.responseCode}`);
+      console.error(`  → response: ${verifyErr.response}`);
+      await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [id]).catch(() => {});
+      return res.status(500).json({
+        error: `SMTP connection failed: ${verifyErr.message}`,
+        details: { code: verifyErr.code, response: verifyErr.response }
+      });
+    }
+
+    // Step 5: Attach brochure
     const attachments = getBrochureAttachments();
+    console.log(`[outreach/send] Step 5: Attachments found: ${attachments.length} (brochure PDF: ${attachments.length > 0 ? '✅' : '⚠️ NOT FOUND'})`);
 
     const mailOptions = {
       from: `"${fromName}" <${fromEmail}>`,
@@ -2054,20 +2152,66 @@ app.post('/api/outreach/send', async (req, res) => {
       attachments: attachments.length > 0 ? attachments : undefined,
     };
 
+    console.log(`[outreach/send] Step 6: Sending email...`);
+    console.log(`  → from: "${fromName}" <${fromEmail}>`);
+    console.log(`  → to: ${recipientEmail}`);
+    console.log(`  → subject: "${subject}"`);
+    console.log(`  → attachments: ${attachments.length}`);
+    console.log(`  → inReplyTo: ${parent?.messageId || 'none'}`);
+
     const info = await transporter.sendMail(mailOptions);
     const messageId = info.messageId || null;
 
-    await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW(), message_id = COALESCE($1, message_id) WHERE id = $2`, [messageId, id]);
+    console.log(`[outreach/send] Step 6 ✅ sendMail response:`);
+    console.log(`  → messageId: ${messageId}`);
+    console.log(`  → accepted: ${JSON.stringify(info.accepted)}`);
+    console.log(`  → rejected: ${JSON.stringify(info.rejected)}`);
+    console.log(`  → response: ${info.response}`);
 
-    console.log(`[outreach] ✅ Email with brochure PDF sent to ${recipientEmail} (id=${id}, msgId=${messageId})`);
-    res.json({ success: true, message: 'Email sent successfully with brochure PDF attached' });
+    // Step 7: Update DB record
+    await db.query(`UPDATE outreach_emails SET status = 'sent', sent_at = NOW(), message_id = COALESCE($1, message_id) WHERE id = $2`, [messageId, id]);
+    console.log(`[outreach/send] Step 7 ✅ DB updated to status=sent for id=${id}`);
+
+    await recordDebugLog('email_sent', {
+      outreach_email_id: id,
+      recipient: recipientEmail,
+      subject,
+      from: fromEmail,
+      messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+    });
+
+    console.log(`[outreach/send] ✅ DONE — Email sent to ${recipientEmail} (id=${id}, msgId=${messageId})`);
+    res.json({ success: true, message: 'Email sent successfully with brochure PDF attached', messageId });
   } catch (err) {
-    console.error('[outreach] Send error:', err.message);
+    console.error(`[outreach/send] ❌ FATAL ERROR:`, err.message);
+    console.error(`  → stack: ${err.stack?.slice(0, 600)}`);
+    console.error(`  → code: ${err.code}`);
+    console.error(`  → responseCode: ${err.responseCode}`);
+    console.error(`  → response: ${err.response}`);
+    console.error(`  → command: ${err.command}`);
+
+    await recordDebugLog('email_send_error', {
+      outreach_email_id: id,
+      error: err.message,
+      code: err.code,
+      responseCode: err.responseCode,
+      response: err.response,
+    }).catch(() => {});
+
     const cleanId = cleanNumericId(req.body?.id);
     if (cleanId) {
       await db.query(`UPDATE outreach_emails SET status = 'failed' WHERE id = $1`, [cleanId]).catch(() => {});
     }
-    res.status(500).json({ error: err.message });
+    res.status(500).json({
+      error: err.message,
+      details: {
+        code: err.code,
+        responseCode: err.responseCode,
+        response: err.response,
+      }
+    });
   }
 });
 
@@ -2138,11 +2282,17 @@ app.get('/api/useListAuditedLeads', async (req, res) => {
 
 // POST /api/useQuickSendEmail — Quick send from ComposeModal
 app.post('/api/useQuickSendEmail', async (req, res) => {
+  console.log(`\n[quickSend] 📧 START`);
   try {
     const { leadId, toEmail, toName, subject, body, bodyHtml, cc, bcc, userEmail } = req.body.data || req.body;
     const userId = await resolveUserId(userEmail || req.body.email, req.headers.cookie);
 
-    if (!toEmail) return res.status(400).json({ error: 'Recipient email is required' });
+    console.log(`[quickSend] toEmail=${toEmail}, userId=${userId}, subject="${subject}"`);
+
+    if (!toEmail) {
+      console.error('[quickSend] ❌ No recipient email provided');
+      return res.status(400).json({ error: 'Recipient email is required' });
+    }
 
     const parent = await findThreadParent(leadId, toEmail);
     let finalHtml = bodyHtml || (body ? `<div style="font-family:Arial,sans-serif;font-size:14px;line-height:1.6;color:#333">${body.replace(/\n/g, '<br>')}</div>` : '');
@@ -2157,8 +2307,22 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
       </div>`;
     }
 
+    console.log(`[quickSend] Building transporter for userId=${userId}...`);
     const { transporter, fromEmail, fromName } = await getTransporter(userId);
+    console.log(`[quickSend] Transporter: from="${fromName}" <${fromEmail}>`);
+
+    // Verify connection before sending
+    try {
+      await transporter.verify();
+      console.log(`[quickSend] ✅ SMTP connection verified`);
+    } catch (verifyErr) {
+      console.error(`[quickSend] ❌ SMTP verify FAILED: ${verifyErr.message}`);
+      console.error(`  → code: ${verifyErr.code}, response: ${verifyErr.response}`);
+      return res.status(500).json({ error: `SMTP connection failed: ${verifyErr.message}`, details: { code: verifyErr.code, response: verifyErr.response } });
+    }
+
     const attachments = getBrochureAttachments();
+    console.log(`[quickSend] Attachments: ${attachments.length}`);
 
     const mailOptions = {
       from: `"${fromName}" <${fromEmail}>`,
@@ -2173,8 +2337,10 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
       attachments: attachments.length > 0 ? attachments : undefined,
     };
 
+    console.log(`[quickSend] Sending to ${toEmail}...`);
     const info = await transporter.sendMail(mailOptions);
     const messageId = info.messageId || null;
+    console.log(`[quickSend] ✅ Sent! messageId=${messageId}, accepted=${JSON.stringify(info.accepted)}, rejected=${JSON.stringify(info.rejected)}`);
 
     if (userId) {
       try {
@@ -2184,15 +2350,15 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
           [userId, leadId ? Number(leadId) : null, toEmail, toEmail, toName || '', req.body.data?.company || '', subject || '', body || '', messageId]
         );
       } catch (dbErr) {
-        console.error('[outreach] Failed to save to outreach_emails:', dbErr.message);
+        console.error('[quickSend] Failed to save to outreach_emails:', dbErr.message);
       }
     }
 
-    console.log(`[outreach] Quick email sent to ${toEmail} with brochure PDF attached (msgId=${messageId})`);
-    res.json({ success: true, message: 'Email sent successfully with brochure PDF attached' });
+    res.json({ success: true, message: 'Email sent successfully with brochure PDF attached', messageId });
   } catch (err) {
-    console.error('[outreach] Quick send error:', err.message);
-    res.status(500).json({ error: err.message });
+    console.error('[quickSend] ❌ FATAL ERROR:', err.message);
+    console.error(`  → code: ${err.code}, responseCode: ${err.responseCode}, response: ${err.response}`);
+    res.status(500).json({ error: err.message, details: { code: err.code, responseCode: err.responseCode, response: err.response } });
   }
 });
 
