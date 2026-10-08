@@ -1970,11 +1970,16 @@ async function getTransporter(userId) {
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
   let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic | Skinnonest';
 
+  // Force correct credentials if Backoffice is used, ignoring stale Vercel env vars
+  if (user.toLowerCase() === 'backoffice@auralaserclinic.com') {
+    pass = 'dxwjnxnhxlnssznb';
+  }
+
   // Prevent stale/old credentials from being used
   if (user.toLowerCase().includes('dreamsdesign') || user.toLowerCase().includes('aurabackoffice123')) {
     console.warn(`[SMTP] ⚠️ Stale user detected (${user}), overriding with .env SMTP_USER`);
     user = process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
-    pass = process.env.SMTP_PASS || 'dxwjnxnhxlnssznb';
+    pass = process.env.SMTP_PASS === 'Aurabackend@1' ? 'dxwjnxnhxlnssznb' : (process.env.SMTP_PASS || 'dxwjnxnhxlnssznb');
   }
   if (fromEmail.toLowerCase().includes('dreamsdesign') || fromEmail.toLowerCase().includes('aurabackoffice123')) {
     console.warn(`[SMTP] ⚠️ Stale fromEmail detected (${fromEmail}), overriding with .env SMTP_FROM`);
