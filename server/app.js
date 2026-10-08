@@ -2318,6 +2318,15 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
     } catch (verifyErr) {
       console.error(`[quickSend] ❌ SMTP verify FAILED: ${verifyErr.message}`);
       console.error(`  → code: ${verifyErr.code}, response: ${verifyErr.response}`);
+      
+      await recordDebugLog('email_send_error', {
+        endpoint: '/api/useQuickSendEmail',
+        recipient: toEmail,
+        error: `SMTP connection failed: ${verifyErr.message}`,
+        code: verifyErr.code,
+        response: verifyErr.response
+      }).catch(() => {});
+
       return res.status(500).json({ error: `SMTP connection failed: ${verifyErr.message}`, details: { code: verifyErr.code, response: verifyErr.response } });
     }
 
@@ -2354,10 +2363,30 @@ app.post('/api/useQuickSendEmail', async (req, res) => {
       }
     }
 
+    await recordDebugLog('email_sent', {
+      endpoint: '/api/useQuickSendEmail',
+      recipient: toEmail,
+      subject,
+      from: fromEmail,
+      messageId,
+      accepted: info.accepted,
+      rejected: info.rejected,
+    }).catch(() => {});
+
     res.json({ success: true, message: 'Email sent successfully with brochure PDF attached', messageId });
   } catch (err) {
     console.error('[quickSend] ❌ FATAL ERROR:', err.message);
     console.error(`  → code: ${err.code}, responseCode: ${err.responseCode}, response: ${err.response}`);
+
+    await recordDebugLog('email_send_error', {
+      endpoint: '/api/useQuickSendEmail',
+      recipient: req.body.data?.toEmail || req.body.toEmail,
+      error: err.message,
+      code: err.code,
+      responseCode: err.responseCode,
+      response: err.response,
+    }).catch(() => {});
+
     res.status(500).json({ error: err.message, details: { code: err.code, responseCode: err.responseCode, response: err.response } });
   }
 });
