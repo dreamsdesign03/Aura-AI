@@ -340,9 +340,14 @@ export default function Outreach() {
     const tabEmails = byTab(activeTab);
     const [readReplyIds, setReadReplyIds] = useState(new Set());
 
-    const genuineReplies = [];
+    // Filter out self-replies (emails sent by system account)
+    const genuineReplies = replies.filter((r) => {
+        const from = (r.from_email || "").toLowerCase();
+        return from && !from.includes("aurabackoffice") && !from.includes("backoffice@auralaserclinic") && from !== SENDER_EMAIL.toLowerCase();
+    });
 
     const tabs = [
+        { key: "inbox", label: "Inbox", icon: <Mail className="w-3.5 h-3.5"/>, count: genuineReplies.length },
         { key: "draft", label: "Drafts", icon: <Edit3 className="w-3.5 h-3.5"/>, count: byTab("draft").length },
         { key: "sent", label: "Sent", icon: <CheckCircle2 className="w-3.5 h-3.5"/>, count: byTab("sent").length },
         { key: "failed", label: "Failed", icon: <XCircle className="w-3.5 h-3.5"/>, count: byTab("failed").length },
@@ -627,12 +632,16 @@ export default function Outreach() {
         <div>
           <h1 className="text-base font-bold text-gray-900">AI Outreach Engine</h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            {draftCount} drafts · {sentCount} sent · {failedCount} failed
+            {draftCount} drafts · {sentCount} sent · {failedCount} failed · {replies.length} replies
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button onClick={() => refetch()} className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100">
             <RefreshCw className="w-3.5 h-3.5"/>
+          </button>
+          <button onClick={checkReplies} disabled={replyPolling} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-60">
+            <RefreshCw className={cn("w-3.5 h-3.5", replyPolling && "animate-spin")}/>
+            {replyPolling ? "Checking…" : "Check Replies"}
           </button>
           <button onClick={() => setComposeOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
             <Pencil className="w-3.5 h-3.5"/>

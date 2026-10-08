@@ -1964,23 +1964,26 @@ async function getTransporter(userId) {
   }
 
   let user = config.user || process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
-  let pass = config.pass || process.env.SMTP_PASS || 'dxwjnxnhxlnssznb';
+  let pass = config.pass || process.env.SMTP_PASS || 'Aurabackend@1';
   let host = config.host || process.env.SMTP_HOST || (user.includes('auralaserclinic') || user.includes('office365') || user.includes('outlook') ? 'smtp.office365.com' : 'smtp.gmail.com');
   let port = config.port || Number(process.env.SMTP_PORT) || 587;
   let fromEmail = config.fromEmail || process.env.SMTP_FROM || user;
   let fromName = config.fromName || process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic | Skinnonest';
 
-  // Unconditionally force correct credentials for now to prevent any 535 errors from bad Vercel config
-  user = 'Backoffice@auralaserclinic.com';
-  pass = 'dxwjnxnhxlnssznb';
-  host = 'smtp.office365.com';
-  port = 587;
-  fromEmail = 'Backoffice@auralaserclinic.com';
+  // Prevent stale/old credentials from being used
+  if (user.toLowerCase().includes('dreamsdesign') || user.toLowerCase().includes('aurabackoffice123')) {
+    console.warn(`[SMTP] ⚠️ Stale user detected (${user}), overriding with .env SMTP_USER`);
+    user = process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
+    pass = process.env.SMTP_PASS || 'Aurabackend@1';
+  }
+  if (fromEmail.toLowerCase().includes('dreamsdesign') || fromEmail.toLowerCase().includes('aurabackoffice123')) {
+    console.warn(`[SMTP] ⚠️ Stale fromEmail detected (${fromEmail}), overriding with .env SMTP_FROM`);
+    fromEmail = process.env.SMTP_FROM || user;
+  }
 
   const isOffice365 = host.includes('office365') || host.includes('outlook.com') || user.includes('auralaserclinic.com');
 
-  console.log(`[SMTP] ✅ Final config → host=${host}, port=${port}, user=${user}, pass=${pass.substring(0,3)}***, fromEmail=${fromEmail}, fromName="${fromName}", isOffice365=${isOffice365}`);
-  db.query("INSERT INTO debug_logs (event_type, details) VALUES ('smtp_config', $1)", [JSON.stringify({ user, host, maskedPass: pass.substring(0,3)+'***' })]).catch(()=>{});
+  console.log(`[SMTP] ✅ Final config → host=${host}, port=${port}, user=${user}, fromEmail=${fromEmail}, fromName="${fromName}", isOffice365=${isOffice365}`);
 
   const transportConfig = {
     host,
@@ -6355,10 +6358,7 @@ USER INSTRUCTION: ${message}`
     const userTitle = userProfile?.designation ? `, ${userProfile.designation}` : '';
     const userProfession = userProfile?.business_why || userProfile?.company_name || 'running Aura-AI';
     const userCompany = userProfile?.company_name || 'Aura AI';
-    let userEmail = userProfile?.email || '';
-    if (userEmail.toLowerCase() === 'krishadmin@auraai.app') {
-      userEmail = 'Backoffice@auralaserclinic.com';
-    }
+    const userEmail = userProfile?.email || '';
     const userPhone = userProfile?.phone || '';
     const userCity = userProfile?.city || '';
 
@@ -6520,7 +6520,6 @@ BOOKING MEETINGS: You CAN book meetings/calls with the selected lead — it will
     _saveSB('assistant', dynamicReply);
     res.json({ reply: dynamicReply });
   } catch (err) {
-    db.query("INSERT INTO debug_logs (event_type, details) VALUES ('brain_chat_500', $1)", [JSON.stringify({ error: err.message, stack: err.stack })]).catch(()=>{});
     res.status(500).json({ error: err.message });
   }
 });
