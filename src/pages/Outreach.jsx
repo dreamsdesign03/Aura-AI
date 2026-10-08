@@ -340,6 +340,8 @@ export default function Outreach() {
     const tabEmails = byTab(activeTab);
     const [readReplyIds, setReadReplyIds] = useState(new Set());
 
+    const genuineReplies = [];
+
     const tabs = [
         { key: "draft", label: "Drafts", icon: <Edit3 className="w-3.5 h-3.5"/>, count: byTab("draft").length },
         { key: "sent", label: "Sent", icon: <CheckCircle2 className="w-3.5 h-3.5"/>, count: byTab("sent").length },
