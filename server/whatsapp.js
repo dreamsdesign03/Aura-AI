@@ -584,58 +584,110 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       };
       const renderedText = `Hi ${values.first_name},\n\n` + tpl.body.replace(/{{(\w+)}}/g, (_, k) => values[k] ?? '');
 
-      const metaPayload = {
-        messaging_product: 'whatsapp',
-        to: targetPhone,
-        type: 'template',
-        template: {
-          name: tpl.name,
-          language: { code: tpl.language },
-          components: [
-            {
-              type: 'header',
-              parameters: [
-                { type: 'text', parameter_name: 'first_name', text: values.first_name }
-              ]
-            },
-            {
-              type: 'body',
-              parameters: [
-                { type: 'text', parameter_name: 'company', text: values.company }
-              ]
-            }
-          ],
-        },
-      };
+      let leadData = null;
+      if (leadId) {
+        try {
+          const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+          if (leadRes.rows.length > 0) leadData = leadRes.rows[0];
+        } catch (err) {}
+      }
 
-      const { phoneNumberId, accessToken } = await getWhatsAppCredentials(userId);
-      console.log('[whatsapp] TEMPLATE SEND ->', targetPhone, JSON.stringify(metaPayload));
+      if (leadData && leadData.wa_status && (leadData.wa_status === 'dnc' || leadData.wa_status === 'replied')) {
+        return res.status(200).json({ success: false, status: 'skipped', error: `Lead status is ${leadData.wa_status}` });
+      }
 
       let status = 'sent';
       let wamid = null;
       let errCode = null;
       let errMsg = null;
 
-      try {
-        const metaRes = await fetch(`https://graph.facebook.com/v25.0/${phoneNumberId}/messages`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(metaPayload),
-        });
-        const metaData = await metaRes.json().catch(() => ({}));
-        console.log('[whatsapp] TEMPLATE SEND RESPONSE', metaRes.status, JSON.stringify(metaData));
-
-        if (!metaRes.ok || metaData?.error) {
-          const c = classifyTemplateError(metaData?.error);
-          status = c.status;
-          errCode = metaData?.error?.code != null ? String(metaData.error.code) : null;
-          errMsg = c.message;
+      if (tpl.name === 'auraai_leads') {
+        const webhookUrl = process.env.N8N_SEND_WEBHOOK_URL;
+        if (!webhookUrl) {
+          status = 'failed';
+          errMsg = 'N8N_SEND_WEBHOOK_URL not configured';
         } else {
-          wamid = metaData?.messages?.[0]?.id || null;
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 20000);
+            
+            const n8nRes = await fetch(webhookUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                lead_id: leadId,
+                phone: targetPhone,
+                company: company || '',
+                name: name || '',
+                template: 'auraai_leads'
+              }),
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            
+            const n8nData = await n8nRes.json().catch(() => ({}));
+            
+            if (n8nRes.ok && (n8nData.ok || n8nData.success)) {
+              wamid = n8nData.wamid || null;
+            } else {
+              status = 'failed';
+              errCode = n8nData.error_code != null ? String(n8nData.error_code) : null;
+              errMsg = n8nData.error || 'N8N webhook failed';
+            }
+          } catch (err) {
+            status = 'failed';
+            errMsg = err.name === 'AbortError' ? 'Webhook timeout' : `Webhook error: ${err.message}`;
+          }
         }
-      } catch (netErr) {
-        status = 'failed';
-        errMsg = `Network error: ${netErr.message}`;
+      } else {
+        const metaPayload = {
+          messaging_product: 'whatsapp',
+          to: targetPhone,
+          type: 'template',
+          template: {
+            name: tpl.name,
+            language: { code: tpl.language },
+            components: [
+              {
+                type: 'header',
+                parameters: [
+                  { type: 'text', parameter_name: 'first_name', text: values.first_name }
+                ]
+              },
+              {
+                type: 'body',
+                parameters: [
+                  { type: 'text', parameter_name: 'company', text: values.company }
+                ]
+              }
+            ],
+          },
+        };
+
+        const { phoneNumberId, accessToken } = await getWhatsAppCredentials(userId);
+        console.log('[whatsapp] TEMPLATE SEND ->', targetPhone, JSON.stringify(metaPayload));
+
+        try {
+          const metaRes = await fetch(`https://graph.facebook.com/v25.0/${phoneNumberId}/messages`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(metaPayload),
+          });
+          const metaData = await metaRes.json().catch(() => ({}));
+          console.log('[whatsapp] TEMPLATE SEND RESPONSE', metaRes.status, JSON.stringify(metaData));
+
+          if (!metaRes.ok || metaData?.error) {
+            const c = classifyTemplateError(metaData?.error);
+            status = c.status;
+            errCode = metaData?.error?.code != null ? String(metaData.error.code) : null;
+            errMsg = c.message;
+          } else {
+            wamid = metaData?.messages?.[0]?.id || null;
+          }
+        } catch (netErr) {
+          status = 'failed';
+          errMsg = `Network error: ${netErr.message}`;
+        }
       }
 
       // Log in the same tables the existing send uses (failures must never turn a sent message into an error)
@@ -668,6 +720,12 @@ function registerWhatsAppRoutes(app, resolveUserId) {
             INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
             VALUES ($1, 'WhatsApp', $2, $3, 'Sent', NOW())
           `, [leadId, `Template: ${tpl.name}`, renderedText]);
+          
+          if (leadData && 'wa_status' in leadData) {
+            try {
+              await db.query('UPDATE leads SET wa_status = $1, wa_message_id = $2 WHERE id = $3', ['sent', wamid, leadId]);
+            } catch (e) {}
+          }
         }
       } catch (logErr) {
         console.warn('[whatsapp] template log error:', logErr.message);
