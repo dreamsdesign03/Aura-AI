@@ -348,20 +348,61 @@ async function seedAdminUser() {
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_at TIMESTAMPTZ;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_request_id TEXT;
       
-      CREATE TABLE IF NOT EXISTS ai_call_campaigns (
+      CREATE TABLE IF NOT EXISTS bulk_campaigns (
         id SERIAL PRIMARY KEY,
-        omnidim_campaign_id TEXT,
         name TEXT,
-        status TEXT,
+        enabled BOOLEAN DEFAULT FALSE,
+        status TEXT DEFAULT 'draft',
+        max_attempts INT DEFAULT 2,
+        retry_delay_min INT DEFAULT 60,
+        gap_seconds INT DEFAULT 20,
         total INT DEFAULT 0,
-        lead_ids JSONB,
-        scheduled_at TIMESTAMPTZ,
         created_by INT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
-        updated_at TIMESTAMPTZ DEFAULT NOW()
+        started_at TIMESTAMPTZ,
+        finished_at TIMESTAMPTZ,
+        error_message TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS bulk_contacts (
+        id SERIAL PRIMARY KEY,
+        campaign_id INT REFERENCES bulk_campaigns(id) ON DELETE CASCADE,
+        name TEXT,
+        company TEXT,
+        phone_e164 TEXT,
+        phone10 TEXT,
+        email TEXT,
+        extra_json JSONB,
+        lead_id INT,
+        status TEXT DEFAULT 'pending',
+        attempts INT DEFAULT 0,
+        last_attempt_at TIMESTAMPTZ,
+        next_attempt_at TIMESTAMPTZ,
+        last_request_id TEXT,
+        booked_datetime_text TEXT,
+        last_summary TEXT,
+        last_sentiment TEXT,
+        recording_url TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS bulk_attempts (
+        id SERIAL PRIMARY KEY,
+        contact_id INT REFERENCES bulk_contacts(id) ON DELETE CASCADE,
+        campaign_id INT REFERENCES bulk_campaigns(id) ON DELETE CASCADE,
+        attempt_no INT,
+        request_id TEXT,
+        started_at TIMESTAMPTZ DEFAULT NOW(),
+        ended_at TIMESTAMPTZ,
+        duration_sec INT,
+        call_status TEXT,
+        outcome TEXT,
+        summary TEXT,
+        sentiment TEXT,
+        recording_url TEXT,
+        raw_json JSONB
       );
     `);
-    console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, ai_calls & ai_call_campaigns.');
+    console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, ai_calls & bulk calling.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
@@ -421,6 +462,7 @@ app.post(['/api/debug-logs/clear', '/api/useClearDebugLogs'], async (req, res) =
 automationsApi.init();
 agentHubApi.init();
 app.use('/api/omnidim', omnidimApi.router);
+app.use('/api/bulk-calling', require('./bulk-calling').router);
 
 // Client error reporting from ErrorBoundary
 app.post('/api/client-error', (req, res) => {

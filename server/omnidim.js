@@ -28,7 +28,7 @@ async function omnidimFetch(path, init = {}) {
 
 function normalizePhone(raw) {
   if (!raw) return null;
-  const digits = raw.replace(/D/g, '');
+  const digits = raw.replace(/\D/g, '');
   if (digits.length === 10) {
     return { e164: `+91${digits}`, local: digits };
   } else if (digits.length === 12 && digits.startsWith('91')) {
@@ -136,198 +136,6 @@ router.post('/call', async (req, res) => {
   }
 });
 
-// B) BULK CALLING
-router.post('/bulk-call', async (req, res) => {
-  try {
-    const { name, leadIds, scheduled, concurrent, autoRetry } = req.body;
-    if (!leadIds || !Array.isArray(leadIds)) return res.status(400).json({ error: "leadIds must be an array" });
-    if (leadIds.length > 200) return res.status(400).json({ error: "Max 200 leads per campaign" });
-    
-    const isScheduled = !!scheduled;
-    
-    const leadsRes = await db.query('SELECT * FROM leads WHERE id = ANY($1)', [leadIds]);
-    const leads = leadsRes.rows;
-    
-    const contactList = [];
-    const skipped = [];
-    const seenPhones = new Set();
-    const queuedLeadIds = [];
-    
-    for (const lead of leads) {
-      const check = canCall(lead, isScheduled);
-      if (!check.ok) {
-        skipped.push({ leadId: lead.id, reason: check.reason });
-        continue;
-      }
-      if (seenPhones.has(check.e164)) {
-        skipped.push({ leadId: lead.id, reason: "Duplicate phone number" });
-        continue;
-      }
-      seenPhones.add(check.e164);
-      queuedLeadIds.push(lead.id);
-      
-      contactList.push({
-        phone_number: check.e164,
-        ...buildContext(lead)
-      });
-    }
-    
-    if (contactList.length === 0) {
-      return res.status(400).json({ error: "No valid leads to call", skipped });
-    }
-    
-    const maxConcurrent = Number(process.env.OMNIDIM_MAX_CONCURRENT || 1);
-    const concurrentLimit = Math.min(Number(concurrent) || 1, maxConcurrent);
-    
-    const payload = {
-      name: name || `Aura Leads - ${new Date().toLocaleString('en-IN', {timeZone: 'Asia/Kolkata'})}`,
-      phone_number_id: String(OMNIDIM_PHONE_NUMBER_ID),
-      bot_id: Number(OMNIDIM_AGENT_ID),
-      contact_list: contactList,
-      concurrent_call_limit: concurrentLimit,
-      is_scheduled: isScheduled,
-      enabled_reschedule_call: true
-    };
-    
-    if (isScheduled) {
-      payload.scheduled_datetime = scheduled;
-      payload.timezone = "Asia/Kolkata";
-    }
-    
-    if (autoRetry) {
-      payload.retry_config = {
-        auto_retry: true,
-        auto_retry_schedule: "next_day",
-        retry_limit: 2
-      };
-    }
-    
-    const apiRes = await omnidimFetch('/calls/bulk_call/create', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-    
-    const campaignId = apiRes.campaign_id || apiRes.id || apiRes.bulk_call_id;
-    
-    // Call set time control
-    try {
-      await omnidimFetch('/calls/bulk_call/time_control', {
-        method: 'POST',
-        body: JSON.stringify({
-          bulk_call_id: campaignId,
-          start_time: "10:00",
-          end_time: "19:00",
-          timezone: "Asia/Kolkata"
-        })
-      });
-    } catch (e) {
-      console.warn("Failed to set time control for campaign:", e.message);
-    }
-    
-    // Save to DB
-    const insertRes = await db.query(`
-      INSERT INTO ai_call_campaigns (omnidim_campaign_id, name, status, total, lead_ids, scheduled_at, created_by)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id
-    `, [
-      campaignId, 
-      payload.name, 
-      isScheduled ? 'scheduled' : 'running',
-      contactList.length,
-      JSON.stringify(queuedLeadIds),
-      isScheduled ? scheduled : null,
-      req.user ? req.user.id : 1 // fallback if auth middleware not applied here
-    ]);
-    
-    const localId = insertRes.rows[0].id;
-    
-    // Update queued leads
-    if (queuedLeadIds.length > 0) {
-      await db.query(`
-        UPDATE leads 
-        SET last_ai_call_status = 'queued', last_ai_call_at = NOW()
-        WHERE id = ANY($1)
-      `, [queuedLeadIds]);
-    }
-    
-    res.json({ success: true, campaignId: localId, omnidimCampaignId: campaignId, queued: contactList.length, skipped });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/bulk-call', async (req, res) => {
-  try {
-    const result = await db.query('SELECT * FROM ai_call_campaigns ORDER BY created_at DESC LIMIT 50');
-    // Ideally we would poll omnidim for live status of running campaigns here, but keeping it simple for now
-    res.json(result.rows);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/bulk-call/:id', async (req, res) => {
-  try {
-    const result = await db.query('SELECT * FROM ai_call_campaigns WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: "Campaign not found" });
-    const campaign = result.rows[0];
-    
-    // Fetch live status from Omnidim
-    try {
-      const liveRes = await omnidimFetch(`/calls/bulk_call/${campaign.omnidim_campaign_id}/status`);
-      campaign.live_status = liveRes;
-    } catch (e) {
-      campaign.live_status = { error: e.message };
-    }
-    
-    res.json(campaign);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.get('/bulk-call/:id/results', async (req, res) => {
-  try {
-    const result = await db.query('SELECT omnidim_campaign_id FROM ai_call_campaigns WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: "Campaign not found" });
-    const omniId = result.rows[0].omnidim_campaign_id;
-    
-    const listRes = await omnidimFetch(`/calls/bulk_call/${omniId}/lines`);
-    res.json(listRes);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.post('/bulk-call/:id/action', async (req, res) => {
-  try {
-    const { action } = req.body; // pause, resume, cancel
-    if (!['pause', 'resume', 'cancel'].includes(action)) return res.status(400).json({ error: "Invalid action" });
-    
-    const result = await db.query('SELECT omnidim_campaign_id FROM ai_call_campaigns WHERE id = $1', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: "Campaign not found" });
-    const omniId = result.rows[0].omnidim_campaign_id;
-    
-    if (action === 'cancel') {
-      await omnidimFetch(`/calls/bulk_call/${omniId}/cancel`, { method: 'POST' });
-      await db.query('UPDATE ai_call_campaigns SET status = $1 WHERE id = $2', ['cancelled', req.params.id]);
-    } else {
-      await omnidimFetch(`/calls/bulk_call/${omniId}/action`, {
-        method: 'POST',
-        body: JSON.stringify({ action })
-      });
-      await db.query('UPDATE ai_call_campaigns SET status = $1 WHERE id = $2', [
-        action === 'pause' ? 'paused' : 'running', 
-        req.params.id
-      ]);
-    }
-    
-    res.json({ success: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
 // WEBHOOK
 router.post('/webhook', async (req, res) => {
   try {
@@ -340,14 +148,37 @@ router.post('/webhook', async (req, res) => {
     
     const payload = req.body;
     const metadata = payload.metadata || {};
-    const context = payload.call_context || {};
-    const leadId = metadata.lead_id || context.lead_id;
     
     const extracted = payload.extracted_variables || {};
     const summary = payload.call_summary || payload.summary || "";
     const sentiment = payload.sentiment || extracted.sentiment || "Neutral";
     const recordingUrl = payload.recording_url || payload.recording || "";
     const callStatus = payload.call_status || payload.status || "completed";
+    
+    const appointment_booked = String(extracted.appointment_booked).toLowerCase() === 'yes' || !!extracted.callback_datetime;
+    const interested = String(extracted.interested).toLowerCase() === 'true' || String(extracted.interested).toLowerCase() === 'yes';
+    const doNotCall = String(extracted.do_not_call).toLowerCase() === 'true';
+
+    let outcome = 'completed';
+    if (appointment_booked) outcome = 'booked';
+    else if (doNotCall) outcome = 'do_not_call';
+    else if (callStatus !== 'completed') outcome = callStatus;
+    else if (!interested) outcome = 'not_interested';
+    else outcome = 'not_booked';
+
+    // Bulk Engine resolution
+    if (metadata.kind === 'bulk') {
+      const { resolveAttempt } = require('./bulk-calling');
+      const attemptRes = await db.query('SELECT * FROM bulk_attempts WHERE request_id = $1 ORDER BY id DESC LIMIT 1', [payload.request_id || payload.call_request_id || payload.id]);
+      if (attemptRes.rows.length > 0) {
+        await resolveAttempt(attemptRes.rows[0], callStatus, outcome, summary, sentiment, recordingUrl);
+      }
+      return res.status(200).json({ success: true });
+    }
+    
+    // Legacy / Single Call resolution
+    const context = payload.call_context || {};
+    const leadId = metadata.lead_id || context.lead_id;
     
     let lead = null;
     if (leadId) {
@@ -356,7 +187,7 @@ router.post('/webhook', async (req, res) => {
     }
     
     if (!lead && payload.to_number) {
-      const digits = payload.to_number.replace(/D/g, '');
+      const digits = payload.to_number.replace(/\D/g, '');
       const last10 = digits.slice(-10);
       if (last10.length === 10) {
         const lr = await db.query('SELECT * FROM leads WHERE phone LIKE $1 OR whatsapp LIKE $1', [`%${last10}`]);
@@ -365,11 +196,8 @@ router.post('/webhook', async (req, res) => {
     }
     
     if (lead) {
-      const doNotCall = extracted.do_not_call?.toString().toLowerCase() === 'true';
-      const interested = extracted.interested?.toString().toLowerCase() === 'true' || extracted.interested === 'yes';
-      
       let newLeadStatus = lead.status;
-      if (interested && lead.status !== 'project_won' && lead.status !== 'quote_sent') {
+      if (appointment_booked && lead.status !== 'project_won' && lead.status !== 'quote_sent') {
         newLeadStatus = 'discovery_call';
       }
       
@@ -382,7 +210,7 @@ router.post('/webhook', async (req, res) => {
         WHERE id = $4
       `, [callStatus, doNotCall, newLeadStatus, lead.id]);
       
-      const activityDetail = `Status: ${callStatus} | Sentiment: ${sentiment} nSummary: ${summary}` + (recordingUrl ? `nRecording: ${recordingUrl}` : '');
+      const activityDetail = `Status: ${callStatus} | Sentiment: ${sentiment} \nSummary: ${summary}` + (recordingUrl ? `\nRecording: ${recordingUrl}` : '');
       
       await db.query(`
         INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
@@ -393,9 +221,8 @@ router.post('/webhook', async (req, res) => {
     res.status(200).json({ success: true });
   } catch (err) {
     console.error('[Omnidim Webhook Error]:', err);
-    // Always return 200 quickly per docs to avoid retries on failure
     res.status(200).json({ success: false, error: err.message });
   }
 });
 
-module.exports = { router };
+module.exports = { router, omnidimFetch, normalizePhone, buildContext, isCallingHours, canCall };
