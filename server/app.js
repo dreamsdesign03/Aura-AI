@@ -35,6 +35,7 @@ function getBrochureAttachments() {
 const automationsApi = require('./automations');
 const agentHubApi = require('./agent-hub');
 const { registerWhatsAppRoutes } = require('./whatsapp');
+const omnidimApi = require('./omnidim');
 
 const app = express();
 
@@ -341,8 +342,26 @@ async function seedAdminUser() {
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+      
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS do_not_call BOOLEAN DEFAULT FALSE;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_status TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_at TIMESTAMPTZ;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_request_id TEXT;
+      
+      CREATE TABLE IF NOT EXISTS ai_call_campaigns (
+        id SERIAL PRIMARY KEY,
+        omnidim_campaign_id TEXT,
+        name TEXT,
+        status TEXT,
+        total INT DEFAULT 0,
+        lead_ids JSONB,
+        scheduled_at TIMESTAMPTZ,
+        created_by INT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
     `);
-    console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, & ai_calls.');
+    console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, ai_calls & ai_call_campaigns.');
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }
@@ -401,6 +420,7 @@ app.post(['/api/debug-logs/clear', '/api/useClearDebugLogs'], async (req, res) =
 
 automationsApi.init();
 agentHubApi.init();
+app.use('/api/omnidim', omnidimApi.router);
 
 // Client error reporting from ErrorBoundary
 app.post('/api/client-error', (req, res) => {

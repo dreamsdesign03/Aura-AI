@@ -41,6 +41,7 @@ const Integrations = lazy(() => import("@/pages/Integrations"));
 const DebugLogsPage = lazy(() => import("@/pages/DebugLogsPage"));
 const SuperAdmin = lazy(() => import("@/pages/SuperAdmin"));
 const GrowthQuestForm = lazy(() => import("@/pages/GrowthQuestForm"));
+const BulkCalling = lazy(() => import("@/pages/BulkCalling"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -319,6 +320,7 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/chatbot-preview" component={() => <ChatbotPreview />}/>
         <Route path="/form-quest" component={() => <GrowthQuestForm />}/>
         <Route path="/debug-logs" component={() => <DebugLogsPage />}/>
+        <Route path="/bulk-calling" component={() => <Layout><BulkCalling /></Layout>}/>
         <Route component={NotFound}/>
       </Switch>
     </Suspense>);

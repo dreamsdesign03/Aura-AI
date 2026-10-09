@@ -80,6 +80,17 @@ BEGIN
   ) THEN
     ALTER TABLE leads ADD COLUMN user_id INT REFERENCES users(id) ON DELETE CASCADE;
   END IF;
+  
+  -- Add AI Calling Columns
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'leads' AND column_name = 'do_not_call'
+  ) THEN
+    ALTER TABLE leads ADD COLUMN do_not_call BOOLEAN DEFAULT FALSE;
+    ALTER TABLE leads ADD COLUMN last_ai_call_status TEXT;
+    ALTER TABLE leads ADD COLUMN last_ai_call_at TIMESTAMPTZ;
+    ALTER TABLE leads ADD COLUMN last_ai_call_request_id TEXT;
+  END IF;
 END $$;
 
 -- 4. Ideal Customer Profiles (ICPs) Table
@@ -280,6 +291,20 @@ CREATE TABLE IF NOT EXISTS ai_calls (
   duration_secs INT DEFAULT 0,
   transcript_summary TEXT,
   transcript JSONB,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 16. Omnidim AI Call Campaigns Table
+CREATE TABLE IF NOT EXISTS ai_call_campaigns (
+  id SERIAL PRIMARY KEY,
+  omnidim_campaign_id TEXT,
+  name TEXT,
+  status TEXT,
+  total INT DEFAULT 0,
+  lead_ids JSONB,
+  scheduled_at TIMESTAMPTZ,
+  created_by INT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );

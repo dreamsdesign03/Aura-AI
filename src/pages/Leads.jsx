@@ -10,11 +10,12 @@ import { useBatchPoller } from "@/hooks/useBatchPoller";
 import { StatusBadge } from "@/components/Badge";
 import { formatDate, scoreToBandKey, bandHexFromKey, bantBandDarkColor, bantBandDarkGradient, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, } from "lucide-react";
+import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing } from "lucide-react";
 import FetchLeads from "./FetchLeads";
 import { AiBanner } from "@/components/AiLoader";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 import SendTemplateModal from "@/components/SendTemplateModal";
+import BulkCallModal from "@/components/BulkCallModal";
 const BANT_KEYS = ["budget", "authority", "need", "timeline"];
 const CSV_COLUMNS = ["firstName", "lastName", "email", "company", "designation", "industry", "country", "phone", "whatsapp", "website", "city", "companySize", "linkedInUrl", "notes"];
 const CSV_COLUMN_LABELS = {
@@ -123,6 +124,7 @@ export default function Leads() {
     const [confirmCallLead, setConfirmCallLead] = useState(null);
     const [isCallInFlight, setIsCallInFlight] = useState(false);
     const [viewCallsLead, setViewCallsLead] = useState(null);
+    const [showBulkCallModal, setShowBulkCallModal] = useState(false);
 
     const handleStartAiCall = async () => {
         if (!confirmCallLead) return;
@@ -132,14 +134,11 @@ export default function Leads() {
             const leadPhone = confirmCallLead.phone || confirmCallLead.whatsapp || "";
             const leadCompany = confirmCallLead.company || "";
 
-            const res = await fetch("/api/ai-call", {
+            const res = await fetch("/api/omnidim/call", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     leadId: confirmCallLead.id,
-                    name: leadName,
-                    phone: leadPhone,
-                    company: leadCompany,
                 }),
             });
 
@@ -950,6 +949,11 @@ export default function Leads() {
               {(whcStatus?.running || whcStarting) ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Activity className="w-3.5 h-3.5"/>}
               {whcStatus?.running ? `Checking ${whcStatus.checked}/${whcStatus.total}` : "Check Websites"}
             </button>
+            {selected.length >= 1 && (
+              <button onClick={() => setShowBulkCallModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-md text-pink-700 bg-pink-100 border border-pink-200 hover:bg-pink-200 transition-colors shadow-sm">
+                <PhoneOutgoing className="w-3.5 h-3.5"/> Bulk AI Call ({selected.length})
+              </button>
+            )}
             <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-md text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">
               <Plus className="w-3.5 h-3.5"/> Add Contact
             </button>
@@ -1469,7 +1473,12 @@ export default function Leads() {
                     <td className="px-3 py-2" style={{ maxWidth: "150px" }} onClick={e => e.stopPropagation()}>
                       {phoneDisplay ? (<div className="flex items-center gap-1">
                           <span className="text-gray-500 truncate text-[11px]" style={{ maxWidth: "80px" }}>{phoneDisplay}</span>
-                          <button type="button" onClick={e => { e.stopPropagation(); setConfirmCallLead(lead); }} className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-[11px] transition-colors" title={`AI Proposal Call to ${lead.firstName || lead.name || 'Lead'}`}>📞</button>
+                          {lead.last_ai_call_status && (
+                            <span className="px-1 py-0.5 rounded bg-pink-50 text-pink-700 text-[9px] uppercase font-bold border border-pink-100" title={lead.last_ai_call_status}>
+                              {lead.last_ai_call_status.substring(0, 4)}
+                            </span>
+                          )}
+                          <button type="button" disabled={lead.do_not_call} onClick={e => { e.stopPropagation(); setConfirmCallLead(lead); }} className={cn("flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-[11px] transition-colors", lead.do_not_call ? "opacity-30 cursor-not-allowed" : "")} title={`AI Proposal Call to ${lead.firstName || lead.name || 'Lead'}`}>📞</button>
                           <button title={lead.whatsapp || lead.phone ? "Send WhatsApp template" : "No phone"} onClick={(e) => {
                             e.stopPropagation();
                             setTplLeads([lead]);
@@ -2897,6 +2906,7 @@ function SaveToListModal({ BASE, selectedIds, onClose, toast }) {
           </div>)}
       </div>
       <SendWhatsAppModal lead={waModalLead} isOpen={!!waModalLead} onClose={() => setWaModalLead(null)} />
+      <BulkCallModal isOpen={showBulkCallModal} onClose={() => setShowBulkCallModal(false)} selectedLeads={allLeads.filter(l => selected.includes(l.id))} />
     </div>);
 }
 
@@ -2928,7 +2938,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
         {/* Content */}
         <div className="p-6 space-y-4 text-xs">
           <p className="text-gray-700 leading-relaxed">
-            Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong>?
+            Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong> with Riya (AI)?
           </p>
 
           <div className="bg-pink-50/50 border border-pink-100/80 rounded-xl p-3.5 space-y-2 text-xs">
@@ -2945,7 +2955,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             <div className="flex justify-between items-center">
               <span className="text-gray-500 font-medium">AI Agent:</span>
               <span className="text-gray-800 font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-pink-500" /> ElevenLabs Voice
+                <Sparkles className="w-3 h-3 text-pink-500" /> Riya (Omnidim AI)
               </span>
             </div>
           </div>
