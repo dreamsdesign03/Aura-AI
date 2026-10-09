@@ -78,6 +78,12 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
     }
   }, [uploadProgress?.status]);
 
+  useEffect(() => {
+    if (isOpen) {
+      console.log(`[BulkImport] Component mounted / modal opened (step: ${step}, campaign name: ${name})`);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const downloadSample = () => {
@@ -356,11 +362,7 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
     }
   };
 
-  useEffect(() => {
-    if (isOpen) {
-      console.log(`[BulkImport] Component mounted / modal opened (step: ${step}, campaign name: ${name})`);
-    }
-  }, [isOpen]);
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150" onClick={onClose}>
