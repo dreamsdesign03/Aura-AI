@@ -287,11 +287,11 @@ function BulkCallDetail({ id, onBack }) {
           <button 
              onClick={() => toggleCampaign(!campaign.enabled)}
              disabled={campaign.status === 'completed'}
-             className={\`px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all \${
+             className={`px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all ${
                  campaign.status === 'completed' ? 'bg-gray-200 text-gray-500 cursor-not-allowed' :
                  campaign.enabled ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' : 
                  'bg-pink-600 text-white hover:bg-pink-700'
-             }\`}
+             }`}
           >
              {campaign.enabled ? 'Pause Calling' : 'Start Calling'}
           </button>
@@ -324,7 +324,7 @@ function BulkCallDetail({ id, onBack }) {
                <div className="text-sm font-semibold text-pink-600">{called} / {total} Called ({Math.round(progressPct)}%)</div>
            </div>
            <div className="w-full bg-pink-100 rounded-full h-3 overflow-hidden">
-               <div className="bg-pink-600 h-full rounded-full transition-all duration-1000" style={{ width: \`\${progressPct}%\` }} />
+               <div className="bg-pink-600 h-full rounded-full transition-all duration-1000" style={{ width: `${progressPct}%` }} />
            </div>
            
            <div className="grid grid-cols-6 gap-4 mt-8">
@@ -360,7 +360,7 @@ function BulkCallDetail({ id, onBack }) {
           <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-4">
              <div className="flex gap-2">
                  {['all', 'pending', 'calling', 'booked', 'not_booked', 'no_answer', 'failed'].map(s => (
-                     <button key={s} onClick={()=>setFilterStatus(s)} className={\`px-3 py-1.5 text-xs font-bold rounded-lg uppercase transition-colors \${filterStatus === s ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}\`}>
+                     <button key={s} onClick={()=>setFilterStatus(s)} className={`px-3 py-1.5 text-xs font-bold rounded-lg uppercase transition-colors ${filterStatus === s ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
                          {s}
                      </button>
                  ))}
@@ -400,14 +400,14 @@ function BulkCallDetail({ id, onBack }) {
                       </td>
                       <td className="px-5 py-3 font-medium text-gray-600">{c.phone10}</td>
                       <td className="px-5 py-3">
-                        <span className={\`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider \${
+                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
                           c.status === 'booked' ? 'bg-green-100 text-green-700' :
                           c.status === 'calling' ? 'bg-amber-100 text-amber-700 animate-pulse' :
                           c.status === 'no_answer' ? 'bg-orange-100 text-orange-700' :
                           c.status === 'failed' || c.status === 'invalid' ? 'bg-red-100 text-red-700' :
                           c.status === 'not_booked' ? 'bg-gray-200 text-gray-700' :
                           'bg-blue-100 text-blue-700'
-                        }\`}>
+                        }`}>
                           {c.status}
                         </span>
                         {c.status === 'no_answer' && c.next_attempt_at && (
@@ -460,7 +460,7 @@ function BulkCallDetail({ id, onBack }) {
                                      {a.attempt_no}
                                  </div>
                                  <div className="flex justify-between items-start mb-2">
-                                     <span className={\`px-2 py-0.5 rounded text-[10px] font-bold uppercase \${a.call_status==='completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}\`}>
+                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.call_status==='completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                          {a.call_status}
                                      </span>
                                      <span className="text-[10px] text-gray-400">{format(new Date(a.started_at), "MMM d, HH:mm")}</span>
