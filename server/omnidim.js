@@ -28,7 +28,7 @@ async function omnidimFetch(path, init = {}) {
 
 function normalizePhone(raw) {
   if (!raw) return null;
-  const digits = raw.replace(/\D/g, '');
+  const digits = raw.replace(/D/g, '');
   if (digits.length === 10) {
     return { e164: `+91${digits}`, local: digits };
   } else if (digits.length === 12 && digits.startsWith('91')) {
@@ -180,7 +180,7 @@ router.post('/bulk-call', async (req, res) => {
     const concurrentLimit = Math.min(Number(concurrent) || 1, maxConcurrent);
     
     const payload = {
-      name: name || \`Aura Leads - \${new Date().toLocaleString('en-IN', {timeZone: 'Asia/Kolkata'})}\`,
+      name: name || `Aura Leads - ${new Date().toLocaleString('en-IN', {timeZone: 'Asia/Kolkata'})}`,
       phone_number_id: String(OMNIDIM_PHONE_NUMBER_ID),
       bot_id: Number(OMNIDIM_AGENT_ID),
       contact_list: contactList,
@@ -225,11 +225,11 @@ router.post('/bulk-call', async (req, res) => {
     }
     
     // Save to DB
-    const insertRes = await db.query(\`
+    const insertRes = await db.query(`
       INSERT INTO ai_call_campaigns (omnidim_campaign_id, name, status, total, lead_ids, scheduled_at, created_by)
       VALUES ($1, $2, $3, $4, $5, $6, $7)
       RETURNING id
-    \`, [
+    `, [
       campaignId, 
       payload.name, 
       isScheduled ? 'scheduled' : 'running',
@@ -243,11 +243,11 @@ router.post('/bulk-call', async (req, res) => {
     
     // Update queued leads
     if (queuedLeadIds.length > 0) {
-      await db.query(\`
+      await db.query(`
         UPDATE leads 
         SET last_ai_call_status = 'queued', last_ai_call_at = NOW()
         WHERE id = ANY($1)
-      \`, [queuedLeadIds]);
+      `, [queuedLeadIds]);
     }
     
     res.json({ success: true, campaignId: localId, omnidimCampaignId: campaignId, queued: contactList.length, skipped });
@@ -274,7 +274,7 @@ router.get('/bulk-call/:id', async (req, res) => {
     
     // Fetch live status from Omnidim
     try {
-      const liveRes = await omnidimFetch(\`/calls/bulk_call/\${campaign.omnidim_campaign_id}/status\`);
+      const liveRes = await omnidimFetch(`/calls/bulk_call/${campaign.omnidim_campaign_id}/status`);
       campaign.live_status = liveRes;
     } catch (e) {
       campaign.live_status = { error: e.message };
@@ -292,7 +292,7 @@ router.get('/bulk-call/:id/results', async (req, res) => {
     if (result.rows.length === 0) return res.status(404).json({ error: "Campaign not found" });
     const omniId = result.rows[0].omnidim_campaign_id;
     
-    const listRes = await omnidimFetch(\`/calls/bulk_call/\${omniId}/lines\`);
+    const listRes = await omnidimFetch(`/calls/bulk_call/${omniId}/lines`);
     res.json(listRes);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -309,10 +309,10 @@ router.post('/bulk-call/:id/action', async (req, res) => {
     const omniId = result.rows[0].omnidim_campaign_id;
     
     if (action === 'cancel') {
-      await omnidimFetch(\`/calls/bulk_call/\${omniId}/cancel\`, { method: 'POST' });
+      await omnidimFetch(`/calls/bulk_call/${omniId}/cancel`, { method: 'POST' });
       await db.query('UPDATE ai_call_campaigns SET status = $1 WHERE id = $2', ['cancelled', req.params.id]);
     } else {
-      await omnidimFetch(\`/calls/bulk_call/\${omniId}/action\`, {
+      await omnidimFetch(`/calls/bulk_call/${omniId}/action`, {
         method: 'POST',
         body: JSON.stringify({ action })
       });
@@ -356,10 +356,10 @@ router.post('/webhook', async (req, res) => {
     }
     
     if (!lead && payload.to_number) {
-      const digits = payload.to_number.replace(/\D/g, '');
+      const digits = payload.to_number.replace(/D/g, '');
       const last10 = digits.slice(-10);
       if (last10.length === 10) {
-        const lr = await db.query('SELECT * FROM leads WHERE phone LIKE $1 OR whatsapp LIKE $1', [\`%\${last10}\`]);
+        const lr = await db.query('SELECT * FROM leads WHERE phone LIKE $1 OR whatsapp LIKE $1', [`%${last10}`]);
         if (lr.rows.length > 0) lead = lr.rows[0];
       }
     }
@@ -373,21 +373,21 @@ router.post('/webhook', async (req, res) => {
         newLeadStatus = 'discovery_call';
       }
       
-      await db.query(\`
+      await db.query(`
         UPDATE leads 
         SET last_ai_call_status = $1, 
             last_ai_call_at = NOW(),
             do_not_call = CASE WHEN $2 = TRUE THEN TRUE ELSE do_not_call END,
             status = $3
         WHERE id = $4
-      \`, [callStatus, doNotCall, newLeadStatus, lead.id]);
+      `, [callStatus, doNotCall, newLeadStatus, lead.id]);
       
-      const activityDetail = \`Status: \${callStatus} | Sentiment: \${sentiment} \nSummary: \${summary}\` + (recordingUrl ? \`\nRecording: \${recordingUrl}\` : '');
+      const activityDetail = `Status: ${callStatus} | Sentiment: ${sentiment} nSummary: ${summary}` + (recordingUrl ? `nRecording: ${recordingUrl}` : '');
       
-      await db.query(\`
+      await db.query(`
         INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
         VALUES ($1, 'Riya (AI)', 'call_completed', $2, $3, $4, $5)
-      \`, [lead.user_id, callStatus, [lead.first_name, lead.last_name].join(' '), lead.company, activityDetail]);
+      `, [lead.user_id, callStatus, [lead.first_name, lead.last_name].join(' '), lead.company, activityDetail]);
     }
     
     res.status(200).json({ success: true });

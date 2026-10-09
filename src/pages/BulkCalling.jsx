@@ -87,13 +87,13 @@ export default function BulkCalling() {
                     </td>
                     <td className="px-5 py-3 text-gray-500">{c.total} leads</td>
                     <td className="px-5 py-3">
-                      <span className={\`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider \${
+                      <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${
                         c.status === 'running' ? 'bg-green-100 text-green-700' :
                         c.status === 'paused' ? 'bg-amber-100 text-amber-700' :
                         c.status === 'completed' ? 'bg-gray-100 text-gray-600' :
                         c.status === 'cancelled' ? 'bg-red-100 text-red-700' :
                         'bg-blue-100 text-blue-700'
-                      }\`}>
+                      }`}>
                         {c.status}
                       </span>
                     </td>
@@ -119,8 +119,8 @@ function BulkCallDetail({ id, onBack }) {
   const loadDetail = async () => {
     try {
       const [cRes, rRes] = await Promise.all([
-        fetch(\`/api/omnidim/bulk-call/\${id}\`),
-        fetch(\`/api/omnidim/bulk-call/\${id}/results\`)
+        fetch(`/api/omnidim/bulk-call/${id}`),
+        fetch(`/api/omnidim/bulk-call/${id}/results`)
       ]);
       if (cRes.ok) setCampaign(await cRes.json());
       if (rRes.ok) setResults(await rRes.json());
@@ -139,13 +139,13 @@ function BulkCallDetail({ id, onBack }) {
 
   const doAction = async (action) => {
     try {
-      const res = await fetch(\`/api/omnidim/bulk-call/\${id}/action\`, {
+      const res = await fetch(`/api/omnidim/bulk-call/${id}/action`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action })
       });
       if (!res.ok) throw new Error("Action failed");
-      toast({ title: \`Campaign \${action}ed\` });
+      toast({ title: `Campaign ${action}ed` });
       loadDetail();
     } catch (err) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -217,12 +217,12 @@ function BulkCallDetail({ id, onBack }) {
                 <tr key={i} className="hover:bg-gray-50">
                   <td className="px-4 py-2.5 text-gray-900 font-medium">{r.to_number}</td>
                   <td className="px-4 py-2.5">
-                    <span className={\`px-2 py-0.5 rounded text-[10px] font-bold uppercase \${
+                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${
                       r.status === 'completed' ? 'bg-green-100 text-green-700' :
                       r.status === 'no_answer' ? 'bg-amber-100 text-amber-700' :
                       r.status === 'failed' ? 'bg-red-100 text-red-700' :
                       'bg-gray-100 text-gray-600'
-                    }\`}>
+                    }`}>
                       {r.status || 'queued'}
                     </span>
                   </td>
