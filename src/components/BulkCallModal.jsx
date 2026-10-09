@@ -64,8 +64,8 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: "binary" });
+        const buffer = evt.target.result;
+        const wb = XLSX.read(buffer, { type: "array" });
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const data = XLSX.utils.sheet_to_json(ws, { defval: "" });
@@ -91,7 +91,8 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
         toast({ title: "Error reading file", description: err.message, variant: "destructive" });
       }
     };
-    reader.readAsBinaryString(file);
+    reader.readAsArrayBuffer(file);
+    e.target.value = null; // allow re-uploading the same file
   };
 
   const applyMapping = () => {
