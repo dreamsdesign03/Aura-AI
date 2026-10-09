@@ -44,8 +44,10 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
   const [mapping, setMapping] = useState({ name: "", phone: "", email: "", company: "" });
   const [previewData, setPreviewData] = useState([]);
   
+  const wasOpen = useRef(false);
+
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !wasOpen.current) {
       if (selectedLeads && selectedLeads.length > 0) {
         // Direct from leads
         const mapped = selectedLeads.map(l => ({
@@ -66,6 +68,7 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
         setUploadProgress(null);
       }
     }
+    wasOpen.current = isOpen;
   }, [isOpen, selectedLeads]);
 
   useEffect(() => {
