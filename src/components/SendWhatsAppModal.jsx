@@ -1,6 +1,49 @@
 import { useState, useEffect } from "react";
-import { MessageCircle, X, Send, Loader2, Sparkles, CheckCircle2, History, Layers } from "lucide-react";
+import { MessageCircle, X, Send, Loader2, Sparkles, History, Layers } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+
+// WhatsApp-style message tick: ✓ sent · ✓✓ grey delivered · ✓✓ dark read
+function MessageTick({ status }) {
+  if (!status || status === 'sending') {
+    // Clock / pending
+    return (
+      <svg viewBox="0 0 16 15" width="16" height="15" className="inline-block ml-0.5">
+        <circle cx="8" cy="7.5" r="6.5" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5"/>
+        <polyline points="8,4 8,7.5 10.5,9" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="1.5" strokeLinecap="round"/>
+      </svg>
+    );
+  }
+  if (status === 'sent') {
+    // Single grey tick
+    return (
+      <svg viewBox="0 0 16 15" width="16" height="15" className="inline-block ml-0.5">
+        <path d="M10.91 3.316l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z" fill="rgba(255,255,255,0.6)"/>
+      </svg>
+    );
+  }
+  if (status === 'delivered') {
+    // Double grey ticks
+    return (
+      <svg viewBox="0 0 16 15" width="16" height="15" className="inline-block ml-0.5">
+        <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.364.364 0 0 0-.51.058l-.324.365a.364.364 0 0 0 .057.509l1.099.964c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.062-.51zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z" fill="rgba(255,255,255,0.6)"/>
+      </svg>
+    );
+  }
+  if (status === 'read') {
+    // Double DARK ticks (blue-ish on white bg, white on green bg — use a brighter white)
+    return (
+      <svg viewBox="0 0 16 15" width="16" height="15" className="inline-block ml-0.5">
+        <path d="M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.364.364 0 0 0-.51.058l-.324.365a.364.364 0 0 0 .057.509l1.099.964c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.062-.51zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z" fill="#ffffff"/>
+      </svg>
+    );
+  }
+  // failed / not_whatsapp — red X
+  return (
+    <svg viewBox="0 0 15 15" width="14" height="14" className="inline-block ml-0.5">
+      <path d="M11.782 4.032a.575.575 0 1 0-.813-.814L7.5 6.687 4.032 3.218a.575.575 0 0 0-.814.814L6.687 7.5l-3.469 3.468a.575.575 0 0 0 .814.814L7.5 8.313l3.469 3.469a.575.575 0 0 0 .813-.814L8.313 7.5l3.469-3.468z" fill="rgba(255,100,100,0.9)"/>
+    </svg>
+  );
+}
 
 const META_TEMPLATES = [
   {
@@ -361,7 +404,7 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
                         className={`text-[9px] mt-1 text-right opacity-70 flex items-center justify-end gap-1`}
                       >
                         <span>{msg.sentAt ? new Date(msg.sentAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</span>
-                        {isOutbound && <CheckCircle2 className="w-3 h-3 text-emerald-200" />}
+                        {isOutbound && <MessageTick status={msg.status} />}
                       </div>
                     </div>
                   </div>
