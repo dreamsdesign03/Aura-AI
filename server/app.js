@@ -6800,6 +6800,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
     let metaResult = { success: false, error: 'Not configured' };
     const token = process.env.WHATSAPP_ACCESS_TOKEN || 'EAAajLrxVRe0BQuaj5Dsh4mLaUpV5prCHZCUCgHaVGEA5MzjrQ2cromOtG8YT2ziklYZBYF2ZC0NsuAyNUENXZADQgQ2ocR36t0ZB1ra4QiUotZB6f2YZAmFgO3HvpTOZC0poDKoxeZAcKpEJ44LmTRXZB15SifuRuIZAoH2iROi1JboQULQ4HryMEl8Gj81GXaE5wl0fgZDZD';
     const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '890723640798276';
+    console.log(`[WhatsApp Send][app.js] HIT /api/whatsapp/send to=${phone} mode=${templateName ? `template:${templateName}` : 'text'} phoneNumberId=${phoneNumberId} tokenSource=${process.env.WHATSAPP_ACCESS_TOKEN ? 'env' : 'hardcoded-fallback'} leadId=${leadId ?? 'none'}`);
 
     try {
       let cleanDigits = phone.replace(/\D/g, '');
@@ -6923,7 +6924,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
         if (metaRes.ok && metaData.messages?.[0]?.id) {
           metaResult = { success: true, messageId: metaData.messages[0].id, details: metaData };
-          console.log(`[Meta WhatsApp] Success! Message ID: ${metaData.messages[0].id}`);
+          console.log(`[WhatsApp Send][app.js] ✅ accepted by Meta to=${phone} mode=${templateName ? `template:${templateName}` : 'text'} messageId=${metaData.messages[0].id} (note: delivery is confirmed asynchronously via webhook status)`);
         } else {
           console.error('[Meta WhatsApp] Error:', JSON.stringify(metaData));
           metaResult = { success: false, error: metaData.error?.message || 'Meta API error', details: metaData };
@@ -6935,8 +6936,25 @@ app.post('/api/whatsapp/send', async (req, res) => {
     }
 
     if (!metaResult.success) {
+      const metaCode = metaResult.details?.error?.code;
+      const isWindowError = metaCode === 131047 || /24 ?hours|re-engagement|outside.*window/i.test(metaResult.error || '');
+      console.error(`[WhatsApp Send][app.js] ❌ FAILED to=${phone} mode=${templateName ? `template:${templateName}` : 'text'} error=${metaResult.error} metaCode=${metaCode ?? 'n/a'}${isWindowError ? ' (24h customer-service window closed — plain text not allowed; use an approved template or wait for the customer to reply)' : ''}`);
+      try {
+        await recordDebugLog('whatsapp_send_failed', {
+          phone,
+          templateName: templateName || null,
+          mode: templateName ? 'template' : 'text',
+          error: metaResult.error || null,
+          code: metaCode ?? null,
+          windowClosed: isWindowError,
+          details: metaResult.details || null
+        });
+      } catch (logErr) {
+        console.warn('[WhatsApp Send][app.js] recordDebugLog failed:', logErr.message);
+      }
       return res.status(400).json({
         error: metaResult.error || 'Meta WhatsApp API delivery failed',
+        code: metaCode ?? null,
         details: metaResult.details,
         metaResult
       });

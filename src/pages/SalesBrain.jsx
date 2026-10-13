@@ -599,6 +599,7 @@ function ConversationsTab() {
                 bodyPayload.message = msgContent;
             }
 
+            console.log('[WhatsApp][SalesBrain] → POST /api/whatsapp/send', { mode: isTemplate ? 'template' : 'text', bodyPayload });
             const res = await fetch('/api/whatsapp/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -606,6 +607,16 @@ function ConversationsTab() {
             });
 
             const data = await res.json();
+            console.log('[WhatsApp][SalesBrain] ← response', { httpStatus: res.status, ok: res.ok, data });
+            if (data?.details?.error?.code || data?.metaResult?.details?.error?.code) {
+                console.warn('[WhatsApp][SalesBrain] Meta rejected the send', {
+                    code: data?.details?.error?.code ?? data?.metaResult?.details?.error?.code,
+                    message: data?.details?.error?.message ?? data?.metaResult?.details?.error?.message,
+                    hint: (data?.details?.error?.code ?? data?.metaResult?.details?.error?.code) === 131047
+                        ? 'Outside the 24h customer-service window — a plain text message is not allowed. Use an approved template or wait for the customer to reply.'
+                        : undefined
+                });
+            }
 
             if (!res.ok || !data.success) {
                 throw new Error(data.error || "Meta WhatsApp delivery failed");

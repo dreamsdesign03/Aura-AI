@@ -119,6 +119,7 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
 
     try {
       let res;
+      console.log("[WhatsApp][SendWhatsAppModal] → sending", { sendType, selectedMetaTemplate, phone, leadId: lead?.id, firstName, company });
       if (sendType === "template" && selectedMetaTemplate === "auraai_lead_send_template") {
         res = await fetch("/api/whatsapp/send-template", {
           method: "POST",
@@ -156,6 +157,13 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
       }
 
       const data = await res.json();
+      console.log("[WhatsApp][SendWhatsAppModal] ← response", { httpStatus: res.status, ok: res.ok, data });
+      if (data?.details?.error?.code || data?.metaResult?.details?.error?.code) {
+        console.warn("[WhatsApp][SendWhatsAppModal] Meta rejected the send", {
+          code: data?.details?.error?.code ?? data?.metaResult?.details?.error?.code,
+          message: data?.details?.error?.message ?? data?.metaResult?.details?.error?.message
+        });
+      }
 
       if (!res.ok || (data.success === false && data.status !== "sent")) {
         const errMsg = data.error || data.details?.error?.message || "Failed to send WhatsApp message";
