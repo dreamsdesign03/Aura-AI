@@ -51,18 +51,6 @@ const META_TEMPLATES = [
     label: "auraai_lead_send_template · English (en)",
     type: "meta",
     description: "Official Skinnonest & Aura Laser Dealer Onboarding Template"
-  },
-  {
-    name: "aura_lead_appointment_booking",
-    label: "aura_lead_appointment_booking · English (IND)",
-    type: "meta",
-    description: "Appointment booking confirmation template"
-  },
-  {
-    name: "hello_world",
-    label: "hello_world · Utility (Meta Default)",
-    type: "meta",
-    description: "Meta Utility Sample Template (Guaranteed delivery to any number)"
   }
 ];
 
