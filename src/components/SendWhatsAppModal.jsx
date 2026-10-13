@@ -141,7 +141,7 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
             phone: phone,
             name: firstName,
             company: company,
-            templateId: "auraai_lead_send_template"
+            templateId: "auraai_leads"   // matches WHATSAPP_TEMPLATES id on server
           })
         });
       } else {
