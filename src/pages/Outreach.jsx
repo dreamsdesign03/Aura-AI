@@ -347,7 +347,6 @@ export default function Outreach() {
     });
 
     const tabs = [
-        { key: "inbox", label: "Inbox", icon: <Mail className="w-3.5 h-3.5"/>, count: genuineReplies.length },
         { key: "draft", label: "Drafts", icon: <Edit3 className="w-3.5 h-3.5"/>, count: byTab("draft").length },
         { key: "sent", label: "Sent", icon: <CheckCircle2 className="w-3.5 h-3.5"/>, count: byTab("sent").length },
         { key: "failed", label: "Failed", icon: <XCircle className="w-3.5 h-3.5"/>, count: byTab("failed").length },
@@ -432,7 +431,7 @@ export default function Outreach() {
         };
     });
 
-    const threadList = activeTab === "inbox" ? inboxThreadList : outboundThreadList;
+    const threadList = outboundThreadList;
     threadList.sort((a, b) => new Date(b.sentAt || b.createdAt || 0) - new Date(a.sentAt || a.createdAt || 0));
     // Currently selected thread & root email
     const selectedThread = selectedId ? threadList.find((t) => t.id === selectedId || t.threadKey === selectedId || t.groupEmails.some(e => String(e.id) === String(selectedId))) ?? null : null;
@@ -879,7 +878,7 @@ export default function Outreach() {
               <div className="flex-1 overflow-y-auto p-6 bg-white">
                 <div className="max-w-3xl mx-auto space-y-6">
 
-                  {(selected.status === "sent" || selected.status === "received" || selected.isReplyItem || activeTab === "inbox") ? (
+                  {(selected.status === "sent" || selected.status === "received" || selected.isReplyItem) ? (
                     /* ── Gmail-style Thread View (Exact Gmail UI) ── */
                     <div className="space-y-6">
                       {/* Thread Header / Subject */}
