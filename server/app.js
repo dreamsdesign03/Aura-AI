@@ -6266,7 +6266,7 @@ USER INSTRUCTION: ${message}`
         // WhatsApp default
         try {
           const waToken = process.env.WHATSAPP_ACCESS_TOKEN || 'EAAajLrxVRe0BQuaj5Dsh4mLaUpV5prCHZCUCgHaVGEA5MzjrQ2cromOtG8YT2ziklYZBYF2ZC0NsuAyNUENXZADQgQ2ocR36t0ZB1ra4QiUotZB6f2YZAmFgO3HvpTOZC0poDKoxeZAcKpEJ44LmTRXZB15SifuRuIZAoH2iROi1JboQULQ4HryMEl8Gj81GXaE5wl0fgZDZD';
-          const waPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '890723640798276';
+          const waPhoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1293553613852388';
           let cleanDigits = (lead.whatsapp || lead.phone || phone || '').replace(/\D/g, '');
           if (cleanDigits.length === 10) cleanDigits = '91' + cleanDigits;
           if (!cleanDigits) { const _r3 = `I don't have a phone number for ${leadName}, so I can't send a WhatsApp message.`; _saveSB('assistant', _r3); return res.json({ reply: _r3 }); }
@@ -6799,7 +6799,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
 
     let metaResult = { success: false, error: 'Not configured' };
     const token = process.env.WHATSAPP_ACCESS_TOKEN || 'EAAajLrxVRe0BQuaj5Dsh4mLaUpV5prCHZCUCgHaVGEA5MzjrQ2cromOtG8YT2ziklYZBYF2ZC0NsuAyNUENXZADQgQ2ocR36t0ZB1ra4QiUotZB6f2YZAmFgO3HvpTOZC0poDKoxeZAcKpEJ44LmTRXZB15SifuRuIZAoH2iROi1JboQULQ4HryMEl8Gj81GXaE5wl0fgZDZD';
-    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '890723640798276';
+    const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID || '1293553613852388';
     console.log(`[WhatsApp Send][app.js] HIT /api/whatsapp/send to=${phone} mode=${templateName ? `template:${templateName}` : 'text'} phoneNumberId=${phoneNumberId} tokenSource=${process.env.WHATSAPP_ACCESS_TOKEN ? 'env' : 'hardcoded-fallback'} leadId=${leadId ?? 'none'}`);
 
     try {
