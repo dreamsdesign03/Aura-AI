@@ -134,7 +134,8 @@ export default function Leads() {
             const leadPhone = confirmCallLead.phone || confirmCallLead.whatsapp || "";
             const leadCompany = confirmCallLead.company || "";
 
-            const res = await fetch("/api/omnidim/call", {
+            console.log("[AI Call] click", { leadId: confirmCallLead.id, leadName, leadPhone, leadCompany });
+            const res = await fetch("/api/ai-calls", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -143,6 +144,7 @@ export default function Leads() {
             });
 
             const data = await res.json();
+            console.log("[AI Call] response", { status: res.status, success: data.success, requestId: data.requestId, error: data.error });
             if (res.ok && data.success) {
                 toast({
                     title: "Call started",
@@ -152,6 +154,7 @@ export default function Leads() {
                 setConfirmCallLead(null);
                 setViewCallsLead(activeLead);
             } else {
+                console.log("[AI Call] failed", { status: res.status, error: data.error });
                 toast({
                     title: "Call failed",
                     description: data.error || "Could not place AI call.",
@@ -159,6 +162,7 @@ export default function Leads() {
                 });
             }
         } catch (err) {
+            console.error("[AI Call] failed", { message: err.message });
             toast({
                 title: "Call error",
                 description: err.message || "Network error placing AI call",

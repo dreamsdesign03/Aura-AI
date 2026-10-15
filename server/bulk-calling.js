@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('./db');
-const { omnidimFetch, normalizePhone, buildContext, isCallingHours, canCall } = require('./omnidim');
+const { normalizePhone, isCallingHours } = require('./call-utils');
 const { dispatchSarvamCall } = require('./sarvam');
 
 const router = express.Router();
@@ -71,7 +71,7 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
       const lead = lr.rows[0];
       const activityDetail = `Status: ${callStatus} | Sentiment: ${sentiment} \nSummary: ${summary}` + (recordingUrl ? `\nRecording: ${recordingUrl}` : '');
       await db.query(
-        'INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail) VALUES ($1, \'Riya (AI)\', \'call_completed\', $2, $3, $4, $5)',
+        'INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail) VALUES ($1, \'Aarti (AI)\', \'call_completed\', $2, $3, $4, $5)',
         [lead.user_id, callStatus, [lead.first_name, lead.last_name].filter(Boolean).join(' '), lead.company, activityDetail]
       );
     }
@@ -122,12 +122,12 @@ router.post('/', async (req, res) => {
           reason = 'Duplicate phone in file';
         } else {
           seenPhones.add(phoneObj.local);
-          const allowlist = process.env.OMNIDIM_TEST_ALLOWLIST;
+          const allowlist = process.env.CALL_TEST_ALLOWLIST;
           if (allowlist) {
             const allowedNumbers = allowlist.split(',').map(n => n.trim());
             if (!allowedNumbers.includes(phoneObj.local)) {
               status = 'invalid';
-              reason = 'Not in OMNIDIM_TEST_ALLOWLIST';
+              reason = 'Not in CALL_TEST_ALLOWLIST';
             }
           }
         }
@@ -200,10 +200,12 @@ router.post('/tick', async (req, res) => {
   // Use a simple advisory lock for the whole tick process
   const lockRes = await db.query('SELECT pg_try_advisory_lock(999999) as locked');
   if (!lockRes.rows[0].locked) return res.json({ status: 'locked' });
+  console.log('[Bulk Tick] lock acquired');
 
   let actions = [];
   try {
     const campaigns = await db.query(`SELECT * FROM bulk_campaigns WHERE enabled = TRUE`);
+    console.log('[Bulk Tick] enabled campaigns=' + campaigns.rows.length);
     
     for (const campaign of campaigns.rows) {
       // 1. Check if any contact is currently 'calling'
@@ -223,40 +225,6 @@ router.post('/tick', async (req, res) => {
             actions.push(`Resolved timeout for contact ${contact.id}`);
             isAnyCalling = false; // it's resolved now
           }
-        } else if (!process.env.SARVAM_API_KEY) {
-            // Check fallback omnidim logs
-            try {
-               const logsRes = await omnidimFetch(`/calls/logs?call_request_id=${contact.last_request_id}`);
-               if (logsRes && logsRes.data && logsRes.data.length > 0) {
-                   const log = logsRes.data[0];
-                   if (log.call_status !== 'in-progress' && log.call_status !== 'queued' && log.call_status !== 'ringing') {
-                        // The webhook missed it, resolve it here!
-                        const attemptRes = await db.query('SELECT * FROM bulk_attempts WHERE contact_id = $1 AND request_id = $2 ORDER BY id DESC LIMIT 1', [contact.id, contact.last_request_id]);
-                        if (attemptRes.rows.length > 0) {
-                            const summary = log.call_summary || '';
-                            const sentiment = log.sentiment || 'Neutral';
-                            const recordingUrl = log.recording_url || '';
-                            let outcome = log.call_status;
-                            const extracted = log.extracted_variables || {};
-                            const appointment_booked = String(extracted.appointment_booked).toLowerCase() === 'yes' || !!extracted.callback_datetime;
-                            const interested = String(extracted.interested).toLowerCase() === 'true' || String(extracted.interested).toLowerCase() === 'yes';
-                            const doNotCall = String(extracted.do_not_call).toLowerCase() === 'true';
-
-                            if (appointment_booked) outcome = 'booked';
-                            else if (doNotCall) outcome = 'do_not_call';
-                            else if (log.call_status !== 'completed') outcome = log.call_status;
-                            else if (!interested) outcome = 'not_interested';
-                            else outcome = 'not_booked';
-
-                            await resolveAttempt(attemptRes.rows[0], log.call_status, outcome, summary, sentiment, recordingUrl);
-                            actions.push(`Resolved missing webhook for contact ${contact.id}`);
-                            isAnyCalling = false;
-                        }
-                   }
-               }
-            } catch (e) {
-                // Ignore fallback polling errors
-            }
         }
       }
 
@@ -320,40 +288,23 @@ router.post('/tick', async (req, res) => {
           attempt_no: contact.attempts + 1
         };
 
-        let apiRes;
-        if (process.env.SARVAM_API_KEY) {
-          console.log('[Bulk Call] dispatch via SARVAM:', { contact_id: contact.id, phoneE164: contact.phone_e164, metadata });
-          apiRes = await dispatchSarvamCall({
-            phoneE164: contact.phone_e164,
-            vars: {
-              callType: 'outbound_lead',
-              userName: contact.name || 'none',
-              userPhone: contact.phone10 || 'none',
-              userEmail: contact.email || 'none',
-              serviceType: contact.extra_json?.service || 'Dermatologist consultation'
-            },
-            metadata
-          });
-        } else {
-          const payload = {
-            agent_id: Number(process.env.OMNIDIM_AGENT_ID),
-            to_number: contact.phone_e164,
-            from_number_id: Number(process.env.OMNIDIM_PHONE_NUMBER_ID),
-            call_context: {
-              lead_name: contact.name,
-              company_name: contact.company,
-              lead_phone: contact.phone10,
-              lead_email: contact.email,
-              booking_type: 'proposal_call',
-              lead_id: contact.lead_id ? String(contact.lead_id) : ''
-            },
-            metadata
-          };
-
-          console.log('[Bulk Call] dispatch via OMNIDIM:', { contact_id: contact.id, phoneE164: contact.phone_e164, metadata });
-          apiRes = await omnidimFetch('/calls/dispatch', { method: 'POST', body: JSON.stringify(payload) });
+        if (!process.env.SARVAM_API_KEY) {
+          throw new Error('SARVAM_API_KEY is not configured for the call agent');
         }
-        console.log('[Bulk Call] dispatch result:', JSON.stringify(apiRes));
+
+        console.log('[Bulk Call] dispatch contact_id=' + contact.id + ' phoneE164=' + contact.phone_e164 + ' attempt_no=' + metadata.attempt_no);
+        const apiRes = await dispatchSarvamCall({
+          phoneE164: contact.phone_e164,
+          vars: {
+            callType: 'outbound_lead',
+            userName: contact.name || 'none',
+            userPhone: contact.phone10 || 'none',
+            userEmail: contact.email || 'none',
+            serviceType: contact.extra_json?.service || 'Dermatologist consultation'
+          },
+          metadata
+        });
+        console.log('[Bulk Call] dispatch result attempt_id=' + (apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched'));
 
         const requestId = apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched';
 
@@ -366,7 +317,7 @@ router.post('/tick', async (req, res) => {
         console.error('[Bulk Call] dispatch error:', err && (err.stack || err.message || err));
         if (err.message.toLowerCase().includes('credit') || err.message.toLowerCase().includes('unauthorized') || err.message.toLowerCase().includes('agent')) {
           await db.query('UPDATE bulk_campaigns SET enabled = FALSE, status = \'error\', error_message = $1 WHERE id = $2', [err.message, campaign.id]);
-          actions.push(`Campaign ${campaign.id} disabled due to Omnidim error: ${err.message}`);
+          actions.push(`Campaign ${campaign.id} disabled due to call provider error: ${err.message}`);
         } else {
           // Per-contact error
           await db.query('UPDATE bulk_contacts SET status = \'failed\', attempts = attempts + 1, last_attempt_at = NOW(), last_summary = $1 WHERE id = $2', [err.message, contact.id]);
@@ -377,7 +328,8 @@ router.post('/tick', async (req, res) => {
   } finally {
     await db.query('SELECT pg_advisory_unlock(999999)');
   }
-  
+
+  console.log('[Bulk Tick] done actions=' + actions.length);
   res.json({ success: true, actions });
 });
 

@@ -318,6 +318,7 @@ export default function Pipeline() {
             const leadCompany = confirmCallLead.company || "";
             const leadEmail = confirmCallLead.email || "";
 
+            console.log("[AI Call] click", { leadId: confirmCallLead.id, leadName, leadPhone });
             const res = await fetch("/api/ai-call", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -331,13 +332,16 @@ export default function Pipeline() {
             });
 
             const data = await res.json();
+            console.log("[AI Call] response", { status: res.status, success: data.success, requestId: data.requestId, error: data.error });
             if (res.ok && data.success) {
                 toast.success(`Outbound AI proposal call placed to ${leadName} (${leadPhone}).`);
                 setConfirmCallLead(null);
             } else {
+                console.log("[AI Call] failed", { status: res.status, error: data.error });
                 toast.error(data.error || "Could not place AI call.");
             }
         } catch (err) {
+            console.error("[AI Call] failed", { message: err.message });
             toast.error("Failed to place AI call: " + err.message);
         } finally {
             setIsCallInFlight(false);

@@ -35,7 +35,7 @@ function getBrochureAttachments() {
 const automationsApi = require('./automations');
 const agentHubApi = require('./agent-hub');
 const { registerWhatsAppRoutes } = require('./whatsapp');
-const omnidimApi = require('./omnidim');
+const aiCallsApi = require('./ai-calls');
 const sarvamWebhookApi = require('./sarvam-webhook');
 
 const app = express();
@@ -462,7 +462,7 @@ app.post(['/api/debug-logs/clear', '/api/useClearDebugLogs'], async (req, res) =
 
 automationsApi.init();
 agentHubApi.init();
-app.use('/api/omnidim', omnidimApi.router);
+app.use('/api/ai-calls', aiCallsApi.router);
 app.use('/api/sarvam/webhook', sarvamWebhookApi.router);
 app.use('/api/bulk-calling', require('./bulk-calling').router);
 
