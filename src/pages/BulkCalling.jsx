@@ -306,7 +306,7 @@ function BulkCallDetail({ id, onBack }) {
                 <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
                     <h3 className="text-lg font-bold text-gray-900 mb-2">Start Campaign?</h3>
                     <p className="text-sm text-gray-600 mb-6">
-                        {pending} contacts will be called one by one by Riya (AI).<br/><br/>
+                        {pending} contacts will be called one by one by Aarti (AI).<br/><br/>
                         Calling hours: 10:00 AM - 7:30 PM IST.
                     </p>
                     <div className="flex gap-3">

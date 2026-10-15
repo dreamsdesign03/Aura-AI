@@ -2476,6 +2476,62 @@ app.post('/api/ai-call', async (req, res) => {
   try {
     const { leadId, name, phone, company, email } = req.body || {};
 
+    // Sarvam Samvaad single-call path (falls back to ElevenLabs below when SARVAM_API_KEY is unset)
+    if (process.env.SARVAM_API_KEY) {
+      if (!phone) {
+        return res.status(400).json({ success: false, error: 'Phone number is required.' });
+      }
+
+      const toNumber = norm(phone);
+      const e164Regex = /^\+[1-9]\d{7,14}$/;
+      if (!e164Regex.test(toNumber)) {
+        return res.status(400).json({ success: false, error: `Invalid phone number format: ${toNumber}. Must be valid E.164 (e.g. +91XXXXXXXXXX).` });
+      }
+
+      let parsedLeadId = leadId ? parseInt(leadId, 10) : null;
+      if (isNaN(parsedLeadId)) parsedLeadId = null;
+
+      let lead = null;
+      if (parsedLeadId) {
+        const lr = await db.query('SELECT * FROM leads WHERE id = $1', [parsedLeadId]);
+        if (lr.rows.length > 0) lead = lr.rows[0];
+      }
+
+      const leadName = name || (lead ? ([lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name) : '') || 'none';
+      const leadPhone = String(toNumber).replace(/\D/g, '').slice(-10);
+
+      const { dispatchSarvamCall } = require('./sarvam');
+      const sarvamRes = await dispatchSarvamCall({
+        phoneE164: toNumber,
+        vars: {
+          callType: 'outbound_lead',
+          userName: leadName,
+          userPhone: leadPhone || 'none',
+          userEmail: email || (lead ? lead.email : '') || 'none',
+          serviceType: 'Dermatologist consultation'
+        },
+        metadata: { kind: 'single', lead_id: parsedLeadId ? String(parsedLeadId) : undefined }
+      });
+
+      const requestId = sarvamRes.attempt_id;
+
+      if (lead) {
+        await db.query(`
+          UPDATE leads 
+          SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
+          WHERE id = $2
+        `, [requestId, lead.id]);
+
+        await db.query(`
+          INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
+          VALUES ($1, 'Aarti (AI)', 'call_started', 'queued', $2, $3, $4)
+        `, [lead.user_id, leadName === 'none' ? 'Lead' : leadName, company || lead.company || '', `AI call dispatched to ${toNumber}`])
+          .catch(err => console.error('[AI Call] agent_activity insert error:', err.message));
+      }
+
+      return res.json({ success: true, requestId });
+    }
+
     const apiKey = process.env.ELEVENLABS_API_KEY;
     const agentId = process.env.ELEVENLABS_AGENT_ID || 'agent_7601m3xprgr7ekkvbeyawvs6dkj6';
     const phoneNumberId = process.env.ELEVENLABS_PHONE_NUMBER_ID;

@@ -52,13 +52,13 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             <div className="flex justify-between items-center">
               <span className="text-gray-500 font-medium">Call Type:</span>
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-200">
-                proposal_call
+                consultation_call
               </span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-500 font-medium">AI Agent:</span>
               <span className="text-gray-800 font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-pink-500" /> ElevenLabs Voice
+                <Sparkles className="w-3 h-3 text-pink-500" /> Aarti (Sarvam AI)
               </span>
             </div>
           </div>

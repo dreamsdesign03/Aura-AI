@@ -100,6 +100,40 @@ router.post('/call', async (req, res) => {
     const check = canCall(lead);
     if (!check.ok) return res.status(400).json({ success: false, error: check.reason });
     
+    // Sarvam Samvaad single-call path (falls back to Omnidim below when SARVAM_API_KEY is unset)
+    if (process.env.SARVAM_API_KEY) {
+      const { dispatchSarvamCall } = require('./sarvam');
+      const phoneObj = normalizePhone(lead.phone || lead.whatsapp);
+      const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name || 'none';
+      
+      const sarvamRes = await dispatchSarvamCall({
+        phoneE164: check.e164,
+        vars: {
+          callType: 'outbound_lead',
+          userName: leadName,
+          userPhone: phoneObj ? phoneObj.local : 'none',
+          userEmail: lead.email || 'none',
+          serviceType: 'Dermatologist consultation'
+        },
+        metadata: { kind: 'single', lead_id: String(lead.id) }
+      });
+      
+      const requestId = sarvamRes.attempt_id;
+      
+      await db.query(`
+        UPDATE leads 
+        SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
+        WHERE id = $2
+      `, [requestId, lead.id]);
+      
+      await db.query(`
+        INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
+        VALUES ($1, 'Aarti (AI)', 'call_started', 'queued', $2, $3, $4)
+      `, [lead.user_id, leadName === 'none' ? 'Lead' : leadName, lead.company, `AI call dispatched to ${check.e164}`]);
+      
+      return res.json({ success: true, requestId });
+    }
+    
     const context = buildContext(lead);
     
     const payload = {
