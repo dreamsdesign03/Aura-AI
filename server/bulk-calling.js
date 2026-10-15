@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('./db');
 const { omnidimFetch, normalizePhone, buildContext, isCallingHours, canCall } = require('./omnidim');
+const { dispatchSarvamCall } = require('./sarvam');
 
 const router = express.Router();
 
@@ -222,7 +223,7 @@ router.post('/tick', async (req, res) => {
             actions.push(`Resolved timeout for contact ${contact.id}`);
             isAnyCalling = false; // it's resolved now
           }
-        } else {
+        } else if (!process.env.SARVAM_API_KEY) {
             // Check fallback omnidim logs
             try {
                const logsRes = await omnidimFetch(`/calls/logs?call_request_id=${contact.last_request_id}`);
@@ -312,28 +313,46 @@ router.post('/tick', async (req, res) => {
 
       // Dispatch Call
       try {
-        const payload = {
-          agent_id: Number(process.env.OMNIDIM_AGENT_ID),
-          to_number: contact.phone_e164,
-          from_number_id: Number(process.env.OMNIDIM_PHONE_NUMBER_ID),
-          call_context: {
-            lead_name: contact.name,
-            company_name: contact.company,
-            lead_phone: contact.phone10,
-            lead_email: contact.email,
-            booking_type: 'proposal_call',
-            lead_id: contact.lead_id ? String(contact.lead_id) : ''
-          },
-          metadata: {
-            kind: 'bulk',
-            campaign_id: campaign.id,
-            contact_id: contact.id,
-            attempt_no: contact.attempts + 1
-          }
+        const metadata = {
+          kind: 'bulk',
+          campaign_id: campaign.id,
+          contact_id: contact.id,
+          attempt_no: contact.attempts + 1
         };
 
-        const apiRes = await omnidimFetch('/calls/dispatch', { method: 'POST', body: JSON.stringify(payload) });
-        const requestId = apiRes.request_id || apiRes.id || 'dispatched';
+        let apiRes;
+        if (process.env.SARVAM_API_KEY) {
+          apiRes = await dispatchSarvamCall({
+            phoneE164: contact.phone_e164,
+            vars: {
+              callType: 'outbound_lead',
+              userName: contact.name || 'none',
+              userPhone: contact.phone10 || 'none',
+              userEmail: contact.email || 'none',
+              serviceType: contact.extra_json?.service || 'Dermatologist consultation'
+            },
+            metadata
+          });
+        } else {
+          const payload = {
+            agent_id: Number(process.env.OMNIDIM_AGENT_ID),
+            to_number: contact.phone_e164,
+            from_number_id: Number(process.env.OMNIDIM_PHONE_NUMBER_ID),
+            call_context: {
+              lead_name: contact.name,
+              company_name: contact.company,
+              lead_phone: contact.phone10,
+              lead_email: contact.email,
+              booking_type: 'proposal_call',
+              lead_id: contact.lead_id ? String(contact.lead_id) : ''
+            },
+            metadata
+          };
+
+          apiRes = await omnidimFetch('/calls/dispatch', { method: 'POST', body: JSON.stringify(payload) });
+        }
+
+        const requestId = apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched';
 
         await db.query('UPDATE bulk_contacts SET status = \'calling\', attempts = attempts + 1, last_attempt_at = NOW(), last_request_id = $1 WHERE id = $2', [requestId, contact.id]);
         await db.query('INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, request_id) VALUES ($1, $2, $3, $4)', [contact.id, campaign.id, contact.attempts + 1, requestId]);

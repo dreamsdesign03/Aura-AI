@@ -42,7 +42,7 @@ export default function BulkCalling() {
             <PhoneOutgoing className="w-5 h-5 text-pink-600" />
             Bulk AI Calling
           </h1>
-          <p className="text-xs text-gray-500 mt-1">Manage and track Omnidim AI voice campaigns</p>
+          <p className="text-xs text-gray-500 mt-1">Manage and track AI voice campaigns</p>
         </div>
         <button 
           onClick={() => setShowNew(true)}
