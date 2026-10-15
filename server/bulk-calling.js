@@ -322,6 +322,7 @@ router.post('/tick', async (req, res) => {
 
         let apiRes;
         if (process.env.SARVAM_API_KEY) {
+          console.log('[Bulk Call] dispatch via SARVAM:', { contact_id: contact.id, phoneE164: contact.phone_e164, metadata });
           apiRes = await dispatchSarvamCall({
             phoneE164: contact.phone_e164,
             vars: {
@@ -349,8 +350,10 @@ router.post('/tick', async (req, res) => {
             metadata
           };
 
+          console.log('[Bulk Call] dispatch via OMNIDIM:', { contact_id: contact.id, phoneE164: contact.phone_e164, metadata });
           apiRes = await omnidimFetch('/calls/dispatch', { method: 'POST', body: JSON.stringify(payload) });
         }
+        console.log('[Bulk Call] dispatch result:', JSON.stringify(apiRes));
 
         const requestId = apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched';
 
@@ -360,6 +363,7 @@ router.post('/tick', async (req, res) => {
         
         actions.push(`Dispatched call for contact ${contact.id}`);
       } catch (err) {
+        console.error('[Bulk Call] dispatch error:', err && (err.stack || err.message || err));
         if (err.message.toLowerCase().includes('credit') || err.message.toLowerCase().includes('unauthorized') || err.message.toLowerCase().includes('agent')) {
           await db.query('UPDATE bulk_campaigns SET enabled = FALSE, status = \'error\', error_message = $1 WHERE id = $2', [err.message, campaign.id]);
           actions.push(`Campaign ${campaign.id} disabled due to Omnidim error: ${err.message}`);

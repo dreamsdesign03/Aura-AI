@@ -91,20 +91,26 @@ function canCall(lead, isScheduled = false) {
 router.post('/call', async (req, res) => {
   try {
     const { leadId } = req.body;
+    console.log('[AI Call] POST /api/omnidim/call body:', JSON.stringify(req.body));
     if (!leadId) return res.status(400).json({ success: false, error: "leadId required" });
     
     const leadResult = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+    console.log('[AI Call] lead lookup -> rows:', leadResult.rows.length);
     if (leadResult.rows.length === 0) return res.status(404).json({ success: false, error: "Lead not found" });
     const lead = leadResult.rows[0];
+    console.log('[AI Call] lead loaded:', { id: lead.id, user_id: lead.user_id, name: [lead.first_name, lead.last_name].filter(Boolean).join(' '), phone: lead.phone, whatsapp: lead.whatsapp, do_not_call: lead.do_not_call });
     
     const check = canCall(lead);
+    console.log('[AI Call] canCall ->', JSON.stringify(check));
     if (!check.ok) return res.status(400).json({ success: false, error: check.reason });
     
     // Sarvam Samvaad single-call path (falls back to Omnidim below when SARVAM_API_KEY is unset)
     if (process.env.SARVAM_API_KEY) {
+      console.log('[AI Call] path=SARVAM (SARVAM_API_KEY set)');
       const { dispatchSarvamCall } = require('./sarvam');
       const phoneObj = normalizePhone(lead.phone || lead.whatsapp);
       const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name || 'none';
+      console.log('[AI Call] dispatching Sarvam:', { phoneE164: check.e164, userName: leadName, userPhone: phoneObj ? phoneObj.local : 'none', lead_id: String(lead.id) });
       
       const sarvamRes = await dispatchSarvamCall({
         phoneE164: check.e164,
@@ -117,6 +123,7 @@ router.post('/call', async (req, res) => {
         },
         metadata: { kind: 'single', lead_id: String(lead.id) }
       });
+      console.log('[AI Call] Sarvam dispatch result:', JSON.stringify(sarvamRes));
       
       const requestId = sarvamRes.attempt_id;
       
@@ -125,15 +132,18 @@ router.post('/call', async (req, res) => {
         SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
         WHERE id = $2
       `, [requestId, lead.id]);
+      console.log('[AI Call] leads UPDATE done, requestId =', requestId);
       
       await db.query(`
         INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
         VALUES ($1, 'Aarti (AI)', 'call_started', 'queued', $2, $3, $4)
       `, [lead.user_id, leadName === 'none' ? 'Lead' : leadName, lead.company, `AI call dispatched to ${check.e164}`]);
+      console.log('[AI Call] agent_activity INSERT done');
       
       return res.json({ success: true, requestId });
     }
     
+    console.log('[AI Call] path=OMNIDIM (SARVAM_API_KEY not set)');
     const context = buildContext(lead);
     
     const payload = {
@@ -148,6 +158,7 @@ router.post('/call', async (req, res) => {
       method: 'POST',
       body: JSON.stringify(payload)
     });
+    console.log('[AI Call] Omnidim dispatch result:', JSON.stringify(apiRes));
     
     const requestId = apiRes.request_id || apiRes.id || 'dispatched';
     
@@ -156,16 +167,18 @@ router.post('/call', async (req, res) => {
       SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
       WHERE id = $2
     `, [requestId, lead.id]);
+    console.log('[AI Call] leads UPDATE done (Omnidim), requestId =', requestId);
     
     // Add activity
     await db.query(`
       INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
       VALUES ($1, 'Riya (AI)', 'call_started', 'queued', $2, $3, $4)
     `, [lead.user_id, context.lead_name, lead.company, `AI call dispatched to ${check.e164}`]);
+    console.log('[AI Call] agent_activity INSERT done (Omnidim)');
     
     res.json({ success: true, requestId });
   } catch (err) {
-    console.error('[Omnidim Call Error]:', err.message);
+    console.error('[Omnidim Call Error]:', err.stack || err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

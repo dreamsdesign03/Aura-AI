@@ -2475,9 +2475,11 @@ function norm(phone) {
 app.post('/api/ai-call', async (req, res) => {
   try {
     const { leadId, name, phone, company, email } = req.body || {};
+    console.log('[AI Call] POST /api/ai-call body:', JSON.stringify(req.body));
 
     // Sarvam Samvaad single-call path (falls back to ElevenLabs below when SARVAM_API_KEY is unset)
     if (process.env.SARVAM_API_KEY) {
+      console.log('[AI Call] path=SARVAM (SARVAM_API_KEY set)');
       if (!phone) {
         return res.status(400).json({ success: false, error: 'Phone number is required.' });
       }
@@ -2496,9 +2498,11 @@ app.post('/api/ai-call', async (req, res) => {
         const lr = await db.query('SELECT * FROM leads WHERE id = $1', [parsedLeadId]);
         if (lr.rows.length > 0) lead = lr.rows[0];
       }
+      console.log('[AI Call] /api/ai-call lead lookup:', { parsedLeadId, found: !!lead, user_id: lead && lead.user_id });
 
       const leadName = name || (lead ? ([lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name) : '') || 'none';
       const leadPhone = String(toNumber).replace(/\D/g, '').slice(-10);
+      console.log('[AI Call] dispatching Sarvam:', { toNumber, userName: leadName, leadPhone, lead_id: parsedLeadId ? String(parsedLeadId) : undefined });
 
       const { dispatchSarvamCall } = require('./sarvam');
       const sarvamRes = await dispatchSarvamCall({
@@ -2512,6 +2516,7 @@ app.post('/api/ai-call', async (req, res) => {
         },
         metadata: { kind: 'single', lead_id: parsedLeadId ? String(parsedLeadId) : undefined }
       });
+      console.log('[AI Call] Sarvam dispatch result:', JSON.stringify(sarvamRes));
 
       const requestId = sarvamRes.attempt_id;
 
@@ -2521,16 +2526,20 @@ app.post('/api/ai-call', async (req, res) => {
           SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
           WHERE id = $2
         `, [requestId, lead.id]);
+        console.log('[AI Call] leads UPDATE done, requestId =', requestId);
 
         await db.query(`
           INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
           VALUES ($1, 'Aarti (AI)', 'call_started', 'queued', $2, $3, $4)
         `, [lead.user_id, leadName === 'none' ? 'Lead' : leadName, company || lead.company || '', `AI call dispatched to ${toNumber}`])
           .catch(err => console.error('[AI Call] agent_activity insert error:', err.message));
+        console.log('[AI Call] agent_activity INSERT attempted');
       }
 
       return res.json({ success: true, requestId });
     }
+
+    console.log('[AI Call] path=ELEVENLABS (SARVAM_API_KEY not set)');
 
     const apiKey = process.env.ELEVENLABS_API_KEY;
     const agentId = process.env.ELEVENLABS_AGENT_ID || 'agent_7601m3xprgr7ekkvbeyawvs6dkj6';
@@ -2624,7 +2633,7 @@ app.post('/api/ai-call', async (req, res) => {
       callSid: callSid
     });
   } catch (err) {
-    console.error('[AI Call] Unexpected error:', err);
+    console.error('[AI Call] Unexpected error:', err && (err.stack || err.message || err));
     return res.status(500).json({ success: false, error: err.message || 'Internal server error' });
   }
 });

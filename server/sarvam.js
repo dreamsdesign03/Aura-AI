@@ -26,6 +26,21 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
     }
   };
 
+  const maskedUrl = String(process.env.SARVAM_WEBHOOK_URL || '').replace(/secret=[^&]+/, 'secret=***');
+  console.log('[Sarvam] dispatch start:', {
+    url,
+    phoneE164,
+    metadata,
+    orgId,
+    workspaceId,
+    appId: body.app_config.app_id,
+    appVersion: body.app_config.app_version,
+    agentNumber: body.app_config.connection_config.agent_phone_number,
+    webhookUrl: maskedUrl,
+    hasApiKey: !!process.env.SARVAM_API_KEY
+  });
+  console.log('[Sarvam] request body:', JSON.stringify({ ...body, webhook_config: { ...body.webhook_config, url: maskedUrl } }));
+
   const res = await fetch(url, {
     method: 'POST',
     headers: {
@@ -36,11 +51,15 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
   });
 
   const data = await res.json().catch(() => null);
+  console.log('[Sarvam] response status:', res.status, 'body:', JSON.stringify(data));
 
   if (!res.ok) {
-    throw new Error(data?.message || data?.detail || data?.error || res.statusText);
+    const msg = data?.message || data?.detail || data?.error || res.statusText;
+    console.error('[Sarvam] dispatch failed:', msg);
+    throw new Error(msg);
   }
 
+  console.log('[Sarvam] dispatch ok, attempt_id:', data && data.attempt_id);
   return data;
 }
 
