@@ -47,11 +47,15 @@ router.post('/', async (req, res) => {
 
       const detail = `Status: ${callStatus} | Outcome: ${outcome}\nSummary: ${summary}` + (confirmedSlot ? `\nSlot: ${confirmedSlot}` : '');
 
-      await db.query(`
-        INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
-        VALUES ($1, 'Aarti (AI)', 'call_completed', $2, $3, $4, $5)
-      `, [lead.user_id, callStatus, [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name || 'Lead', lead.company, detail]);
-      console.log('[Sarvam Webhook] single branch: agent_activity INSERT done');
+      if (lead.user_id != null) {
+        await db.query(`
+          INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
+          VALUES ($1, 'Aarti (AI)', 'call_completed', $2, $3, $4, $5)
+        `, [lead.user_id, callStatus, [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name || 'Lead', lead.company, detail]);
+        console.log('[Sarvam Webhook] single branch: agent_activity INSERT done');
+      } else {
+        console.warn('[Sarvam Webhook] single branch: skipped agent_activity insert, lead.user_id is null for lead', lead.id);
+      }
 
       return res.status(200).json({ success: true });
     }

@@ -54,8 +54,16 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
   console.log('[Sarvam] response status:', res.status, 'body:', JSON.stringify(data));
 
   if (!res.ok) {
-    const msg = data?.message || data?.detail || data?.error || res.statusText;
-    console.error('[Sarvam] dispatch failed:', msg);
+    const errObj = data && typeof data.error === 'object' ? data.error : null;
+    const detail = errObj && errObj.data && errObj.data.details;
+    const msg =
+      [errObj && errObj.message, detail].filter(Boolean).join(' - ') ||
+      (typeof data?.error === 'string' ? data.error : null) ||
+      data?.message ||
+      data?.detail ||
+      res.statusText ||
+      `HTTP ${res.status}`;
+    console.error('[Sarvam] dispatch failed:', res.status, msg, JSON.stringify(data));
     throw new Error(msg);
   }
 
