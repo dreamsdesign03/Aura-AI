@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { FileText, TrendingUp, Flame, ChevronDown, ChevronUp, Search, X, BarChart2, Clock, Phone, Globe, MapPin, Building2, User, Target, AlertTriangle, CheckCircle2, ExternalLink, } from "lucide-react";
+import { cleanEmail } from "@/lib/emails";
 const LEAD_STATUSES = ["new_enquiry", "enquiry_qualified", "discovery_call", "quote_sent", "follow_up", "project_won", "project_lost"];
 const STATUS_LABELS = { new_enquiry: "New Enquiry", enquiry_qualified: "Enquiry Qualified", discovery_call: "Discovery Call", quote_sent: "Quote / Estimation Sent", follow_up: "Follow Up / Negotiation", project_won: "Project Won", project_lost: "Project Lost" };
 const STATUS_DOT = { new_enquiry: "#3B82F6", enquiry_qualified: "#CB3273", discovery_call: "#0D9488", quote_sent: "#DE377C", follow_up: "#DE377C", project_won: "#16A34A", project_lost: "#EF4444" };
@@ -66,7 +67,7 @@ function TranscriptModal({ lead, onClose, onStatusUpdate }) {
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>{lead.firstName} {lead.lastName}</div>
             <div style={{ fontSize: 12, color: "#6B7280", marginTop: 3, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-              <span>{lead.email}</span>{lead.phone && <span>· {lead.phone}</span>}
+              {cleanEmail(lead.email) && <span>{cleanEmail(lead.email)}</span>}{lead.phone && <span>· {lead.phone}</span>}
               {lead.bantScore != null && <span style={{ background: "#FBE9F1", color: "#8E1F54", padding: "1px 8px", borderRadius: 12, fontWeight: 700, fontSize: 11 }}>BANT {lead.bantScore}/12</span>}
               <TierBadge tier={tier}/>
             </div>
@@ -141,7 +142,7 @@ function LeadCard({ lead, onViewTranscript, onStatusUpdate }) {
             <span style={{ fontWeight: 700, fontSize: 14, color: isUnseen ? "#111827" : "#374151", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.firstName} {lead.lastName}</span>
             {isUnseen && <span style={{ fontSize: 9, fontWeight: 800, background: "#DE377C", color: "#fff", padding: "1px 6px", borderRadius: 10, letterSpacing: "0.04em", flexShrink: 0 }}>NEW</span>}
           </div>
-          <div style={{ fontSize: 12, color: "#6B7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.email}</div>
+          {cleanEmail(lead.email) && <div style={{ fontSize: 12, color: "#6B7280", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cleanEmail(lead.email)}</div>}
           {lead.phone && <div style={{ fontSize: 11, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}><Phone className="w-3 h-3"/> {lead.phone}</div>}
         </div>
         <div style={{ flex: 1, minWidth: 0 }}>

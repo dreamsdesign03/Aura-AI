@@ -516,7 +516,7 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
        meeting_link = EXCLUDED.meeting_link,
        questions = EXCLUDED.questions
      RETURNING id`,
-    [userId, scheduledEvent.uri, invitee?.uri || null, invitee?.name || 'Invitee', invitee?.email || '', scheduledEvent.name || 'Meeting', startIso, endIso, status, location, meetingLink, JSON.stringify(qs)]
+    [userId, scheduledEvent.uri, invitee?.uri || null, invitee?.name || 'Invitee', cleanEmail(invitee?.email), scheduledEvent.name || 'Meeting', startIso, endIso, status, location, meetingLink, JSON.stringify(qs)]
   );
   const eventId = insertRes.rows[0].id;
   if (wasNew && status === 'confirmed') {
@@ -527,7 +527,7 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
       first_name: (invitee?.name || '').split(' ')[0],
       last_name: (invitee?.name || '').split(' ').slice(1).join(' '),
       name: invitee?.name || 'there',
-      email: invitee?.email || '',
+      email: cleanEmail(invitee?.email),
       phone: qs['Phone / WhatsApp'] || qs['phone'] || '',
       company: '',
       date: startIso,
@@ -543,13 +543,27 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
       first_name: (invitee?.name || '').split(' ')[0],
       last_name: (invitee?.name || '').split(' ').slice(1).join(' '),
       name: invitee?.name || 'there',
-      email: invitee?.email || '',
+      email: cleanEmail(invitee?.email),
       phone: qs['Phone / WhatsApp'] || qs['phone'] || '',
       date: startIso,
       time: startIso,
       service: 'Aura Skin Clinic',
     });
   }
+}
+
+const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
+const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
+
+function resolveBookingBranch(q, notes) {
+  const direct = q?.branch || q?.['Branch'] || q?.branchName || q?.['Branch Name'] || '';
+  let branch = String(direct || '').trim();
+  if (!branch) {
+    const m = /Branch:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
+    if (m) branch = m[1].trim();
+  }
+  if (!branch || /^vadodara$/i.test(branch)) return '';
+  return branch;
 }
 
 function mapCalendlyToAppointment(row) {
@@ -582,19 +596,22 @@ function mapCalendlyToAppointment(row) {
     if (match) phoneVal = match[1];
   }
 
-  const cleanEmail = isSynthetic ? '' : rawEmail;
+  const cleanEmailValue = isSynthetic ? '' : cleanEmail(rawEmail);
+  const notesText = q['notes'] || q['Please provide a brief summary of your business & what it is that you do?'] || q['business'] || '';
+  const branch = resolveBookingBranch(q, notesText);
 
   return {
     id: row.id,
     name: row.invitee_name,
-    email: cleanEmail,
+    email: cleanEmailValue,
     phone: phoneVal,
     scheduledDate: dateStr,
     scheduledTime: timeStr,
     location: isMeet ? 'meet' : 'inperson',
     status: row.status,
     meetingLink: validLink,
-    notes: q['notes'] || q['Please provide a brief summary of your business & what it is that you do?'] || q['business'] || '',
+    notes: notesText,
+    branch,
     businessSummary: q['businessSummary'] || q['business'] || '',
     source: 'cal.com',
     calendlyUri: row.calendly_uri,
@@ -642,7 +659,7 @@ async function syncCalComBookings(userId) {
     const bfr = b.bookingFieldsResponses || {};
     
     const inviteeName = attendee.name || bfr.name || b.title?.split(' and ').pop()?.trim() || 'Invitee';
-    const inviteeEmail = attendee.email || bfr.email || '';
+    const inviteeEmail = cleanEmail(attendee.email || bfr.email || '');
     let phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
     if (!phone && inviteeEmail.includes('@sms.cal.com')) {
       const match = inviteeEmail.match(/^(\d+)/);
@@ -673,6 +690,8 @@ async function syncCalComBookings(userId) {
       "notes": notes,
       "Please provide a brief summary of your business & what it is that you do?": notes
     };
+    const branchKey = Object.keys(bfr).find(k => /branch/i.test(k));
+    if (branchKey) questionsObj["branch"] = bfr[branchKey];
 
     const existing = await db.query('SELECT id, is_deleted, status FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
     if (existing.rows.length > 0 && existing.rows[0].is_deleted) {
@@ -696,7 +715,7 @@ async function syncCalComBookings(userId) {
          meeting_link = EXCLUDED.meeting_link,
          questions = EXCLUDED.questions
        RETURNING id`,
-      [userId, bookingUri, attendee.email || null, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, locationStr, meetingLink, JSON.stringify(questionsObj)]
+      [userId, bookingUri, cleanEmail(attendee.email) || null, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, locationStr, meetingLink, JSON.stringify(questionsObj)]
     );
 
     const eventId = insertRes.rows[0]?.id;
@@ -845,7 +864,7 @@ app.post('/api/appointments/update', async (req, res) => {
         first_name: (row.invitee_name || '').split(' ')[0],
         last_name: (row.invitee_name || '').split(' ').slice(1).join(' '),
         name: row.invitee_name || 'there',
-        email: row.invitee_email || '',
+        email: cleanEmail(row.invitee_email),
         phone: q['Phone / WhatsApp'] || q['phone'] || '',
         service: 'Aura Skin Clinic',
       });

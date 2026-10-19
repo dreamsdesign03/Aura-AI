@@ -8,6 +8,7 @@ import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, Check, Filter, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cleanEmail } from "@/lib/emails";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 import ComposeModal from "@/components/ComposeModal";
 import NewMeetingModal from "@/components/NewMeetingModal";
@@ -214,8 +215,8 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
         </button>
 
         {/* Send Email Integration */}
-        {lead.email ? (
-          <button onClick={e => { e.stopPropagation(); onSendEmail?.(lead); }} className="p-1.5 rounded bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors" title={`Send email to ${name} (${lead.email})`}>
+        {cleanEmail(lead.email) ? (
+          <button onClick={e => { e.stopPropagation(); onSendEmail?.(lead); }} className="p-1.5 rounded bg-pink-50 text-pink-600 hover:bg-pink-100 transition-colors" title={`Send email to ${name} (${cleanEmail(lead.email)})`}>
             <Mail className="w-3.5 h-3.5"/>
           </button>
         ) : (

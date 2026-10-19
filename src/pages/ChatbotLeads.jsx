@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { MessageCircle, TrendingUp, Flame, ChevronDown, ChevronUp, Search, X, BarChart2, Clock, Star, Phone, Globe, MapPin, Building2, User, Target, Zap, AlertTriangle, CheckCircle2, Inbox, Loader2, MessageSquare, } from "lucide-react";
+import { cleanEmail } from "@/lib/emails";
 // ── Status constants (mirrors main Leads page) ──────────────────────────────
 const LEAD_STATUSES = [
     "new_enquiry", "enquiry_qualified", "discovery_call",
@@ -142,7 +143,7 @@ function TranscriptModal({ lead, onClose, onStatusUpdate }) {
               {lead.firstName} {lead.lastName}
             </div>
             <div style={{ fontSize: 12, color: "#6B7280", marginTop: 3, display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
-              <span>{lead.email}</span>
+              {cleanEmail(lead.email) && <span>{cleanEmail(lead.email)}</span>}
               {lead.phone && <span>· {lead.phone}</span>}
               {lead.bantScore != null && (<span style={{ background: "#FBE9F1", color: "#8E1F54", padding: "1px 8px", borderRadius: 12, fontWeight: 700, fontSize: 11 }}>
                   BANT {lead.bantScore}/12
@@ -292,7 +293,7 @@ function LeadCard({ lead, onViewTranscript, onStatusUpdate }) {
                 NEW
               </span>)}
           </div>
-          <div style={{ fontSize: 12, color: "#9CA3AF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{lead.email}</div>
+          {cleanEmail(lead.email) && <div style={{ fontSize: 12, color: "#9CA3AF", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cleanEmail(lead.email)}</div>}
           {lead.phone && (<div style={{ fontSize: 11, color: "#9CA3AF", display: "flex", alignItems: "center", gap: 3, marginTop: 1 }}>
               <Phone className="w-3 h-3"/> {lead.phone}
             </div>)}

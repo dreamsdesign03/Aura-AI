@@ -6,6 +6,8 @@ import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2
 import { cn } from "@/lib/utils";
 import { NewMeetingModal, downloadICS, MEETING_TYPES } from "@/components/NewMeetingModal";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
+import { cleanEmail } from "@/lib/emails";
+import { branchMapsUrl } from "@/lib/branches";
 // ── Constants ─────────────────────────────────────────────────────────────────
 const DESCRIPTION = `Hello there,
 
@@ -187,9 +189,7 @@ function AdminView() {
                     const suf = hnum >= 12 ? "PM" : "AM";
                     const h12a = hnum > 12 ? hnum - 12 : hnum === 0 ? 12 : hnum;
                     const tl = `${h12a}:${mm} ${suf}`;
-                    const isSynthetic = !appt.email || appt.email.includes("@sms.cal.com") || appt.email.endsWith("@cal.com");
-                    const displayEmail = isSynthetic ? "" : appt.email;
-                    const displaySub = displayEmail || appt.phone || (isSynthetic && appt.email ? appt.email.split("@")[0] : "");
+                    const displaySub = cleanEmail(appt.email) || appt.phone || "";
                     return (<button key={appt.id} onClick={() => setActiveId(appt.id)} className={cn("w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors", activeId === appt.id && "bg-green-50 border-l-2 border-green-700")}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
@@ -226,11 +226,11 @@ function AdminView() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <div className="text-base font-bold text-gray-900">{active.name}</div>
-                  {active.email && !active.email.includes("@sms.cal.com") && !active.email.endsWith("@cal.com") && (
-                    <div className="text-sm text-gray-500">{active.email}</div>
+                  {cleanEmail(active.email) && (
+                    <div className="text-sm text-gray-500">{cleanEmail(active.email)}</div>
                   )}
-                  {(active.phone || (active.email && active.email.includes("@sms.cal.com"))) && (
-                    <div className="text-sm text-gray-500">{active.phone || active.email.split("@")[0]}</div>
+                  {active.phone && (
+                    <div className="text-sm text-gray-500">{active.phone}</div>
                   )}
                   <div className="flex items-center gap-2 mt-2 text-xs text-gray-600">
                     <CalendarDays className="w-3.5 h-3.5 text-gray-400"/>
@@ -239,7 +239,9 @@ function AdminView() {
                   <div className="flex items-center gap-2 text-xs text-gray-600 mt-1">
                     {active.location === "meet" && active.meetingLink
                 ? <><Video className="w-3.5 h-3.5 text-blue-500"/> Google Meet</>
-                : <><MapPin className="w-3.5 h-3.5 text-pink-600 font-semibold"/> In-person – Vadodara Clinic</>}
+                : active.branch
+                ? (<a href={branchMapsUrl(active.branch)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-pink-700 hover:underline"><MapPin className="w-3.5 h-3.5 text-pink-600 font-semibold"/> Aura Clinic – {active.branch}</a>)
+                : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
                     {active.location === "meet" && active.meetingLink && active.meetingLink.startsWith("http") && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">

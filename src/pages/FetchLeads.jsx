@@ -3,6 +3,7 @@ import { useListIcps } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Zap, MapPin, Database, CheckCircle2, Loader2, AlertCircle, ToggleLeft, ToggleRight, Clock, CalendarClock, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { cleanEmail } from "@/lib/emails";
 const SOURCES = [
     {
         id: "gemini_ai",
@@ -174,7 +175,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
                             .map(l => ({
                                 name: l.name || `${l.firstName} ${l.lastName}`,
                                 company: l.company,
-                                email: l.email || "No email",
+                                email: cleanEmail(l.email) || "",
                                 industry: l.industry,
                                 country: l.country,
                             }));
@@ -352,7 +353,7 @@ export default function FetchLeads({ onClose = () => window.history.back(), init
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-medium text-gray-900 truncate">{l.name} · {l.company}</div>
-                      <div className="text-[10px] text-gray-400 truncate">{l.email}</div>
+                      {cleanEmail(l.email) && <div className="text-[10px] text-gray-400 truncate">{cleanEmail(l.email)}</div>}
                     </div>
                     <div className="text-[10px] text-gray-400 text-right flex-shrink-0">
                       <div>{l.industry}</div>

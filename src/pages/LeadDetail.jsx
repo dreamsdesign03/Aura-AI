@@ -7,6 +7,7 @@ import { useAuthUser } from "@/contexts/AuthContext";
 import { StatusBadge, Tag } from "@/components/Badge";
 import { bandColorFromKey, bandLabelFromKey, scoreToBandKey, formatDate, formatRelative } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { cleanEmail } from "@/lib/emails";
 import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Globe as Linkedin, Phone, Mail, Building2, MapPin, MessageCircle, Pencil, X, Check, Loader2, Sparkles, CalendarPlus, CalendarDays, Download, UserCheck, Send, FileText, CheckCircle2 } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -471,10 +472,10 @@ export default function LeadDetail() {
               </div>) : (<>
                 {/* Contact details grid */}
                 <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                  {cleanEmail(lead.email) && (<div className="flex items-center gap-2 text-xs text-gray-500">
                     <Mail className="w-3.5 h-3.5 flex-shrink-0"/>
-                    <a href={`mailto:${lead.email}`} className="hover:text-gray-900 truncate">{lead.email}</a>
-                  </div>
+                    <a href={`mailto:${cleanEmail(lead.email)}`} className="hover:text-gray-900 truncate">{cleanEmail(lead.email)}</a>
+                  </div>)}
                   {lead.phone && (<div className="flex items-center gap-2 text-xs text-gray-500">
                       <Phone className="w-3.5 h-3.5 flex-shrink-0"/>
                       <a href={`tel:${lead.phone}`} className="hover:text-gray-900">{lead.phone}</a>

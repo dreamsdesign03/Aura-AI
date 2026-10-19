@@ -10,6 +10,7 @@ import { useBatchPoller } from "@/hooks/useBatchPoller";
 import { StatusBadge } from "@/components/Badge";
 import { formatDate, scoreToBandKey, bandHexFromKey, bantBandDarkColor, bantBandDarkGradient, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
+import { cleanEmail } from "@/lib/emails";
 import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing } from "lucide-react";
 import FetchLeads from "./FetchLeads";
 import { AiBanner } from "@/components/AiLoader";
@@ -1362,9 +1363,9 @@ export default function Leads() {
                             <Globe className="w-3 h-3 text-gray-400 flex-shrink-0"/>
                             <span className="truncate">{websiteShort || l.notes}</span>
                           </div>)}
-                        {lead.email && (<div className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                        {cleanEmail(lead.email) && (<div className="flex items-center gap-1.5 text-[11px] text-gray-600">
                             <Mail className="w-3 h-3 text-gray-400 flex-shrink-0"/>
-                            <span className="truncate">{lead.email}</span>
+                            <span className="truncate">{cleanEmail(lead.email)}</span>
                           </div>)}
                         {phoneNum && (<div className="flex items-center gap-1.5 text-[11px] text-gray-600">
                             <Phone className="w-3 h-3 text-gray-400 flex-shrink-0"/>
@@ -1472,7 +1473,7 @@ export default function Leads() {
                       </div>
                     </td>
                     <td className="px-3 py-2" style={{ maxWidth: "175px" }}>
-                      <a href={`mailto:${lead.email}`} className="text-blue-600 hover:underline truncate block text-[11px]" onClick={e => e.stopPropagation()}>{lead.email}</a>
+                      {cleanEmail(lead.email) && <a href={`mailto:${cleanEmail(lead.email)}`} className="text-blue-600 hover:underline truncate block text-[11px]" onClick={e => e.stopPropagation()}>{cleanEmail(lead.email)}</a>}
                     </td>
                     <td className="px-3 py-2" style={{ maxWidth: "150px" }} onClick={e => e.stopPropagation()}>
                       {phoneDisplay ? (<div className="flex items-center gap-1">
@@ -1634,7 +1635,7 @@ export default function Leads() {
                       </td>
                       <td className="px-4 py-2.5">
                         <span className={cn("font-mono text-[11px]", isEmailFailed ? "text-red-600" : "text-gray-600")}>
-                          {lead.email}
+                          {cleanEmail(lead.email)}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-gray-700">{cleanCompanyName(lead.company)}</td>
@@ -2416,7 +2417,7 @@ function LeadDrawer({ leadId, onClose }) {
               {/* ── Contact ── */}
               <DarkCard title="Contact" d={D}>
                 <div className="space-y-2.5">
-                  {lead.email && <DarkInfoRow icon="✉️" label="Email" value={lead.email} href={`mailto:${lead.email}`} d={D}/>}
+                  {cleanEmail(lead.email) && <DarkInfoRow icon="✉️" label="Email" value={cleanEmail(lead.email)} href={`mailto:${cleanEmail(lead.email)}`} d={D}/>}
                   {lead.phone && <DarkInfoRow icon="📞" label="Phone" value={lead.phone} href={`tel:${lead.phone}`} d={D}/>}
                   {lead.whatsapp && <DarkInfoRow icon="💬" label="WhatsApp" value={lead.whatsapp} href={`https://wa.me/${lead.whatsapp.replace(/[^0-9]/g, "")}`} d={D}/>}
                   {lead.website && <DarkInfoRow icon="🌐" label="Website" value={lead.website} href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} d={D}/>}
@@ -2683,7 +2684,7 @@ function LeadListsPanel({ BASE, toast }) {
                 {(activeList.leads ?? []).map((lead) => (<tr key={lead.id} className="border-b border-gray-100 hover:bg-gray-50">
                     <td className="px-3 py-2.5">
                       <div className="font-medium text-gray-800">{lead.firstName} {lead.lastName}</div>
-                      <div className="text-gray-400">{lead.email}</div>
+                      {cleanEmail(lead.email) && <div className="text-gray-400">{cleanEmail(lead.email)}</div>}
                     </td>
                     <td className="px-3 py-2.5 hidden md:table-cell text-gray-600">{cleanCompanyName(lead.company) ?? "—"}</td>
                     <td className="px-3 py-2.5 hidden md:table-cell">
