@@ -52,7 +52,7 @@ router.post('/', async (req, res) => {
       if (lead.user_id != null) {
         await db.query(`
           INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
-          VALUES ($1, 'Aarti (AI)', 'call_completed', $2, $3, $4, $5)
+          VALUES ($1, 'Ketki (AI)', 'call_completed', $2, $3, $4, $5)
         `, [lead.user_id, callStatus, [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name || 'Lead', lead.company, detail]);
         console.log('[Sarvam webhook] single branch: agent_activity INSERT done');
       } else {

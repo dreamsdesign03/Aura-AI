@@ -2942,7 +2942,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
         {/* Content */}
         <div className="p-6 space-y-4 text-xs">
           <p className="text-gray-700 leading-relaxed">
-            Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong> with Aarti (AI)?
+            Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong> with Ketki (AI)?
           </p>
 
           <div className="bg-pink-50/50 border border-pink-100/80 rounded-xl p-3.5 space-y-2 text-xs">
@@ -2959,7 +2959,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             <div className="flex justify-between items-center">
               <span className="text-gray-500 font-medium">AI Agent:</span>
               <span className="text-gray-800 font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-pink-500" /> Aarti (Sarvam AI)
+                <Sparkles className="w-3 h-3 text-pink-500" /> Ketki (Sarvam AI)
               </span>
             </div>
           </div>

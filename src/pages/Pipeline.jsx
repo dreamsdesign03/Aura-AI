@@ -58,7 +58,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             <div className="flex justify-between items-center">
               <span className="text-gray-500 font-medium">AI Agent:</span>
               <span className="text-gray-800 font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-pink-500" /> Aarti (Sarvam AI)
+                <Sparkles className="w-3 h-3 text-pink-500" /> Ketki (Sarvam AI)
               </span>
             </div>
           </div>

@@ -2527,7 +2527,7 @@ app.post('/api/ai-call', async (req, res) => {
 
         await db.query(`
           INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
-          VALUES ($1, 'Aarti (AI)', 'call_started', 'queued', $2, $3, $4)
+          VALUES ($1, 'Ketki (AI)', 'call_started', 'queued', $2, $3, $4)
         `, [lead.user_id, leadName === 'none' ? 'Lead' : leadName, company || lead.company || '', `AI call dispatched to ${toNumber}`])
           .catch(err => console.error('[AI Call] agent_activity insert error:', err.message));
         console.log('[AI Call] agent_activity INSERT attempted');

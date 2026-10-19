@@ -172,7 +172,8 @@ function mapSarvamOutcome(payload) {
     outcome = status;
   } else {
     callStatus = 'completed';
-    if (disposition === 'booked' || disposition === 'rescheduled' || disposition === 'confirmed') outcome = 'booked';
+    if (String(fv.do_not_call || '').trim().toLowerCase() === 'yes') outcome = 'do_not_call';
+    else if (disposition === 'booked' || disposition === 'rescheduled' || disposition === 'confirmed') outcome = 'booked';
     else if (disposition === 'do_not_call') outcome = 'do_not_call';
     else if (disposition === 'not_interested') outcome = 'not_interested';
     else outcome = 'not_booked';

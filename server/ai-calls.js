@@ -54,7 +54,7 @@ router.post('/', async (req, res) => {
     if (lead.user_id != null) {
       await db.query(`
         INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
-        VALUES ($1, 'Aarti (AI)', 'call_started', 'queued', $2, $3, $4)
+        VALUES ($1, 'Ketki (AI)', 'call_started', 'queued', $2, $3, $4)
       `, [lead.user_id, leadName === 'none' ? 'Lead' : leadName, lead.company, `AI call dispatched to ${check.e164}`]);
       console.log('[AI Call] agent_activity INSERT done');
     } else {
