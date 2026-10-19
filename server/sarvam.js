@@ -57,10 +57,12 @@ function buildAgentVars({ name, phone, email } = {}) {
   return vars;
 }
 
+// Only used when the lead has no usable name: the Ketki agent defaults to
+// "Am I speaking with {userName}?", so we must override it in that case.
 function buildOutboundGreeting(name) {
   const cleanName = cleanDisplayName(name);
-  if (!cleanName || isPlaceholder(cleanName)) return '';
-  return `Hello! This is Ketki from Aura Laser and Cosmetic Clinic. Am I speaking with ${cleanName}?`;
+  if (cleanName && !isPlaceholder(cleanName)) return '';
+  return 'Hello! This is Ketki from Aura Laser and Cosmetic Clinic. Do you have two minutes to talk?';
 }
 
 // Mask emails and long digit runs before logging upstream payloads.
