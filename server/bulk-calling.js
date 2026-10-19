@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('./db');
 const { normalizePhone, isCallingHours } = require('./call-utils');
-const { dispatchSarvamCall } = require('./sarvam');
+const { dispatchSarvamCall, buildAgentVars } = require('./sarvam');
 
 const router = express.Router();
 
@@ -292,16 +292,14 @@ router.post('/tick', async (req, res) => {
           throw new Error('SARVAM_API_KEY is not configured for the call agent');
         }
 
-        console.log('[Bulk Call] dispatch contact_id=' + contact.id + ' phoneE164=' + contact.phone_e164 + ' attempt_no=' + metadata.attempt_no);
+        console.log('[Bulk Call] dispatch contact_id=' + contact.id + ' attempt_no=' + metadata.attempt_no);
         const apiRes = await dispatchSarvamCall({
           phoneE164: contact.phone_e164,
-          vars: {
-            callType: 'outbound_lead',
-            userName: contact.name || 'none',
-            userPhone: contact.phone10 || 'none',
-            userEmail: contact.email || 'none',
-            serviceType: contact.extra_json?.service || 'Dermatologist consultation'
-          },
+          vars: buildAgentVars({
+            name: contact.name,
+            phone: contact.phone10 || contact.phone_e164,
+            email: contact.email
+          }),
           metadata
         });
         console.log('[Bulk Call] dispatch result attempt_id=' + (apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched'));

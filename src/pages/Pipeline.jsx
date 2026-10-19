@@ -318,7 +318,7 @@ export default function Pipeline() {
             const leadCompany = confirmCallLead.company || "";
             const leadEmail = confirmCallLead.email || "";
 
-            console.log("[AI Call] click", { leadId: confirmCallLead.id, leadName, leadPhone });
+            console.log("[AI Call] click", { leadId: confirmCallLead.id, leadName });
             const res = await fetch("/api/ai-call", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

@@ -134,7 +134,7 @@ export default function Leads() {
             const leadPhone = confirmCallLead.phone || confirmCallLead.whatsapp || "";
             const leadCompany = confirmCallLead.company || "";
 
-            console.log("[AI Call] click", { leadId: confirmCallLead.id, leadName, leadPhone, leadCompany });
+            console.log("[AI Call] click", { leadId: confirmCallLead.id, leadName, leadCompany });
             const res = await fetch("/api/ai-calls", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },

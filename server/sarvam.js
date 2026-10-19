@@ -1,6 +1,8 @@
 // Sarvam Samvaad "Instant Outbound" calling integration.
 // Dispatches a single outbound call attempt via the Sarvam outbounds API.
 
+const { normalizePhone } = require('./call-utils');
+
 const REQUIRED_ENV = [
   'SARVAM_ORG_ID',
   'SARVAM_WORKSPACE_ID',
@@ -22,6 +24,50 @@ function sanitizeApiKey(raw) {
     }
   }
   return value;
+}
+
+// Trim, strip control characters and quotes, collapse whitespace.
+function cleanDisplayName(raw) {
+  if (raw == null) return '';
+  return String(raw)
+    .replace(/[\u0000-\u001F\u007F]/g, '')
+    .replace(/["'\u2018\u2019\u201C\u201D]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function isPlaceholder(value) {
+  return ['none', 'null', 'undefined'].includes(String(value).toLowerCase());
+}
+
+// The only agent_variables sent to the Ketki outbound agent.
+// Empty / placeholder values are omitted entirely.
+function buildAgentVars({ name, phone, email } = {}) {
+  const vars = {};
+
+  const cleanName = cleanDisplayName(name);
+  if (cleanName && !isPlaceholder(cleanName)) vars.userName = cleanName;
+
+  const phoneObj = normalizePhone(phone);
+  if (phoneObj) vars.userPhone = phoneObj.local;
+
+  const mail = String(email == null ? '' : email).trim().toLowerCase();
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) vars.userEmail = mail;
+
+  return vars;
+}
+
+function buildOutboundGreeting(name) {
+  const cleanName = cleanDisplayName(name);
+  if (!cleanName || isPlaceholder(cleanName)) return '';
+  return `Hello! This is Ketki from Aura Laser and Cosmetic Clinic. Am I speaking with ${cleanName}?`;
+}
+
+// Mask emails and long digit runs before logging upstream payloads.
+function redactForLog(value) {
+  return String(value)
+    .replace(/[^\s"',:;]+@[^\s"',:;]+\.[^\s"',:;]+/g, '<email>')
+    .replace(/\+?\d{10,}/g, m => '<digits:' + m.length + '>');
 }
 
 function extractErrorMessage(data, res) {
@@ -73,13 +119,19 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
     }
   };
 
+  const greeting = buildOutboundGreeting(body.app_config.agent_variables.userName);
+  if (greeting) {
+    body.app_config.app_overrides = { initial_bot_message: greeting };
+  }
+
   console.log('[Sarvam] POST ' + url);
+  console.log('[Sarvam] vars sent: ' + (Object.keys(body.app_config.agent_variables).length ? Object.keys(body.app_config.agent_variables).join(', ') : '(none)'));
+  console.log('[Sarvam] greeting override: ' + (greeting ? 'yes' : 'no'));
   console.log('[Sarvam] config ' + JSON.stringify({
     app_id: body.app_config.app_id,
     app_version: body.app_config.app_version,
     connection_id: body.app_config.connection_config.connection_id,
-    agent_variables: body.app_config.agent_variables,
-    phone_e164: phoneE164,
+    agent_variables_keys: Object.keys(body.app_config.agent_variables),
     webhook_url: maskedWebhookUrl
   }));
 
@@ -93,7 +145,7 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
   });
 
   const data = await res.json().catch(() => null);
-  console.log('[Sarvam] response status ' + res.status + ' body ' + String(JSON.stringify(data)).slice(0, 500));
+  console.log('[Sarvam] response status ' + res.status + ' body ' + redactForLog(JSON.stringify(data)).slice(0, 500));
 
   if (!res.ok) {
     const err = new Error('Sarvam rejected the request (' + res.status + '): ' + extractErrorMessage(data, res));
@@ -142,4 +194,4 @@ function mapSarvamOutcome(payload) {
   return { callStatus, outcome, summary, confirmedSlot };
 }
 
-module.exports = { dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey };
+module.exports = { dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName };

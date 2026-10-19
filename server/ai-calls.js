@@ -1,7 +1,7 @@
 const express = require('express');
 const db = require('./db');
-const { normalizePhone, canCall } = require('./call-utils');
-const { dispatchSarvamCall } = require('./sarvam');
+const { canCall } = require('./call-utils');
+const { dispatchSarvamCall, buildAgentVars } = require('./sarvam');
 
 const router = express.Router();
 
@@ -29,18 +29,15 @@ router.post('/', async (req, res) => {
     }
     console.log('[AI Call] canCall ok');
 
-    const phoneObj = normalizePhone(lead.phone || lead.whatsapp);
     const leadName = [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name || 'none';
 
     const sarvamRes = await dispatchSarvamCall({
       phoneE164: check.e164,
-      vars: {
-        callType: 'outbound_lead',
-        userName: leadName,
-        userPhone: phoneObj ? phoneObj.local : 'none',
-        userEmail: lead.email || 'none',
-        serviceType: 'Dermatologist consultation'
-      },
+      vars: buildAgentVars({
+        name: [lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name,
+        phone: lead.phone || lead.whatsapp,
+        email: lead.email
+      }),
       metadata: { kind: 'single', lead_id: String(lead.id) }
     });
 

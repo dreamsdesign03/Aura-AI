@@ -2475,7 +2475,7 @@ function norm(phone) {
 app.post('/api/ai-call', async (req, res) => {
   try {
     const { leadId, name, phone, company, email } = req.body || {};
-    console.log('[AI Call] POST /api/ai-call body:', JSON.stringify(req.body));
+    console.log('[AI Call] POST /api/ai-call body keys:', Object.keys(req.body || {}));
 
     // Sarvam Samvaad single-call path (falls back to ElevenLabs below when SARVAM_API_KEY is unset)
     if (process.env.SARVAM_API_KEY) {
@@ -2501,19 +2501,16 @@ app.post('/api/ai-call', async (req, res) => {
       console.log('[AI Call] /api/ai-call lead lookup:', { parsedLeadId, found: !!lead, user_id: lead && lead.user_id });
 
       const leadName = name || (lead ? ([lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name) : '') || 'none';
-      const leadPhone = String(toNumber).replace(/\D/g, '').slice(-10);
-      console.log('[AI Call] dispatching Sarvam:', { toNumber, userName: leadName, leadPhone, lead_id: parsedLeadId ? String(parsedLeadId) : undefined });
+      console.log('[AI Call] dispatching Sarvam:', { leadName, lead_id: parsedLeadId ? String(parsedLeadId) : undefined });
 
-      const { dispatchSarvamCall } = require('./sarvam');
+      const { dispatchSarvamCall, buildAgentVars } = require('./sarvam');
       const sarvamRes = await dispatchSarvamCall({
         phoneE164: toNumber,
-        vars: {
-          callType: 'outbound_lead',
-          userName: leadName,
-          userPhone: leadPhone || 'none',
-          userEmail: email || (lead ? lead.email : '') || 'none',
-          serviceType: 'Dermatologist consultation'
-        },
+        vars: buildAgentVars({
+          name: name || (lead ? ([lead.first_name, lead.last_name].filter(Boolean).join(' ') || lead.name) : ''),
+          phone,
+          email: email || (lead ? lead.email : '')
+        }),
         metadata: { kind: 'single', lead_id: parsedLeadId ? String(parsedLeadId) : undefined }
       });
       console.log('[AI Call] Sarvam dispatch result:', JSON.stringify(sarvamRes));
