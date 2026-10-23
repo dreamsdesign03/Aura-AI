@@ -30,13 +30,17 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
     nextStatus = 'do_not_call';
   } else if (outcome === 'not_interested') {
     nextStatus = 'not_interested';
-  } else {
+  } else if (outcome === 'no_answer' || outcome === 'busy' || outcome === 'failed' || callStatus === 'no_answer' || callStatus === 'busy' || callStatus === 'failed') {
+    // Call not picked up — retry if attempts remain
     if (contact.attempts < campaign.max_attempts) {
       nextStatus = 'no_answer';
       nextAttemptAt = new Date(Date.now() + campaign.retry_delay_min * 60000);
     } else {
       nextStatus = 'no_answer';
     }
+  } else {
+    // Call connected but no specific disposition — mark not_booked (not no_answer!)
+    nextStatus = 'not_booked';
   }
 
   await db.query(

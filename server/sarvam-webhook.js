@@ -18,6 +18,7 @@ router.post('/', async (req, res) => {
     const metadata = payload.webhook_config?.metadata || {};
     const disposition = payload.final_agent_variables?.call_disposition || '';
     console.log('[Sarvam webhook] received attempt_id=' + payload.attempt_id + ' status=' + payload.status + ' disposition=' + disposition + ' kind=' + metadata.kind);
+    console.log('[Sarvam webhook] FULL payload (truncated):', JSON.stringify(payload).slice(0, 1000));
 
     // Single-lead (Start AI Call: Leads / Pipeline) resolution.
     if (metadata.kind === 'single') {
@@ -95,14 +96,14 @@ router.post('/', async (req, res) => {
     }
     console.log(`[Sarvam webhook] 🔗 Attempt matched: id=${attempt.id}, contact_id=${attempt.contact_id}`);
 
-    const { callStatus, outcome, summary, confirmedSlot } = mapSarvamOutcome(payload);
-    console.log(`[Sarvam webhook] 📊 Mapped outcome: callStatus=${callStatus}, outcome=${outcome}, confirmedSlot=${confirmedSlot}`);
+    const { callStatus, outcome, summary, confirmedSlot, sentiment } = mapSarvamOutcome(payload);
+    console.log(`[Sarvam webhook] 📊 Mapped outcome: callStatus=${callStatus}, outcome=${outcome}, sentiment=${sentiment}, confirmedSlot=${confirmedSlot}`);
 
     // Extract transcript and recording from Sarvam payload
     const transcript = payload.interaction_transcript || null;
     const interactionId = payload.interaction_id || null;
     const recordingUrl = interactionId ? `https://apps.sarvam.ai/api/interactions/v1/${interactionId}/recording` : null;
-    console.log(`[Sarvam webhook] 📝 Transcript: ${transcript ? transcript.length + ' messages' : 'none'}, Recording: ${recordingUrl ? 'yes' : 'none'}`);
+    console.log(`[Sarvam webhook] 📝 Transcript: ${transcript ? transcript.length + ' messages' : 'none'}, Recording: ${recordingUrl ? 'yes ('+interactionId+')' : 'none'}`);
 
     if (confirmedSlot) {
       await db.query(
@@ -113,8 +114,9 @@ router.post('/', async (req, res) => {
     }
 
     const { resolveAttempt } = require('./bulk-calling');
-    await resolveAttempt(attempt, callStatus, outcome, summary, 'Neutral', recordingUrl, transcript);
+    await resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingUrl, transcript);
     console.log(`[Sarvam webhook] ✅ resolveAttempt completed for attempt ${attempt.id}`);
+
 
     return res.status(200).json({ success: true });
   } catch (err) {

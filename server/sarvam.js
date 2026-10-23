@@ -165,36 +165,50 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
 function mapSarvamOutcome(payload) {
   const status = String(payload?.status || '').toLowerCase();
   const fv = payload?.final_agent_variables || {};
-  const disposition = String(fv.call_disposition || '').toLowerCase();
+  const disposition = String(fv.call_disposition || '').toLowerCase().trim();
+
+  console.log('[mapSarvamOutcome] raw status=' + status + ' disposition=' + disposition + ' fv_keys=' + Object.keys(fv).join(','));
 
   let callStatus;
   let outcome;
-  if (status === 'no_answer' || status === 'busy' || status === 'failed') {
-    callStatus = status;
-    outcome = status;
+
+  // Call was NOT picked up
+  if (status === 'no_answer' || status === 'noanswer' || status === 'no-answer' ||
+      status === 'busy' || status === 'failed' || status === 'canceled' || status === 'cancelled') {
+    callStatus = status === 'noanswer' || status === 'no-answer' ? 'no_answer' : status;
+    outcome = callStatus;
   } else {
+    // Call was completed / answered
     callStatus = 'completed';
     if (String(fv.do_not_call || '').trim().toLowerCase() === 'yes') outcome = 'do_not_call';
     else if (disposition === 'booked' || disposition === 'rescheduled' || disposition === 'confirmed') outcome = 'booked';
     else if (disposition === 'do_not_call') outcome = 'do_not_call';
-    else if (disposition === 'not_interested') outcome = 'not_interested';
-    else outcome = 'not_booked';
+    else if (disposition === 'not_interested' || disposition === 'notinterested') outcome = 'not_interested';
+    else if (disposition === 'not_booked' || disposition === 'notbooked' || disposition === 'no_booking') outcome = 'not_booked';
+    else outcome = 'not_booked'; // default for completed calls with no disposition
   }
 
-  let summary = fv.call_summary || '';
+  // Extract summary — prefer call_summary, fallback to last 2 transcript lines
+  let summary = fv.call_summary || fv.summary || '';
   if (!summary && Array.isArray(payload?.interaction_transcript) && payload.interaction_transcript.length > 0) {
     summary = payload.interaction_transcript
-      .slice(-2)
-      .map(t => `${t?.role}: ${t?.en_text}`)
-      .join(' ');
+      .slice(-3)
+      .map(t => `${t?.role}: ${t?.en_text || t?.text || ''}`)
+      .filter(s => s.length > 6)
+      .join(' | ');
   }
   if (payload?.interaction_id) {
     summary = `${summary} [interaction_id: ${payload.interaction_id}]`.trim();
   }
 
-  const confirmedSlot = outcome === 'booked' ? (fv.confirmed_slot || '') : '';
+  // Extract sentiment
+  const sentiment = fv.sentiment || fv.call_sentiment || 'Neutral';
 
-  return { callStatus, outcome, summary, confirmedSlot };
+  const confirmedSlot = outcome === 'booked' ? (fv.confirmed_slot || fv.booking_slot || '') : '';
+
+  console.log('[mapSarvamOutcome] result: callStatus=' + callStatus + ' outcome=' + outcome + ' sentiment=' + sentiment + ' summaryLen=' + summary.length);
+
+  return { callStatus, outcome, summary, confirmedSlot, sentiment };
 }
 
 module.exports = { dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName };
