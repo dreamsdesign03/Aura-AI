@@ -195,7 +195,8 @@ router.post('/:id/toggle', async (req, res) => {
 // POST ENGINE TICK
 router.post('/tick', async (req, res) => {
   const secret = req.query.secret || req.headers['authorization'];
-  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+  const isAuthed = secret === process.env.CRON_SECRET || (req.user && req.user.id);
+  if (!isAuthed) return res.status(401).json({ error: 'Unauthorized' });
 
   // Use a simple advisory lock for the whole tick process
   const lockRes = await db.query('SELECT pg_try_advisory_lock(999999) as locked');
