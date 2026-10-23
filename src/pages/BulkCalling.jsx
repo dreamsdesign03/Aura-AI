@@ -437,7 +437,7 @@ function BulkCallDetail({ id, onBack }) {
         </div>
       </div>
       
-      {/* DRAWER */}
+{/* DRAWER */}
       {drawerContact && (
          <div className="absolute top-0 right-0 bottom-0 w-96 bg-white shadow-2xl border-l border-gray-200 z-40 flex flex-col animate-in slide-in-from-right duration-200">
              <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50">
@@ -454,33 +454,58 @@ function BulkCallDetail({ id, onBack }) {
                      <div className="text-sm text-gray-400 text-center py-8">No calls placed yet.</div>
                  ) : (
                      <div className="space-y-4">
-                         {attempts.map(a => (
-                             <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
-                                 <div className="absolute -left-2 -top-2 w-5 h-5 bg-pink-100 text-pink-700 rounded-full flex items-center justify-center text-[10px] font-bold">
-                                     {a.attempt_no}
-                                 </div>
-                                 <div className="flex justify-between items-start mb-2">
-                                     <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.call_status==='completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                         {a.call_status}
-                                     </span>
-                                     <span className="text-[10px] text-gray-400">{format(new Date(a.started_at), "MMM d, HH:mm")}</span>
-                                 </div>
-                                 <div className="text-xs font-bold text-gray-800 mb-1">Outcome: <span className="text-pink-600">{a.outcome}</span></div>
-                                 <div className="text-[11px] text-gray-600 italic border-l-2 border-gray-200 pl-2 my-2">{a.summary || 'No summary provided.'}</div>
-                                 {a.recording_url && (
-                                     <div className="mt-3">
-                                         <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-pink-600 flex items-center gap-1 hover:underline">
-                                             <Play className="w-3 h-3" /> Listen to Call
-                                         </a>
+                         {attempts.map(a => {
+                             const transcript = a.transcript || [];
+                             return (
+                                 <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                                     <div className="absolute -left-2 -top-2 w-5 h-5 bg-pink-100 text-pink-700 rounded-full flex items-center justify-center text-[10px] font-bold">
+                                         {a.attempt_no}
                                      </div>
-                                 )}
-                             </div>
-                         ))}
+                                     <div className="flex justify-between items-start mb-2">
+                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.call_status==='completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                             {a.call_status}
+                                         </span>
+                                         <span className="text-[10px] text-gray-400">{format(new Date(a.started_at), "MMM d, HH:mm")}</span>
+                                     </div>
+                                     <div className="text-xs font-bold text-gray-800 mb-1">Outcome: <span className="text-pink-600">{a.outcome}</span></div>
+                                     
+                                     {/* AI Conversation Transcript */}
+                                     {transcript && transcript.length > 0 && (
+                                         <div className="mb-3">
+                                             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
+                                             <div className="space-y-2 max-h-60 overflow-y-auto">
+                                                 {transcript.map((msg, idx) => (
+                                                     <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
+                                                         <span className="font-medium text-[10px] text-gray-500">{msg.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {msg.en_text || msg.content || msg.text}
+                                                     </div>
+                                                 ))}
+                                             </div>
+                                         </div>
+                                     )}
+                                     
+                                     <div className="text-[11px] text-gray-600 italic border-l-2 border-gray-200 pl-2 my-2">{a.summary || 'No summary provided.'}</div>
+                                     {(a.recording_url || a.transcript?.length) && (
+                                         <div className="mt-3 flex items-center gap-3 flex-wrap">
+                                             {a.recording_url && (
+                                                 <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-pink-600 flex items-center gap-1 hover:underline">
+                                                     <Play className="w-3 h-3" /> Recording
+                                                 </a>
+                                             )}
+                                             {a.transcript?.length && (
+                                                 <span className="text-[11px] font-medium text-green-600 flex items-center gap-1">
+                                                     <CheckCircle2 className="w-3 h-3" /> Transcript available
+                                                 </span>
+                                             )}
+                                         </div>
+                                     )}
+                                 </div>
+                             );
+                         })}
                      </div>
                  )}
              </div>
          </div>
-      )}
+       )}
       
     </div>
   );

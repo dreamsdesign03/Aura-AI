@@ -299,7 +299,7 @@ CREATE TABLE IF NOT EXISTS bulk_campaigns (
   enabled BOOLEAN DEFAULT FALSE,
   status TEXT DEFAULT 'draft',
   max_attempts INT DEFAULT 2,
-  retry_delay_min INT DEFAULT 60,
+  retry_delay_min INT DEFAULT 30,
   gap_seconds INT DEFAULT 20,
   total INT DEFAULT 0,
   created_by INT,
@@ -328,7 +328,8 @@ CREATE TABLE IF NOT EXISTS bulk_contacts (
   booked_datetime_text TEXT,
   last_summary TEXT,
   last_sentiment TEXT,
-  recording_url TEXT
+  recording_url TEXT,
+  transcript JSONB
 );
 
 -- 18. Bulk Attempts Table
@@ -346,6 +347,7 @@ CREATE TABLE IF NOT EXISTS bulk_attempts (
   summary TEXT,
   sentiment TEXT,
   recording_url TEXT,
+  transcript JSONB,
   raw_json JSONB
 );
 

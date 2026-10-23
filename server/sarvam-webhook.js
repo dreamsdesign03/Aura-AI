@@ -92,6 +92,11 @@ router.post('/', async (req, res) => {
     const { callStatus, outcome, summary, confirmedSlot } = mapSarvamOutcome(payload);
     console.log('[Sarvam webhook] bulk branch mapped:', { callStatus, outcome, confirmedSlot });
 
+    // Extract transcript and recording from Sarvam payload
+    const transcript = payload.interaction_transcript || null;
+    const interactionId = payload.interaction_id || null;
+    const recordingUrl = interactionId ? `https://apps.sarvam.ai/api/interactions/v1/${interactionId}/recording` : null;
+
     if (confirmedSlot) {
       await db.query(
         'UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2',
@@ -101,7 +106,7 @@ router.post('/', async (req, res) => {
     }
 
     const { resolveAttempt } = require('./bulk-calling');
-    await resolveAttempt(attempt, callStatus, outcome, summary, 'Neutral', '');
+    await resolveAttempt(attempt, callStatus, outcome, summary, 'Neutral', recordingUrl, transcript);
     console.log('[Sarvam webhook] bulk branch: resolveAttempt done');
 
     return res.status(200).json({ success: true });

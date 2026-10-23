@@ -5,10 +5,10 @@ const { dispatchSarvamCall, buildAgentVars } = require('./sarvam');
 
 const router = express.Router();
 
-async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingUrl) {
+async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingUrl, transcript) {
   await db.query(
-    'UPDATE bulk_attempts SET ended_at = NOW(), call_status = $1, outcome = $2, summary = $3, sentiment = $4, recording_url = $5 WHERE id = $6',
-    [callStatus, outcome, summary, sentiment, recordingUrl, attempt.id]
+    'UPDATE bulk_attempts SET ended_at = NOW(), call_status = $1, outcome = $2, summary = $3, sentiment = $4, recording_url = $5, transcript = $6 WHERE id = $7',
+    [callStatus, outcome, summary, sentiment, recordingUrl, JSON.stringify(transcript), attempt.id]
   );
 
   const cRes = await db.query('SELECT * FROM bulk_contacts WHERE id = $1', [attempt.contact_id]);
@@ -40,8 +40,8 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
   }
 
   await db.query(
-    'UPDATE bulk_contacts SET status = $1, next_attempt_at = $2, last_summary = $3, last_sentiment = $4, recording_url = $5 WHERE id = $6',
-    [nextStatus, nextAttemptAt, summary, sentiment, recordingUrl, contact.id]
+    'UPDATE bulk_contacts SET status = $1, next_attempt_at = $2, last_summary = $3, last_sentiment = $4, recording_url = $5, transcript = $6 WHERE id = $7',
+    [nextStatus, nextAttemptAt, summary, sentiment, recordingUrl, JSON.stringify(transcript), contact.id]
   );
 
   if (contact.lead_id) {
@@ -102,7 +102,7 @@ router.post('/', async (req, res) => {
     
     const insertCamp = await db.query(
       'INSERT INTO bulk_campaigns (name, max_attempts, retry_delay_min, gap_seconds, total, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [name, max_attempts || 2, retry_delay_min || 60, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1]
+      [name, max_attempts || 2, retry_delay_min || 30, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1]
     );
     const campaignId = insertCamp.rows[0].id;
 
