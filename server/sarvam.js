@@ -157,7 +157,10 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
     throw err;
   }
 
-  console.log('[Sarvam] dispatch ok attempt_id=' + (data && data.attempt_id));
+  // Log ALL fields so we can identify the correct ID field name
+  const allKeys = data ? Object.keys(data).join(', ') : 'null';
+  console.log('[Sarvam] dispatch ok - response keys: ' + allKeys);
+  console.log('[Sarvam] attempt_id=' + data?.attempt_id + ' outbound_id=' + data?.outbound_id + ' id=' + data?.id + ' request_id=' + data?.request_id);
   return data;
 }
 

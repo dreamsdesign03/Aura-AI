@@ -327,9 +327,11 @@ router.post('/tick', async (req, res) => {
           }),
           metadata
         });
-        console.log(`[Bulk Call] ✅ Dispatch success - attempt_id=${apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched'}, status=${apiRes.status || 'unknown'}`);
+        console.log(`[Bulk Call] ✅ Dispatch success - full response:`, JSON.stringify(apiRes).slice(0, 300));
 
-        const requestId = apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched';
+        // Sarvam may return the ID under different field names — try all known ones
+        const requestId = apiRes.attempt_id || apiRes.outbound_id || apiRes.request_id || apiRes.id || apiRes.call_id || null;
+        console.log(`[Bulk Call] 📋 Stored requestId=${requestId} for contact ${contact.id} phone=${contact.phone_e164}`);
 
         await db.query('UPDATE bulk_contacts SET status = \'calling\', attempts = attempts + 1, last_attempt_at = NOW(), last_request_id = $1 WHERE id = $2', [requestId, contact.id]);
         await db.query('INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, request_id) VALUES ($1, $2, $3, $4)', [contact.id, campaign.id, contact.attempts + 1, requestId]);
