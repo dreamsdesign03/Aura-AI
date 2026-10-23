@@ -63,9 +63,11 @@ router.post('/', async (req, res) => {
     }
 
     if (metadata.kind !== 'bulk') {
-      console.log('[Sarvam webhook] unhandled kind, ack:', metadata.kind);
+      console.log('[Sarvam webhook] 📭 unhandled kind, ack:', metadata.kind);
       return res.status(200).json({ success: true });
     }
+
+    console.log(`[Sarvam webhook] 📥 Bulk webhook received - attempt_id=${payload.attempt_id}, status=${payload.status}, disposition=${payload.final_agent_variables?.call_disposition}`);
 
     // Find the matching attempt by attempt_id (stored as request_id), else contact + attempt_no.
     let attempt = null;
@@ -75,39 +77,44 @@ router.post('/', async (req, res) => {
     );
     if (byRequest.rows.length > 0) {
       attempt = byRequest.rows[0];
+      console.log(`[Sarvam webhook] ✅ Matched attempt by request_id: ${attempt.id}`);
     } else if (metadata.contact_id != null && metadata.attempt_no != null) {
       const byMeta = await db.query(
         'SELECT * FROM bulk_attempts WHERE contact_id = $1 AND attempt_no = $2 ORDER BY id DESC LIMIT 1',
         [metadata.contact_id, metadata.attempt_no]
       );
-      if (byMeta.rows.length > 0) attempt = byMeta.rows[0];
+      if (byMeta.rows.length > 0) {
+        attempt = byMeta.rows[0];
+        console.log(`[Sarvam webhook] ✅ Matched attempt by contact_id+attempt_no: ${attempt.id}`);
+      }
     }
 
     if (!attempt) {
-      console.log('[Sarvam webhook] bulk branch: no matching attempt, ack', { attempt_id: payload.attempt_id, contact_id: metadata.contact_id, attempt_no: metadata.attempt_no });
+      console.log('[Sarvam webhook] ❌ No matching attempt found, ack', { attempt_id: payload.attempt_id, contact_id: metadata.contact_id, attempt_no: metadata.attempt_no });
       return res.status(200).json({ success: true });
     }
-    console.log('[Sarvam webhook] bulk branch: attempt matched', { attempt_id: attempt.id, contact_id: attempt.contact_id });
+    console.log(`[Sarvam webhook] 🔗 Attempt matched: id=${attempt.id}, contact_id=${attempt.contact_id}`);
 
     const { callStatus, outcome, summary, confirmedSlot } = mapSarvamOutcome(payload);
-    console.log('[Sarvam webhook] bulk branch mapped:', { callStatus, outcome, confirmedSlot });
+    console.log(`[Sarvam webhook] 📊 Mapped outcome: callStatus=${callStatus}, outcome=${outcome}, confirmedSlot=${confirmedSlot}`);
 
     // Extract transcript and recording from Sarvam payload
     const transcript = payload.interaction_transcript || null;
     const interactionId = payload.interaction_id || null;
     const recordingUrl = interactionId ? `https://apps.sarvam.ai/api/interactions/v1/${interactionId}/recording` : null;
+    console.log(`[Sarvam webhook] 📝 Transcript: ${transcript ? transcript.length + ' messages' : 'none'}, Recording: ${recordingUrl ? 'yes' : 'none'}`);
 
     if (confirmedSlot) {
       await db.query(
         'UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2',
         [confirmedSlot, attempt.contact_id]
       );
-      console.log('[Sarvam webhook] bulk branch: booked_datetime_text set');
+      console.log(`[Sarvam webhook] 📅 booked_datetime_text set for contact ${attempt.contact_id}: ${confirmedSlot}`);
     }
 
     const { resolveAttempt } = require('./bulk-calling');
     await resolveAttempt(attempt, callStatus, outcome, summary, 'Neutral', recordingUrl, transcript);
-    console.log('[Sarvam webhook] bulk branch: resolveAttempt done');
+    console.log(`[Sarvam webhook] ✅ resolveAttempt completed for attempt ${attempt.id}`);
 
     return res.status(200).json({ success: true });
   } catch (err) {

@@ -406,6 +406,16 @@ async function seedAdminUser() {
       );
     `);
     console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, ai_calls & bulk calling.');
+
+    // Cleanup: Clear any stuck "calling" contacts from previous runs
+    try {
+      const stuckCalls = await db.query(`UPDATE bulk_contacts SET status = 'no_answer', last_summary = 'Call stuck from previous session - cleared on startup' WHERE status = 'calling'`);
+      if (stuckCalls.rowCount > 0) {
+        console.log(`[Startup] 🧹 Cleared ${stuckCalls.rowCount} stuck "calling" contacts`);
+      }
+    } catch (err) {
+      console.warn('[Startup] ⚠️ Could not clear stuck calls:', err.message);
+    }
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }

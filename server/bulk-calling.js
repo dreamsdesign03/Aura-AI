@@ -200,30 +200,42 @@ router.post('/tick', async (req, res) => {
   // Use a simple advisory lock for the whole tick process
   const lockRes = await db.query('SELECT pg_try_advisory_lock(999999) as locked');
   if (!lockRes.rows[0].locked) return res.json({ status: 'locked' });
-  console.log('[Bulk Tick] lock acquired');
+  console.log('[Bulk Tick] 🔒 lock acquired at', new Date().toISOString());
 
   let actions = [];
   try {
     const campaigns = await db.query(`SELECT * FROM bulk_campaigns WHERE enabled = TRUE`);
-    console.log('[Bulk Tick] enabled campaigns=' + campaigns.rows.length);
+    console.log('[Bulk Tick] 📋 enabled campaigns=' + campaigns.rows.length);
     
     for (const campaign of campaigns.rows) {
+      console.log(`[Bulk Tick] 🔍 Processing campaign ${campaign.id} "${campaign.name}" (status: ${campaign.status}, enabled: ${campaign.enabled})`);
+      
       // 1. Check if any contact is currently 'calling'
       const callingRes = await db.query('SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND status = \'calling\'', [campaign.id]);
+      console.log(`[Bulk Tick] 📞 Campaign ${campaign.id} calling contacts: ${callingRes.rows.length}`);
       
       let isAnyCalling = false;
       if (callingRes.rows.length > 0) {
         isAnyCalling = true;
         const contact = callingRes.rows[0];
+        console.log(`[Bulk Tick] ⏳ Contact ${contact.id} is calling since ${contact.last_attempt_at}, last_request_id: ${contact.last_request_id}`);
         
         // Timeout check (6 minutes)
         const diffMin = (Date.now() - new Date(contact.last_attempt_at).getTime()) / 60000;
+        console.log(`[Bulk Tick] ⏱️ Contact ${contact.id} calling for ${diffMin.toFixed(1)} minutes`);
+        
         if (diffMin > 6) {
+          console.log(`[Bulk Tick] 🚨 Contact ${contact.id} timeout exceeded (6 min), attempting to resolve...`);
           const attemptRes = await db.query('SELECT * FROM bulk_attempts WHERE contact_id = $1 AND request_id = $2 ORDER BY id DESC LIMIT 1', [contact.id, contact.last_request_id]);
           if (attemptRes.rows.length > 0) {
             await resolveAttempt(attemptRes.rows[0], 'timeout', 'no_answer', 'Call timed out', 'Neutral', '');
             actions.push(`Resolved timeout for contact ${contact.id}`);
             isAnyCalling = false; // it's resolved now
+            console.log(`[Bulk Tick] ✅ Contact ${contact.id} timeout resolved`);
+          } else {
+            console.log(`[Bulk Tick] ⚠️ No attempt found for contact ${contact.id} with request_id ${contact.last_request_id}, force-clearing calling status`);
+            await db.query('UPDATE bulk_contacts SET status = \'no_answer\', last_summary = \'Call timed out - no attempt record\' WHERE id = $1', [contact.id]);
+            isAnyCalling = false;
           }
         }
       }
@@ -231,6 +243,7 @@ router.post('/tick', async (req, res) => {
       // If still calling, continue to next campaign
       if (isAnyCalling) {
         actions.push(`Campaign ${campaign.id} is busy with contact ${callingRes.rows[0].id}`);
+        console.log(`[Bulk Tick] ⏭️ Skipping campaign ${campaign.id} - still calling`);
         continue;
       }
 
@@ -292,7 +305,7 @@ router.post('/tick', async (req, res) => {
           throw new Error('SARVAM_API_KEY is not configured for the call agent');
         }
 
-        console.log('[Bulk Call] dispatch contact_id=' + contact.id + ' attempt_no=' + metadata.attempt_no);
+        console.log(`[Bulk Call] 🚀 Dispatching call for contact ${contact.id} (${contact.phone_e164}), attempt #${metadata.attempt_no}`);
         const apiRes = await dispatchSarvamCall({
           phoneE164: contact.phone_e164,
           vars: buildAgentVars({
@@ -302,7 +315,7 @@ router.post('/tick', async (req, res) => {
           }),
           metadata
         });
-        console.log('[Bulk Call] dispatch result attempt_id=' + (apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched'));
+        console.log(`[Bulk Call] ✅ Dispatch success - attempt_id=${apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched'}, status=${apiRes.status || 'unknown'}`);
 
         const requestId = apiRes.attempt_id || apiRes.request_id || apiRes.id || 'dispatched';
 
@@ -312,7 +325,7 @@ router.post('/tick', async (req, res) => {
         
         actions.push(`Dispatched call for contact ${contact.id}`);
       } catch (err) {
-        console.error('[Bulk Call] dispatch error:', err && (err.stack || err.message || err));
+        console.error(`[Bulk Call] ❌ Dispatch failed for contact ${contact.id}:`, err && (err.stack || err.message || err));
         if (err.message.toLowerCase().includes('credit') || err.message.toLowerCase().includes('unauthorized') || err.message.toLowerCase().includes('agent')) {
           await db.query('UPDATE bulk_campaigns SET enabled = FALSE, status = \'error\', error_message = $1 WHERE id = $2', [err.message, campaign.id]);
           actions.push(`Campaign ${campaign.id} disabled due to call provider error: ${err.message}`);
@@ -329,6 +342,17 @@ router.post('/tick', async (req, res) => {
 
   console.log('[Bulk Tick] done actions=' + actions.length);
   res.json({ success: true, actions });
+});
+
+// POST clear stuck calls
+router.post('/clear-stuck', async (req, res) => {
+  try {
+    const result = await db.query(`UPDATE bulk_contacts SET status = 'no_answer', last_summary = 'Manually cleared stuck calling status' WHERE status = 'calling'`);
+    console.log(`[Bulk Clear] 🧹 Cleared ${result.rowCount} stuck "calling" contacts`);
+    res.json({ success: true, cleared: result.rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // POST booking confirmed
