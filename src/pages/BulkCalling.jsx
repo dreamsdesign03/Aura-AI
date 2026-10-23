@@ -171,16 +171,27 @@ function BulkCallDetail({ id, onBack }) {
     }
   }, [drawerContact, campaign?.id]);
   
-  // Tick endpoint - let frontend poll tick while it's ON just in case cron doesn't run locally
+  // Tick endpoint - fires every 8s while campaign is ON to dispatch next call
   useEffect(() => {
       let interval;
       if (campaign && campaign.enabled && campaign.status !== 'completed') {
-          interval = setInterval(() => {
-              fetch(`/api/bulk-calling/tick`, { method: "POST" }).catch(()=>null);
+          interval = setInterval(async () => {
+              try {
+                const r = await fetch(`/api/bulk-calling/tick`, { method: "POST" });
+                const data = await r.json();
+                if (!r.ok) {
+                  console.error('[BulkCalling Tick] ❌ Error', r.status, data);
+                } else {
+                  console.log('[BulkCalling Tick] ✅', data.status || 'ok', 'actions:', data.actions?.length || 0, data.actions || []);
+                }
+              } catch(e) {
+                console.error('[BulkCalling Tick] ❌ fetch failed', e);
+              }
           }, 8000);
       }
       return () => clearInterval(interval);
   }, [campaign?.enabled, campaign?.status]);
+
 
   const toggleCampaign = async (enabled) => {
     if (enabled) {
