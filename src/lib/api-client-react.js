@@ -63,9 +63,6 @@ function createMutationHook(key) {
             "useUpdateProposalStatus": "/api/proposals/status",
             "useGenerateProposal": "/api/proposals/generate",
             "useSendProposalEmail": "/api/proposals/send",
-            "useSaveBantScore": "/api/qualify/save-bant",
-            "useAiScoreLead": "/api/qualify/score-ai",
-            "useExplainBantScores": "/api/qualify/explain",
             "useComposeOutreachEmail": "/api/useComposeOutreachEmail",
             "useCreateLead": "/api/leads",
             "useDeleteLead": "/api/leads/delete",
@@ -184,11 +181,6 @@ export const useUpdateProposalStatus = createMutationHook("useUpdateProposalStat
 export const useGenerateProposal = createMutationHook("useGenerateProposal");
 export const useSendProposalEmail = createMutationHook("useSendProposalEmail");
 export const getListProposalsQueryKey = () => ["useListProposals"];
-export const useGetQualifyQueue = createQueryHook("useGetQualifyQueue");
-export const useSaveBantScore = createMutationHook("useSaveBantScore");
-export const useAiScoreLead = createMutationHook("useAiScoreLead");
-export const useExplainBantScores = createMutationHook("useExplainBantScores");
-export const getGetQualifyQueueQueryKey = () => ["useGetQualifyQueue"];
 export const useGetWhatsAppConversations = createQueryHook("useGetWhatsAppConversations");
 export const useGetWhatsAppMessages = createQueryHook("useGetWhatsAppMessages");
 export const getGetWhatsAppMessagesQueryKey = () => ["useGetWhatsAppMessages"];

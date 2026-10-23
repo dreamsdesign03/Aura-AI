@@ -783,7 +783,7 @@ function CompanyTab() {
       <SectionCard title="Company & Brand Details" subtitle="Company info, website, address, and logo used by Google Gemini AI" icon={Building2} iconBg="#FBE9F1" iconColor="#CB3273">
         <form onSubmit={handleBrandSave} className="space-y-4">
           <div className="rounded-lg border border-pink-100 bg-[#FBE9F1]/60 px-3 py-2.5 text-[11px] text-[#CB3273] font-medium">
-            These details train Aura AI to generate personalized leads, proposals, outreach emails, and BANT qualification scores tailored specifically to your company or clinic.
+            These details train Aura AI to generate personalized leads, proposals, and outreach emails tailored specifically to your company or clinic.
           </div>
 
           {/* Core company info */}

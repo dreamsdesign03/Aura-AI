@@ -36,7 +36,6 @@ function ProfileCompletionBanner({ onDismiss }) {
 }
 const DAILY_CHECKLIST = [
     { id: "review-new", label: "Review new leads added overnight", category: "leads" },
-    { id: "bant-queue", label: "Score all unscored leads in BANT queue", category: "qualify" },
     { id: "send-outreach", label: "Send pending outreach touchpoints", category: "outreach" },
     { id: "meeting-prep", label: "Prep for today's meetings (pre-call brief)", category: "meetings" },
     { id: "follow-proposals", label: "Follow up on proposals sent 3-7 days ago", category: "proposals" },

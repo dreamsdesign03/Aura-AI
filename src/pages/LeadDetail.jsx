@@ -5,7 +5,7 @@ import { getGetLeadQueryKey, getListLeadsQueryKey } from "@workspace/api-client-
 import { useQueryClient } from "@tanstack/react-query";
 import { useAuthUser } from "@/contexts/AuthContext";
 import { StatusBadge, Tag } from "@/components/Badge";
-import { bandColorFromKey, bandLabelFromKey, scoreToBandKey, formatDate, formatRelative } from "@/lib/utils";
+import { formatDate, formatRelative } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
 import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Globe as Linkedin, Phone, Mail, Building2, MapPin, MessageCircle, Pencil, X, Check, Loader2, Sparkles, CalendarPlus, CalendarDays, Download, UserCheck, Send, FileText, CheckCircle2 } from "lucide-react";
@@ -26,23 +26,22 @@ function buildMysaIntelData(lead) {
     const companyName = lead.company || (ln ? `${fn} ${ln}` : fn);
     const websiteStr = typeof lead.website === 'string' ? lead.website : '';
     const domain = websiteStr ? websiteStr.replace(/^https?:\/\/(www\.)?/, '').split('/')[0] : `${String(companyName).toLowerCase().replace(/[^a-z0-9]/g, '')}.com`;
-    const location = [lead.city, lead.country].filter(Boolean).join(', ') || 'India';
+const location = [lead.city, lead.country].filter(Boolean).join(', ') || 'India';
     const industry = lead.industry || 'Healthcare / Clinic';
-    const bant = lead.bantScore ?? 68;
 
     return {
         companyName,
         website: domain,
-        healthScore: bant,
+        healthScore: 70,
         criticalCount: 3,
         hero: {
             monthlyRisk: "₹1,85,000",
             annualRisk: "₹22,20,000",
-            fixTimeline: "14 Days",
+            fixTimeline: "14 Days"
         },
         why: {
-            quote: `Potential clients are searching for top ${industry} providers in ${location}, but missing digital conversion channels route inquiries to competitors.`,
-            body: `<p><strong>${companyName}</strong> has strong market trust and local authority in ${location}. However, missing automated booking systems, schema metadata, and conversion tracking mean visitors drop off without converting.</p>`,
+            quote: "Digital conversion barriers route inquiries to competitors.",
+            body: "<p>Lead data is being analyzed.</p>",
             negativeTags: ["Missing Conversion Pixel", "Manual Inquiry Response", "Mobile Speed Penalty"],
             positiveTags: ["Verified Local Listing", "Active Contact Channel", "Strong Specialty Fit"],
         },
@@ -53,10 +52,10 @@ function buildMysaIntelData(lead) {
             { name: "Mobile Load Performance", company: { status: "warn", label: "2.8s Load" }, competitors: { status: "pass", label: "1.1s Load" }, industry: { status: "pass", label: "Sub-1.5s" } },
         ],
         categoryScores: [
-            { name: "Website Conversion & Booking", score: Math.round(Math.min(10, (bant / 10) * 0.9)) },
-            { name: "Local SEO & Search Visibility", score: Math.round(Math.min(10, (bant / 10) * 0.8)) },
-            { name: "Ad Pixel & Retargeting Setup", score: Math.round(Math.min(10, (bant / 10) * 0.6)) },
-            { name: "Mobile Speed & User Experience", score: Math.round(Math.min(10, (bant / 10) * 0.95)) },
+            { name: "Website Conversion & Booking", score: 6 },
+            { name: "Local SEO & Search Visibility", score: 6 },
+            { name: "Ad Pixel & Retargeting Setup", score: 4 },
+            { name: "Mobile Speed & User Experience", score: 7 },
         ],
         findings: [
             { title: "No Automated WhatsApp Response Hook", severity: "critical", category: "Outreach", description: "Leads reaching out through forms or phone listings are not receiving instant WhatsApp confirmations, leading to a 40% loss in response rate." },
@@ -92,9 +91,6 @@ export default function LeadDetail() {
     const [isEditing, setIsEditing] = useState(false);
     const [draft, setDraft] = useState(null);
     const [saveError, setSaveError] = useState(null);
-    const [rescoring, setRescoring] = useState(false);
-    const [rescoreError, setRescoreError] = useState(null);
-    const ALREADY_SCORED_MSG = "This lead has already been scored. Refresh or use Re-score to update.";
     const [showScheduleModal, setShowScheduleModal] = useState(false);
     const [showWaModal, setShowWaModal] = useState(false);
     const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -226,53 +222,6 @@ export default function LeadDetail() {
     };
     const set = (field) => (e) => setDraft((d) => d ? { ...d, [field]: e.target.value } : d);
     const API_BASE = "/api";
-    const rescore = async () => {
-        if (!lead)
-            return;
-        const isInitialScore = !bantBreakdown && lead.bantScore == null;
-        setRescoring(true);
-        setRescoreError(null);
-        try {
-            const url = isInitialScore
-                ? `${API_BASE}/qualify/${id}/ai`
-                : `${API_BASE}/qualify/${id}/ai?force=true`;
-            const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include" });
-            if (!res.ok) {
-                if (res.status === 409) {
-                    const body = await res.json().catch(() => ({}));
-                    if (body?.error === "ALREADY_SCORED") {
-                        setRescoreError(ALREADY_SCORED_MSG);
-                        return;
-                    }
-                }
-                throw new Error("Scoring failed");
-            }
-            const data = await res.json();
-            await qc.invalidateQueries({ queryKey: getGetLeadQueryKey(id) });
-            await qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
-            const newScore = data?.totalScore ?? data?.bantScore ?? null;
-            const bandKey = data?.band;
-            const bandLabel = bandKey === "hot" ? "Hot" : bandKey === "qualified" ? "Qualified" : bandKey === "nurture" ? "Nurture" : bandKey === "disqualify" ? "Disqualify" : undefined;
-            const bandTextColor = bandKey === "hot" ? "text-red-600" : bandKey === "qualified" ? "text-green-700" : bandKey === "nurture" ? "text-amber-600" : bandKey === "disqualify" ? "text-slate-500" : "";
-            toast({
-                title: isInitialScore ? "Lead scored!" : "AI score updated",
-                description: newScore !== null
-                    ? (<span>
-              BANT score: {newScore} / 100
-              {bandLabel && (<> — <span className={`font-semibold ${bandTextColor}`}>{bandLabel}</span></>)}
-            </span>)
-                    : isInitialScore
-                        ? "Lead has been scored successfully."
-                        : "Lead has been re-scored successfully.",
-            });
-        }
-        catch {
-            setRescoreError(isInitialScore ? "Scoring failed. Please try again." : "Re-scoring failed. Please try again.");
-        }
-        finally {
-            setRescoring(false);
-        }
-    };
     const refreshLead = async () => {
         setRescoreError(null);
         await qc.invalidateQueries({ queryKey: getGetLeadQueryKey(id) });
@@ -381,12 +330,6 @@ export default function LeadDetail() {
                       <div className="text-sm text-gray-500 mt-0.5 font-medium">{lead.designation || "Owner"} {lead.company ? `· ${lead.company}` : ""}</div>
                       <div className="flex items-center gap-3 mt-2 flex-wrap">
                         <StatusBadge status={lead.status}/>
-                        {lead.bantScore != null && (() => {
-                const bandKey = lead.bantBand ?? scoreToBandKey(lead.bantScore);
-                return (<span className={cn("text-xs font-bold", bandColorFromKey(bandKey))}>
-                              BANT: {lead.bantScore} ({bandLabelFromKey(bandKey)})
-                            </span>);
-            })()}
                         {lead.keywords?.map((k) => <Tag key={k} label={k}/>)}
                         {lead.tags?.map((t) => <Tag key={t} label={t}/>)}
                       </div>
@@ -509,64 +452,6 @@ export default function LeadDetail() {
               </>)}
           </div>
 
-          {/* BANT Breakdown */}
-          {!bantBreakdown && (<div className="rounded-xl border border-dashed border-gray-300 p-5 bg-white shadow-sm flex flex-col items-center gap-3 text-center relative" style={{ minHeight: rescoring ? 160 : undefined }}>
-              {rescoring && (<AiPanelOverlay icon="sparkles" message="AI is scoring this lead…" subMessages={[
-                    "Evaluating Budget signals",
-                    "Checking Authority & decision power",
-                    "Assessing Need & pain points",
-                    "Analysing Timeline urgency",
-                ]}/>)}
-              <Sparkles className="w-6 h-6 text-teal-600"/>
-              <div>
-                <div className="text-sm font-semibold text-foreground mb-1">No BANT score yet</div>
-                <div className="text-xs text-muted-foreground">Run an AI analysis to instantly score this lead's Budget, Authority, Need, and Timeline.</div>
-              </div>
-              {rescoreError && (<div className="text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5 w-full">
-                  {rescoreError}
-                  {rescoreError === ALREADY_SCORED_MSG && (<button onClick={refreshLead} className="ml-1.5 underline font-medium hover:text-red-800 transition-colors">
-                      Refresh
-                    </button>)}
-                </div>)}
-              <button onClick={rescore} disabled={rescoring} className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded-md border border-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-                {rescoring ? (<Loader2 className="w-3 h-3 animate-spin"/>) : (<Sparkles className="w-3 h-3"/>)}
-                {rescoring ? "Scoring…" : "Score with AI"}
-              </button>
-            </div>)}
-          {bantBreakdown && (<div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
-              <div className="flex items-center justify-between mb-3">
-                <div className="text-xs font-semibold text-foreground uppercase tracking-wider">BANT Breakdown</div>
-                <button onClick={rescore} disabled={rescoring} className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-md border border-teal-200 text-teal-700 bg-teal-50 hover:bg-teal-100 disabled:opacity-60 disabled:cursor-not-allowed transition-colors">
-                  {rescoring ? (<Loader2 className="w-3 h-3 animate-spin"/>) : (<Sparkles className="w-3 h-3"/>)}
-                  {rescoring ? "Scoring…" : "Re-score with AI"}
-                </button>
-              </div>
-              {rescoreError && (<div className="mb-3 text-[11px] text-red-600 bg-red-50 border border-red-200 rounded-md px-2.5 py-1.5">
-                  {rescoreError}
-                  {rescoreError === ALREADY_SCORED_MSG && (<button onClick={refreshLead} className="ml-1.5 underline font-medium hover:text-red-800 transition-colors">
-                      Refresh
-                    </button>)}
-                </div>)}
-              <div className="grid grid-cols-4 gap-3">
-                {["budget", "authority", "need", "timeline"].map((dim) => {
-                const score = bantBreakdown[dim] ?? 0;
-                const reason = bantBreakdown.reasoning?.[dim];
-                return (<div key={dim} className="text-center">
-                      <div className="text-[11px] text-muted-foreground uppercase tracking-wider mb-1">{dim}</div>
-                      <div className={cn("text-2xl font-bold", bandColorFromKey(scoreToBandKey(score)))}>{score}</div>
-                      <div className="w-full bg-gray-50 rounded-full h-1 mt-1.5">
-                        <div className="h-1 rounded-full transition-all" style={{ width: `${score}%`, background: "#1A7A45" }}/>
-                      </div>
-                      {reason && (<div className="mt-2 text-[10px] text-muted-foreground leading-relaxed text-left">{reason}</div>)}
-                    </div>);
-            })}
-              </div>
-              {bantBreakdown.reasoning && (<div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#1A7A45" }}/>
-                  <span className="text-[10px] text-muted-foreground italic">AI reasoning</span>
-                </div>)}
-            </div>)}
-
           {/* Touchpoints */}
           {lead.touchpoints?.length > 0 && (<div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
               <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-3">Outreach History</div>
@@ -688,9 +573,6 @@ export default function LeadDetail() {
           <div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
             <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</div>
             <div className="space-y-2">
-              <Link href={`/qualify?leadId=${lead.id}`}>
-                <button className="w-full text-xs py-1.5 px-3 rounded border border-gray-200 text-muted-foreground hover:text-gray-900 hover:bg-gray-50 text-left">BANT Score</button>
-              </Link>
               <button onClick={handleGenerateAiOutreach} className="w-full text-xs py-2 px-3 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 text-left flex items-center justify-between transition-all">
                 <span>⚡ Generate AI Outreach Email</span>
                 <Sparkles className="w-3.5 h-3.5 text-purple-600"/>

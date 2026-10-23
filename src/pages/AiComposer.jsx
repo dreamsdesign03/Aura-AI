@@ -40,7 +40,6 @@ Company: ${selectedLead.company}
 Job Title: ${selectedLead.designation}
 Industry: ${selectedLead.industry}
 Country: ${selectedLead.country}
-BANT Score: ${selectedLead.bantScore ?? "unscored"}
 Status: ${selectedLead.status}`;
         }
         return sys;

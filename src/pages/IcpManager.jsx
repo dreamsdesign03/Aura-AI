@@ -17,7 +17,6 @@ const DEFAULT_FILTERS = {
     hasLinkedIn: false,
     hasGMB: false,
     hiringMarketers: false,
-    minBantScore: "",
     requiresAudit: false,
 };
 function filtersToQualFilters(f) {
@@ -28,7 +27,6 @@ function filtersToQualFilters(f) {
         hasLinkedIn: Boolean(f.hasLinkedIn),
         hasGMB: Boolean(f.hasGMB),
         hiringMarketers: Boolean(f.hiringMarketers),
-        minBantScore: f.minBantScore != null ? String(f.minBantScore) : "",
         requiresAudit: Boolean(f.requiresAudit),
     };
 }
@@ -46,8 +44,6 @@ function qualFiltersToRecord(qualFilters) {
         filters.hasGMB = true;
     if (qualFilters.hiringMarketers)
         filters.hiringMarketers = true;
-    if (qualFilters.minBantScore)
-        filters.minBantScore = Number(qualFilters.minBantScore);
     if (qualFilters.requiresAudit)
         filters.requiresAudit = true;
     return filters;
@@ -69,8 +65,6 @@ function FiltersDisplay({ filters }) {
         pills.push("GMB Listed");
     if (filters.hiringMarketers)
         pills.push("Hiring Marketers");
-    if (filters.minBantScore)
-        pills.push(`BANT ≥ ${filters.minBantScore}`);
     if (filters.requiresAudit)
         pills.push("Audit Required");
     if (pills.length === 0)
@@ -111,12 +105,6 @@ function IcpFormFields({ form, setForm, qualFilters, setQualFilters, }) {
             <span className="text-muted-foreground text-xs">–</span>
             <input type="number" placeholder="Max" value={qualFilters.adSpendMax} onChange={(e) => setQualFilters((f) => ({ ...f, adSpendMax: e.target.value }))} className="flex-1 px-2.5 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"/>
           </div>
-        </div>
-        <div>
-          <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5">
-            <Monitor className="w-3 h-3"/> Minimum BANT Score
-          </div>
-          <input type="number" min="0" max="100" placeholder="e.g. 45 (leave blank for any)" value={qualFilters.minBantScore} onChange={(e) => setQualFilters((f) => ({ ...f, minBantScore: e.target.value }))} className="w-full px-2.5 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"/>
         </div>
         <div>
           <div className="text-[11px] text-muted-foreground mb-1.5">Required Signals</div>

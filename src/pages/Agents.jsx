@@ -143,7 +143,7 @@ export default function Agents() {
                           {hunterStatus?.active ? "● Hunting" : "Idle"}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-500">Virtual BDR — hunts ICP-matched leads from Apollo, qualifies with BANT scoring</p>
+                      <p className="text-sm text-gray-500">Virtual BDR — hunts ICP-matched leads from Apollo, qualifies leads</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-violet-600 font-semibold opacity-0 group-hover:opacity-100 transition-opacity">
@@ -164,7 +164,7 @@ export default function Agents() {
                     </div>))}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mb-3">
-                  {["ICP-aware hunting", "Apollo.io integration", "BANT scoring", "Anti-duplicate guard", "24×7 automation"].map(skill => (<span key={skill} className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "#FBE9F1", color: "#CB3273" }}>{skill}</span>))}
+                  {["ICP-aware hunting", "Apollo.io integration", "Lead qualification", "Anti-duplicate guard", "24×7 automation"].map(skill => (<span key={skill} className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: "#FBE9F1", color: "#CB3273" }}>{skill}</span>))}
                 </div>
                 <div className="flex items-center justify-between text-[12px]" style={{ color: "#9CA3AF" }}>
                   <span className="flex items-center gap-1">

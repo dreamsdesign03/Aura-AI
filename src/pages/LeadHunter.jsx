@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Target, Zap, Play, Pause, Activity, CheckCircle2, AlertCircle, Users, TrendingUp, MessageCircle, Brain, Globe, Settings, FileText, Loader2, ChevronRight, Sparkles, ArrowLeft, Bot, Save, RefreshCw, ToggleLeft, ToggleRight, Shield, BookOpen, GitBranch, Database, Send, Download, } from "lucide-react";
-import { cn, bantBandChipStyle } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const DEFAULT_SKILLS_DOC = `# Lead Hunter Agent — Skills & Operating Manual
 
@@ -429,9 +429,6 @@ export default function LeadHunter() {
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-[13px] font-semibold text-gray-900">{l.name}</span>
                           <span className="text-[11px] text-gray-500">{l.designation} · {l.company}</span>
-                          <span className="ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full" style={bantBandChipStyle(l.bantScore)}>
-                            BANT {l.bantScore}
-                          </span>
                         </div>
                         <div className="text-[11px] text-gray-400 mt-0.5">ICP: {l.icpName}</div>
                         {l.firstTouch && (<div className="mt-1 text-[11px] text-gray-600 bg-green-50 rounded px-2 py-1 flex items-start gap-1">

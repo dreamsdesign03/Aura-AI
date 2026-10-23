@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { MessageCircle, BarChart2, Settings, ChevronRight, RefreshCw, AlertTriangle, Loader2, ArrowLeft, Save, Plus, X, ExternalLink, Brain, Search, Zap, Clock, Mail, Phone, Globe, Building2, User, Target, Send, FileText, Sparkles, BookOpen, MessageSquare, Wifi, WifiOff, Check, Calendar } from "lucide-react";
-import { cn, scoreToBandKey, bandHexFromKey } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { useGetWhatsAppConversations, useGetWhatsAppMessages, getGetWhatsAppMessagesQueryKey, useGetWhatsAppAnalytics, useGetWhatsAppSettings, useUpdateWhatsAppSettings, useTestWhatsAppConnection, } from "@workspace/api-client-react";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -38,12 +38,6 @@ function timeAgo(ts) {
     catch {
         return "";
     }
-}
-function bantFromMeta(metadata) {
-    const bant = metadata?.bant;
-    if (!bant || (!bant.budget && !bant.authority && !bant.need && !bant.timeline))
-        return null;
-    return bant;
 }
 // ─── Shared API helper ────────────────────────────────────────────────────────
 async function apiFetch(path, opts) {
@@ -95,7 +89,7 @@ function LeadBrainTab() {
     }).sort((a, b) => {
         if (a.hasBrain && !b.hasBrain) return -1;
         if (!a.hasBrain && b.hasBrain) return 1;
-        return (b.bantScore || 0) - (a.bantScore || 0);
+        return 0;
     });
 
     useEffect(() => {
@@ -197,7 +191,6 @@ function LeadBrainTab() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
                       <span className="text-xs font-semibold text-gray-900 truncate">{lead.firstName} {lead.lastName}</span>
-                      {lead.bantScore !== null && (<span className="text-[10px] font-bold ml-1 flex-shrink-0" style={{ color: bandHexFromKey(scoreToBandKey(lead.bantScore)) ?? "#6B7280" }}>{lead.bantScore}</span>)}
                     </div>
                     <div className="text-[11px] text-gray-500 truncate">{lead.company}</div>
                     <div className="flex items-center gap-1.5 mt-0.5">
@@ -236,9 +229,6 @@ function LeadBrainTab() {
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-bold text-gray-900">{sel.firstName} {sel.lastName}</span>
-                    {sel.bantScore !== null && (<span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{ background: bandHexFromKey(scoreToBandKey(sel.bantScore)) ?? "#6B7280" }}>
-                        BANT {sel.bantScore}
-                      </span>)}
                   </div>
                   <div className="text-[11px] text-gray-500">{sel.designation} · {sel.company} · {sel.industry}</div>
                 </div>

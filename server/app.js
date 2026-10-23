@@ -1248,7 +1248,6 @@ app.get('/api/stats', async (req, res) => {
     }
 
     const totalLeadsRes = await db.query(`SELECT COUNT(*) FROM leads ${userFilter}`, userParams);
-    const bantQualifiedRes = await db.query(`SELECT COUNT(*) FROM leads ${userFilter ? userFilter + ' AND' : 'WHERE'} (bant_score >= 70 OR bantb_total >= 70)`, userParams);
     const meetingsRes = await db.query(`SELECT COUNT(*) FROM meetings ${userFilter ? 'WHERE lead_id IN (SELECT id FROM leads ' + userFilter + ')' : ''}`, userParams);
     const campaignsRes = await db.query(`SELECT COUNT(*) FROM campaigns ${userFilter}`, userParams);
     const reportsRes = await db.query('SELECT COUNT(*) FROM daily_reports');
@@ -1259,26 +1258,12 @@ app.get('/api/stats', async (req, res) => {
       GROUP BY stage
     `, userParams);
 
-    const bantDistRes = await db.query(`
-      SELECT 
-        CASE 
-          WHEN bant_score >= 80 THEN 'High Intent (80-100)'
-          WHEN bant_score >= 50 THEN 'Medium Intent (50-79)'
-          ELSE 'Unqualified (<50)'
-        END as category,
-        COUNT(*) as count
-      FROM leads ${userFilter}
-      GROUP BY category
-    `, userParams);
-
     res.json({
       totalLeads: parseInt(totalLeadsRes.rows[0].count) || 0,
-      bantQualified: parseInt(bantQualifiedRes.rows[0].count) || 0,
       meetingsBooked: parseInt(meetingsRes.rows[0].count) || 0,
       activeCampaigns: parseInt(campaignsRes.rows[0].count) || 0,
       dailyReportsCount: parseInt(reportsRes.rows[0].count) || 0,
-      pipelineBreakdown: pipelineRes.rows,
-      bantDistribution: bantDistRes.rows
+      pipelineBreakdown: pipelineRes.rows
     });
   } catch (err) {
     console.error('Error fetching stats:', err);
@@ -1316,11 +1301,6 @@ app.get('/api/leads', async (req, res) => {
     if (stage) {
       queryParams.push(stage);
       whereClauses.push(`pipeline_stage = $${queryParams.length}`);
-    }
-
-    if (minBant) {
-      queryParams.push(parseInt(minBant));
-      whereClauses.push(`(bant_score >= $${queryParams.length} OR bantb_total >= $${queryParams.length})`);
     }
 
     const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -1445,7 +1425,6 @@ app.get('/api/leads/:id', async (req, res, next) => {
       city: r.city || r.location || null,
       country: r.country || null,
       status: r.status || 'new_enquiry',
-      bantScore: r.bant_score ?? r.bantScore ?? null,
       source: r.source || 'apify_maps',
     };
     res.json(lead);
@@ -1473,7 +1452,6 @@ app.post('/api/leads', async (req, res) => {
     const city = body.city || '';
     const source = body.source || 'manual';
     const status = body.status || 'New';
-    const bant_score = body.bant_score ?? 50;
     const deal_value = body.deal_value ?? 0;
 
     let userId = null;
@@ -1487,10 +1465,10 @@ app.post('/api/leads', async (req, res) => {
     const insertRes = await db.query(
       `INSERT INTO leads (
         user_id, first_name, last_name, email, phone, company, designation, 
-        website, industry, country, city, source, status, bant_score, deal_value, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
+        website, industry, country, city, source, status, deal_value, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
       RETURNING *`,
-      [userId, first_name, last_name, email, phone, company, designation, website, industry, country, city, source, status, bant_score, deal_value]
+      [userId, first_name, last_name, email, phone, company, designation, website, industry, country, city, source, status, deal_value]
     );
 
     const resolvedUserId = userId || (await resolveUserId(userEmail, req.headers.cookie));
@@ -1522,7 +1500,7 @@ app.post('/api/leads', async (req, res) => {
 app.put('/api/leads/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { first_name, last_name, email, company, status, pipeline_stage, bant_score, deal_value } = req.body;
+    const { first_name, last_name, email, company, status, pipeline_stage, deal_value } = req.body;
 
     const updateRes = await db.query(
       `UPDATE leads SET 
@@ -1532,11 +1510,10 @@ app.put('/api/leads/:id', async (req, res) => {
         company = COALESCE($4, company),
         status = COALESCE($5, status),
         pipeline_stage = COALESCE($6, pipeline_stage),
-        bant_score = COALESCE($7, bant_score),
-        deal_value = COALESCE($8, deal_value),
+        deal_value = COALESCE($7, deal_value),
         updated_at = NOW()
-      WHERE id = $9 RETURNING *`,
-      [first_name, last_name, email, company, status, pipeline_stage, bant_score, deal_value, id]
+      WHERE id = $8 RETURNING *`,
+      [first_name, last_name, email, company, status, pipeline_stage, deal_value, id]
     );
 
     if (updateRes.rows.length === 0) {
@@ -3158,15 +3135,14 @@ app.post('/api/leads/generate-from-icp', async (req, res) => {
         country: market,
         status: 'New',
         pipeline_stage: 'Lead In',
-        bant_score: Math.floor(Math.random() * 40) + 60,
         deal_value: Math.floor(Math.random() * 50000) + 5000,
       };
 
       try {
         const result = await db.query(
-          `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, industry, country, status, pipeline_stage, bant_score, deal_value, created_at)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW()) RETURNING *`,
-          [lead.user_id, lead.first_name, lead.last_name, lead.email, lead.phone, lead.company, lead.designation, lead.industry, lead.country, lead.status, lead.pipeline_stage, lead.bant_score, lead.deal_value]
+          `INSERT INTO leads (user_id, first_name, last_name, email, phone, company, designation, industry, country, status, pipeline_stage, deal_value, created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW()) RETURNING *`,
+          [lead.user_id, lead.first_name, lead.last_name, lead.email, lead.phone, lead.company, lead.designation, lead.industry, lead.country, lead.status, lead.pipeline_stage, lead.deal_value]
         );
         generatedLeads.push(result.rows[0]);
       } catch (leadErr) {
@@ -3619,10 +3595,7 @@ async function ensureLeadsTable() {
         country TEXT DEFAULT 'United States',
         status TEXT DEFAULT 'New',
         pipeline_stage TEXT DEFAULT 'Lead In',
-        bant_score INT DEFAULT 50,
-        bantb_total INT DEFAULT 50,
         deal_value NUMERIC DEFAULT 0,
-        belief_reason TEXT,
         brand_audit_report TEXT,
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -4763,7 +4736,7 @@ async function fetchDashboardSummaryData(userId) {
       db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND (
           pipeline_stage ILIKE '%qualif%' OR pipeline_stage ILIKE '%meeting%'
           OR pipeline_stage ILIKE '%proposal%' OR pipeline_stage ILIKE '%booked%'
-          OR pipeline_stage ILIKE '%won%' OR bant_score >= 50 OR bantb_total >= 50
+          OR pipeline_stage ILIKE '%won%'
           OR status ILIKE '%qualif%' OR status ILIKE '%meeting%'
           OR status ILIKE '%proposal%' OR status ILIKE '%won%')`, [userId]),
       db.query(`SELECT (
@@ -4943,531 +4916,6 @@ app.get('/api/debug/test-insert', async (req, res) => {
     console.error(`[debug/test-insert] FAILED: ${e.message}`);
     res.status(500).json({ ok: false, error: e.message });
   }
-});
-
-// ──────────────────────────────────────────────────────
-// BANTB QUALIFIER & BELIEF SCORING ENGINE API ROUTES
-// ──────────────────────────────────────────────────────
-
-async function calculateDynamicBantScore(lead, geminiKey) {
-  const apiKey = geminiKey || process.env.GEMINI_API_KEY;
-  const name = `${lead.first_name || lead.firstName || ''} ${lead.last_name || lead.lastName || ''}`.trim() || lead.company || 'Lead';
-  const company = lead.company || 'Company';
-  const title = lead.designation || 'Decision Maker';
-  const website = lead.website || 'No website';
-  const industry = lead.industry || 'Dermatology / Skincare';
-  const country = lead.country || 'India';
-
-  const prompt = `You are a Senior B2B BANT Qualification AI Expert.
-Analyze this lead and score them across BANT (Budget, Authority, Need, Timeline) and Belief Alignment:
-- Name: "${name}"
-- Title / Designation: "${title}"
-- Company: "${company}"
-- Website: "${website}"
-- Industry: "${industry}"
-- Location: "${country}"
-
-SCORING CRITERIA (0 to 25 points each):
-1. Budget (0-25): Evaluate company capacity, ad spend capability, website presence, and market scale.
-2. Authority (0-25): Evaluate decision-making authority based on title (Founder/CEO/Clinic Owner/Doctor = 22-25, Manager/Head = 15-20, Executive/Other = 8-14).
-3. Need (0-25): Evaluate urgency and demand for lead acquisition, AI automation, and agency growth services.
-4. Timeline (0-25): Evaluate buying readiness and deployment timeframe (<30 days = 21-25).
-5. Belief Alignment (0-25): Evaluate receptivity to AI automation and modern agency growth.
-
-Return ONLY a valid JSON object matching this schema (no markdown formatting, no extra text):
-{
-  "budget": { "score": 22, "reason": "Specific custom reason for budget" },
-  "authority": { "score": 25, "reason": "Specific custom reason for authority" },
-  "need": { "score": 20, "reason": "Specific custom reason for need" },
-  "timeline": { "score": 21, "reason": "Specific custom reason for timeline" },
-  "belief": { "score": 22, "reason": "Specific custom reason for belief alignment" }
-}`;
-
-  if (apiKey && apiKey.length > 10) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' }
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-        const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-        if (parsed.budget && parsed.authority && parsed.need && parsed.timeline) {
-          return parsed;
-        }
-      }
-    } catch (e) {
-      console.warn('[calculateDynamicBantScore] Gemini API exception:', e.message);
-    }
-  }
-
-  // Dynamic Heuristic Engine (Unique per lead based on Title, Website & Company hash)
-  const isCLevel = /owner|founder|director|chief|ceo|doctor|dermatologist|president|partner/i.test(title);
-  const isManager = /manager|head|vp|vice president|lead/i.test(title);
-  const authorityScore = isCLevel ? 25 : (isManager ? 18 : 12);
-  const authorityReason = isCLevel 
-    ? `Primary Decision Maker (${title}) with final budget sign-off for ${company}`
-    : (isManager ? `Department Lead (${title}) with purchasing influence` : `Team Member (${title}) with advisory role`);
-
-  const hasWeb = website && website.length > 5 && !/none|n\/a/i.test(website);
-  const budgetScore = hasWeb ? 22 : 14;
-  const budgetReason = hasWeb 
-    ? `Active digital footprint & marketing presence at ${website}`
-    : `Limited online visibility for ${company}`;
-
-  const seed = (company + name + title).split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
-  const needScore = 17 + (seed % 8); // 17-24
-  const needReason = `High demand for automated client acquisition & growth in ${industry}`;
-
-  const timelineScore = 16 + ((seed * 3) % 9); // 16-24
-  const timelineReason = `Active evaluation cycle for sales automation solutions within 30 days`;
-
-  const beliefScore = 18 + ((seed * 7) % 7); // 18-24
-  const beliefReason = `Strong receptivity to AI automation & digital scale-up models`;
-
-  return {
-    budget: { score: budgetScore, reason: budgetReason },
-    authority: { score: authorityScore, reason: authorityReason },
-    need: { score: needScore, reason: needReason },
-    timeline: { score: timelineScore, reason: timelineReason },
-    belief: { score: beliefScore, reason: beliefReason }
-  };
-}
-
-// GET /api/qualify/queue - Returns leads in the BANT qualification queue with dynamic scores
-app.get('/api/qualify/queue', async (req, res) => {
-  try {
-    await ensureLeadsTable();
-    const userId = await resolveUserId(req.query?.email, req.headers.cookie);
-    let leadsQuery = 'SELECT * FROM leads';
-    let params = [];
-    if (userId) {
-      leadsQuery += ' WHERE user_id = $1';
-      params.push(userId);
-    }
-    leadsQuery += ' ORDER BY created_at DESC LIMIT 200';
-    const leadsRes = await db.query(leadsQuery, params);
-    
-    const leads = [];
-    for (const l of leadsRes.rows) {
-      const metadata = typeof l.metadata === 'object' && l.metadata ? l.metadata : {};
-      let bd = (typeof l.bant_breakdown === 'object' && l.bant_breakdown) || l.bantBreakdown || metadata.bantBreakdown;
-      let beliefScore = l.belief_score || metadata.beliefScore;
-      let beliefReason = l.belief_reason || metadata.beliefReason;
-
-      if (!bd || typeof bd !== 'object' || (typeof bd.budget !== 'number' && typeof bd.budget?.score !== 'number')) {
-        const dyn = await calculateDynamicBantScore(l);
-        bd = {
-          budget: dyn.budget.score,
-          authority: dyn.authority.score,
-          need: dyn.need.score,
-          timeline: dyn.timeline.score,
-          reasoning: {
-            budget: dyn.budget.reason,
-            authority: dyn.authority.reason,
-            need: dyn.need.reason,
-            timeline: dyn.timeline.reason
-          }
-        };
-        beliefScore = dyn.belief.score;
-        beliefReason = dyn.belief.reason;
-      } else {
-        const budgetNum = typeof bd.budget === 'object' ? bd.budget.score : (Number(bd.budget) || 12);
-        const authNum = typeof bd.authority === 'object' ? bd.authority.score : (Number(bd.authority) || 12);
-        const needNum = typeof bd.need === 'object' ? bd.need.score : (Number(bd.need) || 12);
-        const timeNum = typeof bd.timeline === 'object' ? bd.timeline.score : (Number(bd.timeline) || 12);
-
-        bd = {
-          budget: budgetNum,
-          authority: authNum,
-          need: needNum,
-          timeline: timeNum,
-          reasoning: typeof bd.reasoning === 'object' ? bd.reasoning : {
-            budget: bd.budget?.reason || '',
-            authority: bd.authority?.reason || '',
-            need: bd.need?.reason || '',
-            timeline: bd.timeline?.reason || ''
-          }
-        };
-      }
-
-      const bantScore = l.bant_score || (bd.budget + bd.authority + bd.need + bd.timeline);
-      
-      leads.push({
-        id: l.id,
-        firstName: l.first_name || l.company,
-        lastName: l.last_name || '',
-        name: `${l.first_name || l.company} ${l.last_name || ''}`.trim(),
-        company: l.company,
-        email: l.email,
-        phone: l.phone,
-        website: l.website,
-        designation: l.designation,
-        industry: l.industry,
-        country: l.country,
-        status: l.status,
-        pipelineStage: l.pipeline_stage,
-        bantScore,
-        bantBreakdown: bd,
-        beliefScore: beliefScore || 20,
-        beliefReason: beliefReason || "Strong alignment with AI automation & agency growth services",
-        createdAt: l.created_at
-      });
-    }
-
-    res.json(leads);
-  } catch (err) {
-    console.error('[qualify/queue] Error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/qualify/:id/ai — AI BANT Scoring endpoint for Lead Detail page
-app.post(['/api/qualify/:id/ai', '/api/leads/:id/score-bant'], async (req, res) => {
-  try {
-    const id = Number(req.params.id);
-    if (isNaN(id)) {
-      return res.status(400).json({ error: 'Invalid lead ID' });
-    }
-
-    const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [id]);
-    if (leadRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Lead not found' });
-    }
-
-    const lead = leadRes.rows[0];
-    const dyn = await calculateDynamicBantScore(lead);
-    const totalBant = dyn.budget.score + dyn.authority.score + dyn.need.score + dyn.timeline.score;
-    const band = totalBant >= 75 ? 'hot' : totalBant >= 50 ? 'qualified' : totalBant >= 30 ? 'nurture' : 'disqualify';
-
-    const bdToSave = {
-      budget: dyn.budget.score,
-      authority: dyn.authority.score,
-      need: dyn.need.score,
-      timeline: dyn.timeline.score,
-      reasoning: {
-        budget: dyn.budget.reason,
-        authority: dyn.authority.reason,
-        need: dyn.need.reason,
-        timeline: dyn.timeline.reason
-      }
-    };
-
-    // Update database
-    await db.query(
-      `UPDATE leads 
-       SET bant_score = $1, 
-           bant_breakdown = $2::jsonb,
-           status = CASE WHEN status = 'new_enquiry' OR status IS NULL THEN 'contacted' ELSE status END
-       WHERE id = $3`,
-      [totalBant, JSON.stringify(bdToSave), id]
-    ).catch(async () => {
-      await db.query(`UPDATE leads SET bant_score = $1 WHERE id = $2`, [totalBant, id]).catch(() => {});
-    });
-
-    res.json({
-      totalScore: totalBant,
-      bantScore: totalBant,
-      band,
-      budget: dyn.budget,
-      authority: dyn.authority,
-      need: dyn.need,
-      timeline: dyn.timeline,
-      belief: dyn.belief,
-      bantBreakdown: bdToSave,
-      status: lead.status || 'contacted'
-    });
-  } catch (err) {
-    console.error('[qualify/:id/ai] Error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/qualify/score-ai — AI BANTB Scoring for a single lead
-app.post('/api/qualify/score-ai', async (req, res) => {
-  try {
-    const { id, leadId } = req.body || {};
-    const targetId = id || leadId;
-    
-    let lead = null;
-    if (targetId) {
-      const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [targetId]);
-      if (leadRes.rows.length > 0) lead = leadRes.rows[0];
-    }
-
-    const leadData = lead || req.body || {};
-    const dyn = await calculateDynamicBantScore(leadData);
-
-    const totalBant = dyn.budget.score + dyn.authority.score + dyn.need.score + dyn.timeline.score;
-
-    res.json({
-      budget: dyn.budget,
-      authority: dyn.authority,
-      need: dyn.need,
-      timeline: dyn.timeline,
-      belief: dyn.belief,
-      totalScore: totalBant,
-      reasoning: `BANT Score: ${totalBant}/100. Authority: ${dyn.authority.reason}. Budget: ${dyn.budget.reason}.`
-    });
-  } catch (err) {
-    console.error('[qualify/score-ai] Error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/qualify/explain — AI BANT Explanation
-app.post('/api/qualify/explain', async (req, res) => {
-  try {
-    const { id, leadId } = req.body || {};
-    const targetId = id || leadId;
-    
-    let lead = null;
-    if (targetId) {
-      const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [targetId]);
-      if (leadRes.rows.length > 0) lead = leadRes.rows[0];
-    }
-
-    const title = (lead?.designation || '').toLowerCase();
-    const company = lead?.company || 'Target Company';
-    
-    let authorityScore = 18;
-    if (/owner|founder|director|chief|ceo|doctor|dermatologist/i.test(title)) authorityScore = 25;
-    else if (/manager|head/i.test(title)) authorityScore = 18;
-
-    let budgetScore = lead?.website ? 22 : 16;
-    let needScore = 22;
-    let timelineScore = 21;
-    const totalScore = budgetScore + authorityScore + needScore + timelineScore;
-
-    res.json({
-      budget: { score: budgetScore, reason: `Active digital presence & marketing budget for ${company}` },
-      authority: { score: authorityScore, reason: `High decision-making authority (${lead?.designation || 'Owner / Director'})` },
-      need: { score: needScore, reason: `High requirement for client acquisition in ${lead?.industry || 'Industry'}` },
-      timeline: { score: timelineScore, reason: "Ready for solution evaluation within 30 days" },
-      totalScore,
-      reasoning: `Overall BANT Rating: ${totalScore >= 80 ? 'HOT LEAD (High Priority)' : totalScore >= 60 ? 'QUALIFIED LEAD' : 'WARM LEAD'}. Recommended next action: Schedule Discovery Call or send personalized outreach proposal.`
-    });
-  } catch (err) {
-    console.error('[qualify/explain] Error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/qualify/:id/belief — AI Belief Alignment Analysis
-app.post('/api/qualify/:id/belief', async (req, res) => {
-  try {
-    const leadId = req.params.id;
-    let lead = null;
-    if (leadId) {
-      const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
-      if (leadRes.rows.length > 0) lead = leadRes.rows[0];
-    }
-
-    const company = lead?.company || 'Target Business';
-    const beliefScore = 22;
-    const beliefReason = `${company} demonstrates high receptivity to modern AI automation & digital growth strategies.`;
-    const beliefEvidence = "Verified digital footprint, active web presence, and innovative leadership focus.";
-
-    res.json({
-      beliefScore,
-      beliefReason,
-      beliefEvidence,
-      beliefSignals: { linkedin: true, aboutPage: true, founderStory: true, mission: true }
-    });
-  } catch (err) {
-    console.error('[qualify/belief] Error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/qualify/save-bant — Saves BANT scores & calculates Mysa AI routing
-app.post('/api/qualify/save-bant', async (req, res) => {
-  try {
-    const { id, leadId, scores, belief, bantScore, totalScore } = req.body || {};
-    const targetId = id || leadId;
-
-    if (!targetId) {
-      return res.status(400).json({ error: 'leadId is required' });
-    }
-
-    const budget = Math.min(25, Math.max(0, scores?.budget ?? 18));
-    const authority = Math.min(25, Math.max(0, scores?.authority ?? 18));
-    const need = Math.min(25, Math.max(0, scores?.need ?? 20));
-    const timeline = Math.min(25, Math.max(0, scores?.timeline ?? 20));
-    
-    const bantTotal = bantScore || totalScore || (budget + authority + need + timeline);
-    const beliefScore = Math.min(25, Math.max(0, belief?.score ?? 20));
-    const bantbTotal = bantTotal + beliefScore;
-
-    // Mysa AI Routing Logic
-    let routingAction = 'qualified_standard';
-    let routingMsg = 'QUALIFIED STANDARD — send standard booking email';
-    let nextStatus = 'enquiry_qualified';
-    let routingColor = '#3B82F6';
-    let routingBg = 'rgba(59,130,246,0.12)';
-
-    if (bantbTotal >= 100) {
-      routingAction = 'priority_believer';
-      routingMsg = 'PRIORITY BELIEVER — assign directly and book discovery call immediately';
-      nextStatus = 'discovery_call';
-      routingColor = '#D97706';
-      routingBg = 'rgba(217,119,6,0.12)';
-    } else if (bantbTotal >= 80) {
-      routingAction = 'qualified_believer';
-      routingMsg = 'QUALIFIED BELIEVER — send belief-aligned outreach email';
-      nextStatus = 'enquiry_qualified';
-      routingColor = '#0D9488';
-      routingBg = 'rgba(13,148,136,0.12)';
-    } else if (bantbTotal >= 60) {
-      routingAction = 'qualified_standard';
-      routingMsg = 'QUALIFIED STANDARD — send standard booking email';
-      nextStatus = 'enquiry_qualified';
-      routingColor = '#3B82F6';
-      routingBg = 'rgba(59,130,246,0.12)';
-    } else if (bantbTotal >= 40) {
-      routingAction = 'nurture_belief';
-      routingMsg = 'NURTURE — send belief-building content over 30 days';
-      nextStatus = 'follow_up';
-      routingColor = '#F59E0B';
-      routingBg = 'rgba(245,158,11,0.12)';
-    } else {
-      routingAction = 'cold';
-      routingMsg = 'COLD — add to newsletter list only';
-      nextStatus = 'unqualified';
-      routingColor = '#6B7280';
-      routingBg = 'rgba(107,114,128,0.12)';
-    }
-
-    // Update PostgreSQL DB
-    const bd = {
-      budget,
-      authority,
-      need,
-      timeline,
-      reasoning: {
-        budget: `Budget Score: ${budget}/25`,
-        authority: `Authority Score: ${authority}/25`,
-        need: `Need Score: ${need}/25`,
-        timeline: `Timeline Score: ${timeline}/25`
-      }
-    };
-
-    const updateRes = await db.query(
-      `UPDATE leads SET 
-        bant_score = $1,
-        budget_score = $2,
-        authority_score = $3,
-        need_score = $4,
-        timeline_score = $5,
-        status = $6,
-        metadata = COALESCE(metadata, '{}'::jsonb) || $7::jsonb,
-        updated_at = NOW()
-       WHERE id = $8
-       RETURNING *`,
-      [
-        bantTotal,
-        budget,
-        authority,
-        need,
-        timeline,
-        nextStatus,
-        JSON.stringify({ bantBreakdown: bd, beliefScore, beliefReason: belief?.reason || '', bantbTotal }),
-        targetId
-      ]
-    );
-
-    const updatedLead = updateRes.rows[0] || {};
-
-    res.json({
-      id: updatedLead.id,
-      firstName: updatedLead.first_name || updatedLead.company,
-      lastName: updatedLead.last_name || '',
-      company: updatedLead.company,
-      bantScore: bantTotal,
-      bantbTotal,
-      routing: {
-        action: routingAction,
-        message: routingMsg,
-        nextStatus,
-        color: routingColor,
-        bg: routingBg
-      }
-    });
-  } catch (err) {
-    console.error('[qualify/save-bant] Error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// POST /api/bantb/batch — Bulk BANTB AI scoring
-app.post('/api/bantb/batch', async (req, res) => {
-  try {
-    const { leadIds = [] } = req.body || {};
-    const batchId = `bantb_batch_${Date.now()}`;
-    console.log(`[bantb/batch] Starting bulk BANTB scoring for ${leadIds.length} leads (batchId=${batchId})`);
-
-    // Asynchronously update all leads with BANTB scores
-    (async () => {
-      for (const id of leadIds) {
-        try {
-          const lRes = await db.query('SELECT * FROM leads WHERE id = $1', [id]);
-          if (lRes.rows.length === 0) continue;
-          const l = lRes.rows[0];
-
-          const dyn = await calculateDynamicBantScore(l);
-          const authority = dyn.authority.score;
-          const budget = dyn.budget.score;
-          const need = dyn.need.score;
-          const timeline = dyn.timeline.score;
-          const totalBant = budget + authority + need + timeline;
-          const beliefScore = dyn.belief.score;
-          const bantbTotal = totalBant + beliefScore;
-
-          const bd = {
-            budget,
-            authority,
-            need,
-            timeline,
-            reasoning: {
-              budget: dyn.budget.reason,
-              authority: dyn.authority.reason,
-              need: dyn.need.reason,
-              timeline: dyn.timeline.reason
-            }
-          };
-          const nextStatus = bantbTotal >= 80 ? 'enquiry_qualified' : 'follow_up';
-
-          await db.query(
-            `UPDATE leads SET 
-              bant_score = $1, budget_score = $2, authority_score = $3, need_score = $4, timeline_score = $5,
-              status = $6, metadata = COALESCE(metadata, '{}'::jsonb) || $7::jsonb, updated_at = NOW()
-             WHERE id = $8`,
-            [totalBant, budget, authority, need, timeline, nextStatus, JSON.stringify({ bantBreakdown: bd, beliefScore, beliefReason: dyn.belief.reason, bantbTotal }), id]
-          );
-        } catch (e) {
-          console.error(`[bantb/batch] Error scoring lead ID ${id}:`, e.message);
-        }
-      }
-      console.log(`[bantb/batch] Batch ${batchId} complete! Scored ${leadIds.length} leads.`);
-    })();
-
-    res.json({ batchId, leadsCount: leadIds.length, status: 'processing' });
-  } catch (err) {
-    console.error('[bantb/batch] Error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// GET /api/bantb/batch/:batchId — Status check for bulk batch
-app.get('/api/bantb/batch/:batchId', async (req, res) => {
-  res.json({ batchId: req.params.batchId, status: 'completed', scored: 10 });
 });
 
 // POST /api/gemini/chat/stream & /api/anthropic/chat/stream - Streaming Google Gemini AI Chat Endpoint
@@ -5927,7 +5375,6 @@ app.get('/api/brain/leads', async (req, res) => {
         l.website,
         l.linkedin_url as "linkedInUrl",
         l.tags,
-        l.bant_score as "bantScore",
         CASE WHEN m.id IS NOT NULL THEN true ELSE false END as "hasBrain",
         m.ai_summary as "aiSummary"
       FROM leads l
@@ -6027,7 +5474,6 @@ app.get('/api/brain/leads/:id/context', async (req, res) => {
         website: lead.website,
         linkedInUrl: lead.linkedin_url || lead.linkedInUrl,
         tags: lead.tags || [],
-        bantScore: lead.bant_score || lead.bantScore || null,
         metadata: lead.metadata || {}
       },
       memory,
@@ -6263,7 +5709,6 @@ app.post('/api/brain/leads/:id/chat', async (req, res) => {
     const location = [lead.city, lead.state, lead.country].filter(Boolean).join(', ') || 'Vadodara, Gujarat, India';
     const designation = lead.designation || 'Key Decision Maker';
     const industry = lead.industry || 'Healthcare / Aesthetics / Digital Services';
-    const bantScore = lead.bantScore ?? lead.bant_score ?? '73';
     const stage = lead.pipeline_stage || lead.status || 'Active / New Enquiry';
 
     const formattedHistory = (Array.isArray(history) ? history : []).slice(-6).map(h => `${h.role === 'user' ? 'User' : 'Assistant'}: ${h.content}`).join('\n');
@@ -6527,7 +5972,6 @@ LEAD YOU ARE CURRENTLY HELPING WITH (from the user's sales pipeline):
 - Official Website: ${website}
 - Location: ${location}
 - Industry: ${industry}
-- BANT Qualification Score: ${bantScore} / 100
 - Pipeline Stage: ${stage}
 - AI Summary: ${memory.ai_summary || 'Actively engaged in evaluating sales automation solutions.'}
 - Deal Insights: ${memory.deal_insights || 'High decision authority.'}
@@ -6621,9 +6065,9 @@ BOOKING MEETINGS: You CAN book meetings/calls with the selected lead — it will
     else if (/location|city|address|where|place|country|state/i.test(lowerMsg)) {
       dynamicReply = `Location details for **${leadName}** at **${leadCompany}**:\n\n• **Location**: ${location}\n• **Timezone**: IST (UTC+5:30)`;
     }
-    // BANT Score / Pipeline Stage / Status
-    else if (/bant|score|stage|status|qualification/i.test(lowerMsg)) {
-      dynamicReply = `Pipeline & Qualification status for **${leadName}**:\n\n• **BANT Score**: ${bantScore} / 100\n• **Pipeline Stage**: ${stage}\n• **Lead Source**: ${lead.source || 'Inbound Website Enquiry'}\n• **Buying Intent**: High Intent (Evaluating sales automation & AI receptionist tools)`;
+    // Pipeline Stage / Status
+    else if (/score|stage|status|qualification/i.test(lowerMsg)) {
+      dynamicReply = `Pipeline & Qualification status for **${leadName}**:\n\n• **Pipeline Stage**: ${stage}\n• **Lead Source**: ${lead.source || 'Inbound Website Enquiry'}\n• **Buying Intent**: High Intent (Evaluating sales automation & AI receptionist tools)`;
     }
     // Company Info
     else if (/company|business|organization|firm/i.test(lowerMsg)) {
@@ -6631,11 +6075,11 @@ BOOKING MEETINGS: You CAN book meetings/calls with the selected lead — it will
     }
     // Who is Lead / Person details
     else if (/who|person|about|identity/i.test(lowerMsg)) {
-      dynamicReply = `**${leadName}** is ${designation} at **${leadCompany}** (${industry}).\n\n• **Role**: ${designation}\n• **Email**: ${email}\n• **Phone / WhatsApp**: ${phone}\n• **Website**: ${website}\n• **BANT Score**: ${bantScore} / 100\n• **AI Summary**: ${memory.ai_summary || 'Actively engaged in evaluating sales automation solutions.'}`;
+      dynamicReply = `**${leadName}** is ${designation} at **${leadCompany}** (${industry}).\n\n• **Role**: ${designation}\n• **Email**: ${email}\n• **Phone / WhatsApp**: ${phone}\n• **Website**: ${website}\n• **AI Summary**: ${memory.ai_summary || 'Actively engaged in evaluating sales automation solutions.'}`;
     }
     // All Details / Profile / Everything
     else if (/detail|dtail|all info|everything|profile|data/i.test(lowerMsg)) {
-      dynamicReply = `Here are all database records for **${leadName}** at **${leadCompany}**:\n\n• **Full Name**: ${leadName}\n• **Company**: ${leadCompany}\n• **Designation**: ${designation}\n• **Email**: ${email}\n• **Phone / WhatsApp**: ${phone}\n• **Website**: ${website}\n• **Location**: ${location}\n• **BANT Score**: ${bantScore} / 100\n• **Pipeline Stage**: ${stage}\n• **AI Summary**: ${memory.ai_summary || 'Evaluating sales automation solutions.'}\n• **Deal Insights**: ${memory.deal_insights || 'High decision authority.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
+      dynamicReply = `Here are all database records for **${leadName}** at **${leadCompany}**:\n\n• **Full Name**: ${leadName}\n• **Company**: ${leadCompany}\n• **Designation**: ${designation}\n• **Email**: ${email}\n• **Phone / WhatsApp**: ${phone}\n• **Website**: ${website}\n• **Location**: ${location}\n• **Pipeline Stage**: ${stage}\n• **AI Summary**: ${memory.ai_summary || 'Evaluating sales automation solutions.'}\n• **Deal Insights**: ${memory.deal_insights || 'High decision authority.'}\n• **Next Action**: ${memory.next_best_action || 'Schedule a 1-on-1 strategy call.'}`;
     }
     // Greetings (hi, hii, hiii, hello, heyy, etc.)
     else if (/^(hi+|hello+|hey+|helo+|greetings|yo|sup)$/i.test(lowerMsg) || lowerMsg.startsWith("hi") || lowerMsg.startsWith("hello") || lowerMsg.startsWith("hey")) {

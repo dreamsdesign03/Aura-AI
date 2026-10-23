@@ -88,53 +88,6 @@ export const STATUS_COLORS = {
 export function statusColor(status) {
     return STATUS_COLORS[status] ?? "bg-gray-100 text-gray-600 border-gray-200";
 }
-export function scoreToBandKey(score) {
-    if (score == null || score === 0)
-        return null;
-    if (score >= 85)
-        return "hot";
-    if (score >= 65)
-        return "qualified";
-    if (score >= 45)
-        return "nurture";
-    return "disqualify";
-}
-export function bandColorFromKey(key) {
-    switch (key) {
-        case "hot": return "text-red-600";
-        case "qualified": return "text-green-700";
-        case "nurture": return "text-amber-600";
-        case "disqualify": return "text-slate-500";
-        default: return "text-gray-400";
-    }
-}
-export function bandLabelFromKey(key) {
-    switch (key) {
-        case "hot": return "Hot";
-        case "qualified": return "Qualified";
-        case "nurture": return "Nurture";
-        case "disqualify": return "Disqualify";
-        default: return "Unscored";
-    }
-}
-export function bandHexFromKey(key, accentHex) {
-    const green = accentHex ?? "#16A34A";
-    switch (key) {
-        case "hot":
-        case "qualified": return green;
-        case "nurture": return "#DE377C";
-        default: return "#F87171";
-    }
-}
-export function bandGradientFromKey(key, accentHex) {
-    const green = accentHex ?? "#16A34A";
-    switch (key) {
-        case "hot":
-        case "qualified": return `linear-gradient(90deg, #1B4D36, ${green})`;
-        case "nurture": return "linear-gradient(90deg, #4A2800, #DE377C)";
-        default: return "linear-gradient(90deg, #3D0A0A, #F87171)";
-    }
-}
 export function auditScoreHex(score) {
     if (score >= 70)
         return "#22C55E";
@@ -170,51 +123,10 @@ export function healthScoreColor(score) {
         return "#DE377C";
     return "#dc2626";
 }
-export function bantSubScoreColor(pct) {
-    if (pct >= 70)
-        return "#16a34a";
-    if (pct >= 40)
-        return "#DE377C";
-    return "#dc2626";
-}
-export function bantBandMeta(score) {
-    const key = scoreToBandKey(score);
-    if (key === "hot")
-        return { label: "HOT — Book Meeting Now", color: "#EF4444" };
-    if (key === "qualified")
-        return { label: "QUALIFIED — Continue Outreach", color: "#22C55E" };
-    if (key === "nurture")
-        return { label: "NURTURE — Long-term pipeline", color: "#3B82F6" };
-    return { label: "DISQUALIFY — Remove from pipeline", color: "#EF4444" };
-}
 export function auditScoreTextClass(score) {
     if (score >= 70)
         return "text-teal-600";
     if (score >= 40)
         return "text-amber-600";
     return "text-red-600";
-}
-export function bantBandChipStyle(score) {
-    const key = scoreToBandKey(score);
-    if (key === "hot" || key === "qualified")
-        return { background: "#D1FAE5", color: "#065F46" };
-    if (key === "nurture")
-        return { background: "#FEF3C7", color: "#92400E" };
-    return { background: "#FEE2E2", color: "#991B1B" };
-}
-export function bantBandDarkColor(score, accentColor) {
-    const key = scoreToBandKey(score);
-    if (key === "hot" || key === "qualified")
-        return accentColor;
-    if (key === "nurture")
-        return "#DE377C";
-    return "#F87171";
-}
-export function bantBandDarkGradient(score, accentColor) {
-    const key = scoreToBandKey(score);
-    if (key === "hot" || key === "qualified")
-        return `linear-gradient(90deg, #1B4D36, ${accentColor})`;
-    if (key === "nurture")
-        return "linear-gradient(90deg, #4A2800, #DE377C)";
-    return "linear-gradient(90deg, #3D0A0A, #F87171)";
 }

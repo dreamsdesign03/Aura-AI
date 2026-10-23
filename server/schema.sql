@@ -62,10 +62,7 @@ CREATE TABLE IF NOT EXISTS leads (
   country TEXT DEFAULT 'United States',
   status TEXT DEFAULT 'New',
   pipeline_stage TEXT DEFAULT 'Lead In',
-  bant_score INT DEFAULT 50,
-  bantb_total INT DEFAULT 50,
   deal_value NUMERIC DEFAULT 0,
-  belief_reason TEXT,
   brand_audit_report TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()

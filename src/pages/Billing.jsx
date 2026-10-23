@@ -351,7 +351,6 @@ export default function Billing() {
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {[
             "AI Brand Audit Engine",
-            "BANT + Belief Lead Scoring",
             "AI Outreach Email Generator",
             "Pipeline Management",
             "Daily Sales Reports (08:30 IST)",

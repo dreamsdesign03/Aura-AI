@@ -6,9 +6,8 @@ import { useAuthUser } from "@/contexts/AuthContext";
 import { getListLeadsQueryKey, getLeadAssigneeCountsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { useBatchPoller } from "@/hooks/useBatchPoller";
 import { StatusBadge } from "@/components/Badge";
-import { formatDate, scoreToBandKey, bandHexFromKey, bantBandDarkColor, bantBandDarkGradient, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
+import { formatDate, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
 import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing } from "lucide-react";
@@ -17,7 +16,6 @@ import { AiBanner } from "@/components/AiLoader";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 import SendTemplateModal from "@/components/SendTemplateModal";
 import BulkCallModal from "@/components/BulkCallModal";
-const BANT_KEYS = ["budget", "authority", "need", "timeline"];
 const CSV_COLUMNS = ["firstName", "lastName", "email", "company", "designation", "industry", "country", "phone", "whatsapp", "website", "city", "companySize", "linkedInUrl", "notes"];
 const CSV_COLUMN_LABELS = {
     firstName: "First Name *",
@@ -56,7 +54,6 @@ export default function Leads() {
     const { toast } = useToast();
     const currentUser = useAuthUser();
     const [loadingLeads, setLoadingLeads] = useState(new Set());
-    const [scoringLeads, setScoringLeads] = useState(new Set());
     const [scoreErrors, setScoreErrors] = useState(new Map());
     const initiateWa = useInitiateWhatsApp();
     const initiateWaBulk = useInitiateWhatsAppBulk();
@@ -72,11 +69,9 @@ export default function Leads() {
     const [filterSource, setFilterSource] = useState("");
     const [filterIcp, setFilterIcp] = useState("");
     const [filterAssignedTo, setFilterAssignedTo] = useState(() => sessionStorage.getItem("leadsFilterAssignedTo") ?? "");
-    const [bantBatchResult, setBantBatchResult] = useState(null);
     const [enrichBatchResult, setEnrichBatchResult] = useState(null);
     const [sortCol, setSortCol] = useState(null);
     const [sortDir, setSortDir] = useState("desc");
-    const [bantPopoverLeadId, setBantPopoverLeadId] = useState(null);
     // Initialize page from URL so navigating to a lead and back returns to the same page
     const [page, setPage] = useState(() => {
         const n = Number(new URLSearchParams(window.location.search).get("page"));
@@ -213,14 +208,6 @@ export default function Leads() {
     const { data: icpsData } = useListIcps();
     const { data: teamMembers } = useListTeamMembers();
     const { data: assigneeCounts } = useLeadAssigneeCounts();
-    const bantBatchPoller = useBatchPoller({
-        buildPollUrl: (batchId) => `/api/bantb/batch/${batchId}`,
-        intervalMs: 30000,
-        onComplete: ({ scored }) => {
-            setBantBatchResult({ scored });
-            qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
-        },
-    });
     const enrichBatchPoller = useBatchPoller({
         buildPollUrl: (batchId) => `/api/leads/enrich-keywords-batch/${batchId}`,
         intervalMs: 30000,
@@ -548,8 +535,8 @@ export default function Leads() {
         })].sort((a, b) => {
         if (!sortCol)
             return 0;
-        const aVal = a[sortCol] ?? (sortCol === "bantScore" || sortCol === "sequenceDay" ? 0 : "");
-        const bVal = b[sortCol] ?? (sortCol === "bantScore" || sortCol === "sequenceDay" ? 0 : "");
+        const aVal = a[sortCol] ?? (sortCol === "sequenceDay" ? 0 : "");
+        const bVal = b[sortCol] ?? (sortCol === "sequenceDay" ? 0 : "");
         if (typeof aVal === "number" && typeof bVal === "number")
             return sortDir === "asc" ? aVal - bVal : bVal - aVal;
         return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
@@ -588,8 +575,8 @@ export default function Leads() {
         const navSorted = [...navFiltered].sort((a, b) => {
             if (!sortCol)
                 return 0;
-            const aVal = a[sortCol] ?? (sortCol === "bantScore" || sortCol === "sequenceDay" ? 0 : "");
-            const bVal = b[sortCol] ?? (sortCol === "bantScore" || sortCol === "sequenceDay" ? 0 : "");
+            const aVal = a[sortCol] ?? (sortCol === "sequenceDay" ? 0 : "");
+            const bVal = b[sortCol] ?? (sortCol === "sequenceDay" ? 0 : "");
             if (typeof aVal === "number" && typeof bVal === "number")
                 return sortDir === "asc" ? aVal - bVal : bVal - aVal;
             return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
@@ -655,7 +642,7 @@ export default function Leads() {
         "ID", "First Name", "Last Name", "Email", "Phone", "WhatsApp",
         "LinkedIn URL", "Company", "Designation", "Industry", "City", "Country",
         "Website", "Company Size", "Annual Revenue", "Source", "Status",
-        "BANT Score", "Keywords", "Notes", "Assigned To", "Created At",
+        "Keywords", "Notes", "Assigned To", "Created At",
     ];
     const buildExportRow = (l) => [
         l.id ?? "",
@@ -675,7 +662,6 @@ export default function Leads() {
         l.annualRevenue ?? "",
         l.source ?? "",
         l.status ?? "",
-        l.bantScore != null ? l.bantScore : "",
         Array.isArray(l.keywords) ? l.keywords.join(", ") : (l.keywords ?? ""),
         l.notes ?? "",
         l.assignedToName ?? "",
@@ -756,35 +742,6 @@ export default function Leads() {
             return;
         setImporting(true);
         importPaste.mutate({ data: { text: pasteText } });
-    };
-    const handleAiScore = async (leadId, e) => {
-        e.stopPropagation();
-        setScoringLeads((prev) => new Set([...prev, leadId]));
-        setScoreErrors((prev) => { const next = new Map(prev); next.delete(leadId); return next; });
-        try {
-            const base = "/api";
-            const res = await fetch(`${base}/qualify/${leadId}/ai`, { method: "POST", credentials: "include" });
-            if (!res.ok) {
-                const body = await res.json().catch(() => ({}));
-                const msg = (typeof body === "object" && body !== null && "error" in body && typeof body.error === "string")
-                    ? body.error
-                    : "Scoring failed";
-                setScoreErrors((prev) => { const next = new Map(prev); next.set(leadId, msg); return next; });
-                toast({ title: "Score failed", description: msg, variant: "destructive" });
-                return;
-            }
-            const updated = await res.json();
-            setAllLeads((prev) => prev.map((l) => l.id === leadId ? { ...l, bantScore: updated.bantScore, bantBreakdown: updated.bantBreakdown, status: updated.status } : l));
-            qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
-            toast({ title: "Lead scored", description: `BANT score: ${updated.bantScore}` });
-        }
-        catch {
-            setScoreErrors((prev) => { const next = new Map(prev); next.set(leadId, "Network error"); return next; });
-            toast({ title: "Score failed", description: "Network error", variant: "destructive" });
-        }
-        finally {
-            setScoringLeads((prev) => { const next = new Set(prev); next.delete(leadId); return next; });
-        }
     };
     const loadUnqualifiedLeads = async () => {
         setUnqualifiedLoading(true);
@@ -1161,7 +1118,7 @@ export default function Leads() {
             {enrichBatchPoller.isPolling ? `Enriching (${enrichBatchPoller.batchState.leadsCount})…` : "Enrich"}
           </button>
           {enrichBatchResult && !enrichBatchPoller.isPolling && (<span className="text-[11px] text-teal-600 font-medium">✓ {enrichBatchResult.enriched} enriched</span>)}
-          {sequences.length > 0 && (<div className="relative">
+{sequences.length > 0 && (<div className="relative">
               <button onClick={() => setShowAssignSeq((p) => !p)} className="text-[11px] text-purple-700 hover:text-purple-800 underline">Assign Seq ▾</button>
               {showAssignSeq && (<div className="absolute top-6 left-0 z-20 rounded border border-gray-200 bg-white shadow-xl w-48 overflow-hidden">
                   {sequences.map((seq) => (<button key={seq.id} onClick={async () => {
@@ -1172,30 +1129,8 @@ export default function Leads() {
                             setSelected([]);
                         }} className="w-full text-left px-3 py-2 text-xs text-gray-800 hover:bg-gray-50 border-b border-gray-100 last:border-0">{seq.name}</button>))}
                 </div>)}
-            </div>)}
-          <button disabled={bantBatchPoller.isPolling} onClick={async () => {
-                if (!confirm(`Submit BANTB async scoring for ${selected.length} lead(s)? Results arrive via Google Gemini AI Engine (~30s–few min).`))
-                    return;
-                try {
-                    const r = await fetch(`/api/bantb/batch`, { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "include", body: JSON.stringify({ leadIds: selected }) });
-                    const result = await r.json();
-                    if (!r.ok || !result.batchId) {
-                        toast({ title: result.error ?? "BANT batch submission failed", variant: "destructive" });
-                        return;
-                    }
-                    bantBatchPoller.startBatch(result.batchId, result.leadsCount ?? selected.length);
-                    setSelected([]);
-                    toast({ title: `BANTB scoring submitted for ${result.leadsCount ?? selected.length} lead(s)`, description: "Scores will update automatically when ready." });
-                }
-                catch {
-                    toast({ title: "BANT batch failed", variant: "destructive" });
-                }
-            }} className="flex items-center gap-1 text-[11px] text-violet-700 hover:text-violet-800 underline disabled:opacity-50">
-            {bantBatchPoller.isPolling ? <Loader2 className="w-3 h-3 animate-spin"/> : <Zap className="w-3 h-3"/>}
-            {bantBatchPoller.isPolling ? `Scoring (${bantBatchPoller.batchState.leadsCount})…` : "BANT Score"}
-          </button>
-          {bantBatchResult && !bantBatchPoller.isPolling && (<span className="text-[11px] text-violet-600 font-medium">✓ {bantBatchResult.scored} scored</span>)}
-          <button disabled={generatingReports} onClick={async () => {
+          </div>)}
+        <button disabled={generatingReports} onClick={async () => {
                 if (!confirm(`Generate brand reports for ${selected.length} lead(s)?`))
                     return;
                 setGeneratingReports(true);
@@ -2104,11 +2039,6 @@ export default function Leads() {
       {showFetch && <FetchLeads initialIcpId={fetchIcpId} onClose={() => { setShowFetch(false); setFetchIcpId(null); }}/>}
 
       {/* ── AI processing banners (fixed floating) ─────────────── */}
-      {bantBatchPoller.isPolling && (<AiBanner icon="zap" message={`AI scoring ${bantBatchPoller.batchState.leadsCount} leads…`} subMessages={[
-                "Running BANTB analysis via Google Gemini AI Engine",
-                "Budget · Authority · Need · Timeline · Belief",
-                "Scores will update automatically when ready",
-            ]}/>)}
       {generatingReports && (<AiBanner icon="sparkles" message="Generating brand audit reports…" subMessages={[
                 "Crawling prospect websites",
                 "Analysing digital presence & trust signals",
@@ -2817,7 +2747,7 @@ function ExportModal({ rowCount, defaultName, onExport, onClose, }) {
           <div className="px-3 py-3 rounded-lg bg-green-50 border border-green-100 text-[11px] text-green-800 space-y-1">
             <div className="font-semibold text-green-900 mb-1">Columns included in export</div>
             <div className="text-green-700 leading-relaxed">
-              ID · First Name · Last Name · Email · Phone · WhatsApp · LinkedIn URL · Company · Designation · Industry · City · Country · Website · Company Size · Annual Revenue · Source · Status · BANT Score · Keywords · Notes · Assigned To · Created At
+              ID · First Name · Last Name · Email · Phone · WhatsApp · LinkedIn URL · Company · Designation · Industry · City · Country · Website · Company Size · Annual Revenue · Source · Status · Keywords · Notes · Assigned To · Created At
             </div>
           </div>
         </div>
