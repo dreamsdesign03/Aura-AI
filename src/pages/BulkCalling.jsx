@@ -174,7 +174,8 @@ function BulkCallDetail({ id, onBack }) {
   // Tick endpoint - fires every 8s while campaign is ON to dispatch next call
   useEffect(() => {
       let interval;
-      if (campaign && campaign.enabled && campaign.status !== 'completed') {
+      // Campaigns launched on Sarvam are dialed by Sarvam, so no browser tick needed.
+      if (campaign && campaign.enabled && campaign.status !== 'completed' && !campaign.sarvam_campaign_id) {
           interval = setInterval(async () => {
               try {
                 const r = await fetch(`/api/bulk-calling/tick`, { method: "POST" });
@@ -190,7 +191,7 @@ function BulkCallDetail({ id, onBack }) {
           }, 8000);
       }
       return () => clearInterval(interval);
-  }, [campaign?.enabled, campaign?.status]);
+  }, [campaign?.enabled, campaign?.status, campaign?.sarvam_campaign_id]);
 
 
   const toggleCampaign = async (enabled) => {
@@ -206,7 +207,7 @@ function BulkCallDetail({ id, onBack }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ enabled: false })
       });
-      if (!res.ok) throw new Error("Toggle failed");
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Toggle failed");
       toast({ title: `Campaign Paused` });
       loadDetail();
     } catch (err) {
@@ -222,7 +223,7 @@ function BulkCallDetail({ id, onBack }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ enabled: true })
         });
-        if (!res.ok) throw new Error("Toggle failed");
+        if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Toggle failed");
         toast({ title: `Campaign Started!` });
         // Kick off first tick
         fetch(`/api/bulk-calling/tick`, { method: "POST" }).catch(()=>null);
@@ -481,7 +482,8 @@ function BulkCallDetail({ id, onBack }) {
                                      <div className="text-xs font-bold text-gray-800 mb-1">Outcome: <span className="text-pink-600">{a.outcome}</span></div>
                                      
                                      {/* AI Conversation Transcript */}
-                                     {transcript && transcript.length > 0 && (
+                                     <CallConversation interactionId={a.interaction_id} />
+                                     {!a.interaction_id && transcript && transcript.length > 0 && (
                                          <div className="mb-3">
                                              <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
                                              <div className="space-y-2 max-h-60 overflow-y-auto">
@@ -518,6 +520,54 @@ function BulkCallDetail({ id, onBack }) {
          </div>
        )}
       
+    </div>
+  );
+}
+
+// Full conversation (original language) + audio, loaded on demand from Sarvam.
+function CallConversation({ interactionId }) {
+  const [msgs, setMsgs] = useState(null);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  if (!interactionId) return null;
+  const iid = encodeURIComponent(interactionId);
+
+  const load = async () => {
+    setLoading(true);
+    setErr("");
+    try {
+      const r = await fetch(`/api/bulk-calling/calls/transcript?iid=${iid}`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "Could not load conversation");
+      setMsgs(d.messages || []);
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mb-3">
+      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
+      {msgs === null ? (
+        <button onClick={load} disabled={loading} className="text-[11px] font-bold text-pink-600 hover:underline flex items-center gap-1">
+          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronRight className="w-3 h-3" />} View full conversation
+        </button>
+      ) : (
+        <>
+          {msgs.length === 0 && <div className="text-[11px] text-gray-400">No transcript available.</div>}
+          <div className="space-y-2 max-h-72 overflow-y-auto">
+            {msgs.map((m, idx) => (
+              <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${m.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
+                <span className="font-medium text-[10px] text-gray-500">{m.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {m.content}
+              </div>
+            ))}
+          </div>
+          <audio controls preload="none" src={`/api/bulk-calling/calls/recording?iid=${iid}`} className="w-full mt-2" />
+        </>
+      )}
+      {err && <div className="text-[11px] text-red-500 mt-1">{err}</div>}
     </div>
   );
 }

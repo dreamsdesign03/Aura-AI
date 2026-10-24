@@ -404,6 +404,9 @@ async function seedAdminUser() {
         transcript JSONB,
         raw_json JSONB
       );
+
+      ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS sarvam_campaign_id TEXT;
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS interaction_id TEXT;
     `);
     console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, ai_calls & bulk calling.');
 

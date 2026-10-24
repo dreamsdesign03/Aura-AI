@@ -1,9 +1,118 @@
 const express = require('express');
 const db = require('./db');
 const { normalizePhone, isCallingHours } = require('./call-utils');
-const { dispatchSarvamCall, buildAgentVars } = require('./sarvam');
+const {
+  dispatchSarvamCall, buildAgentVars, buildOutboundGreeting,
+  campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
+  fetchSarvamTranscript, fetchSarvamRecording, validInteractionId
+} = require('./sarvam');
 
 const router = express.Router();
+
+// Same cookie check the rest of the app uses (aura_user_email must belong to a user).
+async function requireUserCookie(req, res, next) {
+  try {
+    const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
+    if (!match) return res.status(401).json({ error: 'Unauthenticated' });
+    const u = await db.query('SELECT id FROM users WHERE email = $1', [decodeURIComponent(match[1])]);
+    if (u.rows.length === 0) return res.status(401).json({ error: 'Unauthenticated' });
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+// Full conversation (original language) for one call, straight from Sarvam.
+router.get('/calls/transcript', requireUserCookie, async (req, res) => {
+  try {
+    const iid = String(req.query.iid || '');
+    if (!validInteractionId(iid)) return res.status(400).json({ error: 'invalid iid' });
+    res.json({ messages: await fetchSarvamTranscript(iid) });
+  } catch (err) {
+    res.status(err.status === 429 ? 429 : 502).json({ error: err.message });
+  }
+});
+
+// Call audio (WAV), proxied so the API key never reaches the browser.
+router.get('/calls/recording', requireUserCookie, async (req, res) => {
+  try {
+    const iid = String(req.query.iid || '');
+    if (!validInteractionId(iid)) return res.status(400).json({ error: 'invalid iid' });
+    const upstream = await fetchSarvamRecording(iid);
+    res.set('Content-Type', 'audio/wav');
+    res.set('Cache-Control', 'private, max-age=3600');
+    res.send(Buffer.from(await upstream.arrayBuffer()));
+  } catch (err) {
+    res.status(err.status === 404 ? 404 : 502).json({ error: err.message });
+  }
+});
+
+// Create the Sarvam campaign for a draft AuraAI campaign and stream its pending contacts.
+async function launchSarvamCampaign(camp) {
+  const pending = await db.query("SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND status = 'pending' ORDER BY id", [camp.id]);
+  if (pending.rows.length === 0) {
+    const e = new Error('No pending contacts to call');
+    e.status = 400;
+    throw e;
+  }
+
+  const days = Number(process.env.SARVAM_CAMPAIGN_DAYS || 2);
+  const sc = await createSarvamCampaign({
+    name: `AuraAI-${camp.id}-${camp.name || 'bulk'}`,
+    description: 'AuraAI bulk calling campaign ' + camp.id,
+    attemptsPerSecond: Number(process.env.SARVAM_CAMPAIGN_APS || 0.5),
+    maxRetries: Math.max(0, (camp.max_attempts || 2) - 1),
+    retryIntervalMin: camp.retry_delay_min || 30,
+    startIso: new Date(Date.now() + 60 * 1000).toISOString(),
+    endIso: new Date(Date.now() + days * 24 * 3600 * 1000).toISOString(),
+    startTime: process.env.SARVAM_CALL_START || '10:00',
+    endTime: process.env.SARVAM_CALL_END || '19:30',
+    webhookUrl: process.env.SARVAM_WEBHOOK_URL,
+    metadata: { kind: 'bulk', campaign_id: camp.id }
+  });
+  const sarvamId = sc.campaign_id;
+
+  try {
+    const users = pending.rows.map(c => {
+      const vars = buildAgentVars({ name: c.name, phone: c.phone10 || c.phone_e164, email: c.email });
+      const greeting = buildOutboundGreeting(vars.userName);
+      const user = { user_phone_number: c.phone_e164, user_identifier: String(c.id), app_variables: vars };
+      if (greeting) user.app_overrides = { initial_bot_message: greeting };
+      return user;
+    });
+    await streamSarvamCohort(sarvamId, `aura-${camp.id}`, users);
+  } catch (err) {
+    await setSarvamCampaignStatus(sarvamId, 'cancel').catch(() => null);
+    throw err;
+  }
+
+  await db.query(
+    "UPDATE bulk_campaigns SET sarvam_campaign_id = $1, enabled = TRUE, status = 'running', started_at = COALESCE(started_at, NOW()), error_message = NULL WHERE id = $2",
+    [sarvamId, camp.id]
+  );
+}
+
+// Mirror Sarvam's campaign state into our row (throttled, best effort).
+const lastSync = new Map();
+async function syncSarvamStatus(camp) {
+  if (!camp.sarvam_campaign_id || !['running', 'waiting'].includes(camp.status)) return camp;
+  if (Date.now() - (lastSync.get(camp.id) || 0) < 30000) return camp;
+  lastSync.set(camp.id, Date.now());
+  try {
+    const sc = await getSarvamCampaign(camp.sarvam_campaign_id);
+    if (sc.status === 'ended') {
+      await db.query("UPDATE bulk_campaigns SET enabled = FALSE, status = 'completed', finished_at = NOW() WHERE id = $1", [camp.id]);
+      return { ...camp, enabled: false, status: 'completed' };
+    }
+    if (sc.status === 'cancelled' || sc.status === 'paused') {
+      await db.query("UPDATE bulk_campaigns SET enabled = FALSE, status = 'stopped' WHERE id = $1", [camp.id]);
+      return { ...camp, enabled: false, status: 'stopped' };
+    }
+  } catch (err) {
+    console.warn('[Bulk] Sarvam status sync failed:', err.message);
+  }
+  return camp;
+}
 
 async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingUrl, transcript) {
   await db.query(
@@ -155,11 +264,12 @@ router.get('/:id', async (req, res) => {
     const id = req.params.id;
     const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
     if (campRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
+    const campaign = await syncSarvamStatus(campRes.rows[0]);
     const statsRes = await db.query(
       'SELECT status, COUNT(*) as count FROM bulk_contacts WHERE campaign_id = $1 GROUP BY status', [id]
     );
     const stats = statsRes.rows.reduce((acc, row) => ({ ...acc, [row.status]: parseInt(row.count) }), {});
-    res.json({ campaign: campRes.rows[0], stats });
+    res.json({ campaign, stats });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -189,10 +299,32 @@ router.get('/:id/contacts/:contactId/attempts', async (req, res) => {
 router.post('/:id/toggle', async (req, res) => {
   try {
     const { enabled } = req.body;
+
+    if (campaignEnabled()) {
+      const cRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [req.params.id]);
+      if (cRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
+      const camp = cRes.rows[0];
+      if (camp.status === 'completed') return res.status(409).json({ error: 'Campaign already completed' });
+
+      if (!!enabled && !camp.sarvam_campaign_id) {
+        await launchSarvamCampaign(camp); // first Start: create campaign + stream contacts
+        return res.json({ success: true, mode: 'campaign' });
+      }
+      if (camp.sarvam_campaign_id) {
+        await setSarvamCampaignStatus(camp.sarvam_campaign_id, enabled ? 'resume' : 'pause');
+        await db.query('UPDATE bulk_campaigns SET enabled = $1, status = $2 WHERE id = $3', [!!enabled, enabled ? 'running' : 'stopped', camp.id]);
+        return res.json({ success: true, mode: 'campaign' });
+      }
+      // Pausing a draft that was never launched: fall through to the local update.
+    }
+
     await db.query('UPDATE bulk_campaigns SET enabled = $1, status = CASE WHEN $1 = TRUE THEN \'running\' ELSE \'stopped\' END WHERE id = $2', [!!enabled, req.params.id]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    // Never forward Sarvam's 401/403 as-is: the browser would read it as a logout.
+    const code = [400, 409].includes(err.status) ? err.status : (err.status ? 502 : 500);
+    console.error('[Bulk Toggle] failed:', err.message);
+    res.status(code).json({ error: err.message });
   }
 });
 
@@ -216,7 +348,8 @@ router.post('/tick', async (req, res) => {
 
   let actions = [];
   try {
-    const campaigns = await db.query(`SELECT * FROM bulk_campaigns WHERE enabled = TRUE`);
+    // Campaigns launched on Sarvam are dialed by Sarvam itself, never by this loop.
+    const campaigns = await db.query(`SELECT * FROM bulk_campaigns WHERE enabled = TRUE AND sarvam_campaign_id IS NULL`);
     console.log('[Bulk Tick] 📋 enabled campaigns=' + campaigns.rows.length);
     
     for (const campaign of campaigns.rows) {

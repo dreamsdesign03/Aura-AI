@@ -1,8 +1,68 @@
 const express = require('express');
 const db = require('./db');
-const { mapSarvamOutcome } = require('./sarvam');
+const { mapSarvamOutcome, adaptCampaignPayload } = require('./sarvam');
 
 const router = express.Router();
+
+// Audio is served through our own proxy route (Sarvam needs the API key header).
+function recordingProxyUrl(interactionId) {
+  if (!interactionId) return null;
+  const base = String(process.env.PUBLIC_APP_URL || '').replace(/\/$/, '');
+  return `${base}/api/bulk-calling/calls/recording?iid=${encodeURIComponent(interactionId)}`;
+}
+
+// Webhook for a call attempt that belongs to a Sarvam CAMPAIGN (not Instant Outbound).
+// There is no pre-inserted bulk_attempts row here, so the attempt is created now.
+async function handleCampaignWebhook(campaignId, payload) {
+  const { normalizePhone } = require('./call-utils');
+  const { resolveAttempt } = require('./bulk-calling');
+
+  // user_identifier is our bulk_contacts.id (set when the cohort was streamed)
+  let contact = null;
+  const cid = parseInt(payload.user_identifier, 10);
+  if (Number.isInteger(cid)) {
+    const r = await db.query('SELECT * FROM bulk_contacts WHERE id = $1 AND campaign_id = $2', [cid, campaignId]);
+    contact = r.rows[0] || null;
+  }
+  if (!contact) {
+    const phoneObj = normalizePhone(payload.user_phone_number || '');
+    if (phoneObj) {
+      const r = await db.query('SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND phone10 = $2 ORDER BY id LIMIT 1', [campaignId, phoneObj.local]);
+      contact = r.rows[0] || null;
+    }
+  }
+  if (!contact) {
+    console.log('[Sarvam webhook] campaign webhook: no contact matched, campaign=' + campaignId + ' attempt_id=' + payload.attempt_id);
+    return;
+  }
+
+  const { callStatus, outcome, summary, confirmedSlot, sentiment } = mapSarvamOutcome(adaptCampaignPayload(payload));
+  const interactionId = payload.interaction_id || null;
+
+  // Sarvam can re-deliver a webhook: one row per attempt_id.
+  const existing = await db.query('SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND request_id = $2 LIMIT 1', [campaignId, payload.attempt_id]);
+  let attempt = existing.rows[0];
+  if (!attempt) {
+    const attemptNo = (Number(payload.retry_attempt) || 0) + 1;
+    const ins = await db.query(
+      `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, request_id, started_at, duration_sec, interaction_id, raw_json)
+       VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, NOW()), $6, $7, $8) RETURNING *`,
+      [contact.id, campaignId, attemptNo, payload.attempt_id, payload.start_datetime || payload.executed_at || null,
+        payload.duration != null ? Math.round(payload.duration) : null, interactionId, JSON.stringify(payload)]
+    );
+    attempt = ins.rows[0];
+    await db.query(
+      'UPDATE bulk_contacts SET attempts = GREATEST(attempts, $1), last_attempt_at = NOW(), last_request_id = $2 WHERE id = $3',
+      [attemptNo, payload.attempt_id, contact.id]
+    );
+  }
+
+  if (confirmedSlot) {
+    await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+  }
+  await resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingProxyUrl(interactionId), payload.interaction_transcript || null);
+  console.log(`[Sarvam webhook] campaign attempt saved: contact=${contact.id} status=${callStatus} outcome=${outcome} next=${payload.next_action_status || 'terminal'}`);
+}
 
 // WEBHOOK — Sarvam posts here once per attempt. There is no signature header,
 // so the URL is protected with a ?secret= query param.
@@ -21,6 +81,15 @@ router.post('/', async (req, res) => {
     const userPhone = payload.user_config?.user_phone_number || payload.user_phone_number || '';
     console.log('[Sarvam webhook] received attempt_id=' + payload.attempt_id + ' interaction_id=' + payload.interaction_id + ' status=' + payload.status + ' disposition=' + disposition + ' userPhone=' + userPhone);
     console.log('[Sarvam webhook] FULL payload (truncated):', JSON.stringify(payload).slice(0, 1500));
+
+    // ── STEP 0: attempt that belongs to a Sarvam CAMPAIGN launched from AuraAI ──
+    if (payload.campaign_id) {
+      const camp = await db.query('SELECT id FROM bulk_campaigns WHERE sarvam_campaign_id = $1', [String(payload.campaign_id)]);
+      if (camp.rows.length > 0) {
+        await handleCampaignWebhook(camp.rows[0].id, payload);
+        return res.status(200).json({ success: true });
+      }
+    }
 
     // ── STEP 1: Try to match a BULK attempt — multiple strategies ──
     let bulkAttempt = null;
@@ -92,9 +161,7 @@ router.post('/', async (req, res) => {
 
       const transcript = payload.interaction_transcript || null;
       const interactionId = payload.interaction_id || null;
-      const recordingUrl = interactionId
-        ? `https://apps.sarvam.ai/api/interactions/v1/${interactionId}/recording`
-        : null;
+      const recordingUrl = recordingProxyUrl(interactionId);
       console.log(`[Sarvam webhook] 📝 Transcript msgs=${transcript ? transcript.length : 0}, interactionId=${interactionId}`);
 
       if (confirmedSlot) {
@@ -107,6 +174,9 @@ router.post('/', async (req, res) => {
 
       const { resolveAttempt } = require('./bulk-calling');
       await resolveAttempt(bulkAttempt, callStatus, outcome, summary, sentiment, recordingUrl, transcript);
+      if (interactionId) {
+        await db.query('UPDATE bulk_attempts SET interaction_id = $1 WHERE id = $2', [interactionId, bulkAttempt.id]);
+      }
       console.log(`[Sarvam webhook] ✅ resolveAttempt done for attempt ${bulkAttempt.id}`);
 
       return res.status(200).json({ success: true });

@@ -214,4 +214,154 @@ function mapSarvamOutcome(payload) {
   return { callStatus, outcome, summary, confirmedSlot, sentiment };
 }
 
-module.exports = { dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName };
+// ───────────────────────── Sarvam CAMPAIGN mode ─────────────────────────
+// Sarvam runs the dialing, schedule and retries itself; AuraAI only creates the
+// campaign, streams contacts, pauses/resumes it, and reads results via webhook.
+
+const SCHEDULING_BASE = 'https://apps.sarvam.ai/api/scheduling/v1';
+const ANALYTICS_BASE = 'https://apps.sarvam.ai/api/analytics/v1';
+
+function campaignEnabled() {
+  return String(process.env.SARVAM_USE_CAMPAIGNS || 'true').toLowerCase() !== 'false';
+}
+
+function requireSarvamEnv(names) {
+  const missing = names.filter(n => !process.env[n]);
+  if (missing.length) throw new Error('Missing required Sarvam configuration: ' + missing.join(', '));
+}
+
+async function sarvamJson(method, url, body) {
+  const res = await fetch(url, {
+    method,
+    headers: { 'X-API-Key': sanitizeApiKey(process.env.SARVAM_API_KEY), 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body)
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const err = new Error('Sarvam rejected the request (' + res.status + '): ' + extractErrorMessage(data, res));
+    err.status = res.status;
+    err.body = data;
+    throw err;
+  }
+  return data;
+}
+
+function schedulingUrl(path) {
+  return `${SCHEDULING_BASE}/orgs/${process.env.SARVAM_ORG_ID}/workspaces/${process.env.SARVAM_WORKSPACE_ID}${path}`;
+}
+
+async function createSarvamCampaign({ name, description, attemptsPerSecond, maxRetries, retryIntervalMin, startIso, endIso, startTime, endTime, webhookUrl, metadata }) {
+  requireSarvamEnv(['SARVAM_API_KEY', 'SARVAM_ORG_ID', 'SARVAM_WORKSPACE_ID', 'SARVAM_APP_ID', 'SARVAM_APP_VERSION', 'SARVAM_CONNECTION_ID', 'SARVAM_AGENT_NUMBER']);
+  const body = {
+    name: String(name || 'AuraAI campaign').slice(0, 100),
+    description: description ? String(description).slice(0, 150) : null,
+    app_config: {
+      app_id: process.env.SARVAM_APP_ID,
+      app_type: 'agent',
+      app_version: Number(process.env.SARVAM_APP_VERSION),
+      attempts_per_second: attemptsPerSecond,
+      connection_configs: [{
+        connection_id: process.env.SARVAM_CONNECTION_ID,
+        agent_phone_number: process.env.SARVAM_AGENT_NUMBER
+      }],
+      retry_config: {
+        max_retries: maxRetries,
+        retry_interval_minutes: retryIntervalMin,
+        retry_on: { busy: { enabled: true }, no_answer: { enabled: true }, failed: { enabled: true } }
+      }
+    },
+    start_timestamp: startIso,
+    end_timestamp: endIso,
+    allowed_schedule: {
+      allowed_start_time: startTime,
+      allowed_end_time: endTime,
+      allowed_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      timezone: 'Asia/Kolkata'
+    },
+    webhook_config: { url: webhookUrl, metadata: metadata || {} }
+  };
+  const url = schedulingUrl('/campaigns');
+  try {
+    return await sarvamJson('POST', url, body);
+  } catch (err) {
+    // The Sarvam docs disagree on where webhook_config lives. If the top-level
+    // placement is rejected, retry once with it inside app_config.
+    if (err.status === 422 && /webhook/i.test(JSON.stringify(err.body || ''))) {
+      const alt = { ...body, app_config: { ...body.app_config, webhook_config: body.webhook_config } };
+      delete alt.webhook_config;
+      return sarvamJson('POST', url, alt);
+    }
+    throw err;
+  }
+}
+
+// users: [{ user_phone_number, user_identifier, app_variables, app_overrides }]. Max 1000 per request.
+async function streamSarvamCohort(campaignId, cohortName, users) {
+  const results = [];
+  for (let i = 0; i < users.length; i += 1000) {
+    const part = Math.floor(i / 1000) + 1;
+    const name = (cohortName + (users.length > 1000 ? '-p' + part : '')).replace(/[^\w\- ]/g, '').slice(0, 50);
+    results.push(await sarvamJson('POST', schedulingUrl(`/campaigns/${campaignId}/cohorts/stream`), {
+      name,
+      users: users.slice(i, i + 1000)
+    }));
+  }
+  return results;
+}
+
+// action: 'pause' | 'resume' | 'cancel'
+function setSarvamCampaignStatus(campaignId, action) {
+  return sarvamJson('PUT', schedulingUrl(`/campaigns/${campaignId}/status`), { action });
+}
+
+function getSarvamCampaign(campaignId) {
+  return sarvamJson('GET', schedulingUrl(`/campaigns/${campaignId}`));
+}
+
+function validInteractionId(id) {
+  return /^\d{8}\/[\w-]+$/.test(String(id || ''));
+}
+
+function analyticsUrl(kind, interactionId) {
+  requireSarvamEnv(['SARVAM_API_KEY', 'SARVAM_ORG_ID', 'SARVAM_WORKSPACE_ID', 'SARVAM_APP_ID']);
+  return `${ANALYTICS_BASE}/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/${kind}/${interactionId}`;
+}
+
+// Full conversation in the original language: [{ turn_id, role, content, language_name }]
+async function fetchSarvamTranscript(interactionId) {
+  if (!validInteractionId(interactionId)) throw new Error('Invalid interaction_id');
+  const data = await sarvamJson('GET', analyticsUrl('transcripts', interactionId));
+  return Array.isArray(data?.messages) ? data.messages : [];
+}
+
+// Returns the raw fetch Response (audio/wav) or throws.
+async function fetchSarvamRecording(interactionId) {
+  if (!validInteractionId(interactionId)) throw new Error('Invalid interaction_id');
+  const res = await fetch(analyticsUrl('recordings', interactionId), {
+    headers: { 'X-API-Key': sanitizeApiKey(process.env.SARVAM_API_KEY) }
+  });
+  if (!res.ok) {
+    const err = new Error('Recording not available (' + res.status + ')');
+    err.status = res.status;
+    throw err;
+  }
+  return res;
+}
+
+// Campaign webhook payloads use connectivity_status/completion_status instead of
+// `status`. Adapt them to the shape mapSarvamOutcome() already understands.
+function adaptCampaignPayload(payload) {
+  const connected = payload.connectivity_status === 'connected' || !!payload.interaction_id;
+  const status = payload.status || (connected ? 'completed' : (payload.connectivity_status || payload.completion_status || 'failed'));
+  return {
+    ...payload,
+    status,
+    final_agent_variables: { ...(payload.output_agent_variables || {}), ...(payload.final_agent_variables || {}) }
+  };
+}
+
+module.exports = {
+  dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName,
+  campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
+  fetchSarvamTranscript, fetchSarvamRecording, validInteractionId, adaptCampaignPayload
+};
