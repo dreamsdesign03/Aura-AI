@@ -262,6 +262,7 @@ async function createSarvamCampaign({ name, description, attemptsPerSecond, maxR
       attempts_per_second: attemptsPerSecond,
       connection_configs: [{
         connection_id: process.env.SARVAM_CONNECTION_ID,
+        phone_number: process.env.SARVAM_AGENT_NUMBER,
         agent_phone_number: process.env.SARVAM_AGENT_NUMBER
       }],
       retry_config: {
