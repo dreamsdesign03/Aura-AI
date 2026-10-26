@@ -133,6 +133,15 @@ function BulkCallDetail({ id, onBack }) {
   const [attempts, setAttempts] = useState([]);
 
   const [showConfirm, setShowConfirm] = useState(false);
+  const loadAttempts = async (contactId) => {
+    try {
+      const res = await fetch(`/api/bulk-calling/${id}/contacts/${contactId}/attempts`);
+      const data = await res.json();
+      setAttempts(Array.isArray(data.attempts) ? data.attempts : []);
+    } catch (e) {
+      setAttempts([]);
+    }
+  };
 
   const loadDetail = async () => {
     try {
@@ -437,7 +446,15 @@ function BulkCallDetail({ id, onBack }) {
               </thead>
               <tbody className="divide-y divide-gray-50 text-xs">
                 {filteredContacts.map((c, i) => (
-                  <tr key={i} onClick={() => setDrawerContact(c)} className="hover:bg-blue-50/50 cursor-pointer transition-colors">
+                  <tr
+                    key={i}
+                    onClick={() => {
+                      setDrawerContact(c);
+                      setAttempts([]); 
+                      loadAttempts(c.id); 
+                    }}
+                    className="hover:bg-blue-50/50 cursor-pointer transition-colors"
+                  >
                     <td className="px-5 py-3">
                       <div className="font-bold text-gray-900">{c.name || 'Unknown'}</div>
                       {c.company && <div className="text-gray-500 text-[10px]">{c.company}</div>}
@@ -493,18 +510,18 @@ function BulkCallDetail({ id, onBack }) {
 
           <div className="flex-1 overflow-auto p-5 space-y-6 bg-gray-50/30">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Attempt History</h4>
-            {attempts.length === 0 ? (
+            {(!Array.isArray(attempts) || attempts.length === 0) ? (
               <div className="text-sm text-gray-400 text-center py-8">No calls placed yet.</div>
             ) : (
               <div className="space-y-4">
-                {attempts.map(a => {
-                  const transcript = a.transcript || [];
+                {attempts.map((a, idx) => {
+                  const transcript = Array.isArray(a.transcript) ? a.transcript : [];
                   const recUrl = a.recording_url || (a.interaction_id ? `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(a.interaction_id)}` : null);
 
                   return (
-                    <div key={a.id || a.attempt_no} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                    <div key={a.id || idx} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                       <div className="absolute -left-2 -top-2 w-5 h-5 bg-pink-100 text-pink-700 rounded-full flex items-center justify-center text-[10px] font-bold">
-                        {a.attempt_no || 1}
+                        {a.attempt_no || idx + 1}
                       </div>
 
                       <div className="flex justify-between items-start mb-2">
@@ -551,12 +568,12 @@ function BulkCallDetail({ id, onBack }) {
                       {a.interaction_id ? (
                         <CallConversation interactionId={a.interaction_id} />
                       ) : (
-                        transcript && transcript.length > 0 && (
+                        transcript.length > 0 && (
                           <div className="mb-3">
                             <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
                             <div className="space-y-2 max-h-60 overflow-y-auto">
-                              {transcript.map((msg, idx) => (
-                                <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
+                              {transcript.map((msg, mIdx) => (
+                                <div key={mIdx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
                                   <span className="font-medium text-[10px] text-gray-500">{msg.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {msg.en_text || msg.content || msg.text}
                                 </div>
                               ))}
