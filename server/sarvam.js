@@ -177,7 +177,7 @@ function mapSarvamOutcome(payload) {
 
   // Call was NOT picked up
   if (status === 'no_answer' || status === 'noanswer' || status === 'no-answer' ||
-      status === 'busy' || status === 'failed' || status === 'canceled' || status === 'cancelled') {
+    status === 'busy' || status === 'failed' || status === 'canceled' || status === 'cancelled') {
     callStatus = status === 'noanswer' || status === 'no-answer' ? 'no_answer' : status;
     outcome = callStatus;
   } else {
@@ -262,6 +262,8 @@ async function createSarvamCampaign({ name, description, attemptsPerSecond, maxR
       attempts_per_second: attemptsPerSecond,
       connection_configs: [{
         connection_id: process.env.SARVAM_CONNECTION_ID,
+        phone_numbers: [process.env.SARVAM_AGENT_NUMBER],
+        weight: 1,
         phone_number: process.env.SARVAM_AGENT_NUMBER,
         agent_phone_number: process.env.SARVAM_AGENT_NUMBER
       }],
