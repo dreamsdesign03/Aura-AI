@@ -26,27 +26,13 @@ async function requireUserCookie(req, res, next) {
 }
 
 // Full conversation (original language) for one call, straight from Sarvam.
-router.get('/calls/transcript', async (req, res) => {
+router.get('/calls/transcript', requireUserCookie, async (req, res) => {
   try {
     const iid = String(req.query.iid || '');
-    if (!iid) return res.status(400).json({ error: 'invalid iid' });
-
-    let messages = [];
-    try {
-      messages = await fetchSarvamTranscript(iid);
-    } catch (e) {
-      console.warn('Transcript upstream error:', e.message);
-      // Fallback message જો Sarvam analytics keys અલગ પોર્ટલ પર હોય
-      messages = [
-        { role: 'assistant', content: 'નમસ્તે! ડૉ. આદિત્ય શાહ ક્લિનિકમાંથી કેતકી વાત કરું છું.' },
-        { role: 'user', content: 'હા બોલો.' },
-        { role: 'assistant', content: 'અમે તમારી કન્સલ્ટેશન એપોઇન્ટમેન્ટ કન્ફર્મેશન માટે કૉલ કર્યો હતો.' }
-      ];
-    }
-
-    res.json({ messages });
+    if (!validInteractionId(iid)) return res.status(400).json({ error: 'invalid iid' });
+    res.json({ messages: await fetchSarvamTranscript(iid) });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.status(err.status === 429 ? 429 : 502).json({ error: err.message });
   }
 });
 
@@ -61,156 +47,6 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
     res.send(Buffer.from(await upstream.arrayBuffer()));
   } catch (err) {
     res.status(err.status === 404 ? 404 : 502).json({ error: err.message });
-  }
-  // POST /api/bulk-calling/:id/sync - Existing call status Sarvam Analytics mathi sync karva mate
-  // POST /api/bulk-calling/sync or POST /api/bulk-calling/:id/sync
-  router.post(['/sync', '/:id/sync'], async (req, res) => {
-    try {
-      const campaignId = req.params.id || req.query.id || req.body.campaignId;
-      if (!campaignId) {
-        return res.status(400).json({ error: 'Missing campaign id' });
-      }
-
-      const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [campaignId]);
-      if (campRes.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
-      const camp = campRes.rows[0];
-
-      if (!camp.sarvam_campaign_id) {
-        return res.status(400).json({ error: 'No sarvam_campaign_id linked with this campaign' });
-      }
-
-      // Sarvam Analytics interactions fetch
-      // Analytics ane Conversation mate navi Samvaad Key vaparvi:
-      const apiKey = (process.env.SARVAM_SAMVAAD_API_KEY || process.env.SARVAM_API_KEY || '').trim();
-      const orgId = process.env.SARVAM_ORG_ID;
-      const wsId = process.env.SARVAM_WORKSPACE_ID;
-      const appId = process.env.SARVAM_APP_ID;
-
-      let attempts = [];
-
-      // Option A: Direct Interactions query
-      try {
-        const resInteractions = await fetch(
-          `https://apps.sarvam.ai/api/analytics/v1/${orgId}/${wsId}/${appId}/interactions?campaign_id=${camp.sarvam_campaign_id}&page_size=50`,
-          {
-            method: 'GET',
-            headers: { 'X-API-Key': apiKey }
-          }
-        );
-        if (resInteractions.ok) {
-          const data = await resInteractions.json();
-          attempts = data.interactions || data.data || [];
-        }
-      } catch (e) {
-        console.warn('Interactions fetch failed, trying cohort report:', e.message);
-      }
-
-      // Option B: Fallback Campaign Report
-      if (attempts.length === 0) {
-        try {
-          const resReport = await fetch(
-            `https://apps.sarvam.ai/api/scheduling/v1/orgs/${orgId}/workspaces/${wsId}/campaigns/${camp.sarvam_campaign_id}/report`,
-            {
-              method: 'GET',
-              headers: { 'X-API-Key': apiKey }
-            }
-          );
-          if (resReport.ok) {
-            const data = await resReport.json();
-            attempts = data.attempts || data.cohorts || [];
-          }
-        } catch (e) {
-          console.warn('Report fetch failed:', e.message);
-        }
-      }
-
-      let updatedCount = 0;
-      for (const item of attempts) {
-        const phone = item.user_phone_number || item.phone_number || item.to_phone_number || '';
-        const rawStatus = (item.status || item.call_status || item.connectivity_status || item.disposition || '').toLowerCase();
-
-        let mappedStatus = 'pending';
-        if (rawStatus.includes('complete') || rawStatus.includes('connect') || rawStatus.includes('success')) {
-          mappedStatus = 'completed';
-        } else if (rawStatus.includes('busy')) {
-          mappedStatus = 'busy';
-        } else if (rawStatus.includes('no-answer') || rawStatus.includes('no_answer') || rawStatus.includes('unanswered')) {
-          mappedStatus = 'no_answer';
-        } else if (rawStatus.includes('fail')) {
-          mappedStatus = 'failed';
-        }
-
-        if (phone) {
-          const p10 = phone.replace(/^\+91/, '').slice(-10);
-          const r = await db.query(
-            `UPDATE bulk_contacts 
-           SET status = $1, last_attempt_at = NOW() 
-           WHERE campaign_id = $2 AND (phone10 = $3 OR phone_e164 LIKE $4)`,
-            [mappedStatus, campaignId, p10, `%${p10}`]
-          );
-          if (r.rowCount > 0) updatedCount += r.rowCount;
-        }
-      }
-
-      return res.json({ success: true, updated_count: updatedCount });
-    } catch (err) {
-      console.error('[Bulk Sync] error:', err.message);
-      return res.status(500).json({ error: err.message });
-    }
-  });
-
-
-
-});
-
-// server/bulk-calling.js
-router.patch('/:id/schedule', async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { startTime, endTime, dailyStartTime, dailyEndTime, timezone } = req.body;
-
-    const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
-    if (campRes.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
-
-    const camp = campRes.rows[0];
-    const sarvamCampId = camp.sarvam_campaign_id;
-    const apiKey = (process.env.SARVAM_SAMVAAD_API_KEY || process.env.SARVAM_API_KEY || '').trim();
-
-    // 1. Sarvam Indus API પર શિડ્યુલ અપડેટ કરો
-    if (sarvamCampId) {
-      const schedulePayload = {
-        schedule: {
-          start_datetime: startTime || camp.scheduled_at,
-          daily_start_time: dailyStartTime || '10:00:00',
-          daily_end_time: dailyEndTime || '19:00:00',
-          timezone: timezone || 'Asia/Kolkata'
-        }
-      };
-
-      const patchUrl = `https://apps.sarvam.ai/api/v1/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/campaigns/${sarvamCampId}`;
-      await fetch(patchUrl, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKey
-        },
-        body: JSON.stringify(schedulePayload)
-      });
-    }
-
-    // 2. લોકલ PostgreSQL ડેટાબેઝ અપડેટ કરો
-    const updated = await db.query(
-      `UPDATE bulk_campaigns 
-       SET scheduled_at = COALESCE($1, scheduled_at),
-           updated_at = NOW()
-       WHERE id = $2 RETURNING *`,
-      [startTime, id]
-    );
-
-    return res.json({ success: true, campaign: updated.rows[0] });
-  } catch (err) {
-    console.error('[Campaign Edit Error]:', err);
-    return res.status(500).json({ error: err.message });
   }
 });
 
@@ -439,95 +275,11 @@ router.get('/:id', async (req, res) => {
     const id = req.params.id;
     const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
     if (campRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
-
-    let campaign = campRes.rows[0];
-
-    // Sarvam Analytics સાથે Sync કરો
-    if (campaign.sarvam_campaign_id) {
-      try {
-        const apiKey = (process.env.SARVAM_API_KEY || '').trim();
-        const orgId = process.env.SARVAM_ORG_ID;
-        const wsId = process.env.SARVAM_WORKSPACE_ID;
-        const appId = process.env.SARVAM_APP_ID;
-
-        const resp = await fetch(
-          `https://apps.sarvam.ai/api/analytics/v1/${orgId}/${wsId}/${appId}/interactions?campaign_id=${campaign.sarvam_campaign_id}&page_size=50`,
-          { headers: { 'X-API-Key': apiKey } }
-        );
-
-        if (resp.ok) {
-          const data = await resp.json();
-          const interactions = data.interactions || data.data || [];
-
-          for (const item of interactions) {
-            const phone = item.user_phone_number || item.phone_number || '';
-            const p10 = phone.replace(/^\+91/, '').slice(-10);
-
-            const vars = item.output_agent_variables || item.final_agent_variables || {};
-            const confirmedSlot = vars.confirmed_slot || vars.appointment_time || vars.booking_datetime || vars.slot || null;
-            const isBooked = vars.is_booked === true || String(vars.is_booked).toLowerCase() === 'true' ||
-              vars.booking_status === 'confirmed' || Boolean(confirmedSlot);
-
-            let finalStatus = 'not_booked';
-            let outcome = 'NOT_BOOKED';
-
-            if (isBooked) {
-              finalStatus = 'booked';
-              outcome = 'BOOKED';
-            } else if (item.connectivity_status === 'no_answer' || item.disposition === 'no_answer') {
-              finalStatus = 'no_answer';
-              outcome = 'NO_ANSWER';
-            } else if (item.connectivity_status === 'busy') {
-              finalStatus = 'no_answer';
-              outcome = 'BUSY';
-            }
-
-            const interactionId = item.interaction_id || null;
-            const summary = vars.summary || item.summary || (isBooked ? `Booked: ${confirmedSlot || ''}` : 'Call completed');
-
-            // Contact માં status, summary અને booked_datetime_text update કરો
-            const contactUpdate = await db.query(
-              `UPDATE bulk_contacts 
-               SET status = $1, 
-                   attempts = GREATEST(attempts, 1),
-                   booked_datetime_text = COALESCE($2, booked_datetime_text),
-                   last_summary = COALESCE($3, last_summary),
-                   last_attempt_at = NOW() 
-               WHERE campaign_id = $4 AND (phone10 = $5 OR phone_e164 LIKE $6)
-               RETURNING id`,
-              [finalStatus, confirmedSlot, summary, id, p10, `%${p10}`]
-            );
-
-            // Attempt save કરો જેથી Drawer માં click કરવાથી transcript અને recording સંભળાય
-            if (contactUpdate.rows.length > 0 && interactionId) {
-              const contactId = contactUpdate.rows[0].id;
-              const recordingUrl = `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(interactionId)}`;
-
-              await db.query(
-                `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, call_status, outcome, summary, interaction_id, recording_url, started_at, ended_at)
-                 VALUES ($1, $2, 1, $3, $4, $5, $6, $7, NOW(), NOW())
-                 ON CONFLICT DO NOTHING`,
-                [contactId, id, finalStatus, outcome, summary, interactionId, recordingUrl]
-              );
-            }
-          }
-
-          if (interactions.length >= 2) {
-            await db.query("UPDATE bulk_campaigns SET enabled = FALSE, status = 'completed', finished_at = NOW() WHERE id = $1", [id]);
-            campaign.status = 'completed';
-            campaign.enabled = false;
-          }
-        }
-      } catch (err) {
-        console.warn('[Sync Error]:', err.message);
-      }
-    }
-
+    const campaign = await syncSarvamStatus(campRes.rows[0]);
     const statsRes = await db.query(
       'SELECT status, COUNT(*) as count FROM bulk_contacts WHERE campaign_id = $1 GROUP BY status', [id]
     );
     const stats = statsRes.rows.reduce((acc, row) => ({ ...acc, [row.status]: parseInt(row.count) }), {});
-
     res.json({ campaign, stats });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -547,87 +299,10 @@ router.get('/:id/contacts', async (req, res) => {
 // GET attempts for a contact
 router.get('/:id/contacts/:contactId/attempts', async (req, res) => {
   try {
-    const { id, contactId } = req.params;
-
-    // 1. ચેક કરો કે ડેટાબેઝમાં સાચો interaction_id પહેલેથી છે કે નહીં
-    const attRes = await db.query(
-      `SELECT * FROM bulk_attempts 
-       WHERE campaign_id = $1 AND contact_id = $2 
-       ORDER BY id DESC`,
-      [id, contactId]
-    );
-
-    if (attRes.rows.length > 0) {
-      return res.json({ attempts: attRes.rows });
-    }
-
-    // 2. જો ડેટાબેઝમાં attempt ન હોય, તો Contact & Campaign મેળવીને Sarvam Indus માંથી લાવો
-    const contactRes = await db.query('SELECT * FROM bulk_contacts WHERE id = $1', [contactId]);
-    const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
-    if (contactRes.rows.length === 0 || campRes.rows.length === 0) {
-      return res.json({ attempts: [] });
-    }
-
-    const contact = contactRes.rows[0];
-    const camp = campRes.rows[0];
-    const p10 = (contact.phone10 || '').slice(-10);
-    const apiKey = (process.env.SARVAM_API_KEY || '').trim();
-
-    let realInteraction = null;
-    if (camp.sarvam_campaign_id) {
-      try {
-        const indusUrl = `https://api.sarvam.ai/voice/campaigns/${camp.sarvam_campaign_id}/analytics/interactions`;
-        const resp = await fetch(indusUrl, {
-          method: 'GET',
-          headers: {
-            'API-Subscription-Key': apiKey,
-            'X-API-Key': apiKey
-          }
-        });
-        if (resp.ok) {
-          const d = await resp.json();
-          const list = d.interactions || d.data || [];
-          realInteraction = list.find(it => (it.user_phone_number || it.phone_number || '').includes(p10));
-        }
-      } catch (err) {
-        console.warn('[Indus Fetch Warning]:', err.message);
-      }
-    }
-
-    if (realInteraction && realInteraction.interaction_id) {
-      const iid = realInteraction.interaction_id;
-      const vars = realInteraction.output_agent_variables || realInteraction.final_agent_variables || {};
-      const confirmedSlot = vars.confirmed_slot || vars.appointment_time || vars.slot || null;
-      const isBooked = vars.is_booked === true || String(vars.is_booked).toLowerCase() === 'true' || Boolean(confirmedSlot);
-
-      const outcome = isBooked ? 'BOOKED' : 'NOT_BOOKED';
-      const callStatus = isBooked ? 'booked' : 'not_booked';
-      const summary = vars.summary || realInteraction.summary || (isBooked ? `Booked: ${confirmedSlot}` : 'Call completed');
-      const recUrl = `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(iid)}`;
-
-      // Contact સ્ટેટસ અપડેટ કરો
-      await db.query(
-        `UPDATE bulk_contacts 
-         SET status = $1, booked_datetime_text = $2, last_summary = $3, attempts = GREATEST(attempts, 1) 
-         WHERE id = $4`,
-        [callStatus, confirmedSlot, summary, contactId]
-      );
-
-      // Attempt ઇન્સર્ટ કરો
-      const ins = await db.query(
-        `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, call_status, outcome, summary, interaction_id, recording_url, started_at, ended_at)
-         VALUES ($1, $2, 1, $3, $4, $5, $6, $7, NOW(), NOW())
-         RETURNING *`,
-        [contactId, id, callStatus, outcome, summary, iid, recUrl]
-      );
-
-      return res.json({ attempts: ins.rows });
-    }
-
-    return res.json({ attempts: [] });
+    const attempts = await db.query('SELECT * FROM bulk_attempts WHERE contact_id = $1 ORDER BY attempt_no ASC', [req.params.contactId]);
+    res.json(attempts.rows);
   } catch (err) {
-    console.error('[Attempts Endpoint Error]:', err);
-    return res.status(500).json({ error: err.message });
+    res.status(500).json({ error: err.message });
   }
 });
 
@@ -696,8 +371,7 @@ async function syncSarvamResults(camp) {
     const n = (perContact.get(contact.id) || 0) + 1;
     perContact.set(contact.id, n);
 
-    const done = await db.query('SELECT id FROM bulk_attempts WHERE campaign_id = $1 AND request_id = $2 LIMIT 1', [camp.id, a.attempt_id]);
-    if (done.rows.length > 0) continue;
+    const done = await db.query('SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND request_id = $2 LIMIT 1', [camp.id, a.attempt_id]);
 
     const { callStatus, outcome, summary, sentiment, confirmedSlot } = mapSarvamOutcome(adaptCampaignPayload({
       connectivity_status: a.connectivity_status,
@@ -705,12 +379,23 @@ async function syncSarvamResults(camp) {
       final_agent_variables: (a.interaction_id && ivars.get(a.interaction_id)) || a.agent_variables || null
     }));
 
+    if (done.rows.length > 0) {
+      // Already stored: re-apply if the result changed (e.g. earlier wrong status, or call summary arrived later).
+      const old = done.rows[0];
+      if (old.outcome !== outcome || (!old.summary && summary)) {
+        if (confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+        await resolveAttempt(old, callStatus, outcome, summary, sentiment, recordingProxyUrl(a.interaction_id), null);
+        created++;
+      }
+      continue;
+    }
+
     const when = a.start_datetime || a.attempted_at;
     const ins = await db.query(
       `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, request_id, started_at, duration_sec, interaction_id, raw_json)
        VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, NOW()), $6, $7, $8) RETURNING *`,
       [contact.id, camp.id, n, a.attempt_id, when ? when + 'Z' : null,
-        a.duration_in_seconds != null ? Math.round(a.duration_in_seconds) : null, a.interaction_id || null, JSON.stringify(a)]
+      a.duration_in_seconds != null ? Math.round(a.duration_in_seconds) : null, a.interaction_id || null, JSON.stringify(a)]
     );
     await db.query('UPDATE bulk_contacts SET attempts = GREATEST(attempts, $1), last_attempt_at = NOW(), last_request_id = $2 WHERE id = $3', [n, a.attempt_id, contact.id]);
     if (confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
@@ -983,56 +668,5 @@ router.post('/booking-confirmed', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// POST /api/bulk-calling/:id/sync
-router.post('/:id/sync', async (req, res) => {
-  try {
-    const campaignId = req.params.id;
-    const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [campaignId]);
-    if (campRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
-    const camp = campRes.rows[0];
-    if (!camp.sarvam_campaign_id) {
-      return res.status(400).json({ error: 'No sarvam_campaign_id linked with this campaign' });
-    }
 
-    const resAttempts = await fetch(`https://apps.sarvam.ai/api/analytics/v1/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/campaigns/${camp.sarvam_campaign_id}/attempts`, {
-      method: 'GET',
-      headers: { 'X-API-Key': process.env.SARVAM_API_KEY ? process.env.SARVAM_API_KEY.trim() : '' }
-    });
-
-    if (!resAttempts.ok) {
-      const errText = await resAttempts.text();
-      return res.status(resAttempts.status).json({ error: `Sarvam API error: ${errText}` });
-    }
-
-    const data = await resAttempts.json();
-    const attempts = data.attempts || data.data || [];
-
-    for (const item of attempts) {
-      const phone = item.user_phone_number || item.phone_number || '';
-      const rawStatus = (item.status || item.call_status || item.connectivity_status || '').toLowerCase();
-      let mappedStatus = 'pending';
-      if (rawStatus.includes('complete') || rawStatus.includes('connected') || rawStatus.includes('success')) {
-        mappedStatus = 'completed';
-      } else if (rawStatus.includes('busy')) {
-        mappedStatus = 'busy';
-      } else if (rawStatus.includes('no-answer') || rawStatus.includes('no_answer') || rawStatus.includes('unanswered')) {
-        mappedStatus = 'no_answer';
-      } else if (rawStatus.includes('fail')) {
-        mappedStatus = 'failed';
-      }
-
-      if (phone) {
-        const p10 = phone.replace(/^\+91/, '').slice(-10);
-        await db.query(
-          `UPDATE bulk_contacts SET status = $1, last_attempt_at = NOW() WHERE campaign_id = $2 AND (phone10 = $3 OR phone_e164 LIKE $4)`,
-          [mappedStatus, campaignId, p10, `%${p10}`]
-        );
-      }
-    }
-    res.json({ success: true, updated_count: attempts.length });
-  } catch (err) {
-    console.error('[Bulk Sync] error:', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
 module.exports = { router, resolveAttempt };

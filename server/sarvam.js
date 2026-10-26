@@ -13,18 +13,6 @@ const REQUIRED_ENV = [
   'SARVAM_WEBHOOK_URL'
 ];
 
-
-async function fetchSarvamRecordingStream(interactionId) {
-  if (!validInteractionId(interactionId)) throw new Error('Invalid interaction id');
-  const url = analyticsUrl('recording', interactionId);
-  const apiKey = (process.env.SARVAM_SAMVAAD_API_KEY || process.env.SARVAM_API_KEY || '').trim();
-  const res = await fetch(url, {
-    headers: { 'X-API-Key': apiKey }
-  });
-  if (!res.ok) throw new Error(`Failed to stream recording: ${res.status}`);
-  return res.body;
-}
-
 // Trim surrounding whitespace/newlines and strip one matching pair of quotes.
 // Never log the value, only lengths.
 function sanitizeApiKey(raw) {
@@ -180,7 +168,10 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
 function mapSarvamOutcome(payload) {
   const status = String(payload?.status || '').toLowerCase();
   const fv = payload?.final_agent_variables || {};
-  const disposition = String(fv.call_disposition || '').toLowerCase().trim();
+  // Variable names differ between agent versions: look for any "*dispos*" / "*slot*" key too.
+  const findKey = (re) => { const k = Object.keys(fv).find(x => re.test(x) && String(fv[x] || '').trim()); return k ? fv[k] : ''; };
+  const disposition = String(fv.call_disposition || findKey(/dispos/i) || '').toLowerCase().trim();
+  const slotValue = String(fv.confirmed_slot || fv.booking_slot || findKey(/slot|appointment/i) || '').trim();
 
   console.log('[mapSarvamOutcome] raw status=' + status + ' disposition=' + disposition + ' fv_keys=' + Object.keys(fv).join(','));
 
@@ -195,12 +186,13 @@ function mapSarvamOutcome(payload) {
   } else {
     // Call was completed / answered
     callStatus = 'completed';
-    if (String(fv.do_not_call || '').trim().toLowerCase() === 'yes') outcome = 'do_not_call';
-    else if (disposition === 'booked' || disposition === 'rescheduled' || disposition === 'confirmed') outcome = 'booked';
-    else if (disposition === 'do_not_call') outcome = 'do_not_call';
-    else if (disposition === 'not_interested' || disposition === 'notinterested') outcome = 'not_interested';
-    else if (disposition === 'not_booked' || disposition === 'notbooked' || disposition === 'no_booking') outcome = 'not_booked';
-    else outcome = 'not_booked'; // default for completed calls with no disposition
+    const negative = /(^|_)(not|no|never|declin|reject|cancel)/.test(disposition) || /not.?book|no.?book/.test(disposition);
+    if (String(fv.do_not_call || '').trim().toLowerCase() === 'yes' || disposition === 'do_not_call') outcome = 'do_not_call';
+    else if (/not.?interest/.test(disposition)) outcome = 'not_interested';
+    else if (!negative && /book|resched|confirm|appoint|schedul/.test(disposition)) outcome = 'booked';
+    else if (!negative && !disposition && slotValue) outcome = 'booked';
+    else if (!negative && slotValue && /book|confirm|appoint/.test(disposition)) outcome = 'booked';
+    else outcome = 'not_booked'; // answered, but no appointment
   }
 
   // Extract summary — prefer call_summary, fallback to last 2 transcript lines
@@ -216,12 +208,10 @@ function mapSarvamOutcome(payload) {
     summary = `${summary} [interaction_id: ${payload.interaction_id}]`.trim();
   }
 
-
-
   // Extract sentiment
   const sentiment = fv.sentiment || fv.call_sentiment || 'Neutral';
 
-  const confirmedSlot = outcome === 'booked' ? (fv.confirmed_slot || fv.booking_slot || '') : '';
+  const confirmedSlot = outcome === 'booked' ? slotValue : '';
 
   console.log('[mapSarvamOutcome] result: callStatus=' + callStatus + ' outcome=' + outcome + ' sentiment=' + sentiment + ' summaryLen=' + summary.length);
 
@@ -408,7 +398,8 @@ function buildSarvamCampaignBody({ name, description, settings, startIso, endIso
         agent_phone_number: process.env.SARVAM_AGENT_NUMBER
       }],
       retry_config: buildRetryConfig(settings.retry),
-      webhook_config: { url: webhookUrl, metadata: metadata || {} },
+      // Sarvam's docs place webhook_config both top-level and inside app_config; send it in both.
+      webhook_config: { url: webhookUrl, metadata: metadata || {} }
     },
     start_timestamp: startIso,
     end_timestamp: endIso,
@@ -455,27 +446,24 @@ async function streamSarvamCohort(campaignId, cohortName, users) {
 }
 
 // action: 'pause' | 'resume' | 'cancel'
-async function setSarvamCampaignStatus(campaignId, action) {
-  try {
-    return await sarvamJson('PUT', schedulingUrl(`/campaigns/${campaignId}/status`), { action });
-  } catch (err) {
-    const msg = String(err.message || '');
-    const bodyStr = JSON.stringify(err.body || '');
-    if (action === 'pause' && (msg.includes('Cannot pause a paused campaign') || bodyStr.includes('Cannot pause a paused campaign') || err.status === 422)) {
-      console.warn('Sarvam campaign pehle thi paused che, treating as success');
-      return { success: true, alreadyPaused: true };
-    }
-    throw err;
-  }
+function setSarvamCampaignStatus(campaignId, action) {
+  return sarvamJson('PUT', schedulingUrl(`/campaigns/${campaignId}/status`), { action });
+}
+
+// Edit a paused/scheduled Sarvam campaign (PATCH). Start time cannot be changed by Sarvam.
+function updateSarvamCampaign(campaignId, opts) {
+  const body = buildSarvamCampaignBody(opts);
+  delete body.start_timestamp;
+  if (!opts.description) delete body.description;
+  return sarvamJson('PATCH', schedulingUrl(`/campaigns/${campaignId}`), body);
 }
 
 function getSarvamCampaign(campaignId) {
   return sarvamJson('GET', schedulingUrl(`/campaigns/${campaignId}`));
 }
+
 function validInteractionId(id) {
-  if (!id || typeof id !== 'string') return false;
-  // Allows timestamps with colons, slashes, and UUIDs: e.g. 20261026/8466d83c-11:29:14-c02cadef
-  return /^[\w\-\/\:]+$/.test(id) && id.length >= 8 && !id.startsWith('sarvam-');
+  return /^\d{8}\/[\w-]+$/.test(String(id || ''));
 }
 
 function analyticsUrl(kind, interactionId) {
@@ -561,16 +549,8 @@ function adaptCampaignPayload(payload) {
   };
 }
 
-// Edit a paused/scheduled Sarvam campaign (PATCH). Start time cannot be changed by Sarvam.
-function updateSarvamCampaign(campaignId, opts) {
-  const body = buildSarvamCampaignBody(opts);
-  delete body.start_timestamp;
-  if (!opts.description) delete body.description;
-  return sarvamJson('PATCH', schedulingUrl(`/campaigns/${campaignId}`), body);
-}
-
 module.exports = {
-    dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName,
+  dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName,
   campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
   fetchSarvamTranscript, fetchSarvamRecording, validInteractionId, adaptCampaignPayload,
   normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow, buildSarvamCampaignBody,

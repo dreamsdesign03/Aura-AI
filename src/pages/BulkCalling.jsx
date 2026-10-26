@@ -6,6 +6,13 @@ import EditCampaignModal from "@/components/EditCampaignModal";
 import { format } from "date-fns";
 import * as XLSX from "xlsx-js-style";
 
+const STATUS_LABEL = {
+  booked: "Appointment booked", not_booked: "Answered, not booked", no_answer: "Not picked up",
+  calling: "Calling now", pending: "Pending", failed: "Failed", invalid: "Invalid",
+  not_interested: "Not interested", do_not_call: "Do not call"
+};
+const statusLabel = (s) => STATUS_LABEL[s] || s;
+
 export default function BulkCalling() {
   const { toast } = useToast();
   const [campaigns, setCampaigns] = useState([]);
@@ -162,7 +169,7 @@ function BulkCallDetail({ id, onBack }) {
     return () => clearInterval(i);
   }, [id]);
 
-  // Pull results from Sarvam (works even if the webhook is delayed): once on open, then every 30s while ON.
+  // Pull results from Sarvam (works even if the webhook is delayed): once on open, then every 10s while ON.
   const [showEdit, setShowEdit] = useState(false);
   const syncFromSarvam = async () => {
     try {
@@ -177,7 +184,7 @@ function BulkCallDetail({ id, onBack }) {
     if (!campaign?.sarvam_campaign_id) return;
     syncFromSarvam();
     if (!campaign.enabled) return;
-    const i = setInterval(syncFromSarvam, 30000);
+    const i = setInterval(syncFromSarvam, 10000);
     return () => clearInterval(i);
   }, [campaign?.sarvam_campaign_id, campaign?.enabled]);
 
@@ -493,6 +500,8 @@ function BulkCallDetail({ id, onBack }) {
             <div>
               <h3 className="font-bold text-gray-900">{drawerContact.name}</h3>
               <p className="text-xs text-gray-500">{drawerContact.phone10}</p>
+              <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${drawerContact.status === 'booked' ? 'bg-green-100 text-green-700' : drawerContact.status === 'no_answer' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-700'}`}>{statusLabel(drawerContact.status)}</span>
+              {drawerContact.booked_datetime_text && <div className="text-[11px] text-green-700 font-bold mt-1">Appointment: {drawerContact.booked_datetime_text}</div>}
             </div>
             <button onClick={() => setDrawerContact(null)} className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500"><XCircle className="w-5 h-5" /></button>
           </div>
@@ -517,6 +526,10 @@ function BulkCallDetail({ id, onBack }) {
                         <span className="text-[10px] text-gray-400">{format(new Date(a.started_at), "MMM d, HH:mm")}</span>
                       </div>
                       <div className="text-xs font-bold text-gray-800 mb-1">Outcome: <span className="text-pink-600">{a.outcome}</span></div>
+
+                      {!a.interaction_id && (a.outcome === 'no_answer' || a.call_status === 'no_answer' || a.call_status === 'busy' || a.call_status === 'failed') && (
+                        <div className="text-[11px] text-orange-600 mb-2">Call was not picked up - no conversation.</div>
+                      )}
 
                       {/* AI Conversation Transcript */}
                       <CallConversation interactionId={a.interaction_id} />
@@ -566,8 +579,9 @@ function CallConversation({ interactionId }) {
   const [msgs, setMsgs] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-  if (!interactionId) return null;
   const iid = encodeURIComponent(interactionId);
+
+  useEffect(() => { if (interactionId) load(); }, [interactionId]);
 
   const load = async () => {
     setLoading(true);
@@ -584,17 +598,18 @@ function CallConversation({ interactionId }) {
     }
   };
 
+  if (!interactionId) return null;
   return (
     <div className="mb-3">
       <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
       {msgs === null ? (
-        <button onClick={load} disabled={loading} className="text-[11px] font-bold text-pink-600 hover:underline flex items-center gap-1">
-          {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ChevronRight className="w-3 h-3" />} View full conversation
-        </button>
+        loading
+          ? <div className="text-[11px] text-gray-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Loading conversation...</div>
+          : <button onClick={load} className="text-[11px] font-bold text-pink-600 hover:underline flex items-center gap-1"><ChevronRight className="w-3 h-3" /> Retry loading conversation</button>
       ) : (
         <>
           {msgs.length === 0 && <div className="text-[11px] text-gray-400">No transcript available.</div>}
-          <div className="space-y-2 max-h-72 overflow-y-auto">
+          <div className="space-y-2 max-h-96 overflow-y-auto">
             {msgs.map((m, idx) => (
               <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${m.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
                 <span className="font-medium text-[10px] text-gray-500">{m.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {m.content}
