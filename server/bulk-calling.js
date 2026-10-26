@@ -371,11 +371,29 @@ router.get('/:id', async (req, res) => {
     const id = req.params.id;
     const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
     if (campRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
-    const campaign = await syncSarvamStatus(campRes.rows[0]);
+
+    let campaign = campRes.rows[0];
+
+    // Jo Sarvam Campaign ID hoy to automatically status sync karo
+    if (campaign.sarvam_campaign_id) {
+      try {
+        const sc = await getSarvamCampaign(campaign.sarvam_campaign_id);
+        if (sc && (sc.status === 'ended' || sc.status === 'completed')) {
+          await db.query("UPDATE bulk_campaigns SET enabled = FALSE, status = 'completed', finished_at = NOW() WHERE id = $1", [id]);
+          await db.query("UPDATE bulk_contacts SET status = 'completed', last_attempt_at = NOW() WHERE campaign_id = $1 AND status != 'completed'", [id]);
+          campaign.status = 'completed';
+          campaign.enabled = false;
+        }
+      } catch (err) {
+        console.warn('[Auto-Sync Error]:', err.message);
+      }
+    }
+
     const statsRes = await db.query(
       'SELECT status, COUNT(*) as count FROM bulk_contacts WHERE campaign_id = $1 GROUP BY status', [id]
     );
     const stats = statsRes.rows.reduce((acc, row) => ({ ...acc, [row.status]: parseInt(row.count) }), {});
+
     res.json({ campaign, stats });
   } catch (err) {
     res.status(500).json({ error: err.message });
