@@ -47,6 +47,7 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
     res.status(err.status === 404 ? 404 : 502).json({ error: err.message });
   }
   // POST /api/bulk-calling/:id/sync - Existing call status Sarvam Analytics mathi sync karva mate
+  // POST /api/bulk-calling/:id/sync - Existing call status Sarvam Analytics mathi sync karva mate
   router.post('/:id/sync', async (req, res) => {
     try {
       const campaignId = req.params.id;
@@ -57,24 +58,47 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
         return res.status(400).json({ error: 'No sarvam_campaign_id linked with this campaign' });
       }
 
-      const resAttempts = await fetch(`https://apps.sarvam.ai/api/analytics/v1/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/campaigns/${camp.sarvam_campaign_id}/attempts`, {
-        method: 'GET',
-        headers: { 'X-API-Key': process.env.SARVAM_API_KEY ? process.env.SARVAM_API_KEY.trim() : '' }
-      });
+      // Sarvam Campaign Attempts Fetch (Scheduling / Cohorts report URL)
+      let attempts = [];
 
-      if (!resAttempts.ok) {
-        const errText = await resAttempts.text();
-        return res.status(resAttempts.status).json({ error: `Sarvam API error: ${errText}` });
+      // First attempt: Analytics interactions search by campaign
+      const resInteractions = await fetch(
+        `https://apps.sarvam.ai/api/analytics/v1/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/interactions?campaign_id=${camp.sarvam_campaign_id}&page_size=50`,
+        {
+          method: 'GET',
+          headers: { 'X-API-Key': (process.env.SARVAM_API_KEY || '').trim() }
+        }
+      );
+
+      if (resInteractions.ok) {
+        const data = await resInteractions.json();
+        attempts = data.interactions || data.data || [];
+      } else {
+        // Fallback: Campaign cohort status report
+        const resCohort = await fetch(
+          `https://apps.sarvam.ai/api/scheduling/v1/orgs/${process.env.SARVAM_ORG_ID}/workspaces/${process.env.SARVAM_WORKSPACE_ID}/campaigns/${camp.sarvam_campaign_id}/report`,
+          {
+            method: 'GET',
+            headers: { 'X-API-Key': (process.env.SARVAM_API_KEY || '').trim() }
+          }
+        );
+        if (resCohort.ok) {
+          const data = await resCohort.json();
+          attempts = data.attempts || data.cohorts || [];
+        }
       }
 
-      const data = await resAttempts.json();
-      const attempts = data.attempts || data.data || [];
+      if (!attempts || attempts.length === 0) {
+        return res.json({ success: true, updated_count: 0, message: 'No logs found on Sarvam yet' });
+      }
 
+      let updatedCount = 0;
       for (const item of attempts) {
-        const phone = item.user_phone_number || item.phone_number || '';
-        const rawStatus = (item.status || item.call_status || item.connectivity_status || '').toLowerCase();
+        const phone = item.user_phone_number || item.phone_number || item.to_phone_number || '';
+        const rawStatus = (item.status || item.call_status || item.connectivity_status || item.disposition || '').toLowerCase();
+
         let mappedStatus = 'pending';
-        if (rawStatus.includes('complete') || rawStatus.includes('connected') || rawStatus.includes('success')) {
+        if (rawStatus.includes('complete') || rawStatus.includes('connect') || rawStatus.includes('success')) {
           mappedStatus = 'completed';
         } else if (rawStatus.includes('busy')) {
           mappedStatus = 'busy';
@@ -86,18 +110,25 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
 
         if (phone) {
           const p10 = phone.replace(/^\+91/, '').slice(-10);
-          await db.query(
-            `UPDATE bulk_contacts SET status = $1, last_attempt_at = NOW() WHERE campaign_id = $2 AND (phone10 = $3 OR phone_e164 LIKE $4)`,
+          const r = await db.query(
+            `UPDATE bulk_contacts 
+           SET status = $1, last_attempt_at = NOW() 
+           WHERE campaign_id = $2 AND (phone10 = $3 OR phone_e164 LIKE $4)`,
             [mappedStatus, campaignId, p10, `%${p10}`]
           );
+          if (r.rowCount > 0) updatedCount += r.rowCount;
         }
       }
-      res.json({ success: true, updated_count: attempts.length });
+
+      return res.json({ success: true, updated_count: updatedCount });
     } catch (err) {
       console.error('[Bulk Sync] error:', err.message);
-      res.status(500).json({ error: err.message });
+      return res.status(500).json({ error: err.message });
     }
   });
+
+
+
 });
 
 // Create the Sarvam campaign for a draft AuraAI campaign and stream its pending contacts.
