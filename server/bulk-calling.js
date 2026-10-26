@@ -495,63 +495,85 @@ router.get('/:id/contacts/:contactId/attempts', async (req, res) => {
   try {
     const { id, contactId } = req.params;
 
-    // 1. Database માં પહેલેથી રેકોર્ડ છે કે નહીં તે ચકાસો
+    // 1. ચેક કરો કે ડેટાબેઝમાં સાચો interaction_id પહેલેથી છે કે નહીં
     const attRes = await db.query(
-      'SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND contact_id = $2 ORDER BY attempt_no DESC, id DESC',
+      `SELECT * FROM bulk_attempts 
+       WHERE campaign_id = $1 AND contact_id = $2 
+       ORDER BY id DESC`,
       [id, contactId]
     );
 
-    let attempts = attRes.rows;
+    if (attRes.rows.length > 0) {
+      return res.json({ attempts: attRes.rows });
+    }
 
-    // 2. જો ડેટાબેઝમાં હજુ attempt ન હોય, તો Contact માહિતી મેળવીને fallback create કરો
-    if (attempts.length === 0) {
-      const contactRes = await db.query('SELECT * FROM bulk_contacts WHERE id = $1', [contactId]);
-      const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
+    // 2. જો ડેટાબેઝમાં attempt ન હોય, તો Contact & Campaign મેળવીને Sarvam Indus માંથી લાવો
+    const contactRes = await db.query('SELECT * FROM bulk_contacts WHERE id = $1', [contactId]);
+    const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
+    if (contactRes.rows.length === 0 || campRes.rows.length === 0) {
+      return res.json({ attempts: [] });
+    }
 
-      if (contactRes.rows.length > 0 && campRes.rows.length > 0) {
-        const contact = contactRes.rows[0];
-        const camp = campRes.rows[0];
-        const p10 = (contact.phone10 || '').slice(-10);
+    const contact = contactRes.rows[0];
+    const camp = campRes.rows[0];
+    const p10 = (contact.phone10 || '').slice(-10);
+    const apiKey = (process.env.SARVAM_API_KEY || '').trim();
 
-        // Indus / Sarvam campaign interactions fetch
-        let foundInteraction = null;
-        if (camp.sarvam_campaign_id) {
-          try {
-            const apiKey = (process.env.SARVAM_API_KEY || '').trim();
-            const sRes = await fetch(
-              `https://api.sarvam.ai/voice/campaigns/${camp.sarvam_campaign_id}/analytics/interactions`,
-              { headers: { 'API-Subscription-Key': apiKey, 'X-API-Key': apiKey } }
-            );
-            if (sRes.ok) {
-              const sData = await sRes.json();
-              const list = sData.interactions || sData.data || [];
-              foundInteraction = list.find(item => (item.user_phone_number || '').includes(p10));
-            }
-          } catch (e) {
-            console.warn('[Sarvam Fetch Warn]:', e.message);
+    let realInteraction = null;
+    if (camp.sarvam_campaign_id) {
+      try {
+        const indusUrl = `https://api.sarvam.ai/voice/campaigns/${camp.sarvam_campaign_id}/analytics/interactions`;
+        const resp = await fetch(indusUrl, {
+          method: 'GET',
+          headers: {
+            'API-Subscription-Key': apiKey,
+            'X-API-Key': apiKey
           }
+        });
+        if (resp.ok) {
+          const d = await resp.json();
+          const list = d.interactions || d.data || [];
+          realInteraction = list.find(it => (it.user_phone_number || it.phone_number || '').includes(p10));
         }
-
-        // જો Sarvam API ડાયરેક્ટ રિસ્પોન્સ ન આપે તો પણ contact completed હોવાથી attempt એન્ટ્રી બનાવી દો
-        const interactionId = foundInteraction?.interaction_id || contact.last_request_id || `sarvam-${id}-${contactId}`;
-        const outcome = contact.status === 'booked' ? 'BOOKED' : 'CONNECTED';
-        const summary = contact.last_summary || (contact.status === 'booked' ? `Booked: ${contact.booked_datetime_text || ''}` : 'Call completed with user');
-        const recordingUrl = `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(interactionId)}`;
-
-        const insRes = await db.query(
-          `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, call_status, outcome, summary, interaction_id, recording_url, started_at, ended_at)
-           VALUES ($1, $2, 1, 'completed', $3, $4, $5, $6, NOW(), NOW())
-           RETURNING *`,
-          [contactId, id, outcome, summary, interactionId, recordingUrl]
-        );
-        attempts = insRes.rows;
+      } catch (err) {
+        console.warn('[Indus Fetch Warning]:', err.message);
       }
     }
 
-    res.json({ attempts });
+    if (realInteraction && realInteraction.interaction_id) {
+      const iid = realInteraction.interaction_id;
+      const vars = realInteraction.output_agent_variables || realInteraction.final_agent_variables || {};
+      const confirmedSlot = vars.confirmed_slot || vars.appointment_time || vars.slot || null;
+      const isBooked = vars.is_booked === true || String(vars.is_booked).toLowerCase() === 'true' || Boolean(confirmedSlot);
+
+      const outcome = isBooked ? 'BOOKED' : 'NOT_BOOKED';
+      const callStatus = isBooked ? 'booked' : 'not_booked';
+      const summary = vars.summary || realInteraction.summary || (isBooked ? `Booked: ${confirmedSlot}` : 'Call completed');
+      const recUrl = `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(iid)}`;
+
+      // Contact સ્ટેટસ અપડેટ કરો
+      await db.query(
+        `UPDATE bulk_contacts 
+         SET status = $1, booked_datetime_text = $2, last_summary = $3, attempts = GREATEST(attempts, 1) 
+         WHERE id = $4`,
+        [callStatus, confirmedSlot, summary, contactId]
+      );
+
+      // Attempt ઇન્સર્ટ કરો
+      const ins = await db.query(
+        `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, call_status, outcome, summary, interaction_id, recording_url, started_at, ended_at)
+         VALUES ($1, $2, 1, $3, $4, $5, $6, $7, NOW(), NOW())
+         RETURNING *`,
+        [contactId, id, callStatus, outcome, summary, iid, recUrl]
+      );
+
+      return res.json({ attempts: ins.rows });
+    }
+
+    return res.json({ attempts: [] });
   } catch (err) {
-    console.error('[Get Attempts Error]:', err);
-    res.status(500).json({ error: err.message });
+    console.error('[Attempts Endpoint Error]:', err);
+    return res.status(500).json({ error: err.message });
   }
 });
 

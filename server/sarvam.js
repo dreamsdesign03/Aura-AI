@@ -458,9 +458,9 @@ async function setSarvamCampaignStatus(campaignId, action) {
 function getSarvamCampaign(campaignId) {
   return sarvamJson('GET', schedulingUrl(`/campaigns/${campaignId}`));
 }
-
 function validInteractionId(id) {
-  return /^\d{8}\/[\w-]+$/.test(String(id || ''));
+  if (!id || typeof id !== 'string') return false;
+  return /^[\w\-\/]+$/.test(id) && id.length >= 8 && !id.startsWith('sarvam-');
 }
 
 function analyticsUrl(kind, interactionId) {
