@@ -215,9 +215,14 @@ function BulkCallDetail({ id, onBack }) {
   };
   const syncCampaignStatus = async () => {
     try {
-      // Direct campaign details reload karo je pehla thi chale che
-      await loadDetail();
-      toast({ title: "Campaign Status Refreshed!" });
+      const res = await fetch(`/api/bulk-calling/sync?id=${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(d.error || "Sync failed");
+      toast({ title: `Status Synced! (${d.updated_count || 0} contacts updated)` });
+      loadDetail();
     } catch (err) {
       toast({
         title: "Sync Error",
@@ -494,48 +499,70 @@ function BulkCallDetail({ id, onBack }) {
               <div className="space-y-4">
                 {attempts.map(a => {
                   const transcript = a.transcript || [];
-                  return (
-                    <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
-                      <div className="absolute -left-2 -top-2 w-5 h-5 bg-pink-100 text-pink-700 rounded-full flex items-center justify-center text-[10px] font-bold">
-                        {a.attempt_no}
-                      </div>
-                      <div className="flex justify-between items-start mb-2">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.call_status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {a.call_status}
-                        </span>
-                        <span className="text-[10px] text-gray-400">{format(new Date(a.started_at), "MMM d, HH:mm")}</span>
-                      </div>
-                      <div className="text-xs font-bold text-gray-800 mb-1">Outcome: <span className="text-pink-600">{a.outcome}</span></div>
+                  const recUrl = a.recording_url || (a.interaction_id ? `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(a.interaction_id)}` : null);
 
-                      {/* AI Conversation Transcript */}
-                      <CallConversation interactionId={a.interaction_id} />
-                      {!a.interaction_id && transcript && transcript.length > 0 && (
-                        <div className="mb-3">
-                          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
-                          <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {transcript.map((msg, idx) => (
-                              <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
-                                <span className="font-medium text-[10px] text-gray-500">{msg.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {msg.en_text || msg.content || msg.text}
-                              </div>
-                            ))}
-                          </div>
+                  return (
+                    <div key={a.id || a.attempt_no} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                      <div className="absolute -left-2 -top-2 w-5 h-5 bg-pink-100 text-pink-700 rounded-full flex items-center justify-center text-[10px] font-bold">
+                        {a.attempt_no || 1}
+                      </div>
+
+                      <div className="flex justify-between items-start mb-2">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.outcome === 'BOOKED' || a.call_status === 'booked'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : a.call_status === 'completed'
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-amber-100 text-amber-700'
+                          }`}>
+                          {a.outcome || a.call_status || 'CONNECTED'}
+                        </span>
+                        <span className="text-[10px] text-gray-400">
+                          {a.started_at ? format(new Date(a.started_at), "MMM d, HH:mm") : 'Just now'}
+                        </span>
+                      </div>
+
+                      <div className="text-xs font-bold text-gray-800 mb-1">
+                        Outcome: <span className="text-pink-600 font-semibold">{a.outcome || 'COMPLETED'}</span>
+                      </div>
+
+                      {/* Summary Text */}
+                      {a.summary && (
+                        <div className="text-[11px] text-gray-600 italic border-l-2 border-pink-400 pl-2 my-2 bg-pink-50/30 py-1 rounded-r">
+                          {a.summary}
                         </div>
                       )}
 
-                      <div className="text-[11px] text-gray-600 italic border-l-2 border-gray-200 pl-2 my-2">{a.summary || 'No summary provided.'}</div>
-                      {(a.recording_url || a.transcript?.length) && (
-                        <div className="mt-3 flex items-center gap-3 flex-wrap">
-                          {a.recording_url && (
-                            <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-pink-600 flex items-center gap-1 hover:underline">
-                              <Play className="w-3 h-3" /> Recording
-                            </a>
-                          )}
-                          {a.transcript?.length && (
-                            <span className="text-[11px] font-medium text-green-600 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3" /> Transcript available
-                            </span>
-                          )}
+                      {/* In-Line Audio Player for Call Recording */}
+                      {recUrl && (
+                        <div className="my-3 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                            <Play className="w-3 h-3 text-pink-600" /> Call Recording
+                          </div>
+                          <audio
+                            controls
+                            className="w-full h-8"
+                            src={recUrl}
+                            preload="none"
+                          />
                         </div>
+                      )}
+
+                      {/* AI Conversation Transcript */}
+                      {a.interaction_id ? (
+                        <CallConversation interactionId={a.interaction_id} />
+                      ) : (
+                        transcript && transcript.length > 0 && (
+                          <div className="mb-3">
+                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
+                            <div className="space-y-2 max-h-60 overflow-y-auto">
+                              {transcript.map((msg, idx) => (
+                                <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
+                                  <span className="font-medium text-[10px] text-gray-500">{msg.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {msg.en_text || msg.content || msg.text}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )
                       )}
                     </div>
                   );
@@ -594,6 +621,62 @@ function CallConversation({ interactionId }) {
         </>
       )}
       {err && <div className="text-[11px] text-red-500 mt-1">{err}</div>}
+    </div>
+  );
+}
+
+function DrawerConversation({ interactionId }) {
+  const [messages, setMessages] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const fetchTranscript = async () => {
+    if (messages) {
+      setOpen(!open);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/bulk-calling/calls/transcript?iid=${encodeURIComponent(interactionId)}`);
+      const data = await res.json();
+      setMessages(data.messages || []);
+      setOpen(true);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="mt-2">
+      <button
+        onClick={fetchTranscript}
+        className="text-xs font-semibold text-pink-600 hover:text-pink-700 flex items-center gap-1"
+      >
+        {loading ? 'Loading Conversation...' : open ? '▲ Hide Full Conversation' : '▼ View Full Conversation'}
+      </button>
+
+      {open && messages && (
+        <div className="mt-2 space-y-2 max-h-60 overflow-y-auto bg-white p-3 rounded border border-gray-200">
+          {messages.length === 0 ? (
+            <div className="text-xs text-gray-400">No transcript available.</div>
+          ) : (
+            messages.map((m, i) => (
+              <div
+                key={i}
+                className={`text-xs p-2 rounded ${m.role === 'user' ? 'bg-blue-50 text-blue-900 text-right ml-4' : 'bg-pink-50 text-pink-900 mr-4'
+                  }`}
+              >
+                <div className="font-bold text-[10px] opacity-75 mb-0.5">
+                  {m.role === 'user' ? 'Customer' : 'Ketki (AI)'}
+                </div>
+                <div>{m.content}</div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }

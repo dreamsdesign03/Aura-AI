@@ -479,9 +479,68 @@ router.get('/:id/contacts', async (req, res) => {
 // GET attempts for a contact
 router.get('/:id/contacts/:contactId/attempts', async (req, res) => {
   try {
-    const attempts = await db.query('SELECT * FROM bulk_attempts WHERE contact_id = $1 ORDER BY attempt_no ASC', [req.params.contactId]);
-    res.json(attempts.rows);
+    const { id, contactId } = req.params;
+
+    // 1. Check local attempts in DB
+    const attRes = await db.query(
+      'SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND contact_id = $2 ORDER BY attempt_no DESC, id DESC',
+      [id, contactId]
+    );
+
+    let attempts = attRes.rows;
+
+    // 2. Jo DB ma attempts na male, to Sarvam Interactions mathi live fetch karo
+    if (attempts.length === 0) {
+      const contactRes = await db.query('SELECT * FROM bulk_contacts WHERE id = $1', [contactId]);
+      const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
+
+      if (contactRes.rows.length > 0 && campRes.rows.length > 0) {
+        const contact = contactRes.rows[0];
+        const camp = campRes.rows[0];
+        const p10 = (contact.phone10 || '').slice(-10);
+
+        if (camp.sarvam_campaign_id) {
+          const apiKey = (process.env.SARVAM_API_KEY || '').trim();
+          const orgId = process.env.SARVAM_ORG_ID;
+          const wsId = process.env.SARVAM_WORKSPACE_ID;
+          const appId = process.env.SARVAM_APP_ID;
+
+          const sRes = await fetch(
+            `https://apps.sarvam.ai/api/analytics/v1/${orgId}/${wsId}/${appId}/interactions?campaign_id=${camp.sarvam_campaign_id}&page_size=50`,
+            { headers: { 'X-API-Key': apiKey } }
+          );
+
+          if (sRes.ok) {
+            const sData = await sRes.json();
+            const list = sData.interactions || sData.data || [];
+            
+            // Aa contact no matching call shodho
+            const match = list.find(item => {
+              const num = item.user_phone_number || item.phone_number || '';
+              return num.includes(p10);
+            });
+
+            if (match && match.interaction_id) {
+              const recUrl = `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(match.interaction_id)}`;
+              const vars = match.output_agent_variables || match.final_agent_variables || {};
+              const summary = vars.summary || match.summary || 'Call Completed';
+
+              const inserted = await db.query(
+                `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, call_status, outcome, summary, interaction_id, recording_url, started_at, ended_at)
+                 VALUES ($1, $2, 1, 'completed', 'CONNECTED', $3, $4, $5, NOW(), NOW())
+                 RETURNING *`,
+                [contactId, id, summary, match.interaction_id, recUrl]
+              );
+              attempts = inserted.rows;
+            }
+          }
+        }
+      }
+    }
+
+    res.json({ attempts });
   } catch (err) {
+    console.error('[Get Attempts Error]:', err);
     res.status(500).json({ error: err.message });
   }
 });
