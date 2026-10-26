@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import BulkCallModal from "@/components/BulkCallModal";
 import { format } from "date-fns";
 import * as XLSX from "xlsx-js-style";
+import { Edit2, ArrowLeft } from 'lucide-react';
 
 export default function BulkCalling() {
   const { toast } = useToast();
@@ -11,6 +12,7 @@ export default function BulkCalling() {
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [openEditModal, setOpenEditModal] = useState(false);
 
   const loadCampaigns = async () => {
     try {
@@ -321,6 +323,44 @@ function BulkCallDetail({ id, onBack }) {
                     campaign.error_message ? <span className="text-red-500">Error: {campaign.error_message}</span> :
                       'Stopped'}
           </div>
+          {/* Campaign Header / Actions Area */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200 mb-6">
+            <div>
+              <div className="flex items-center gap-3">
+                {/* Back button jo hoy to */}
+                <button
+                  onClick={() => navigate('/campaigns')}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+
+                <h1 className="text-xl font-bold text-slate-900">
+                  {campaign?.name || 'Test Bulk Campaign'}
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-2 mt-1 ml-8 text-xs text-slate-500">
+                <span>{campaign?.created_at ? new Date(campaign.created_at).toLocaleString() : 'Oct 26, 2026 11:24 AM'}</span>
+                <span>•</span>
+                <span className="font-semibold text-rose-500 flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
+                  AI CALLING OFF
+                </span>
+              </div>
+            </div>
+
+            {/* 👉 આ રહ્યું Edit Schedule Button - Right Hand Side પર */}
+            <div className="flex items-center gap-3 self-end sm:self-center">
+              <button
+                onClick={() => setOpenEditModal(true)}
+                className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center gap-1.5 shadow-sm"
+              >
+                <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+                Edit Schedule
+              </button>
+            </div>
+          </div>
 
           <button
             onClick={() => toggleCampaign(!campaign.enabled)}
@@ -450,8 +490,8 @@ function BulkCallDetail({ id, onBack }) {
                     key={i}
                     onClick={() => {
                       setDrawerContact(c);
-                      setAttempts([]); 
-                      loadAttempts(c.id); 
+                      setAttempts([]);
+                      loadAttempts(c.id);
                     }}
                     className="hover:bg-blue-50/50 cursor-pointer transition-colors"
                   >
@@ -664,6 +704,18 @@ function DrawerConversation({ interactionId }) {
       setLoading(false);
     }
   };
+  {
+    openEditModal && (
+      <EditScheduleModal
+        campaign={campaign}
+        onClose={() => setOpenEditModal(false)}
+        onUpdated={(newDate) => {
+          // Campaign refresh logic
+          setOpenEditModal(false);
+        }}
+      />
+    )
+  }
 
   return (
     <div className="mt-2">

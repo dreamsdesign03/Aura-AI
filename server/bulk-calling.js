@@ -161,6 +161,57 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
 
 });
 
+// server/bulk-calling.js
+router.patch('/:id/schedule', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startTime, endTime, dailyStartTime, dailyEndTime, timezone } = req.body;
+
+    const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
+    if (campRes.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
+
+    const camp = campRes.rows[0];
+    const sarvamCampId = camp.sarvam_campaign_id;
+    const apiKey = (process.env.SARVAM_SAMVAAD_API_KEY || process.env.SARVAM_API_KEY || '').trim();
+
+    // 1. Sarvam Indus API પર શિડ્યુલ અપડેટ કરો
+    if (sarvamCampId) {
+      const schedulePayload = {
+        schedule: {
+          start_datetime: startTime || camp.scheduled_at,
+          daily_start_time: dailyStartTime || '10:00:00',
+          daily_end_time: dailyEndTime || '19:00:00',
+          timezone: timezone || 'Asia/Kolkata'
+        }
+      };
+
+      const patchUrl = `https://apps.sarvam.ai/api/v1/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/campaigns/${sarvamCampId}`;
+      await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-API-Key': apiKey
+        },
+        body: JSON.stringify(schedulePayload)
+      });
+    }
+
+    // 2. લોકલ PostgreSQL ડેટાબેઝ અપડેટ કરો
+    const updated = await db.query(
+      `UPDATE bulk_campaigns 
+       SET scheduled_at = COALESCE($1, scheduled_at),
+           updated_at = NOW()
+       WHERE id = $2 RETURNING *`,
+      [startTime, id]
+    );
+
+    return res.json({ success: true, campaign: updated.rows[0] });
+  } catch (err) {
+    console.error('[Campaign Edit Error]:', err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Create the Sarvam campaign for a draft AuraAI campaign and stream its pending contacts.
 async function launchSarvamCampaign(camp) {
   const pending = await db.query("SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND status = 'pending' ORDER BY id", [camp.id]);
