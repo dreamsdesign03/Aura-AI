@@ -5,7 +5,9 @@ const {
   dispatchSarvamCall, buildAgentVars, buildOutboundGreeting,
   campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
   fetchSarvamTranscript, fetchSarvamRecording, validInteractionId,
-  normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow
+  normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow,
+  mapSarvamOutcome, adaptCampaignPayload, recordingProxyUrl, listSarvamAnalytics,
+  updateSarvamCampaign
 } = require('./sarvam');
 
 const router = express.Router();
@@ -659,6 +661,125 @@ router.post('/:id/toggle', async (req, res) => {
     const code = [400, 409].includes(err.status) ? err.status : (err.status ? 502 : 500);
     console.error('[Bulk Toggle] failed:', err.message);
     res.status(code).json({ error: err.message });
+  }
+});
+
+// Pull call results straight from Sarvam's Analytics API and update our rows.
+// Works even if the webhook never arrives; safe to run repeatedly.
+const lastResultSync = new Map();
+async function syncSarvamResults(camp) {
+  const startMs = new Date(camp.started_at || camp.created_at).getTime() - 15 * 60000;
+  const endMs = Date.now() + 5 * 60000;
+  const attempts = await listSarvamAnalytics('attempts', { startMs, endMs, campaignId: camp.sarvam_campaign_id });
+
+  // Interactions carry the agent variables (call_disposition etc.); best effort.
+  const ivars = new Map();
+  try {
+    const interactions = await listSarvamAnalytics('interactions', { startMs, endMs, campaignId: camp.sarvam_campaign_id });
+    interactions.forEach(i => ivars.set(i.interaction_id, i.agent_variables || null));
+  } catch (err) {
+    console.warn('[Bulk Sync] interactions fetch failed:', err.message);
+  }
+
+  const contacts = (await db.query('SELECT * FROM bulk_contacts WHERE campaign_id = $1', [camp.id])).rows;
+  const byId = new Map(contacts.map(c => [String(c.id), c]));
+  const byPhone = new Map(contacts.filter(c => c.phone10).map(c => [c.phone10, c]));
+
+  attempts.sort((a, b) => String(a.attempted_at || '').localeCompare(String(b.attempted_at || '')));
+  const perContact = new Map();
+  let created = 0;
+
+  for (const a of attempts) {
+    const phone = normalizePhone(String(a.user_contact || ''));
+    const contact = byId.get(String(a.user_identifier)) || (phone && byPhone.get(phone.local));
+    if (!contact) continue;
+    const n = (perContact.get(contact.id) || 0) + 1;
+    perContact.set(contact.id, n);
+
+    const done = await db.query('SELECT id FROM bulk_attempts WHERE campaign_id = $1 AND request_id = $2 LIMIT 1', [camp.id, a.attempt_id]);
+    if (done.rows.length > 0) continue;
+
+    const { callStatus, outcome, summary, sentiment, confirmedSlot } = mapSarvamOutcome(adaptCampaignPayload({
+      connectivity_status: a.connectivity_status,
+      interaction_id: a.interaction_id || null,
+      final_agent_variables: (a.interaction_id && ivars.get(a.interaction_id)) || a.agent_variables || null
+    }));
+
+    const when = a.start_datetime || a.attempted_at;
+    const ins = await db.query(
+      `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, request_id, started_at, duration_sec, interaction_id, raw_json)
+       VALUES ($1, $2, $3, $4, COALESCE($5::timestamptz, NOW()), $6, $7, $8) RETURNING *`,
+      [contact.id, camp.id, n, a.attempt_id, when ? when + 'Z' : null,
+        a.duration_in_seconds != null ? Math.round(a.duration_in_seconds) : null, a.interaction_id || null, JSON.stringify(a)]
+    );
+    await db.query('UPDATE bulk_contacts SET attempts = GREATEST(attempts, $1), last_attempt_at = NOW(), last_request_id = $2 WHERE id = $3', [n, a.attempt_id, contact.id]);
+    if (confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+    await resolveAttempt(ins.rows[0], callStatus, outcome, summary, sentiment, recordingProxyUrl(a.interaction_id), null);
+    created++;
+  }
+
+  lastSync.delete(camp.id);
+  await syncSarvamStatus(camp);
+  return { found: attempts.length, created };
+}
+
+// POST sync results from Sarvam
+router.post('/:id/sync', requireUserCookie, async (req, res) => {
+  try {
+    const cRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [req.params.id]);
+    if (cRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
+    const camp = cRes.rows[0];
+    if (!camp.sarvam_campaign_id) return res.json({ success: true, skipped: 'not a Sarvam campaign' });
+    if (Date.now() - (lastResultSync.get(camp.id) || 0) < 10000) return res.json({ success: true, skipped: 'recently synced' });
+    lastResultSync.set(camp.id, Date.now());
+    res.json({ success: true, ...(await syncSarvamResults(camp)) });
+  } catch (err) {
+    console.error('[Bulk Sync] failed:', err.message);
+    res.status(err.status ? 502 : 500).json({ error: err.message });
+  }
+});
+
+// PATCH edit campaign name + all Sarvam schedule settings (also updates the live Sarvam campaign)
+router.patch('/:id/settings', requireUserCookie, async (req, res) => {
+  try {
+    const cRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [req.params.id]);
+    if (cRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
+    const camp = cRes.rows[0];
+    if (camp.status === 'completed') return res.status(409).json({ error: 'Campaign already completed - create a new campaign instead' });
+
+    const settings = normalizeSarvamSettings(req.body.sarvam_settings);
+    const name = String(req.body.name || camp.name || '').trim().slice(0, 80) || camp.name;
+    const maxAttempts = settings.retry.enabled ? settings.retry.maxRetries + 1 : 1;
+    const retryDelay = settings.retry.intervalMin;
+
+    if (camp.sarvam_campaign_id) {
+      // Sarvam only allows edits while the campaign is paused or scheduled.
+      let sc = await getSarvamCampaign(camp.sarvam_campaign_id);
+      if (['ended', 'cancelled'].includes(sc.status)) return res.status(409).json({ error: 'Sarvam campaign has already ended' });
+      const wasActive = sc.status === 'active';
+      if (wasActive) await setSarvamCampaignStatus(camp.sarvam_campaign_id, 'pause');
+      try {
+        const { endIso } = resolveSarvamWindow(settings);
+        await updateSarvamCampaign(camp.sarvam_campaign_id, {
+          name: `AuraAI-${camp.id}-${name}`,
+          settings,
+          endIso,
+          webhookUrl: process.env.SARVAM_WEBHOOK_URL,
+          metadata: { kind: 'bulk', campaign_id: camp.id }
+        });
+      } finally {
+        if (wasActive) await setSarvamCampaignStatus(camp.sarvam_campaign_id, 'resume').catch(e => console.error('[Bulk] resume after edit failed:', e.message));
+      }
+    }
+
+    await db.query(
+      'UPDATE bulk_campaigns SET name = $1, sarvam_settings = $2, max_attempts = $3, retry_delay_min = $4 WHERE id = $5',
+      [name, JSON.stringify(settings), maxAttempts, retryDelay, camp.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Bulk Edit] failed:', err.message);
+    res.status(err.status === 400 || err.status === 409 ? err.status : (err.status ? 502 : 500)).json({ error: err.message });
   }
 });
 

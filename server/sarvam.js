@@ -504,6 +504,51 @@ async function fetchSarvamRecording(interactionId) {
   return res;
 }
 
+// Audio is served through our own proxy route (Sarvam needs the API key header).
+function recordingProxyUrl(interactionId) {
+  if (!interactionId) return null;
+  const base = String(process.env.PUBLIC_APP_URL || '').replace(/\/$/, '');
+  return `${base}/api/bulk-calling/calls/recording?iid=${encodeURIComponent(interactionId)}`;
+}
+
+function istOffsetIso(ms) {
+  return new Date(ms + 330 * 60000).toISOString().replace(/\.\d{3}Z$/, '+05:30');
+}
+
+// Pages through Sarvam's Analytics API (attempts / interactions) for one campaign.
+// If the campaign_id filter is rejected, falls back to fetching all and filtering here.
+async function listSarvamAnalytics(kind, { startMs, endMs, campaignId, extra }) {
+  requireSarvamEnv(['SARVAM_API_KEY', 'SARVAM_ORG_ID', 'SARVAM_WORKSPACE_ID', 'SARVAM_APP_ID']);
+  const base = `${ANALYTICS_BASE}/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/${kind}`;
+  let out = [];
+  for (const useFilter of [true, false]) {
+    out = [];
+    try {
+      for (let offset = 0; offset < 5000; offset += 1000) {
+        const qs = new URLSearchParams({
+          start_datetime: istOffsetIso(startMs),
+          end_datetime: istOffsetIso(endMs),
+          limit: '1000',
+          offset: String(offset),
+          ...(extra || {})
+        });
+        if (useFilter && campaignId) {
+          qs.set('filter_conditions', JSON.stringify([{ field: 'campaign_id', operator: 'equals', value: String(campaignId) }]));
+        }
+        const data = await sarvamJson('GET', `${base}?${qs.toString()}`);
+        const items = Array.isArray(data && data.items) ? data.items : [];
+        out.push(...items);
+        if (items.length < 1000) break;
+      }
+      break;
+    } catch (err) {
+      if (useFilter && campaignId && [400, 422].includes(err.status)) continue;
+      throw err;
+    }
+  }
+  return campaignId ? out.filter(i => String(i.campaign_id) === String(campaignId)) : out;
+}
+
 // Campaign webhook payloads use connectivity_status/completion_status instead of
 // `status`. Adapt them to the shape mapSarvamOutcome() already understands.
 function adaptCampaignPayload(payload) {
@@ -516,10 +561,18 @@ function adaptCampaignPayload(payload) {
   };
 }
 
+// Edit a paused/scheduled Sarvam campaign (PATCH). Start time cannot be changed by Sarvam.
+function updateSarvamCampaign(campaignId, opts) {
+  const body = buildSarvamCampaignBody(opts);
+  delete body.start_timestamp;
+  if (!opts.description) delete body.description;
+  return sarvamJson('PATCH', schedulingUrl(`/campaigns/${campaignId}`), body);
+}
+
 module.exports = {
-  dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName,
+    dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName,
   campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
   fetchSarvamTranscript, fetchSarvamRecording, validInteractionId, adaptCampaignPayload,
   normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow, buildSarvamCampaignBody,
-  fetchSarvamRecordingStream
+  recordingProxyUrl, listSarvamAnalytics, updateSarvamCampaign
 };

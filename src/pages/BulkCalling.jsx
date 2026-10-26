@@ -2,9 +2,9 @@ import { useState, useEffect } from "react";
 import { PhoneOutgoing, Plus, Loader2, RefreshCw, Play, Pause, XCircle, Search, Download, ChevronRight, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BulkCallModal from "@/components/BulkCallModal";
+import EditCampaignModal from "@/components/EditCampaignModal";
 import { format } from "date-fns";
 import * as XLSX from "xlsx-js-style";
-import { Edit2, ArrowLeft } from 'lucide-react';
 
 export default function BulkCalling() {
   const { toast } = useToast();
@@ -12,7 +12,6 @@ export default function BulkCalling() {
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
-  const [openEditModal, setOpenEditModal] = useState(false);
 
   const loadCampaigns = async () => {
     try {
@@ -94,11 +93,11 @@ export default function BulkCalling() {
                     <td className="px-5 py-3 font-bold text-green-600">{c.booked_count || 0}</td>
                     <td className="px-5 py-3">
                       <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${c.status === 'running' ? 'bg-green-100 text-green-700' :
-                        c.status === 'paused_hours' ? 'bg-amber-100 text-amber-700' :
-                          c.status === 'waiting' ? 'bg-blue-100 text-blue-700' :
-                            c.status === 'completed' ? 'bg-gray-100 text-gray-600' :
-                              c.status === 'error' ? 'bg-red-100 text-red-700' :
-                                'bg-gray-100 text-gray-600'
+                          c.status === 'paused_hours' ? 'bg-amber-100 text-amber-700' :
+                            c.status === 'waiting' ? 'bg-blue-100 text-blue-700' :
+                              c.status === 'completed' ? 'bg-gray-100 text-gray-600' :
+                                c.status === 'error' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-600'
                         }`}>
                         {c.enabled ? (c.status === 'draft' || c.status === 'stopped' ? 'starting' : c.status) : (c.status === 'running' ? 'stopped' : c.status)}
                       </span>
@@ -135,15 +134,6 @@ function BulkCallDetail({ id, onBack }) {
   const [attempts, setAttempts] = useState([]);
 
   const [showConfirm, setShowConfirm] = useState(false);
-  const loadAttempts = async (contactId) => {
-    try {
-      const res = await fetch(`/api/bulk-calling/${id}/contacts/${contactId}/attempts`);
-      const data = await res.json();
-      setAttempts(Array.isArray(data.attempts) ? data.attempts : []);
-    } catch (e) {
-      setAttempts([]);
-    }
-  };
 
   const loadDetail = async () => {
     try {
@@ -171,6 +161,25 @@ function BulkCallDetail({ id, onBack }) {
     const i = setInterval(loadDetail, 5000);
     return () => clearInterval(i);
   }, [id]);
+
+  // Pull results from Sarvam (works even if the webhook is delayed): once on open, then every 30s while ON.
+  const [showEdit, setShowEdit] = useState(false);
+  const syncFromSarvam = async () => {
+    try {
+      const r = await fetch(`/api/bulk-calling/${id}/sync`, { method: "POST" });
+      if (r.ok) loadDetail();
+      return r.ok;
+    } catch (e) {
+      return false;
+    }
+  };
+  useEffect(() => {
+    if (!campaign?.sarvam_campaign_id) return;
+    syncFromSarvam();
+    if (!campaign.enabled) return;
+    const i = setInterval(syncFromSarvam, 30000);
+    return () => clearInterval(i);
+  }, [campaign?.sarvam_campaign_id, campaign?.enabled]);
 
   useEffect(() => {
     if (drawerContact) {
@@ -222,24 +231,6 @@ function BulkCallDetail({ id, onBack }) {
       loadDetail();
     } catch (err) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-  const syncCampaignStatus = async () => {
-    try {
-      const res = await fetch(`/api/bulk-calling/sync?id=${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || "Sync failed");
-      toast({ title: `Status Synced! (${d.updated_count || 0} contacts updated)` });
-      loadDetail();
-    } catch (err) {
-      toast({
-        title: "Sync Error",
-        description: err.message,
-        variant: "destructive"
-      });
     }
   };
 
@@ -323,51 +314,18 @@ function BulkCallDetail({ id, onBack }) {
                     campaign.error_message ? <span className="text-red-500">Error: {campaign.error_message}</span> :
                       'Stopped'}
           </div>
-          {/* Campaign Header / Actions Area */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-200 mb-6">
-            <div>
-              <div className="flex items-center gap-3">
-                {/* Back button jo hoy to */}
-                <button
-                  onClick={() => navigate('/campaigns')}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
 
-                <h1 className="text-xl font-bold text-slate-900">
-                  {campaign?.name || 'Test Bulk Campaign'}
-                </h1>
-              </div>
-
-              <div className="flex items-center gap-2 mt-1 ml-8 text-xs text-slate-500">
-                <span>{campaign?.created_at ? new Date(campaign.created_at).toLocaleString() : 'Oct 26, 2026 11:24 AM'}</span>
-                <span>•</span>
-                <span className="font-semibold text-rose-500 flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                  AI CALLING OFF
-                </span>
-              </div>
-            </div>
-
-            {/* 👉 આ રહ્યું Edit Schedule Button - Right Hand Side પર */}
-            <div className="flex items-center gap-3 self-end sm:self-center">
-              <button
-                onClick={() => setOpenEditModal(true)}
-                className="px-3.5 py-1.5 text-xs font-semibold text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors flex items-center gap-1.5 shadow-sm"
-              >
-                <Edit2 className="w-3.5 h-3.5 text-slate-500" />
-                Edit Schedule
-              </button>
-            </div>
-          </div>
-
+          {campaign.status !== 'completed' && (
+            <button onClick={() => setShowEdit(true)} className="px-4 py-2.5 rounded-xl font-bold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 text-sm">
+              Edit Schedule
+            </button>
+          )}
           <button
             onClick={() => toggleCampaign(!campaign.enabled)}
             disabled={campaign.status === 'completed'}
             className={`px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all ${campaign.status === 'completed' ? 'bg-gray-200 text-gray-500 cursor-not-allowed' :
-              campaign.enabled ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
-                'bg-pink-600 text-white hover:bg-pink-700'
+                campaign.enabled ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
+                  'bg-pink-600 text-white hover:bg-pink-700'
               }`}
           >
             {campaign.enabled ? 'Pause Calling' : 'Start Calling'}
@@ -376,7 +334,7 @@ function BulkCallDetail({ id, onBack }) {
       </div>
 
       <div className="flex-1 overflow-auto p-6 space-y-6">
-
+        {showEdit && <EditCampaignModal campaign={campaign} onClose={() => setShowEdit(false)} onSaved={loadDetail} />}
         {/* Conf modal */}
         {showConfirm && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
@@ -398,12 +356,6 @@ function BulkCallDetail({ id, onBack }) {
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setShowConfirm(false)} className="flex-1 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button
-                  onClick={syncCampaignStatus}
-                  className="px-3 py-1.5 border rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-1.5"
-                >
-                  🔄 Sync from Sarvam
-                </button>
                 <button onClick={confirmStart} className="flex-1 py-2 font-bold bg-pink-600 text-white hover:bg-pink-700 rounded-lg shadow-sm">Start Calling</button>
               </div>
             </div>
@@ -466,6 +418,11 @@ function BulkCallDetail({ id, onBack }) {
                   className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-1 focus:ring-pink-400 outline-none w-64"
                 />
               </div>
+              {campaign.sarvam_campaign_id && (
+                <button onClick={async () => { const ok = await syncFromSarvam(); toast({ title: ok ? "Synced from Sarvam" : "Sync failed", variant: ok ? undefined : "destructive" }); }} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600" title="Sync results from Sarvam">
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              )}
               <button onClick={exportCsv} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600" title="Export CSV">
                 <Download className="w-4 h-4" />
               </button>
@@ -486,15 +443,7 @@ function BulkCallDetail({ id, onBack }) {
               </thead>
               <tbody className="divide-y divide-gray-50 text-xs">
                 {filteredContacts.map((c, i) => (
-                  <tr
-                    key={i}
-                    onClick={() => {
-                      setDrawerContact(c);
-                      setAttempts([]);
-                      loadAttempts(c.id);
-                    }}
-                    className="hover:bg-blue-50/50 cursor-pointer transition-colors"
-                  >
+                  <tr key={i} onClick={() => setDrawerContact(c)} className="hover:bg-blue-50/50 cursor-pointer transition-colors">
                     <td className="px-5 py-3">
                       <div className="font-bold text-gray-900">{c.name || 'Unknown'}</div>
                       {c.company && <div className="text-gray-500 text-[10px]">{c.company}</div>}
@@ -502,11 +451,11 @@ function BulkCallDetail({ id, onBack }) {
                     <td className="px-5 py-3 font-medium text-gray-600">{c.phone10}</td>
                     <td className="px-5 py-3">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${c.status === 'booked' ? 'bg-green-100 text-green-700' :
-                        c.status === 'calling' ? 'bg-amber-100 text-amber-700 animate-pulse' :
-                          c.status === 'no_answer' ? 'bg-orange-100 text-orange-700' :
-                            c.status === 'failed' || c.status === 'invalid' ? 'bg-red-100 text-red-700' :
-                              c.status === 'not_booked' ? 'bg-gray-200 text-gray-700' :
-                                'bg-blue-100 text-blue-700'
+                          c.status === 'calling' ? 'bg-amber-100 text-amber-700 animate-pulse' :
+                            c.status === 'no_answer' ? 'bg-orange-100 text-orange-700' :
+                              c.status === 'failed' || c.status === 'invalid' ? 'bg-red-100 text-red-700' :
+                                c.status === 'not_booked' ? 'bg-gray-200 text-gray-700' :
+                                  'bg-blue-100 text-blue-700'
                         }`}>
                         {c.status}
                       </span>
@@ -550,76 +499,54 @@ function BulkCallDetail({ id, onBack }) {
 
           <div className="flex-1 overflow-auto p-5 space-y-6 bg-gray-50/30">
             <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Attempt History</h4>
-            {(!Array.isArray(attempts) || attempts.length === 0) ? (
+            {attempts.length === 0 ? (
               <div className="text-sm text-gray-400 text-center py-8">No calls placed yet.</div>
             ) : (
               <div className="space-y-4">
-                {attempts.map((a, idx) => {
-                  const transcript = Array.isArray(a.transcript) ? a.transcript : [];
-                  const recUrl = a.recording_url || (a.interaction_id ? `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(a.interaction_id)}` : null);
-
+                {attempts.map(a => {
+                  const transcript = a.transcript || [];
                   return (
-                    <div key={a.id || idx} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
+                    <div key={a.id} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm relative">
                       <div className="absolute -left-2 -top-2 w-5 h-5 bg-pink-100 text-pink-700 rounded-full flex items-center justify-center text-[10px] font-bold">
-                        {a.attempt_no || idx + 1}
+                        {a.attempt_no}
                       </div>
-
                       <div className="flex justify-between items-start mb-2">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.outcome === 'BOOKED' || a.call_status === 'booked'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : a.call_status === 'completed'
-                            ? 'bg-blue-100 text-blue-700'
-                            : 'bg-amber-100 text-amber-700'
-                          }`}>
-                          {a.outcome || a.call_status || 'CONNECTED'}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${a.call_status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          {a.call_status}
                         </span>
-                        <span className="text-[10px] text-gray-400">
-                          {a.started_at ? format(new Date(a.started_at), "MMM d, HH:mm") : 'Just now'}
-                        </span>
+                        <span className="text-[10px] text-gray-400">{format(new Date(a.started_at), "MMM d, HH:mm")}</span>
                       </div>
-
-                      <div className="text-xs font-bold text-gray-800 mb-1">
-                        Outcome: <span className="text-pink-600 font-semibold">{a.outcome || 'COMPLETED'}</span>
-                      </div>
-
-                      {/* Summary Text */}
-                      {a.summary && (
-                        <div className="text-[11px] text-gray-600 italic border-l-2 border-pink-400 pl-2 my-2 bg-pink-50/30 py-1 rounded-r">
-                          {a.summary}
-                        </div>
-                      )}
-
-                      {/* In-Line Audio Player for Call Recording */}
-                      {recUrl && (
-                        <div className="my-3 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
-                          <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex items-center gap-1">
-                            <Play className="w-3 h-3 text-pink-600" /> Call Recording
-                          </div>
-                          <audio
-                            controls
-                            className="w-full h-8"
-                            src={recUrl}
-                            preload="none"
-                          />
-                        </div>
-                      )}
+                      <div className="text-xs font-bold text-gray-800 mb-1">Outcome: <span className="text-pink-600">{a.outcome}</span></div>
 
                       {/* AI Conversation Transcript */}
-                      {a.interaction_id ? (
-                        <CallConversation interactionId={a.interaction_id} />
-                      ) : (
-                        transcript.length > 0 && (
-                          <div className="mb-3">
-                            <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
-                            <div className="space-y-2 max-h-60 overflow-y-auto">
-                              {transcript.map((msg, mIdx) => (
-                                <div key={mIdx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
-                                  <span className="font-medium text-[10px] text-gray-500">{msg.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {msg.en_text || msg.content || msg.text}
-                                </div>
-                              ))}
-                            </div>
+                      <CallConversation interactionId={a.interaction_id} />
+                      {!a.interaction_id && transcript && transcript.length > 0 && (
+                        <div className="mb-3">
+                          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {transcript.map((msg, idx) => (
+                              <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
+                                <span className="font-medium text-[10px] text-gray-500">{msg.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {msg.en_text || msg.content || msg.text}
+                              </div>
+                            ))}
                           </div>
-                        )
+                        </div>
+                      )}
+
+                      <div className="text-[11px] text-gray-600 italic border-l-2 border-gray-200 pl-2 my-2">{a.summary || 'No summary provided.'}</div>
+                      {(a.recording_url || a.transcript?.length) && (
+                        <div className="mt-3 flex items-center gap-3 flex-wrap">
+                          {a.recording_url && (
+                            <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-pink-600 flex items-center gap-1 hover:underline">
+                              <Play className="w-3 h-3" /> Recording
+                            </a>
+                          )}
+                          {a.transcript?.length && (
+                            <span className="text-[11px] font-medium text-green-600 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3" /> Transcript available
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                   );
@@ -678,74 +605,6 @@ function CallConversation({ interactionId }) {
         </>
       )}
       {err && <div className="text-[11px] text-red-500 mt-1">{err}</div>}
-    </div>
-  );
-}
-
-function DrawerConversation({ interactionId }) {
-  const [messages, setMessages] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
-
-  const fetchTranscript = async () => {
-    if (messages) {
-      setOpen(!open);
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/bulk-calling/calls/transcript?iid=${encodeURIComponent(interactionId)}`);
-      const data = await res.json();
-      setMessages(data.messages || []);
-      setOpen(true);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-    }
-  };
-  {
-    openEditModal && (
-      <EditScheduleModal
-        campaign={campaign}
-        onClose={() => setOpenEditModal(false)}
-        onUpdated={(newDate) => {
-          // Campaign refresh logic
-          setOpenEditModal(false);
-        }}
-      />
-    )
-  }
-
-  return (
-    <div className="mt-2">
-      <button
-        onClick={fetchTranscript}
-        className="text-xs font-semibold text-pink-600 hover:text-pink-700 flex items-center gap-1"
-      >
-        {loading ? 'Loading Conversation...' : open ? '▲ Hide Full Conversation' : '▼ View Full Conversation'}
-      </button>
-
-      {open && messages && (
-        <div className="mt-2 space-y-2 max-h-60 overflow-y-auto bg-white p-3 rounded border border-gray-200">
-          {messages.length === 0 ? (
-            <div className="text-xs text-gray-400">No transcript available.</div>
-          ) : (
-            messages.map((m, i) => (
-              <div
-                key={i}
-                className={`text-xs p-2 rounded ${m.role === 'user' ? 'bg-blue-50 text-blue-900 text-right ml-4' : 'bg-pink-50 text-pink-900 mr-4'
-                  }`}
-              >
-                <div className="font-bold text-[10px] opacity-75 mb-0.5">
-                  {m.role === 'user' ? 'Customer' : 'Ketki (AI)'}
-                </div>
-                <div>{m.content}</div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
     </div>
   );
 }
