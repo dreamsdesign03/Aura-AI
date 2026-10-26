@@ -63,7 +63,7 @@ async function launchSarvamCampaign(camp) {
     attemptsPerSecond: Number(process.env.SARVAM_CAMPAIGN_APS || 0.5),
     maxRetries: Math.max(0, (camp.max_attempts || 2) - 1),
     retryIntervalMin: camp.retry_delay_min || 30,
-    startIso: new Date(Date.now() + 60 * 1000).toISOString(),
+        startIso: new Date(Date.now() + 180 * 1000).toISOString(),
     endIso: new Date(Date.now() + days * 24 * 3600 * 1000).toISOString(),
     startTime: process.env.SARVAM_CALL_START || '10:00',
     endTime: process.env.SARVAM_CALL_END || '19:30',
