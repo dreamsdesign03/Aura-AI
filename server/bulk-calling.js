@@ -4,7 +4,8 @@ const { normalizePhone, isCallingHours } = require('./call-utils');
 const {
   dispatchSarvamCall, buildAgentVars, buildOutboundGreeting,
   campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
-  fetchSarvamTranscript, fetchSarvamRecording, validInteractionId
+  fetchSarvamTranscript, fetchSarvamRecording, validInteractionId,
+  normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow
 } = require('./sarvam');
 
 const router = express.Router();
@@ -56,17 +57,15 @@ async function launchSarvamCampaign(camp) {
     throw e;
   }
 
-  const days = Number(process.env.SARVAM_CAMPAIGN_DAYS || 2);
+  // Settings chosen in the New Campaign form (older campaigns fall back to legacy defaults).
+  const settings = camp.sarvam_settings ? normalizeSarvamSettings(camp.sarvam_settings) : legacySarvamSettings(camp);
+  const { startIso, endIso } = resolveSarvamWindow(settings);
   const sc = await createSarvamCampaign({
     name: `AuraAI-${camp.id}-${camp.name || 'bulk'}`,
     description: 'AuraAI bulk calling campaign ' + camp.id,
-    attemptsPerSecond: Number(process.env.SARVAM_CAMPAIGN_APS || 0.5),
-    maxRetries: Math.max(0, (camp.max_attempts || 2) - 1),
-    retryIntervalMin: camp.retry_delay_min || 30,
-    startIso: new Date(Date.now() + 180 * 1000).toISOString(),
-    endIso: new Date(Date.now() + days * 24 * 3600 * 1000).toISOString(),
-    startTime: process.env.SARVAM_CALL_START || '10:00',
-    endTime: process.env.SARVAM_CALL_END || '19:30',
+    settings,
+    startIso,
+    endIso,
     webhookUrl: process.env.SARVAM_WEBHOOK_URL,
     metadata: { kind: 'bulk', campaign_id: camp.id }
   });
@@ -209,13 +208,23 @@ router.get('/', async (req, res) => {
 // POST new campaign
 router.post('/', async (req, res) => {
   try {
-    const { name, max_attempts, retry_delay_min, gap_seconds, contacts } = req.body;
+        const { name, max_attempts, retry_delay_min, gap_seconds, contacts, sarvam_settings } = req.body;
     if (!contacts || !Array.isArray(contacts)) return res.status(400).json({ error: 'invalid contacts' });
     if (contacts.length > 500) return res.status(400).json({ error: 'Max 500 contacts' });
 
+    // Campaign-mode settings (same options as Sarvam's Schedule campaign wizard).
+    let settings = null;
+    let maxAttempts = max_attempts || 2;
+    let retryDelay = retry_delay_min || 30;
+    if (campaignEnabled()) {
+      settings = normalizeSarvamSettings(sarvam_settings);
+      maxAttempts = settings.retry.enabled ? settings.retry.maxRetries + 1 : 1;
+      retryDelay = settings.retry.intervalMin;
+    }
+
     const insertCamp = await db.query(
-      'INSERT INTO bulk_campaigns (name, max_attempts, retry_delay_min, gap_seconds, total, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      [name, max_attempts || 2, retry_delay_min || 30, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1]
+      'INSERT INTO bulk_campaigns (name, max_attempts, retry_delay_min, gap_seconds, total, created_by, sarvam_settings) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
+      [name, maxAttempts, retryDelay, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1, settings ? JSON.stringify(settings) : null]
     );
     const campaignId = insertCamp.rows[0].id;
 
@@ -254,7 +263,7 @@ router.post('/', async (req, res) => {
 
     res.json({ success: true, campaignId });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+        res.status(err.status === 400 ? 400 : 500).json({ error: err.message });
   }
 });
 

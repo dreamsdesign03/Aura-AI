@@ -354,3 +354,4 @@ CREATE TABLE IF NOT EXISTS bulk_attempts (
 -- 19. Sarvam campaign mode
 ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS sarvam_campaign_id TEXT;
 ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS interaction_id TEXT;
+ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS sarvam_settings JSONB;

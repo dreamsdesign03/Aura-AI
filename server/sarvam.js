@@ -250,16 +250,142 @@ function schedulingUrl(path) {
   return `${SCHEDULING_BASE}/orgs/${process.env.SARVAM_ORG_ID}/workspaces/${process.env.SARVAM_WORKSPACE_ID}${path}`;
 }
 
-async function createSarvamCampaign({ name, description, attemptsPerSecond, maxRetries, retryIntervalMin, startIso, endIso, startTime, endTime, webhookUrl, metadata }) {
-  requireSarvamEnv(['SARVAM_API_KEY', 'SARVAM_ORG_ID', 'SARVAM_WORKSPACE_ID', 'SARVAM_APP_ID', 'SARVAM_APP_VERSION', 'SARVAM_CONNECTION_ID', 'SARVAM_AGENT_NUMBER']);
-  const body = {
+// ── Campaign settings (same options as the Sarvam "Schedule campaign" wizard) ──
+const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
+const LOCAL_DT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
+
+function badInput(msg) {
+  const e = new Error(msg);
+  e.status = 400;
+  return e;
+}
+
+function clampInt(v, min, max, dflt) {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : dflt;
+}
+
+// Validates + fills defaults. The defaults match the Sarvam wizard.
+function normalizeSarvamSettings(input) {
+  const s = input && typeof input === 'object' ? input : {};
+  const r = s.retry && typeof s.retry === 'object' ? s.retry : {};
+  const on = r.on && typeof r.on === 'object' ? r.on : {};
+
+  const aps = Number(s.attemptsPerSecond == null ? 0.5 : s.attemptsPerSecond);
+  if (!Number.isFinite(aps) || aps < 0.1 || aps > 500) throw badInput('Attempts per second must be between 0.1 and 500');
+
+  const days = Array.isArray(s.allowedDays) ? DAY_NAMES.filter(d => s.allowedDays.includes(d)) : DAY_NAMES.slice();
+  if (days.length === 0) throw badInput('Select at least one allowed day');
+
+  const startTime = s.startTime == null ? '09:00' : String(s.startTime);
+  const endTime = s.endTime == null ? '18:00' : String(s.endTime);
+  if (!HHMM.test(startTime) || !HHMM.test(endTime)) throw badInput('Calling time must be HH:MM');
+  if (endTime <= startTime) throw badInput('Calls-allowed end time must be after the start time');
+
+  const startMode = s.start && s.start.mode === 'custom' ? 'custom' : 'now';
+  const endMode = s.end && s.end.mode === 'custom' ? 'custom' : 'today';
+  const startAt = startMode === 'custom' ? String(s.start.at || '') : '';
+  const endAt = endMode === 'custom' ? String(s.end.at || '') : '';
+  if (startMode === 'custom' && !LOCAL_DT.test(startAt)) throw badInput('Pick a valid custom start date and time');
+  if (endMode === 'custom' && !LOCAL_DT.test(endAt)) throw badInput('Pick a valid custom end date and time');
+
+  const retryEnabled = r.enabled !== false;
+  const maxRetries = clampInt(r.maxRetries, 0, 20, 3);
+  const intervalMin = clampInt(r.intervalMin, 1, 1440, 30);
+  let customIntervals = null;
+  if (Array.isArray(r.customIntervals) && r.customIntervals.length) {
+    customIntervals = r.customIntervals.map(n => clampInt(n, 1, 1440, intervalMin)).slice(0, 20);
+  }
+  const err = (o, dMax, dInt) => ({
+    enabled: o ? o.enabled !== false : true,
+    maxRetries: clampInt(o && o.maxRetries, 1, 20, dMax),
+    intervalMin: clampInt(o && o.intervalMin, 5, 1440, dInt)
+  });
+  const sd = on.short_duration && typeof on.short_duration === 'object' ? on.short_duration : {};
+
+  return {
+    start: { mode: startMode, at: startAt },
+    end: { mode: endMode, at: endAt },
+    attemptsPerSecond: aps,
+    allowedDays: days,
+    startTime,
+    endTime,
+    retry: {
+      enabled: retryEnabled,
+      maxRetries,
+      intervalMin,
+      customIntervals,
+      on: {
+        busy: on.busy !== false,
+        no_answer: on.no_answer !== false,
+        failed: on.failed !== false,
+        short_duration: { enabled: !!sd.enabled, thresholdSeconds: clampInt(sd.thresholdSeconds, 1, 3600, 30) },
+        provider_error: err(on.provider_error, 3, 5),
+        internal_error: err(on.internal_error, 3, 5)
+      }
+    }
+  };
+}
+
+// Settings for campaigns created before the settings UI existed.
+function legacySarvamSettings(camp) {
+  return normalizeSarvamSettings({
+    attemptsPerSecond: Number(process.env.SARVAM_CAMPAIGN_APS || 0.5),
+    startTime: process.env.SARVAM_CALL_START || '10:00',
+    endTime: process.env.SARVAM_CALL_END || '19:30',
+    retry: { enabled: true, maxRetries: Math.max(0, (camp.max_attempts || 2) - 1), intervalMin: camp.retry_delay_min || 30 }
+  });
+}
+
+// Start/end for the Sarvam campaign, computed when the campaign is launched.
+// Sarvam needs start_timestamp at least 120s in the future; we keep 180s.
+function resolveSarvamWindow(settings, nowMs = Date.now()) {
+  const minStart = nowMs + 180 * 1000;
+  let start = minStart;
+  if (settings.start.mode === 'custom') {
+    const t = Date.parse(settings.start.at + ':00+05:30');
+    if (Number.isFinite(t)) start = Math.max(t, minStart);
+  }
+  let end;
+  if (settings.end.mode === 'custom') {
+    end = Date.parse(settings.end.at + ':00+05:30');
+  } else {
+    const istToday = new Date(nowMs + 330 * 60000).toISOString().slice(0, 10);
+    end = Date.parse(istToday + 'T23:59:00+05:30');
+  }
+  if (!Number.isFinite(end) || end <= start + 60000) {
+    throw badInput('End time must be after the start time (campaign starts about 3 minutes after you press Start)');
+  }
+  return { startIso: new Date(start).toISOString(), endIso: new Date(end).toISOString() };
+}
+
+function buildRetryConfig(r) {
+  if (!r.enabled || r.maxRetries === 0) return { max_retries: 0 };
+  const on = r.on;
+  return {
+    max_retries: r.maxRetries,
+    retry_interval_minutes: r.customIntervals && r.customIntervals.length ? r.customIntervals : r.intervalMin,
+    retry_on: {
+      busy: { enabled: !!on.busy },
+      no_answer: { enabled: !!on.no_answer },
+      failed: { enabled: !!on.failed },
+      short_duration: { enabled: !!on.short_duration.enabled, threshold_seconds: on.short_duration.thresholdSeconds },
+      provider_error: { enabled: !!on.provider_error.enabled, max_retries: on.provider_error.maxRetries, retry_interval_minutes: on.provider_error.intervalMin },
+      internal_error: { enabled: !!on.internal_error.enabled, max_retries: on.internal_error.maxRetries, retry_interval_minutes: on.internal_error.intervalMin }
+    }
+  };
+}
+
+function buildSarvamCampaignBody({ name, description, settings, startIso, endIso, webhookUrl, metadata }) {
+  return {
     name: String(name || 'AuraAI campaign').slice(0, 100),
     description: description ? String(description).slice(0, 150) : null,
     app_config: {
       app_id: process.env.SARVAM_APP_ID,
       app_type: 'agent',
       app_version: Number(process.env.SARVAM_APP_VERSION),
-      attempts_per_second: attemptsPerSecond,
+      attempts_per_second: settings.attemptsPerSecond,
       connection_configs: [{
         connection_id: process.env.SARVAM_CONNECTION_ID,
         phone_numbers: [process.env.SARVAM_AGENT_NUMBER],
@@ -267,22 +393,23 @@ async function createSarvamCampaign({ name, description, attemptsPerSecond, maxR
         phone_number: process.env.SARVAM_AGENT_NUMBER,
         agent_phone_number: process.env.SARVAM_AGENT_NUMBER
       }],
-      retry_config: {
-        max_retries: maxRetries,
-        retry_interval_minutes: retryIntervalMin,
-        retry_on: { busy: { enabled: true }, no_answer: { enabled: true }, failed: { enabled: true } }
-      }
+      retry_config: buildRetryConfig(settings.retry)
     },
     start_timestamp: startIso,
     end_timestamp: endIso,
     allowed_schedule: {
-      allowed_start_time: startTime,
-      allowed_end_time: endTime,
-      allowed_days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      allowed_start_time: settings.startTime,
+      allowed_end_time: settings.endTime,
+      allowed_days: settings.allowedDays,
       timezone: 'Asia/Kolkata'
     },
     webhook_config: { url: webhookUrl, metadata: metadata || {} }
   };
+}
+
+async function createSarvamCampaign(opts) {
+  requireSarvamEnv(['SARVAM_API_KEY', 'SARVAM_ORG_ID', 'SARVAM_WORKSPACE_ID', 'SARVAM_APP_ID', 'SARVAM_APP_VERSION', 'SARVAM_CONNECTION_ID', 'SARVAM_AGENT_NUMBER']);
+  const body = buildSarvamCampaignBody(opts);
   const url = schedulingUrl('/campaigns');
   try {
     return await sarvamJson('POST', url, body);
@@ -366,5 +493,6 @@ function adaptCampaignPayload(payload) {
 module.exports = {
   dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName,
   campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
-  fetchSarvamTranscript, fetchSarvamRecording, validInteractionId, adaptCampaignPayload
+  fetchSarvamTranscript, fetchSarvamRecording, validInteractionId, adaptCampaignPayload,
+  normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow, buildSarvamCampaignBody
 };

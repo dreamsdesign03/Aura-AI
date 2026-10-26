@@ -318,8 +318,18 @@ function BulkCallDetail({ id, onBack }) {
                 <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
                     <h3 className="text-lg font-bold text-gray-900 mb-2">Start Campaign?</h3>
                     <p className="text-sm text-gray-600 mb-6">
-                        {pending} contacts will be called one by one by Ketki (AI).<br/><br/>
-                        Calling hours: 10:00 AM - 7:30 PM IST.
+                        {campaign.sarvam_settings ? (
+                          <>
+                            {pending} contacts will be called by Ketki (AI) at {campaign.sarvam_settings.attemptsPerSecond} call(s)/sec.<br/><br/>
+                            Calling hours: {campaign.sarvam_settings.startTime} - {campaign.sarvam_settings.endTime} IST.<br/>
+                            {campaign.sarvam_settings.retry?.enabled ? `Retries: ${campaign.sarvam_settings.retry.maxRetries}` : 'No retries'}
+                          </>
+                        ) : (
+                          <>
+                            {pending} contacts will be called one by one by Ketki (AI).<br/><br/>
+                            Calling hours: 10:00 AM - 7:30 PM IST.
+                          </>
+                        )}
                     </p>
                     <div className="flex gap-3">
                         <button onClick={()=>setShowConfirm(false)} className="flex-1 py-2 font-semibold text-gray-600 hover:bg-gray-100 rounded-lg">Cancel</button>
