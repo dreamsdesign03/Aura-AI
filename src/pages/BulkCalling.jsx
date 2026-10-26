@@ -100,11 +100,11 @@ export default function BulkCalling() {
                     <td className="px-5 py-3 font-bold text-green-600">{c.booked_count || 0}</td>
                     <td className="px-5 py-3">
                       <span className={`px-2.5 py-1 rounded-md text-[11px] font-bold uppercase tracking-wider ${c.status === 'running' ? 'bg-green-100 text-green-700' :
-                          c.status === 'paused_hours' ? 'bg-amber-100 text-amber-700' :
-                            c.status === 'waiting' ? 'bg-blue-100 text-blue-700' :
-                              c.status === 'completed' ? 'bg-gray-100 text-gray-600' :
-                                c.status === 'error' ? 'bg-red-100 text-red-700' :
-                                  'bg-gray-100 text-gray-600'
+                        c.status === 'paused_hours' ? 'bg-amber-100 text-amber-700' :
+                          c.status === 'waiting' ? 'bg-blue-100 text-blue-700' :
+                            c.status === 'completed' ? 'bg-gray-100 text-gray-600' :
+                              c.status === 'error' ? 'bg-red-100 text-red-700' :
+                                'bg-gray-100 text-gray-600'
                         }`}>
                         {c.enabled ? (c.status === 'draft' || c.status === 'stopped' ? 'starting' : c.status) : (c.status === 'running' ? 'stopped' : c.status)}
                       </span>
@@ -174,10 +174,11 @@ function BulkCallDetail({ id, onBack }) {
   const syncFromSarvam = async () => {
     try {
       const r = await fetch(`/api/bulk-calling/${id}/sync`, { method: "POST" });
+      const d = await r.json().catch(() => ({}));
       if (r.ok) loadDetail();
-      return r.ok;
+      return r.ok ? { ok: true, ...d } : { ok: false, error: d.error || ("HTTP " + r.status) };
     } catch (e) {
-      return false;
+      return { ok: false, error: e.message };
     }
   };
   useEffect(() => {
@@ -331,8 +332,8 @@ function BulkCallDetail({ id, onBack }) {
             onClick={() => toggleCampaign(!campaign.enabled)}
             disabled={campaign.status === 'completed'}
             className={`px-6 py-2.5 rounded-xl font-bold shadow-sm transition-all ${campaign.status === 'completed' ? 'bg-gray-200 text-gray-500 cursor-not-allowed' :
-                campaign.enabled ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
-                  'bg-pink-600 text-white hover:bg-pink-700'
+              campaign.enabled ? 'bg-amber-100 text-amber-800 hover:bg-amber-200' :
+                'bg-pink-600 text-white hover:bg-pink-700'
               }`}
           >
             {campaign.enabled ? 'Pause Calling' : 'Start Calling'}
@@ -426,7 +427,7 @@ function BulkCallDetail({ id, onBack }) {
                 />
               </div>
               {campaign.sarvam_campaign_id && (
-                <button onClick={async () => { const ok = await syncFromSarvam(); toast({ title: ok ? "Synced from Sarvam" : "Sync failed", variant: ok ? undefined : "destructive" }); }} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600" title="Sync results from Sarvam">
+                <button onClick={async () => { const r = await syncFromSarvam(); toast({ title: r.ok ? `Synced from Sarvam (${r.found ?? 0} calls found, ${r.created ?? 0} updated)` : "Sync failed", description: r.ok ? undefined : r.error, variant: r.ok ? undefined : "destructive" }); }} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600" title="Sync results from Sarvam">
                   <RefreshCw className="w-4 h-4" />
                 </button>
               )}
@@ -458,11 +459,11 @@ function BulkCallDetail({ id, onBack }) {
                     <td className="px-5 py-3 font-medium text-gray-600">{c.phone10}</td>
                     <td className="px-5 py-3">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${c.status === 'booked' ? 'bg-green-100 text-green-700' :
-                          c.status === 'calling' ? 'bg-amber-100 text-amber-700 animate-pulse' :
-                            c.status === 'no_answer' ? 'bg-orange-100 text-orange-700' :
-                              c.status === 'failed' || c.status === 'invalid' ? 'bg-red-100 text-red-700' :
-                                c.status === 'not_booked' ? 'bg-gray-200 text-gray-700' :
-                                  'bg-blue-100 text-blue-700'
+                        c.status === 'calling' ? 'bg-amber-100 text-amber-700 animate-pulse' :
+                          c.status === 'no_answer' ? 'bg-orange-100 text-orange-700' :
+                            c.status === 'failed' || c.status === 'invalid' ? 'bg-red-100 text-red-700' :
+                              c.status === 'not_booked' ? 'bg-gray-200 text-gray-700' :
+                                'bg-blue-100 text-blue-700'
                         }`}>
                         {c.status}
                       </span>

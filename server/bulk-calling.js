@@ -382,6 +382,9 @@ async function syncSarvamResults(camp) {
     if (done.rows.length > 0) {
       // Already stored: re-apply if the result changed (e.g. earlier wrong status, or call summary arrived later).
       const old = done.rows[0];
+      if (a.interaction_id && old.interaction_id !== a.interaction_id) {
+        await db.query('UPDATE bulk_attempts SET interaction_id = $1 WHERE id = $2', [a.interaction_id, old.id]);
+      }
       if (old.outcome !== outcome || (!old.summary && summary)) {
         if (confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
         await resolveAttempt(old, callStatus, outcome, summary, sentiment, recordingProxyUrl(a.interaction_id), null);
