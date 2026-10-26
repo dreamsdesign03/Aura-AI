@@ -441,8 +441,18 @@ async function streamSarvamCohort(campaignId, cohortName, users) {
 }
 
 // action: 'pause' | 'resume' | 'cancel'
-function setSarvamCampaignStatus(campaignId, action) {
-  return sarvamJson('PUT', schedulingUrl(`/campaigns/${campaignId}/status`), { action });
+async function setSarvamCampaignStatus(campaignId, action) {
+  try {
+    return await sarvamJson('PUT', schedulingUrl(`/campaigns/${campaignId}/status`), { action });
+  } catch (err) {
+    const msg = String(err.message || '');
+    const bodyStr = JSON.stringify(err.body || '');
+    if (action === 'pause' && (msg.includes('Cannot pause a paused campaign') || bodyStr.includes('Cannot pause a paused campaign') || err.status === 422)) {
+      console.warn('Sarvam campaign pehle thi paused che, treating as success');
+      return { success: true, alreadyPaused: true };
+    }
+    throw err;
+  }
 }
 
 function getSarvamCampaign(campaignId) {
