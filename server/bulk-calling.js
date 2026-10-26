@@ -374,25 +374,84 @@ router.get('/:id', async (req, res) => {
 
     let campaign = campRes.rows[0];
 
-    // Jo Sarvam Campaign ID hoy to Sarvam report check kari local database update karo
+    // Sarvam Analytics સાથે Sync કરો
     if (campaign.sarvam_campaign_id) {
       try {
-        const sc = await getSarvamCampaign(campaign.sarvam_campaign_id);
-        if (sc && (sc.status === 'ended' || sc.status === 'completed' || sc.status === 'paused')) {
-          // Badha contacts ne completed mark kari do
-          await db.query(
-            "UPDATE bulk_contacts SET status = 'completed', last_attempt_at = NOW() WHERE campaign_id = $1 AND status != 'completed'",
-            [id]
-          );
-          await db.query(
-            "UPDATE bulk_campaigns SET enabled = FALSE, status = 'completed', finished_at = NOW() WHERE id = $1",
-            [id]
-          );
-          campaign.status = 'completed';
-          campaign.enabled = false;
+        const apiKey = (process.env.SARVAM_API_KEY || '').trim();
+        const orgId = process.env.SARVAM_ORG_ID;
+        const wsId = process.env.SARVAM_WORKSPACE_ID;
+        const appId = process.env.SARVAM_APP_ID;
+
+        const resp = await fetch(
+          `https://apps.sarvam.ai/api/analytics/v1/${orgId}/${wsId}/${appId}/interactions?campaign_id=${campaign.sarvam_campaign_id}&page_size=50`,
+          { headers: { 'X-API-Key': apiKey } }
+        );
+
+        if (resp.ok) {
+          const data = await resp.json();
+          const interactions = data.interactions || data.data || [];
+
+          for (const item of interactions) {
+            const phone = item.user_phone_number || item.phone_number || '';
+            const p10 = phone.replace(/^\+91/, '').slice(-10);
+
+            const vars = item.output_agent_variables || item.final_agent_variables || {};
+            const confirmedSlot = vars.confirmed_slot || vars.appointment_time || vars.booking_datetime || vars.slot || null;
+            const isBooked = vars.is_booked === true || String(vars.is_booked).toLowerCase() === 'true' ||
+              vars.booking_status === 'confirmed' || Boolean(confirmedSlot);
+
+            let finalStatus = 'not_booked';
+            let outcome = 'NOT_BOOKED';
+
+            if (isBooked) {
+              finalStatus = 'booked';
+              outcome = 'BOOKED';
+            } else if (item.connectivity_status === 'no_answer' || item.disposition === 'no_answer') {
+              finalStatus = 'no_answer';
+              outcome = 'NO_ANSWER';
+            } else if (item.connectivity_status === 'busy') {
+              finalStatus = 'no_answer';
+              outcome = 'BUSY';
+            }
+
+            const interactionId = item.interaction_id || null;
+            const summary = vars.summary || item.summary || (isBooked ? `Booked: ${confirmedSlot || ''}` : 'Call completed');
+
+            // Contact માં status, summary અને booked_datetime_text update કરો
+            const contactUpdate = await db.query(
+              `UPDATE bulk_contacts 
+               SET status = $1, 
+                   attempts = GREATEST(attempts, 1),
+                   booked_datetime_text = COALESCE($2, booked_datetime_text),
+                   last_summary = COALESCE($3, last_summary),
+                   last_attempt_at = NOW() 
+               WHERE campaign_id = $4 AND (phone10 = $5 OR phone_e164 LIKE $6)
+               RETURNING id`,
+              [finalStatus, confirmedSlot, summary, id, p10, `%${p10}`]
+            );
+
+            // Attempt save કરો જેથી Drawer માં click કરવાથી transcript અને recording સંભળાય
+            if (contactUpdate.rows.length > 0 && interactionId) {
+              const contactId = contactUpdate.rows[0].id;
+              const recordingUrl = `/api/bulk-calling/calls/recording?iid=${encodeURIComponent(interactionId)}`;
+
+              await db.query(
+                `INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, call_status, outcome, summary, interaction_id, recording_url, started_at, ended_at)
+                 VALUES ($1, $2, 1, $3, $4, $5, $6, $7, NOW(), NOW())
+                 ON CONFLICT DO NOTHING`,
+                [contactId, id, finalStatus, outcome, summary, interactionId, recordingUrl]
+              );
+            }
+          }
+
+          if (interactions.length >= 2) {
+            await db.query("UPDATE bulk_campaigns SET enabled = FALSE, status = 'completed', finished_at = NOW() WHERE id = $1", [id]);
+            campaign.status = 'completed';
+            campaign.enabled = false;
+          }
         }
       } catch (err) {
-        console.warn('[Auto-Sync Error]:', err.message);
+        console.warn('[Sync Error]:', err.message);
       }
     }
 
