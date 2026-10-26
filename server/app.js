@@ -5805,7 +5805,7 @@ USER INSTRUCTION: ${message}`
             _saveSB('assistant', _r2);
             return res.json({ reply: _r2 });
           }
-        }
+        } 
 
         // WhatsApp default
         try {

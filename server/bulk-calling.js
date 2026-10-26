@@ -78,7 +78,8 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
       }
 
       // Sarvam Analytics interactions fetch
-      const apiKey = (process.env.SARVAM_API_KEY || '').trim();
+      // Analytics ane Conversation mate navi Samvaad Key vaparvi:
+      const apiKey = (process.env.SARVAM_SAMVAAD_API_KEY || process.env.SARVAM_API_KEY || '').trim();
       const orgId = process.env.SARVAM_ORG_ID;
       const wsId = process.env.SARVAM_WORKSPACE_ID;
       const appId = process.env.SARVAM_APP_ID;
