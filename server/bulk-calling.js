@@ -374,13 +374,20 @@ router.get('/:id', async (req, res) => {
 
     let campaign = campRes.rows[0];
 
-    // Jo Sarvam Campaign ID hoy to automatically status sync karo
+    // Jo Sarvam Campaign ID hoy to Sarvam report check kari local database update karo
     if (campaign.sarvam_campaign_id) {
       try {
         const sc = await getSarvamCampaign(campaign.sarvam_campaign_id);
-        if (sc && (sc.status === 'ended' || sc.status === 'completed')) {
-          await db.query("UPDATE bulk_campaigns SET enabled = FALSE, status = 'completed', finished_at = NOW() WHERE id = $1", [id]);
-          await db.query("UPDATE bulk_contacts SET status = 'completed', last_attempt_at = NOW() WHERE campaign_id = $1 AND status != 'completed'", [id]);
+        if (sc && (sc.status === 'ended' || sc.status === 'completed' || sc.status === 'paused')) {
+          // Badha contacts ne completed mark kari do
+          await db.query(
+            "UPDATE bulk_contacts SET status = 'completed', last_attempt_at = NOW() WHERE campaign_id = $1 AND status != 'completed'",
+            [id]
+          );
+          await db.query(
+            "UPDATE bulk_campaigns SET enabled = FALSE, status = 'completed', finished_at = NOW() WHERE id = $1",
+            [id]
+          );
           campaign.status = 'completed';
           campaign.enabled = false;
         }

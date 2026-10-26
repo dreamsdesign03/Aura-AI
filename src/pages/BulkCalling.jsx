@@ -215,14 +215,9 @@ function BulkCallDetail({ id, onBack }) {
   };
   const syncCampaignStatus = async () => {
     try {
-      const res = await fetch(`/api/bulk-calling/sync?id=${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" }
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(d.error || "Sync failed");
-      toast({ title: `Status Synced! (${d.updated_count || 0} contacts updated)` });
-      loadDetail();
+      // Direct campaign details reload karo je pehla thi chale che
+      await loadDetail();
+      toast({ title: "Campaign Status Refreshed!" });
     } catch (err) {
       toast({
         title: "Sync Error",
