@@ -13,6 +13,18 @@ const REQUIRED_ENV = [
   'SARVAM_WEBHOOK_URL'
 ];
 
+
+async function fetchSarvamRecordingStream(interactionId) {
+  if (!validInteractionId(interactionId)) throw new Error('Invalid interaction id');
+  const url = analyticsUrl('recording', interactionId);
+  const apiKey = (process.env.SARVAM_SAMVAAD_API_KEY || process.env.SARVAM_API_KEY || '').trim();
+  const res = await fetch(url, {
+    headers: { 'X-API-Key': apiKey }
+  });
+  if (!res.ok) throw new Error(`Failed to stream recording: ${res.status}`);
+  return res.body;
+}
+
 // Trim surrounding whitespace/newlines and strip one matching pair of quotes.
 // Never log the value, only lengths.
 function sanitizeApiKey(raw) {
@@ -203,6 +215,8 @@ function mapSarvamOutcome(payload) {
   if (payload?.interaction_id) {
     summary = `${summary} [interaction_id: ${payload.interaction_id}]`.trim();
   }
+
+
 
   // Extract sentiment
   const sentiment = fv.sentiment || fv.call_sentiment || 'Neutral';
@@ -460,7 +474,8 @@ function getSarvamCampaign(campaignId) {
 }
 function validInteractionId(id) {
   if (!id || typeof id !== 'string') return false;
-  return /^[\w\-\/]+$/.test(id) && id.length >= 8 && !id.startsWith('sarvam-');
+  // Allows timestamps with colons, slashes, and UUIDs: e.g. 20261026/8466d83c-11:29:14-c02cadef
+  return /^[\w\-\/\:]+$/.test(id) && id.length >= 8 && !id.startsWith('sarvam-');
 }
 
 function analyticsUrl(kind, interactionId) {
@@ -505,5 +520,6 @@ module.exports = {
   dispatchSarvamCall, mapSarvamOutcome, sanitizeApiKey, buildAgentVars, buildOutboundGreeting, cleanDisplayName,
   campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
   fetchSarvamTranscript, fetchSarvamRecording, validInteractionId, adaptCampaignPayload,
-  normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow, buildSarvamCampaignBody
+  normalizeSarvamSettings, legacySarvamSettings, resolveSarvamWindow, buildSarvamCampaignBody,
+  fetchSarvamRecordingStream
 };
