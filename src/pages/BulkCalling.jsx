@@ -215,10 +215,13 @@ function BulkCallDetail({ id, onBack }) {
   };
   const syncCampaignStatus = async () => {
     try {
-      const res = await fetch(`/api/bulk-calling/${id}/sync`, { method: "POST" });
+      const res = await fetch(`/api/bulk-calling/sync?id=${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" }
+      });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(d.error || "Sync failed");
-      toast({ title: `Status Synced! (${d.updated_count || 0} calls updated)` });
+      toast({ title: `Status Synced! (${d.updated_count || 0} contacts updated)` });
       loadDetail();
     } catch (err) {
       toast({

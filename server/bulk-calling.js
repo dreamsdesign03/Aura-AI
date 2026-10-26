@@ -47,49 +47,64 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
     res.status(err.status === 404 ? 404 : 502).json({ error: err.message });
   }
   // POST /api/bulk-calling/:id/sync - Existing call status Sarvam Analytics mathi sync karva mate
-  // POST /api/bulk-calling/:id/sync - Existing call status Sarvam Analytics mathi sync karva mate
-  router.post('/:id/sync', async (req, res) => {
+  // POST /api/bulk-calling/sync or POST /api/bulk-calling/:id/sync
+  router.post(['/sync', '/:id/sync'], async (req, res) => {
     try {
-      const campaignId = req.params.id;
+      const campaignId = req.params.id || req.query.id || req.body.campaignId;
+      if (!campaignId) {
+        return res.status(400).json({ error: 'Missing campaign id' });
+      }
+
       const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [campaignId]);
-      if (campRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
+      if (campRes.rows.length === 0) return res.status(404).json({ error: 'Campaign not found' });
       const camp = campRes.rows[0];
+
       if (!camp.sarvam_campaign_id) {
         return res.status(400).json({ error: 'No sarvam_campaign_id linked with this campaign' });
       }
 
-      // Sarvam Campaign Attempts Fetch (Scheduling / Cohorts report URL)
+      // Sarvam Analytics interactions fetch
+      const apiKey = (process.env.SARVAM_API_KEY || '').trim();
+      const orgId = process.env.SARVAM_ORG_ID;
+      const wsId = process.env.SARVAM_WORKSPACE_ID;
+      const appId = process.env.SARVAM_APP_ID;
+
       let attempts = [];
 
-      // First attempt: Analytics interactions search by campaign
-      const resInteractions = await fetch(
-        `https://apps.sarvam.ai/api/analytics/v1/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/interactions?campaign_id=${camp.sarvam_campaign_id}&page_size=50`,
-        {
-          method: 'GET',
-          headers: { 'X-API-Key': (process.env.SARVAM_API_KEY || '').trim() }
-        }
-      );
-
-      if (resInteractions.ok) {
-        const data = await resInteractions.json();
-        attempts = data.interactions || data.data || [];
-      } else {
-        // Fallback: Campaign cohort status report
-        const resCohort = await fetch(
-          `https://apps.sarvam.ai/api/scheduling/v1/orgs/${process.env.SARVAM_ORG_ID}/workspaces/${process.env.SARVAM_WORKSPACE_ID}/campaigns/${camp.sarvam_campaign_id}/report`,
+      // Option A: Direct Interactions query
+      try {
+        const resInteractions = await fetch(
+          `https://apps.sarvam.ai/api/analytics/v1/${orgId}/${wsId}/${appId}/interactions?campaign_id=${camp.sarvam_campaign_id}&page_size=50`,
           {
             method: 'GET',
-            headers: { 'X-API-Key': (process.env.SARVAM_API_KEY || '').trim() }
+            headers: { 'X-API-Key': apiKey }
           }
         );
-        if (resCohort.ok) {
-          const data = await resCohort.json();
-          attempts = data.attempts || data.cohorts || [];
+        if (resInteractions.ok) {
+          const data = await resInteractions.json();
+          attempts = data.interactions || data.data || [];
         }
+      } catch (e) {
+        console.warn('Interactions fetch failed, trying cohort report:', e.message);
       }
 
-      if (!attempts || attempts.length === 0) {
-        return res.json({ success: true, updated_count: 0, message: 'No logs found on Sarvam yet' });
+      // Option B: Fallback Campaign Report
+      if (attempts.length === 0) {
+        try {
+          const resReport = await fetch(
+            `https://apps.sarvam.ai/api/scheduling/v1/orgs/${orgId}/workspaces/${wsId}/campaigns/${camp.sarvam_campaign_id}/report`,
+            {
+              method: 'GET',
+              headers: { 'X-API-Key': apiKey }
+            }
+          );
+          if (resReport.ok) {
+            const data = await resReport.json();
+            attempts = data.attempts || data.cohorts || [];
+          }
+        } catch (e) {
+          console.warn('Report fetch failed:', e.message);
+        }
       }
 
       let updatedCount = 0;
