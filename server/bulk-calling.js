@@ -63,7 +63,7 @@ async function launchSarvamCampaign(camp) {
     attemptsPerSecond: Number(process.env.SARVAM_CAMPAIGN_APS || 0.5),
     maxRetries: Math.max(0, (camp.max_attempts || 2) - 1),
     retryIntervalMin: camp.retry_delay_min || 30,
-        startIso: new Date(Date.now() + 180 * 1000).toISOString(),
+    startIso: new Date(Date.now() + 180 * 1000).toISOString(),
     endIso: new Date(Date.now() + days * 24 * 3600 * 1000).toISOString(),
     startTime: process.env.SARVAM_CALL_START || '10:00',
     endTime: process.env.SARVAM_CALL_END || '19:30',
@@ -161,7 +161,7 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
     if (outcome === 'do_not_call') {
       await db.query('UPDATE leads SET do_not_call = TRUE WHERE id = $1', [contact.lead_id]);
     }
-    
+
     let newLeadStatus = null;
     if (outcome === 'booked') {
       const lr = await db.query('SELECT status FROM leads WHERE id = $1', [contact.lead_id]);
@@ -169,7 +169,7 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
         newLeadStatus = 'discovery_call';
       }
     }
-    
+
     let updateSql = 'UPDATE leads SET last_ai_call_status = $1, last_ai_call_at = NOW()';
     let params = [callStatus, contact.lead_id];
     if (newLeadStatus) {
@@ -212,7 +212,7 @@ router.post('/', async (req, res) => {
     const { name, max_attempts, retry_delay_min, gap_seconds, contacts } = req.body;
     if (!contacts || !Array.isArray(contacts)) return res.status(400).json({ error: 'invalid contacts' });
     if (contacts.length > 500) return res.status(400).json({ error: 'Max 500 contacts' });
-    
+
     const insertCamp = await db.query(
       'INSERT INTO bulk_campaigns (name, max_attempts, retry_delay_min, gap_seconds, total, created_by) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
       [name, max_attempts || 2, retry_delay_min || 30, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1]
@@ -225,7 +225,7 @@ router.post('/', async (req, res) => {
       const phoneObj = normalizePhone(c.phone);
       let status = 'pending';
       let reason = null;
-      
+
       if (!phoneObj) {
         status = 'invalid';
         reason = 'No valid 10-digit Indian phone number';
@@ -251,7 +251,7 @@ router.post('/', async (req, res) => {
         [campaignId, c.name || '', c.company || '', phoneObj ? phoneObj.e164 : null, phoneObj ? phoneObj.local : null, c.email || '', c.extra_json || {}, c.lead_id || null, status, reason]
       );
     }
-    
+
     res.json({ success: true, campaignId });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -351,24 +351,24 @@ router.post('/tick', async (req, res) => {
     // Campaigns launched on Sarvam are dialed by Sarvam itself, never by this loop.
     const campaigns = await db.query(`SELECT * FROM bulk_campaigns WHERE enabled = TRUE AND sarvam_campaign_id IS NULL`);
     console.log('[Bulk Tick] 📋 enabled campaigns=' + campaigns.rows.length);
-    
+
     for (const campaign of campaigns.rows) {
       console.log(`[Bulk Tick] 🔍 Processing campaign ${campaign.id} "${campaign.name}" (status: ${campaign.status}, enabled: ${campaign.enabled})`);
-      
+
       // 1. Check if any contact is currently 'calling'
       const callingRes = await db.query('SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND status = \'calling\'', [campaign.id]);
       console.log(`[Bulk Tick] 📞 Campaign ${campaign.id} calling contacts: ${callingRes.rows.length}`);
-      
+
       let isAnyCalling = false;
       if (callingRes.rows.length > 0) {
         isAnyCalling = true;
         const contact = callingRes.rows[0];
         console.log(`[Bulk Tick] ⏳ Contact ${contact.id} is calling since ${contact.last_attempt_at}, last_request_id: ${contact.last_request_id}`);
-        
+
         // Timeout check (6 minutes)
         const diffMin = (Date.now() - new Date(contact.last_attempt_at).getTime()) / 60000;
         console.log(`[Bulk Tick] ⏱️ Contact ${contact.id} calling for ${diffMin.toFixed(1)} minutes`);
-        
+
         if (diffMin > 6) {
           console.log(`[Bulk Tick] 🚨 Contact ${contact.id} timeout exceeded (6 min), attempting to resolve...`);
           const attemptRes = await db.query('SELECT * FROM bulk_attempts WHERE contact_id = $1 AND request_id = $2 ORDER BY id DESC LIMIT 1', [contact.id, contact.last_request_id]);
@@ -469,7 +469,7 @@ router.post('/tick', async (req, res) => {
         await db.query('UPDATE bulk_contacts SET status = \'calling\', attempts = attempts + 1, last_attempt_at = NOW(), last_request_id = $1 WHERE id = $2', [requestId, contact.id]);
         await db.query('INSERT INTO bulk_attempts (contact_id, campaign_id, attempt_no, request_id) VALUES ($1, $2, $3, $4)', [contact.id, campaign.id, contact.attempts + 1, requestId]);
         await db.query('UPDATE bulk_campaigns SET status = \'running\', started_at = COALESCE(started_at, NOW()) WHERE id = $1', [campaign.id]);
-        
+
         actions.push(`Dispatched call for contact ${contact.id}`);
       } catch (err) {
         console.error(`[Bulk Call] ❌ Dispatch failed for contact ${contact.id}:`, err && (err.stack || err.message || err));
@@ -509,7 +509,7 @@ router.post('/booking-confirmed', async (req, res) => {
 
   const { lead_phone, start_ist_text, booking_uid } = req.body;
   if (!lead_phone) return res.status(400).json({ error: 'missing lead_phone' });
-  
+
   const phoneObj = normalizePhone(lead_phone);
   if (!phoneObj) return res.status(400).json({ error: 'invalid phone' });
 
@@ -519,7 +519,7 @@ router.post('/booking-confirmed', async (req, res) => {
       WHERE phone10 = $1 AND (status = 'calling' OR last_attempt_at >= NOW() - INTERVAL '30 minutes')
       ORDER BY last_attempt_at DESC NULLS LAST LIMIT 1
     `, [phoneObj.local]);
-    
+
     if (checkRes.rows.length > 0) {
       await db.query('UPDATE bulk_contacts SET status = \'booked\', booked_datetime_text = $1 WHERE id = $2', [start_ist_text || booking_uid, checkRes.rows[0].id]);
     }
