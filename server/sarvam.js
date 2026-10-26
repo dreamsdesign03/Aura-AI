@@ -393,7 +393,8 @@ function buildSarvamCampaignBody({ name, description, settings, startIso, endIso
         phone_number: process.env.SARVAM_AGENT_NUMBER,
         agent_phone_number: process.env.SARVAM_AGENT_NUMBER
       }],
-      retry_config: buildRetryConfig(settings.retry)
+      retry_config: buildRetryConfig(settings.retry),
+      webhook_config: { url: webhookUrl, metadata: metadata || {} },
     },
     start_timestamp: startIso,
     end_timestamp: endIso,
