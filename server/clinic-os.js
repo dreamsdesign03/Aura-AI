@@ -167,7 +167,60 @@ function ensureSchema() {
     ALTER TABLE clinic_packages ADD COLUMN IF NOT EXISTS paid_amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS reply TEXT;
   `);
+
+  // Auto-sync Cal.com consultation attendees into dedicated clinic patients
+  syncCalPatients().catch(() => {});
+
   return schemaReady;
+}
+
+async function syncCalPatients() {
+  try {
+    const calInvitees = await db.query(`
+      SELECT DISTINCT invitee_name, invitee_email, user_id
+        FROM calendly_events
+       WHERE COALESCE(is_deleted, false) = false
+         AND invitee_name IS NOT NULL
+         AND TRIM(invitee_name) <> ''
+    `);
+    for (const inv of calInvitees.rows) {
+      const rawName = (inv.invitee_name || 'Patient').trim();
+      const parts = rawName.split(/\s+/);
+      const first = parts[0] || 'Patient';
+      const last = parts.slice(1).join(' ') || 'Patient';
+      const cleanEmail = inv.invitee_email && inv.invitee_email.trim()
+        ? inv.invitee_email.trim().toLowerCase()
+        : `patient.${first.toLowerCase().replace(/[^a-z0-9]/g, '') || 'aura'}@patient.auraclinic.in`;
+
+      let existing = null;
+      if (inv.invitee_email && inv.invitee_email.trim()) {
+        const ex = await db.query('SELECT id, pipeline_stage FROM leads WHERE LOWER(email) = $1 LIMIT 1', [inv.invitee_email.trim().toLowerCase()]);
+        if (ex.rows.length > 0) existing = ex.rows[0];
+      }
+      if (!existing) {
+        const ex = await db.query('SELECT id, pipeline_stage FROM leads WHERE LOWER(first_name) = LOWER($1) AND LOWER(last_name) = LOWER($2) LIMIT 1', [first, last]);
+        if (ex.rows.length > 0) existing = ex.rows[0];
+      }
+
+      if (existing) {
+        if (['Lead In', 'new'].includes(existing.pipeline_stage)) {
+          await db.query("UPDATE leads SET pipeline_stage = 'Active Patient' WHERE id = $1", [existing.id]);
+        }
+      } else {
+        await db.query(`
+          INSERT INTO leads (
+            user_id, first_name, last_name, email, company, country, designation, industry,
+            pipeline_stage, status, source, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, 'Aura Laser & Cosmetic Clinic', 'India', 'Patient', 'Healthcare / Clinic',
+            'Active Patient', 'Active', 'Cal.com Booking', NOW(), NOW()
+          ) ON CONFLICT DO NOTHING
+        `, [inv.user_id, first, last, cleanEmail]);
+      }
+    }
+  } catch {
+    // Non-fatal background sync
+  }
 }
 
 router.use(async (_req, res, next) => {
@@ -178,7 +231,7 @@ router.use(async (_req, res, next) => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-const STAGES = ['Lead In', 'Qualified', 'Contacted', 'Discovery', 'Proposal', 'Won'];
+const CLINIC_STAGES = ['New Patient', 'Consultation', 'Treatment Plan', 'In Treatment', 'Active Care', 'Completed'];
 
 function dayBounds(dateStr) {
   const d = dateStr ? new Date(dateStr) : new Date();
@@ -269,10 +322,30 @@ router.get('/overview', requireUser, async (req, res) => {
     const horizon = new Date(end); horizon.setDate(horizon.getDate() + 7);
 
     const [leads, pipeline, today, upcoming, tasks, packages, notes, apptToday, calls] = await Promise.all([
-      db.query('SELECT COUNT(*)::int AS n FROM leads WHERE (user_id = $1 OR user_id IS NULL)', [userId]),
       db.query(
-        `SELECT COALESCE(pipeline_stage, 'Lead In') AS stage, COUNT(*)::int AS n
-           FROM leads WHERE (user_id = $1 OR user_id IS NULL) GROUP BY 1`,
+        `SELECT COUNT(*)::int AS n FROM leads l
+          WHERE (l.user_id = $1 OR l.user_id IS NULL)
+            AND (
+              l.pipeline_stage IN ('New Patient', 'Patient', 'Active Patient', 'Consultation', 'Follow-up')
+              OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id)
+              OR EXISTS (SELECT 1 FROM clinic_notes n WHERE n.lead_id = l.id)
+              OR EXISTS (SELECT 1 FROM clinic_packages p WHERE p.lead_id = l.id)
+              OR EXISTS (SELECT 1 FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')
+            )`,
+        [userId]
+      ),
+      db.query(
+        `SELECT COALESCE(pipeline_stage, 'New Patient') AS stage, COUNT(*)::int AS n
+           FROM leads l
+          WHERE (l.user_id = $1 OR l.user_id IS NULL)
+            AND (
+              l.pipeline_stage IN ('New Patient', 'Patient', 'Active Patient', 'Consultation', 'Follow-up')
+              OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id)
+              OR EXISTS (SELECT 1 FROM clinic_notes n WHERE n.lead_id = l.id)
+              OR EXISTS (SELECT 1 FROM clinic_packages p WHERE p.lead_id = l.id)
+              OR EXISTS (SELECT 1 FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')
+            )
+          GROUP BY 1`,
         [userId]
       ),
       (async () => {
@@ -345,7 +418,7 @@ router.get('/overview', requireUser, async (req, res) => {
     ]);
 
     const byStage = Object.fromEntries(pipeline.rows.map(r => [r.stage, r.n]));
-    const funnel = STAGES.map(stage => ({ stage, count: byStage[stage] || 0 }));
+    const funnel = CLINIC_STAGES.map(stage => ({ stage, count: byStage[stage] || 0 }));
 
     const appointmentsToday = today.rows;
     const revenue = {
@@ -597,7 +670,7 @@ router.delete('/appointments/:id', requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Patients (existing Aura leads + clinic records)
+// Patients (dedicated clinic patient directory & records)
 // ---------------------------------------------------------------------------
 router.get('/patients', requireUser, async (req, res) => {
   try {
@@ -607,12 +680,23 @@ router.get('/patients', requireUser, async (req, res) => {
     const r = await db.query(
       `SELECT l.id, l.first_name, l.last_name, l.email, l.phone, l.company, l.status,
               l.pipeline_stage, l.deal_value, l.created_at,
-              (SELECT COUNT(*)::int FROM clinic_appointments a WHERE a.lead_id = l.id) AS appointments,
-              (SELECT MAX(a.starts_at) FROM clinic_appointments a WHERE a.lead_id = l.id) AS last_visit,
+              ((SELECT COUNT(*)::int FROM clinic_appointments a WHERE a.lead_id = l.id) +
+               (SELECT COUNT(*)::int FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')) AS appointments,
+              COALESCE(
+                (SELECT MAX(a.starts_at) FROM clinic_appointments a WHERE a.lead_id = l.id),
+                (SELECT MAX(ce.start_time) FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')
+              ) AS last_visit,
               (SELECT COUNT(*)::int FROM clinic_packages p WHERE p.lead_id = l.id) AS packages,
               (SELECT COALESCE(SUM(p.amount),0)::numeric FROM clinic_packages p WHERE p.lead_id = l.id) AS package_value
          FROM leads l
         WHERE (l.user_id = $1 OR l.user_id IS NULL)
+          AND (
+            l.pipeline_stage IN ('New Patient', 'Patient', 'Active Patient', 'Consultation', 'Follow-up')
+            OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id)
+            OR EXISTS (SELECT 1 FROM clinic_notes n WHERE n.lead_id = l.id)
+            OR EXISTS (SELECT 1 FROM clinic_packages p WHERE p.lead_id = l.id)
+            OR EXISTS (SELECT 1 FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')
+          )
           ${search ? 'AND (l.first_name ILIKE $2 OR l.last_name ILIKE $2 OR l.phone ILIKE $2 OR l.email ILIKE $2)' : ''}
         ORDER BY COALESCE(l.updated_at, l.created_at) DESC
         LIMIT 250`,
@@ -630,18 +714,25 @@ router.post('/patients', requireUser, async (req, res) => {
     if (!first && name) {
       const parts = name.trim().split(/\s+/);
       first = parts[0] || 'Patient';
-      last = parts.slice(1).join(' ') || '';
+      last = parts.slice(1).join(' ') || 'Patient';
     }
     first = (first || 'Patient').trim();
-    last = (last || '').trim();
+    last = (last || 'Patient').trim();
+
+    const cleanEmail = email && email.trim()
+      ? email.trim()
+      : `patient.${first.toLowerCase().replace(/[^a-z0-9]/g, '') || 'aura'}.${Date.now()}@patient.auraclinic.in`;
 
     const ins = await db.query(
       `INSERT INTO leads (
-        user_id, first_name, last_name, email, phone, company, 
-        pipeline_stage, status, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, 'New Patient', 'Active', NOW(), NOW())
+        user_id, first_name, last_name, email, phone, company, country, designation, industry,
+        pipeline_stage, status, source, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, 'India', 'Patient', 'Healthcare / Clinic',
+        'Active Patient', 'Active', 'Clinic OS', NOW(), NOW()
+      )
       RETURNING *`,
-      [req.user.id, first, last, email ? email.trim() : null, phone ? phone.trim() : null, company || branch || 'Aura Laser & Cosmetic Clinic']
+      [req.user.id, first, last, cleanEmail, phone ? phone.trim() : null, company || branch || 'Aura Laser & Cosmetic Clinic']
     );
 
     const lead = ins.rows[0];
@@ -651,7 +742,7 @@ router.post('/patients', requireUser, async (req, res) => {
       await db.query(
         `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
          VALUES ($1, $2, 'consult', 'Patient Registration', $3, NOW())`,
-        [req.user.id, lead.id, `Patient registered with interest in: ${treatment}`]
+        [req.user.id, lead.id, `Patient registered with interest in: ${treatment} at ${branch || 'Alkapuri Main Clinic'}`]
       );
     }
 
@@ -669,22 +760,36 @@ router.get('/patients/:id', requireUser, async (req, res) => {
 
     const lead = await db.query('SELECT * FROM leads WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [leadId, uid]);
     if (lead.rows.length === 0) return res.status(404).json({ error: 'Patient not found' });
+    const patientRow = lead.rows[0];
 
     const [notes, appointments, packages, calls] = await Promise.all([
       db.query('SELECT * FROM clinic_notes WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC LIMIT 50', [uid, leadId]),
-      db.query('SELECT * FROM clinic_appointments WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY starts_at DESC LIMIT 30', [uid, leadId]),
+      (async () => {
+        const [appts, cal] = await Promise.all([
+          db.query('SELECT * FROM clinic_appointments WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY starts_at DESC LIMIT 30', [uid, leadId]),
+          patientRow?.email ? db.query(
+            `SELECT * FROM calendly_events
+              WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false
+                AND LOWER(invitee_email) = LOWER($2)
+              ORDER BY start_time DESC LIMIT 30`,
+            [uid, patientRow.email]
+          ) : { rows: [] }
+        ]);
+        const mappedCal = cal.rows.map(mapCalRowToClinic);
+        return [...appts.rows, ...mappedCal].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+      })(),
       db.query('SELECT * FROM clinic_packages WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC', [uid, leadId]),
       tryQuery(
         `SELECT id, status, started_at, duration_secs, transcript_summary, transcript, call_sid
-           FROM ai_calls WHERE lead_id = $1 ORDER BY started_at DESC LIMIT 20`,
-        [leadId]
+           FROM clinic_calls WHERE lead_id = $1 OR phone = $2 ORDER BY started_at DESC LIMIT 20`,
+        [leadId, patientRow.phone || '']
       ),
     ]);
 
     res.json({
-      patient: lead.rows[0],
+      patient: patientRow,
       notes: notes.rows,
-      appointments: appointments.rows,
+      appointments: appointments,
       packages: packages.rows,
       calls: calls.rows,
     });

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, RefreshCw, Plus, Phone, Mail, CalendarDays, IndianRupee,
-  StickyNote, Package, PhoneCall, ArrowUpRight, Check, Clock,
+  StickyNote, Package, PhoneCall, ArrowUpRight, Check, Clock, Users, MessageCircle,
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
@@ -133,19 +133,25 @@ function PatientDrawer({ id, onClose }) {
             <Avatar first={p.first_name} last={p.last_name} size="lg" />
             <div style={{ flex: 1, minWidth: 0 }}>
               <div className="co-strong" style={{ fontSize: 15 }}>{fullName(p)}</div>
-              <div className="co-xs co-mut">{p.company || 'Patient'}{p.pipeline_stage ? ` · ${p.pipeline_stage}` : ''}</div>
+              <div className="co-xs co-mut">Aura Laser &amp; Cosmetic Clinic · Patient #{p.id}</div>
               <div className="co-row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                {p.status ? <span className="co-chip co-c-p">{p.status}</span> : null}
-                <span className="co-chip co-c-n"><CalendarDays size={11} /> {appts.length} visits</span>
-                {Number(p.deal_value) > 0 ? <span className="co-chip co-c-n"><IndianRupee size={11} /> {money(p.deal_value)}</span> : null}
+                <span className="co-chip co-c-p">{p.pipeline_stage || 'Active Patient'}</span>
+                <span className="co-chip co-c-n"><CalendarDays size={11} /> {appts.length} consultations / visits</span>
+                {packages.length > 0 ? <span className="co-chip co-c-n"><Package size={11} /> {packages.length} packages</span> : null}
               </div>
             </div>
           </div>
 
           <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
-            {p.phone ? <a className="co-chip co-c-p" href={`tel:${p.phone}`}><Phone size={11} /> {p.phone}</a> : null}
+            {p.phone ? <a className="co-chip co-c-p" href={`tel:${p.phone}`}><Phone size={11} /> Call {p.phone}</a> : null}
+            {p.phone ? (
+              <a className="co-chip co-c-p" href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
+                <MessageCircle size={11} /> WhatsApp
+              </a>
+            ) : null}
             {p.email ? <a className="co-chip co-c-n" href={`mailto:${p.email}`}><Mail size={11} /> {p.email}</a> : null}
-            <Link href="/leads" className="co-chip co-c-n"><ArrowUpRight size={11} /> Open lead</Link>
+            <Link href="/clinic/appointments" className="co-chip co-c-n"><CalendarDays size={11} /> Book consultation</Link>
+            <Link href="/clinic/dialer" className="co-chip co-c-n"><PhoneCall size={11} /> AI Dialer</Link>
           </div>
 
           <Tabs
@@ -303,7 +309,7 @@ export default function ClinicPatients() {
 
   return (
     <div className="clinic-os">
-      <PageHead title="Patients" subtitle="Your Aura leads, seen through a clinic lens — visits, packages and notes.">
+      <PageHead title="Patients" subtitle="Clinical patient records, consultation history, treatment packages, and visit notes.">
         <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
         </button>
@@ -317,9 +323,9 @@ export default function ClinicPatients() {
       </PageHead>
 
       <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
-        <Kpi label="Patients" value={totals.count} foot="From your live leads" icon={StickyNote} />
-        <Kpi label="Clinic visits" value={totals.visits} foot="Across all patients" icon={CalendarDays} />
-        <Kpi label="Package value" value={money(totals.value)} foot="Sold to this list" icon={IndianRupee} />
+        <Kpi label="Patients" value={totals.count} foot="Registered clinic patients" icon={Users} />
+        <Kpi label="Consultations & visits" value={totals.visits} foot="Cal.com & clinic bookings" icon={CalendarDays} />
+        <Kpi label="Treatment packages" value={money(totals.value)} foot="Active patient care plans" icon={IndianRupee} />
       </div>
 
       <Card rise="co-rise-2">
@@ -350,7 +356,7 @@ export default function ClinicPatients() {
         ) : patients.length === 0 ? (
           <EmptyState title={term ? 'No matching patients' : 'No patients yet'}>
             <p className="co-sm co-mut" style={{ marginTop: 6 }}>
-              {term ? 'Try a different name, phone or email.' : 'Add leads in Aura and they appear here automatically.'}
+              {term ? 'Try a different name, phone or email.' : 'No clinic patients registered yet. Add a patient or sync from Cal.com bookings.'}
             </p>
             <button
               type="button"
@@ -365,7 +371,7 @@ export default function ClinicPatients() {
           <div className="co-table-wrap">
             <table className="co-table">
               <thead>
-                <tr><th>Patient</th><th>Phone</th><th>Stage</th><th>Visits</th><th>Last visit</th><th>Packages</th><th></th></tr>
+                <tr><th>Patient</th><th>Phone</th><th>Care Stage</th><th>Visits</th><th>Last visit</th><th>Packages</th><th></th></tr>
               </thead>
               <tbody>
                 {patients.map((p) => (
@@ -380,7 +386,7 @@ export default function ClinicPatients() {
                       </div>
                     </td>
                     <td>{p.phone || '—'}</td>
-                    <td><span className="co-chip co-c-p">{p.pipeline_stage || p.status || 'Lead In'}</span></td>
+                    <td><span className="co-chip co-c-p">{p.pipeline_stage || 'Active Patient'}</span></td>
                     <td className="co-strong">{p.appointments || 0}</td>
                     <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>{p.last_visit ? dateLabel(p.last_visit) : '—'}</td>
                     <td>{p.packages ? `${p.packages} · ${money(p.package_value)}` : '—'}</td>

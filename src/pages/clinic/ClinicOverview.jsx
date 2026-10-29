@@ -31,10 +31,7 @@ export default function ClinicOverview() {
 
   const funnel = data?.funnel || [];
   const maxStage = useMemo(() => Math.max(1, ...funnel.map((f) => f.count)), [funnel]);
-  const isEmpty = !isLoading
-    && (data?.kpis?.appointmentsToday ?? 0) === 0
-    && (data?.activity?.length ?? 0) === 0
-    && (data?.tasks?.length ?? 0) === 0;
+  const upcomingList = data?.upcoming || [];
 
   if (isError) {
     return (
@@ -68,30 +65,10 @@ export default function ClinicOverview() {
 
       {isLoading ? <Card><Spinner label="Loading clinic day…" /></Card> : null}
 
-      {isEmpty ? (
-        <Card rise="co-rise-1">
-          <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <span className="co-avatar co-avatar-lg" style={{ background: '#FBE9F1' }}><Sparkles size={20} /></span>
-            <div style={{ flex: 1, minWidth: 240 }}>
-              <h2>Clinic Day Overview</h2>
-              <p className="co-sm co-mut" style={{ marginTop: 6, maxWidth: 620 }}>
-                Clinic OS displays live appointments synced from Cal.com, patients, and clinical tasks.
-              </p>
-              <div className="co-row" style={{ marginTop: 16, flexWrap: 'wrap' }}>
-                <Link href="/clinic/appointments" className="co-btn co-btn-primary">
-                  <CalendarDays size={14} /> Open Appointments &amp; Meetings
-                </Link>
-                <Link href="/leads" className="co-btn">View Patients</Link>
-              </div>
-            </div>
-          </div>
-        </Card>
-      ) : null}
-
-      {!isLoading && !isEmpty ? (
+      {!isLoading && data ? (
         <>
           <div className="co-kpis co-rise-1">
-            <Kpi label="Patients" value={data.kpis.patients} foot="From your Aura leads" icon={Users} />
+            <Kpi label="Patients" value={data.kpis.patients} foot="Registered clinic patients" icon={Users} />
             <Kpi label="Today's appointments" value={data.kpis.appointmentsToday} foot={`${data.today.filter((a) => a.status === 'arrived').length} arrived`} icon={CalendarDays} />
             <Kpi label="Calls today" value={data.kpis.callsToday} foot="AI + bulk calling" icon={PhoneCall} />
             <Kpi label="Collected" value={money(data.kpis.revenueCollected)} foot={`${money(data.kpis.revenueSold)} in packages`} icon={IndianRupee} />
@@ -104,8 +81,18 @@ export default function ClinicOverview() {
                   <Link href="/clinic/appointments" className="co-btn co-btn-sm">Open calendar</Link>
                 </CardHead>
                 {data.today.length === 0 ? (
-                  <EmptyState title="Nothing booked today">
-                    <Link href="/clinic/appointments" className="co-btn co-btn-sm" style={{ marginTop: 10 }}>Book a slot</Link>
+                  <EmptyState title="No appointments scheduled for today">
+                    <p className="co-sm co-mut" style={{ marginTop: 4 }}>
+                      Dr. Aditya Shah's clinic schedule is clear for today. View upcoming Cal.com consultations or schedule a new patient appointment.
+                    </p>
+                    <div className="co-row" style={{ marginTop: 12, gap: 8 }}>
+                      <Link href="/clinic/appointments" className="co-btn co-btn-primary co-btn-sm">
+                        <CalendarDays size={13} /> View Appointments &amp; Calendar
+                      </Link>
+                      <Link href="/clinic/appointments" className="co-btn co-btn-sm">
+                        <Plus size={13} /> New Booking
+                      </Link>
+                    </div>
                   </EmptyState>
                 ) : (
                   <div className="co-table-wrap">
@@ -134,16 +121,49 @@ export default function ClinicOverview() {
                 )}
               </Card>
 
+              {/* Upcoming Consultations from Cal.com */}
+              {upcomingList.length > 0 && (
+                <Card>
+                  <CardHead title="Upcoming consultations" hint={`${upcomingList.length} scheduled in Cal.com`}>
+                    <Link href="/clinic/appointments" className="co-btn co-btn-sm">View all</Link>
+                  </CardHead>
+                  <div className="co-table-wrap">
+                    <table className="co-table">
+                      <thead>
+                        <tr><th>Date &amp; Time</th><th>Patient</th><th>Consultation / Treatment</th><th>Source</th></tr>
+                      </thead>
+                      <tbody>
+                        {upcomingList.slice(0, 5).map((a) => (
+                          <tr key={a.id}>
+                            <td className="co-strong" style={{ whiteSpace: 'nowrap' }}>
+                              {dateLabel(a.starts_at)} · {timeLabel(a.starts_at)}
+                            </td>
+                            <td>
+                              <div className="co-strong">{a.patient_name}</div>
+                              {a.phone ? <div className="co-xs co-mut">{a.phone}</div> : null}
+                            </td>
+                            <td>{a.treatment}</td>
+                            <td>
+                              <span className="co-chip co-c-p">Cal.com Live</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              )}
+
               <div className="co-two">
                 <Card>
-                  <CardHead title="Patient funnel" hint="Your live Aura pipeline" />
+                  <CardHead title="Patient Care Stages" hint="Patient care lifecycle" />
                   {funnel.map((f) => (
                     <BarRow key={f.stage} label={f.stage} value={f.count} max={maxStage} />
                   ))}
                 </Card>
 
                 <Card>
-                  <CardHead title="Money" hint="Packages sold" />
+                  <CardHead title="Revenue &amp; Packages" hint="Active care plans" />
                   <div className="co-kpi-value" style={{ marginTop: 2 }}>{money(data.kpis.revenueSold)}</div>
                   <p className="co-sm co-mut" style={{ marginTop: 2 }}>{data.kpis.packages} packages</p>
                   <div style={{ marginTop: 14 }}>
