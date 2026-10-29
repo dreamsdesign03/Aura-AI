@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
-  PhoneCall, Search, ChevronRight, Volume2, Mic, MicOff,
+  PhoneCall, Phone, Search, ChevronRight, Volume2, Mic, MicOff,
   Clock, User, MapPin, AlertCircle, RefreshCw, Plus,
 } from 'lucide-react';
 import { clinicApi, dateLabel, timeLabel, fullName, money } from '@/clinic/api';

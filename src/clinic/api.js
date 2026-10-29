@@ -72,6 +72,7 @@ export const clinicApi = {
   dialerLeads: () => request('/dialer/leads'),
 
   // Call review
+  callReviews: () => request('/call-review'),
   callReview: (id) => request(`/call-review/${id}`),
 
   // Agents

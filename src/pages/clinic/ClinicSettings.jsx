@@ -2,10 +2,10 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   RefreshCw, Building2, MapPin, Stethoscope, Clock, Brain,
-  Shield, Bell, Save, Check, AlertCircle,
+  Shield, Bell, Save, Check, AlertCircle, Plus,
 } from 'lucide-react';
 import { clinicApi } from '@/clinic/api';
-import { PageHead, Card, CardHead, EmptyState, Spinner, Kpi } from '@/clinic/ui';
+import { PageHead, Card, CardHead, EmptyState, Spinner, Kpi, Tabs } from '@/clinic/ui';
 
 const DEFAULT_HOURS = {
   monday: { open: '09:00', close: '19:00', closed: false },

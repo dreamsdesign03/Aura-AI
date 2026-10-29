@@ -867,15 +867,29 @@ router.get('/dialer/leads', requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Call review: get transcript by call id
+// Call review: get transcript by call id or list recent calls
 // ---------------------------------------------------------------------------
+router.get('/call-review', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT ac.*, l.first_name, l.last_name, l.phone, l.company
+         FROM ai_calls ac
+         LEFT JOIN leads l ON l.id = ac.lead_id
+        WHERE l.user_id = $1 OR ac.lead_id IS NULL
+        ORDER BY ac.started_at DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ calls: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.get('/call-review/:id', requireUser, async (req, res) => {
   try {
     const r = await db.query(
-      `SELECT ac.*, l.first_name, l.last_name, l.phone
+      `SELECT ac.*, l.first_name, l.last_name, l.phone, l.company
          FROM ai_calls ac
          LEFT JOIN leads l ON l.id = ac.lead_id
-        WHERE ac.id = $1 AND l.user_id = $2`,
+        WHERE ac.id = $1 AND (l.user_id = $2 OR ac.lead_id IS NULL)`,
       [req.params.id, req.user.id]
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });

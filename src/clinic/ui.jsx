@@ -108,17 +108,32 @@ export function Modal({ title, subtitle, onClose, children, width = 560 }) {
   }, [onClose]);
 
   return (
-    <>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 82,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+      }}
+    >
       <div className="co-veil" onClick={onClose} role="presentation" />
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         style={{
-          position: 'fixed', zIndex: 82, left: '50%', top: '50%',
-          transform: 'translate(-50%, -50%)', width: `min(${width}px, calc(100% - 24px))`,
-          maxHeight: '88vh', overflow: 'auto', background: '#fff', borderRadius: 16,
-          boxShadow: '0 30px 80px -30px rgba(30, 12, 20, .55)', animation: 'coRise .3s cubic-bezier(.22,1,.36,1) both',
+          position: 'relative',
+          zIndex: 83,
+          width: `min(${width}px, 100%)`,
+          maxHeight: '88vh',
+          overflow: 'auto',
+          background: '#fff',
+          borderRadius: 16,
+          boxShadow: '0 30px 80px -30px rgba(30, 12, 20, .55)',
+          animation: 'coRise .3s cubic-bezier(.22,1,.36,1) both',
         }}
       >
         <div className="co-drawer-hd" style={{ padding: '16px 20px' }}>
@@ -132,7 +147,7 @@ export function Modal({ title, subtitle, onClose, children, width = 560 }) {
         </div>
         <div style={{ padding: '18px 20px 22px' }}>{children}</div>
       </div>
-    </>
+    </div>
   );
 }
 
