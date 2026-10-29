@@ -408,6 +408,17 @@ async function seedAdminUser() {
       ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS sarvam_campaign_id TEXT;
       ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS interaction_id TEXT;
       ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS sarvam_settings JSONB;
+
+      -- Columns added after the bulk-calling tables were first created. CREATE TABLE
+      -- IF NOT EXISTS does not add columns to an existing table, so backfill them here.
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS sentiment TEXT;
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS recording_url TEXT;
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS transcript JSONB;
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS last_sentiment TEXT;
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS recording_url TEXT;
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS transcript JSONB;
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS booked_datetime_text TEXT;
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS last_request_id TEXT;
     `);
     console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, ai_calls & bulk calling.');
 

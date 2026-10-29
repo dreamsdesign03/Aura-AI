@@ -422,8 +422,11 @@ router.post('/:id/sync', requireUserCookie, async (req, res) => {
     lastResultSync.set(camp.id, Date.now());
     res.json({ success: true, ...(await syncSarvamResults(camp)) });
   } catch (err) {
-    console.error('[Bulk Sync] failed:', err.message);
-    res.status(err.status ? 502 : 500).json({ error: err.message });
+    console.error('[Bulk Sync] failed:', err.stack || err.message);
+    res.status(err.status ? 502 : 500).json({
+      error: err.message,
+      upstreamStatus: err.status || null,
+    });
   }
 });
 

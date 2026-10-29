@@ -462,8 +462,10 @@ function getSarvamCampaign(campaignId) {
   return sarvamJson('GET', schedulingUrl(`/campaigns/${campaignId}`));
 }
 
+// Sarvam interaction IDs look like `20261026/28583282-11:29:08-0f77fd2f`.
+// The time segment contains colons, so allow `:` in addition to word chars and hyphens.
 function validInteractionId(id) {
-  return /^\d{8}\/[\w-]+$/.test(String(id || ''));
+  return /^\d{8}\/[\w:-]+$/.test(String(id || ''));
 }
 
 function analyticsUrl(kind, interactionId) {
