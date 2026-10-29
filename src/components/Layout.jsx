@@ -47,7 +47,6 @@ const navGroups = [
             { href: "/", label: "Command Center", icon: LayoutDashboard },
             { href: "/icp", label: "ICP Manager", icon: Target },
             { href: "/leads", label: "Leads", icon: Users },
-            { href: "/qualify", label: "BANT Qualifier", icon: CheckSquare },
         ],
     },
     {
