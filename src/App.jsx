@@ -41,6 +41,9 @@ const DebugLogsPage = lazy(() => import("@/pages/DebugLogsPage"));
 const SuperAdmin = lazy(() => import("@/pages/SuperAdmin"));
 const GrowthQuestForm = lazy(() => import("@/pages/GrowthQuestForm"));
 const BulkCalling = lazy(() => import("@/pages/BulkCalling"));
+const ClinicOverview = lazy(() => import("@/pages/clinic/ClinicOverview"));
+const ClinicAppointments = lazy(() => import("@/pages/clinic/ClinicAppointments"));
+const ClinicPatients = lazy(() => import("@/pages/clinic/ClinicPatients"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -319,6 +322,9 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/form-quest" component={() => <GrowthQuestForm />}/>
         <Route path="/debug-logs" component={() => <DebugLogsPage />}/>
         <Route path="/bulk-calling" component={() => <Layout><BulkCalling /></Layout>}/>
+        <Route path="/clinic" component={() => <Layout><ClinicOverview /></Layout>}/>
+        <Route path="/clinic/appointments" component={() => <Layout><ClinicAppointments /></Layout>}/>
+        <Route path="/clinic/patients" component={() => <Layout><ClinicPatients /></Layout>}/>
         <Route component={NotFound}/>
       </Switch>
     </Suspense>);

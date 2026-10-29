@@ -60,6 +60,14 @@ const navGroups = [
         ],
     },
     {
+        group: "Clinic OS",
+        items: [
+            { href: "/clinic", label: "Clinic Command Center", icon: Activity, accent: "#A4285E", exact: true },
+            { href: "/clinic/appointments", label: "Appointments", icon: Calendar, accent: "#A4285E" },
+            { href: "/clinic/patients", label: "Patients", icon: Users, accent: "#A4285E" },
+        ],
+    },
+    {
         group: "Intelligence",
         items: [
             { href: "/sales-brain", label: "Sales Brain", icon: MessageCircle, accent: "#262524" },
@@ -639,8 +647,8 @@ export default function Layout({ children }) {
                 <div className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest" style={{ color: "#C4C9D4" }}>
                   {group}
                 </div>
-                {visibleItems.map(({ href, label, icon: Icon, accent, comingSoon }) => {
-                    const active = navIsActive(href);
+                {visibleItems.map(({ href, label, icon: Icon, accent, comingSoon, exact }) => {
+                    const active = exact ? location === href : navIsActive(href);
                     const activeBg = accent ?? GRAD;
                     const isPaidLocked = LOCKED_PAID_HREFS.has(href) && !["growth", "agency"].includes(planInfo?.plan ?? "trial");
                     if (comingSoon) {
@@ -838,8 +846,8 @@ export default function Layout({ children }) {
             </div>
             {/* Nav grid */}
             <div className="grid grid-cols-4 gap-1 px-3 pb-2">
-              {nav.filter(item => item.href === "/lead-bank" ? isAdmin : true).filter(item => !item.comingSoon).map(({ href, label, icon: Icon, accent }) => {
-                const active = navIsActive(href);
+              {nav.filter(item => item.href === "/lead-bank" ? isAdmin : true).filter(item => !item.comingSoon).map(({ href, label, icon: Icon, accent, exact }) => {
+                const active = exact ? location === href : navIsActive(href);
                 return (<Link key={href} href={href} onClick={() => setMoreOpen(false)}>
                     <div className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl cursor-pointer transition-all active:scale-95" style={{
                         background: active ? PURPLE_A : "transparent",

@@ -1,0 +1,353 @@
+import { useMemo, useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  Search, RefreshCw, Plus, Phone, Mail, CalendarDays, IndianRupee,
+  StickyNote, Package, PhoneCall, ArrowUpRight, Check, Clock,
+} from 'lucide-react';
+import { Link } from 'wouter';
+import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
+import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi } from '@/clinic/ui';
+
+function NoteForm({ leadId, onDone }) {
+  const qc = useQueryClient();
+  const [kind, setKind] = useState('note');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [error, setError] = useState('');
+
+  const add = useMutation({
+    mutationFn: () => clinicApi.addNote({ leadId, kind, title: title.trim() || null, body: body.trim() || null }),
+    onSuccess: () => {
+      setTitle(''); setBody(''); setError('');
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      onDone?.();
+    },
+    onError: (err) => setError(err.message),
+  });
+
+  return (
+    <form
+      onSubmit={(e) => { e.preventDefault(); if (title.trim() || body.trim()) add.mutate(); }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+    >
+      <div className="co-form-grid" style={{ gridTemplateColumns: '120px minmax(0, 1fr)' }}>
+        <div className="co-field">
+          <label className="co-label" htmlFor="co-nkind">Type</label>
+          <select id="co-nkind" value={kind} onChange={(e) => setKind(e.target.value)}>
+            <option value="note">Note</option>
+            <option value="call">Call</option>
+            <option value="whatsapp">WhatsApp</option>
+            <option value="consult">Consult</option>
+          </select>
+        </div>
+        <div className="co-field">
+          <label className="co-label" htmlFor="co-ntitle">Title</label>
+          <input id="co-ntitle" className="co-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Short summary" />
+        </div>
+      </div>
+      <div className="co-field">
+        <label className="co-label" htmlFor="co-nbody">Details</label>
+        <textarea id="co-nbody" rows="2" value={body} onChange={(e) => setBody(e.target.value)} placeholder="What happened, what to do next…" />
+      </div>
+      {error ? <p className="co-sm" style={{ color: '#B91C1C' }}>{error}</p> : null}
+      <button type="submit" className="co-btn co-btn-primary co-btn-sm" style={{ alignSelf: 'flex-start' }} disabled={add.isPending || (!title.trim() && !body.trim())}>
+        {add.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Plus size={13} />} Add to timeline
+      </button>
+    </form>
+  );
+}
+
+function PackageForm({ leadId }) {
+  const qc = useQueryClient();
+  const [form, setForm] = useState({ name: '', totalSessions: 6, amount: 0, paidAmount: 0 });
+  const [error, setError] = useState('');
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const add = useMutation({
+    mutationFn: () => clinicApi.createPackage({ leadId, ...form, totalSessions: Number(form.totalSessions) || 1, amount: Number(form.amount) || 0, paidAmount: Number(form.paidAmount) || 0 }),
+    onSuccess: () => { setForm({ name: '', totalSessions: 6, amount: 0, paidAmount: 0 }); setError(''); qc.invalidateQueries({ queryKey: ['clinic'] }); },
+    onError: (err) => setError(err.message),
+  });
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); if (form.name.trim()) add.mutate(); }} className="co-form-grid" style={{ marginTop: 12 }}>
+      <div className="co-field co-span-2">
+        <label className="co-label" htmlFor="co-pname">Package name</label>
+        <input id="co-pname" className="co-input" value={form.name} onChange={set('name')} placeholder="e.g. Laser – 6 sittings" />
+      </div>
+      <div className="co-field">
+        <label className="co-label" htmlFor="co-psessions">Sessions</label>
+        <input id="co-psessions" type="number" min="1" className="co-input" value={form.totalSessions} onChange={set('totalSessions')} />
+      </div>
+      <div className="co-field">
+        <label className="co-label" htmlFor="co-pamount">Package value (₹)</label>
+        <input id="co-pamount" type="number" min="0" className="co-input" value={form.amount} onChange={set('amount')} />
+      </div>
+      <div className="co-field">
+        <label className="co-label" htmlFor="co-ppaid">Paid (₹)</label>
+        <input id="co-ppaid" type="number" min="0" className="co-input" value={form.paidAmount} onChange={set('paidAmount')} />
+      </div>
+      <div className="co-field" style={{ justifyContent: 'flex-end' }}>
+        <button type="submit" className="co-btn co-btn-primary co-btn-sm" disabled={add.isPending || !form.name.trim()}>
+          {add.isPending ? <RefreshCw size={13} className="animate-spin" /> : <Plus size={13} />} Add package
+        </button>
+      </div>
+      {error ? <p className="co-sm co-span-2" style={{ color: '#B91C1C' }}>{error}</p> : null}
+    </form>
+  );
+}
+
+function PatientDrawer({ id, onClose }) {
+  const qc = useQueryClient();
+  const [tab, setTab] = useState('timeline');
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['clinic', 'patient', id],
+    queryFn: () => clinicApi.patient(id),
+  });
+
+  const useSession = useMutation({
+    mutationFn: (pkgId) => clinicApi.useSession(pkgId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clinic'] }),
+  });
+
+  const p = data?.patient;
+  const notes = data?.notes || [];
+  const appts = data?.appointments || [];
+  const packages = data?.packages || [];
+  const calls = data?.calls || [];
+
+  return (
+    <Drawer
+      title={p ? fullName(p) : 'Patient'}
+      subtitle={p ? [p.email, p.phone].filter(Boolean).join(' · ') : ''}
+      onClose={onClose}
+      actions={p?.phone ? (
+        <a href={`tel:${p.phone}`} className="co-btn co-btn-sm co-icon-btn" aria-label="Call patient"><Phone size={14} /></a>
+      ) : null}
+    >
+      {isLoading ? <Spinner label="Loading patient…" /> : isError ? (
+        <EmptyState title="Could not load patient"><p className="co-sm co-mut">{error?.message}</p></EmptyState>
+      ) : (
+        <>
+          <div className="co-row" style={{ gap: 12 }}>
+            <Avatar first={p.first_name} last={p.last_name} size="lg" />
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="co-strong" style={{ fontSize: 15 }}>{fullName(p)}</div>
+              <div className="co-xs co-mut">{p.company || 'Patient'}{p.pipeline_stage ? ` · ${p.pipeline_stage}` : ''}</div>
+              <div className="co-row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
+                {p.status ? <span className="co-chip co-c-p">{p.status}</span> : null}
+                <span className="co-chip co-c-n"><CalendarDays size={11} /> {appts.length} visits</span>
+                {Number(p.deal_value) > 0 ? <span className="co-chip co-c-n"><IndianRupee size={11} /> {money(p.deal_value)}</span> : null}
+              </div>
+            </div>
+          </div>
+
+          <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
+            {p.phone ? <a className="co-chip co-c-p" href={`tel:${p.phone}`}><Phone size={11} /> {p.phone}</a> : null}
+            {p.email ? <a className="co-chip co-c-n" href={`mailto:${p.email}`}><Mail size={11} /> {p.email}</a> : null}
+            <Link href="/leads" className="co-chip co-c-n"><ArrowUpRight size={11} /> Open lead</Link>
+          </div>
+
+          <Tabs
+            value={tab}
+            onChange={setTab}
+            items={[
+              { value: 'timeline', label: `Timeline (${notes.length})` },
+              { value: 'appointments', label: `Visits (${appts.length})` },
+              { value: 'packages', label: `Packages (${packages.length})` },
+            ]}
+          />
+
+          {tab === 'timeline' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <NoteForm leadId={Number(id)} />
+              <div className="co-list">
+                {notes.length === 0 ? <p className="co-sm co-mut">No notes yet.</p> : notes.map((n) => (
+                  <div className="co-list-item" key={n.id}>
+                    <span className="co-dot" />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="co-spread">
+                        <span className="co-strong" style={{ fontSize: 13 }}>{n.title || n.kind}</span>
+                        <span className="co-xs co-mut">{datetimeLabel(n.created_at)}</span>
+                      </div>
+                      {n.body ? <p className="co-sm co-mut" style={{ marginTop: 3 }}>{n.body}</p> : null}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {calls.length > 0 ? (
+                <div>
+                  <div className="co-label" style={{ marginBottom: 6 }}>Recent calls</div>
+                  <div className="co-list">
+                    {calls.map((c) => (
+                      <div className="co-list-item" key={c.id}>
+                        <PhoneCall size={13} style={{ marginTop: 3, color: '#A4285E' }} />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="co-sm co-strong">{c.transcript_summary || 'Call'}</div>
+                          <div className="co-xs co-mut">{c.started_at ? datetimeLabel(c.started_at) : '—'} · {c.status || 'completed'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {tab === 'appointments' ? (
+            <div className="co-list">
+              {appts.length === 0 ? <p className="co-sm co-mut">No appointments booked.</p> : appts.map((a) => (
+                <div className="co-list-item" key={a.id} style={{ alignItems: 'center' }}>
+                  <Clock size={13} style={{ marginTop: 2, color: '#A4285E' }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div className="co-strong" style={{ fontSize: 13 }}>{a.treatment || 'Appointment'}</div>
+                    <div className="co-xs co-mut">{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)}{a.branch ? ` · ${a.branch}` : ''}</div>
+                  </div>
+                  <StatusChip status={a.status} />
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {tab === 'packages' ? (
+            <div>
+              {packages.length === 0 ? <p className="co-sm co-mut">No packages sold yet.</p> : (
+                <div className="co-list">
+                  {packages.map((pkg) => {
+                    const pct = pkg.total_sessions > 0 ? Math.round((pkg.used_sessions / pkg.total_sessions) * 100) : 0;
+                    return (
+                      <div className="co-list-item" key={pkg.id} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                        <div className="co-spread">
+                          <span className="co-strong" style={{ fontSize: 13 }}><Package size={12} /> {pkg.name}</span>
+                          <StatusChip status={pkg.status} />
+                        </div>
+                        <div className="co-xs co-mut" style={{ marginTop: 3 }}>
+                          {pkg.used_sessions}/{pkg.total_sessions} sessions · {money(pkg.paid_amount)} paid of {money(pkg.amount)}
+                        </div>
+                        <div className="co-bar-track" style={{ marginTop: 6, height: 7 }}>
+                          <div className="co-bar-fill" style={{ width: `${Math.max(3, pct)}%` }} />
+                        </div>
+                        <button
+                          type="button"
+                          className="co-btn co-btn-sm"
+                          style={{ marginTop: 8, alignSelf: 'flex-start' }}
+                          disabled={useSession.isPending || pkg.used_sessions >= pkg.total_sessions}
+                          onClick={() => useSession.mutate(pkg.id)}
+                        >
+                          <Check size={12} /> Use a session
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              <PackageForm leadId={Number(id)} />
+            </div>
+          ) : null}
+        </>
+      )}
+    </Drawer>
+  );
+}
+
+export default function ClinicPatients() {
+  const [search, setSearch] = useState('');
+  const [term, setTerm] = useState('');
+  const [openId, setOpenId] = useState(null);
+
+  const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
+    queryKey: ['clinic', 'patients', term],
+    queryFn: () => clinicApi.patients(term),
+    refetchInterval: 30_000,
+  });
+
+  const patients = data?.patients || [];
+  const totals = useMemo(() => ({
+    count: patients.length,
+    visits: patients.reduce((n, p) => n + Number(p.appointments || 0), 0),
+    value: patients.reduce((n, p) => n + Number(p.package_value || 0), 0),
+  }), [patients]);
+
+  return (
+    <div className="clinic-os">
+      <PageHead title="Patients" subtitle="Your Aura leads, seen through a clinic lens — visits, packages and notes.">
+        <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
+        </button>
+        <Link href="/leads" className="co-btn co-btn-primary co-btn-sm"><Plus size={14} /> Add patient</Link>
+      </PageHead>
+
+      <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
+        <Kpi label="Patients" value={totals.count} foot="From your live leads" icon={StickyNote} />
+        <Kpi label="Clinic visits" value={totals.visits} foot="Across all patients" icon={CalendarDays} />
+        <Kpi label="Package value" value={money(totals.value)} foot="Sold to this list" icon={IndianRupee} />
+      </div>
+
+      <Card rise="co-rise-2">
+        <form
+          className="co-row"
+          style={{ marginBottom: 12 }}
+          onSubmit={(e) => { e.preventDefault(); setTerm(search.trim()); }}
+        >
+          <div style={{ position: 'relative', flex: 1 }}>
+            <Search size={14} style={{ position: 'absolute', left: 12, top: 12, color: '#9CA3AF' }} />
+            <input
+              className="co-input"
+              style={{ paddingLeft: 34 }}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by name, phone or email…"
+              aria-label="Search patients"
+            />
+          </div>
+          <button type="submit" className="co-btn co-btn-primary co-btn-sm">Search</button>
+          {term ? <button type="button" className="co-btn co-btn-sm" onClick={() => { setSearch(''); setTerm(''); }}>Clear</button> : null}
+        </form>
+
+        {isError ? (
+          <EmptyState title="Could not load patients"><p className="co-sm co-mut">{error?.message}</p></EmptyState>
+        ) : isLoading ? (
+          <Spinner label="Loading patients…" />
+        ) : patients.length === 0 ? (
+          <EmptyState title={term ? 'No matching patients' : 'No patients yet'}>
+            <p className="co-sm co-mut" style={{ marginTop: 6 }}>
+              {term ? 'Try a different name, phone or email.' : 'Add leads in Aura and they appear here automatically.'}
+            </p>
+            {!term ? <Link href="/leads" className="co-btn co-btn-primary co-btn-sm" style={{ marginTop: 12 }}>Add your first patient</Link> : null}
+          </EmptyState>
+        ) : (
+          <div className="co-table-wrap">
+            <table className="co-table">
+              <thead>
+                <tr><th>Patient</th><th>Phone</th><th>Stage</th><th>Visits</th><th>Last visit</th><th>Packages</th><th></th></tr>
+              </thead>
+              <tbody>
+                {patients.map((p) => (
+                  <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setOpenId(p.id)}>
+                    <td>
+                      <div className="co-row">
+                        <Avatar first={p.first_name} last={p.last_name} />
+                        <div style={{ minWidth: 0 }}>
+                          <div className="co-strong">{fullName(p)}</div>
+                          <div className="co-xs co-mut">{p.email || 'No email'}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{p.phone || '—'}</td>
+                    <td><span className="co-chip co-c-p">{p.pipeline_stage || p.status || 'Lead In'}</span></td>
+                    <td className="co-strong">{p.appointments || 0}</td>
+                    <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>{p.last_visit ? dateLabel(p.last_visit) : '—'}</td>
+                    <td>{p.packages ? `${p.packages} · ${money(p.package_value)}` : '—'}</td>
+                    <td><span className="co-btn co-btn-sm co-btn-ghost">Open <ArrowUpRight size={12} /></span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      {openId ? <PatientDrawer id={openId} onClose={() => setOpenId(null)} /> : null}
+    </div>
+  );
+}
