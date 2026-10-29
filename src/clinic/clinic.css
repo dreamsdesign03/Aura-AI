@@ -32,6 +32,19 @@
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--co-ink);
   font-size: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px 28px 48px;
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .clinic-os {
+    padding: 16px 16px 36px;
+    gap: 16px;
+  }
 }
 
 .clinic-os *,
@@ -48,17 +61,24 @@
   color: var(--co-ink);
 }
 
-.clinic-os h1 { font-size: 24px; line-height: 1.2; font-weight: 600; margin: 0; }
+.clinic-os h1 { font-size: 24px; line-height: 1.25; font-weight: 700; margin: 0; }
 .clinic-os h2 { font-size: 16px; line-height: 1.3; font-weight: 600; margin: 0; }
 .clinic-os h3 { font-size: 14px; line-height: 1.35; font-weight: 600; margin: 0; }
 .clinic-os p { margin: 0; }
 
-.co-page { display: flex; flex-direction: column; gap: 18px; padding: 4px 2px 40px; }
+.co-page { display: flex; flex-direction: column; gap: 20px; width: 100%; }
 
 /* ---------- header ---------- */
-.co-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.co-head-sub { margin-top: 5px; color: var(--co-mute); font-size: 13px; }
-.co-head-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.co-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding-bottom: 2px;
+}
+.co-head-sub { margin-top: 6px; color: var(--co-mute); font-size: 13px; line-height: 1.4; }
+.co-head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
 /* ---------- buttons ---------- */
 .co-btn {
