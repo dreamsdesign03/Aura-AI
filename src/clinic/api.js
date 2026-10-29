@@ -38,6 +38,44 @@ export const clinicApi = {
   useSession: (id) => request(`/packages/${id}/use`, { method: 'POST', body: '{}' }),
 
   seedDemo: () => request('/seed-demo', { method: 'POST', body: '{}' }),
+
+  // Settings
+  getSettings: () => request('/settings'),
+  saveSettings: (body) => request('/settings', { method: 'PUT', body: JSON.stringify(body) }),
+
+  // Playbooks
+  playbooks: () => request('/playbooks'),
+  createPlaybook: (body) => request('/playbooks', { method: 'POST', body: JSON.stringify(body) }),
+  updatePlaybook: (id, body) => request(`/playbooks/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+
+  // Reviews
+  reviews: () => request('/reviews'),
+  createReview: (body) => request('/reviews', { method: 'POST', body: JSON.stringify(body) }),
+  replyReview: (id, reply) => request(`/reviews/${id}/reply`, { method: 'PATCH', body: JSON.stringify({ reply }) }),
+
+  // Retention
+  retention: (days) => request(`/retention${days ? `?days=${days}` : ''}`),
+
+  // Campaigns (Aura)
+  campaigns: () => request('/campaigns'),
+
+  // Reports
+  reports: (from, to) => request(`/reports?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+
+  // Audit
+  audit: () => request('/audit'),
+
+  // Inbox
+  inbox: (limit) => request(`/inbox${limit ? `?limit=${limit}` : ''}`),
+
+  // Dialer
+  dialerLeads: () => request('/dialer/leads'),
+
+  // Call review
+  callReview: (id) => request(`/call-review/${id}`),
+
+  // Agents
+  agents: () => request('/agents'),
 };
 
 export const money = (value) => {

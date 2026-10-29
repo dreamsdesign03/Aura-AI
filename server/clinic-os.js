@@ -115,6 +115,41 @@ function ensureSchema() {
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
+    CREATE TABLE IF NOT EXISTS clinic_settings (
+      id SERIAL PRIMARY KEY,
+      user_id INT UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      clinic_name TEXT,
+      branches JSONB DEFAULT '[]'::jsonb,
+      treatments JSONB DEFAULT '[]'::jsonb,
+      hours JSONB DEFAULT '{}'::jsonb,
+      ai_notes TEXT,
+      consent JSONB DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS clinic_playbooks (
+      id SERIAL PRIMARY KEY,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      title TEXT NOT NULL,
+      channel TEXT DEFAULT 'call',
+      stage TEXT,
+      body TEXT,
+      active BOOLEAN DEFAULT TRUE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS clinic_playbooks_user_idx ON clinic_playbooks (user_id, active);
+
+    CREATE TABLE IF NOT EXISTS clinic_audit (
+      id SERIAL PRIMARY KEY,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      action TEXT,
+      entity TEXT,
+      entity_id TEXT,
+      detail TEXT,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS clinic_audit_user_idx ON clinic_audit (user_id, created_at DESC);
+
     ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_notes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}'::jsonb;
     ALTER TABLE clinic_packages ADD COLUMN IF NOT EXISTS paid_amount NUMERIC DEFAULT 0;
@@ -149,6 +184,16 @@ function safeDate(value) {
 async function tryQuery(sql, params) {
   try { return await db.query(sql, params); }
   catch (err) { console.warn('[clinic-os] optional query skipped:', err.message); return { rows: [] }; }
+}
+
+async function audit(userId, action, entity, entityId, detail) {
+  try {
+    await db.query(
+      `INSERT INTO clinic_audit (user_id, action, entity, entity_id, detail)
+       VALUES ($1,$2,$3,$4,$5)`,
+      [userId, action, entity, entityId == null ? null : String(entityId), detail || null]
+    );
+  } catch (err) { console.warn('[clinic-os] audit skipped:', err.message); }
 }
 
 // ---------------------------------------------------------------------------
@@ -296,6 +341,7 @@ router.post('/appointments', requireUser, async (req, res) => {
        VALUES ($1,$2,'appointment','Appointment booked',$3,$4::jsonb)`,
       [uid, leadId || null, `${treatment || 'Consult'} for ${patientName}`, JSON.stringify({ startsAt: start.toISOString(), branch })]
     );
+    await audit(uid, 'created', 'appointment', r.rows[0].id, `${patientName} · ${treatment || 'Consult'}`);
     res.json({ appointment: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -323,6 +369,7 @@ router.patch('/appointments/:id', requireUser, async (req, res) => {
       vals
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
+    await audit(uid, 'updated', 'appointment', req.params.id, Object.keys(req.body || {}).join(', '));
     res.json({ appointment: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -330,6 +377,7 @@ router.patch('/appointments/:id', requireUser, async (req, res) => {
 router.delete('/appointments/:id', requireUser, async (req, res) => {
   try {
     await db.query('DELETE FROM clinic_appointments WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    await audit(req.user.id, 'deleted', 'appointment', req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -399,6 +447,7 @@ router.post('/notes', requireUser, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6::jsonb) RETURNING *`,
       [uid, leadId || null, kind || 'note', title || null, body || null, JSON.stringify(meta || {})]
     );
+    await audit(uid, 'created', 'note', r.rows[0].id, title || String(body || '').slice(0, 80));
     res.json({ note: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -427,6 +476,7 @@ router.post('/tasks', requireUser, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [req.user.id, title, detail || null, priority === 'high' ? 'high' : 'normal', dueAt || null, href || null]
     );
+    await audit(req.user.id, 'created', 'task', r.rows[0].id, title);
     res.json({ task: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -439,6 +489,7 @@ router.patch('/tasks/:id', requireUser, async (req, res) => {
       [status === 'done' ? 'done' : 'open', req.params.id, req.user.id]
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    await audit(req.user.id, status === 'done' ? 'completed' : 'reopened', 'task', req.params.id);
     res.json({ task: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -456,6 +507,7 @@ router.post('/packages', requireUser, async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
       [uid, leadId || null, name, Number(totalSessions) || 1, Number(amount) || 0, Number(paidAmount) || 0]
     );
+    await audit(uid, 'created', 'package', r.rows[0].id, name);
     res.json({ package: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -470,6 +522,7 @@ router.post('/packages/:id/use', requireUser, async (req, res) => {
       [req.params.id, req.user.id]
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Package not found' });
+    await audit(req.user.id, 'session-used', 'package', req.params.id, `${r.rows[0].used_sessions}/${r.rows[0].total_sessions}`);
     res.json({ package: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -530,6 +583,318 @@ router.post('/seed-demo', requireUser, async (req, res) => {
     console.error('[clinic-os] seed:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+router.get('/settings', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM clinic_settings WHERE user_id = $1', [req.user.id]);
+    res.json({ settings: r.rows[0] || { branches: [], treatments: [], hours: {}, ai_notes: '', consent: {} } });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/settings', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const { clinicName, branches, treatments, hours, aiNotes, consent } = req.body || {};
+    const r = await db.query(
+      `INSERT INTO clinic_settings (user_id, clinic_name, branches, treatments, hours, ai_notes, consent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (user_id) DO UPDATE SET
+         clinic_name = EXCLUDED.clinic_name,
+         branches = EXCLUDED.branches,
+         treatments = EXCLUDED.treatments,
+         hours = EXCLUDED.hours,
+         ai_notes = EXCLUDED.ai_notes,
+         consent = EXCLUDED.consent,
+         updated_at = NOW()
+       RETURNING *`,
+      [uid, clinicName || null, JSON.stringify(branches || []), JSON.stringify(treatments || []), JSON.stringify(hours || {}), aiNotes || '', JSON.stringify(consent || {})]
+    );
+    await audit(uid, 'updated', 'settings', 'clinic');
+    res.json({ settings: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Playbooks
+// ---------------------------------------------------------------------------
+router.get('/playbooks', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM clinic_playbooks WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
+    res.json({ playbooks: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/playbooks', requireUser, async (req, res) => {
+  try {
+    const { title, channel, stage, body } = req.body || {};
+    if (!title || !body) return res.status(400).json({ error: 'title and body required' });
+    const r = await db.query(
+      `INSERT INTO clinic_playbooks (user_id, title, channel, stage, body)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.user.id, title, channel || 'call', stage || null, body]
+    );
+    await audit(req.user.id, 'created', 'playbook', r.rows[0].id, title);
+    res.json({ playbook: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/playbooks/:id', requireUser, async (req, res) => {
+  try {
+    const { active, title, body } = req.body || {};
+    const sets = []; const vals = [];
+    if (typeof active === 'boolean') { vals.push(active); sets.push(`active = $${vals.length}`); }
+    if (title) { vals.push(title); sets.push(`title = $${vals.length}`); }
+    if (body) { vals.push(body); sets.push(`body = $${vals.length}`); }
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    vals.push(req.params.id, req.user.id);
+    const r = await db.query(`UPDATE clinic_playbooks SET ${sets.join(', ')} WHERE id = $${vals.length - 1} AND user_id = $${vals.length} RETURNING *`, vals);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Playbook not found' });
+    await audit(req.user.id, 'updated', 'playbook', req.params.id);
+    res.json({ playbook: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+router.get('/reviews', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM clinic_reviews WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [req.user.id]);
+    res.json({ reviews: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/reviews', requireUser, async (req, res) => {
+  try {
+    const { leadId, author, rating, channel, body } = req.body || {};
+    if (!author || !body) return res.status(400).json({ error: 'author and body required' });
+    const r = await db.query(
+      `INSERT INTO clinic_reviews (user_id, lead_id, author, rating, channel, body)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [req.user.id, leadId || null, author, Number(rating) || 5, channel || 'Google', body]
+    );
+    await audit(req.user.id, 'created', 'review', r.rows[0].id, `${author}: ${String(body).slice(0, 60)}`);
+    res.json({ review: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/reviews/:id/reply', requireUser, async (req, res) => {
+  try {
+    const { reply } = req.body || {};
+    if (!reply) return res.status(400).json({ error: 'reply required' });
+    const r = await db.query('UPDATE clinic_reviews SET reply = $1, status = $2 WHERE id = $3 AND user_id = $4 RETURNING *', [reply, 'replied', req.params.id, req.user.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Review not found' });
+    await audit(req.user.id, 'replied', 'review', req.params.id);
+    res.json({ review: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Retention (patients who haven't visited in N days)
+// ---------------------------------------------------------------------------
+router.get('/retention', requireUser, async (req, res) => {
+  try {
+    const days = Number(req.query.days) || 90;
+    const r = await db.query(
+      `SELECT l.id, l.first_name, l.last_name, l.phone, l.email,
+              MAX(a.starts_at) AS last_visit,
+              (SELECT name FROM clinic_packages p WHERE p.lead_id = l.id AND p.user_id = $1 ORDER BY created_at DESC LIMIT 1) AS last_package
+         FROM leads l
+         LEFT JOIN clinic_appointments a ON a.lead_id = l.id AND a.user_id = $1
+        WHERE l.user_id = $1
+        GROUP BY l.id, l.first_name, l.last_name, l.phone, l.email
+        HAVING MAX(a.starts_at) < NOW() - ($2 || ' days')::interval
+           OR MAX(a.starts_at) IS NULL
+        ORDER BY last_visit NULLS FIRST
+        LIMIT 200`,
+      [req.user.id, days]
+    );
+    res.json({ patients: r.rows, days });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Campaigns (re-use Aura campaigns table)
+// ---------------------------------------------------------------------------
+router.get('/campaigns', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT id, name, segment, status, template, scheduled_at, sent, delivered, replied, booked, total, created_at
+         FROM campaigns WHERE org_id = (SELECT org_id FROM users WHERE id = $1 LIMIT 1)
+         ORDER BY created_at DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ campaigns: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Reports (analytics aggregate)
+// ---------------------------------------------------------------------------
+router.get('/reports', requireUser, async (req, res) => {
+  try {
+    const from = req.query.from ? new Date(req.query.from) : (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })();
+    const to = req.query.to ? new Date(req.query.to) : new Date();
+
+    const [appts, pkg, rev, conv] = await Promise.all([
+      db.query(`SELECT status, COUNT(*)::int AS n FROM clinic_appointments WHERE user_id = $1 AND starts_at BETWEEN $2 AND $3 GROUP BY 1`, [req.user.id, from, to]),
+      db.query(`SELECT status, COUNT(*)::int AS n FROM clinic_packages WHERE user_id = $1 AND created_at BETWEEN $2 AND $3 GROUP BY 1`, [req.user.id, from, to]),
+      db.query(`SELECT COALESCE(SUM(amount),0)::numeric AS sold, COALESCE(SUM(paid_amount),0)::numeric AS collected FROM clinic_packages WHERE user_id = $1 AND created_at BETWEEN $2 AND $3`, [req.user.id, from, to]),
+      tryQuery(`SELECT COUNT(*)::int AS calls, COUNT(*) FILTER (WHERE call_status = 'completed')::int AS completed FROM bulk_attempts a JOIN bulk_campaigns c ON c.id = a.campaign_id WHERE c.created_by = $1 AND a.started_at BETWEEN $2 AND $3`, [req.user.id, from, to]),
+    ]);
+
+    res.json({
+      range: { from: from.toISOString(), to: to.toISOString() },
+      appointments: appts.rows,
+      packages: pkg.rows,
+      revenue: rev.rows[0],
+      calls: conv.rows[0] || { calls: 0, completed: 0 },
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+router.get('/audit', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM clinic_audit WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200', [req.user.id]);
+    res.json({ audit: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Inbox (WhatsApp + AI calls + notes unified)
+// ---------------------------------------------------------------------------
+router.get('/inbox', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const limit = Number(req.query.limit) || 50;
+
+    const [wa, calls, notes] = await Promise.all([
+      db.query(
+        `SELECT wc.id, wc.lead_id, wc.phone, wc.unread_count, wc.last_message_at,
+                l.first_name, l.last_name,
+                (SELECT COALESCE(wm.content, wm.body, '') FROM whatsapp_messages wm
+                 WHERE wm.conversation_id = wc.id OR wm.lead_id = l.id
+                 ORDER BY COALESCE(wm.sent_at, wm.timestamp, NOW()) DESC LIMIT 1) AS preview
+           FROM whatsapp_conversations wc
+           LEFT JOIN leads l ON l.id = wc.lead_id
+          WHERE wc.org_id = (SELECT org_id FROM users WHERE id = $1) OR l.user_id = $1
+          ORDER BY wc.last_message_at DESC NULLS LAST LIMIT $2`,
+        [uid, limit]
+      ),
+      tryQuery(
+        `SELECT ac.id, ac.lead_id, ac.started_at, ac.status, ac.transcript_summary,
+                l.first_name, l.last_name
+           FROM ai_calls ac
+           LEFT JOIN leads l ON l.id = ac.lead_id
+          WHERE ac.lead_id IN (SELECT id FROM leads WHERE user_id = $1)
+          ORDER BY ac.started_at DESC LIMIT $2`,
+        [uid, limit]
+      ),
+      db.query(
+        `SELECT cn.id, cn.lead_id, cn.kind, cn.title, cn.body, cn.created_at,
+                l.first_name, l.last_name
+           FROM clinic_notes cn
+           LEFT JOIN leads l ON l.id = cn.lead_id
+          WHERE cn.user_id = $1
+          ORDER BY cn.created_at DESC LIMIT $2`,
+        [uid, limit]
+      ),
+    ]);
+
+    const threads = [];
+    for (const row of wa.rows) {
+      threads.push({
+        type: 'whatsapp',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.phone,
+        phone: row.phone,
+        unread: row.unread_count || 0,
+        lastAt: row.last_message_at,
+        preview: row.preview || 'Click to open',
+      });
+    }
+    for (const row of calls.rows) {
+      threads.push({
+        type: 'call',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || `Call #${row.id}`,
+        phone: null,
+        unread: 0,
+        lastAt: row.started_at,
+        preview: row.transcript_summary || `Call ${row.status}`,
+      });
+    }
+    for (const row of notes.rows) {
+      threads.push({
+        type: 'note',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || `Note #${row.id}`,
+        phone: null,
+        unread: 0,
+        lastAt: row.created_at,
+        preview: `${row.kind}: ${row.title || row.body?.slice(0, 80) || ''}`,
+      });
+    }
+
+    threads.sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
+    res.json({ threads: threads.slice(0, limit) });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Dialer: list leads with phone for outbound
+// ---------------------------------------------------------------------------
+router.get('/dialer/leads', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT id, first_name, last_name, phone, company, pipeline_stage
+         FROM leads WHERE user_id = $1 AND phone IS NOT NULL AND phone <> ''
+         ORDER BY updated_at DESC NULLS LAST LIMIT 200`,
+      [req.user.id]
+    );
+    res.json({ leads: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Call review: get transcript by call id
+// ---------------------------------------------------------------------------
+router.get('/call-review/:id', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT ac.*, l.first_name, l.last_name, l.phone
+         FROM ai_calls ac
+         LEFT JOIN leads l ON l.id = ac.lead_id
+        WHERE ac.id = $1 AND l.user_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
+    res.json({ call: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Agent hub (reuse Aura automations)
+// ---------------------------------------------------------------------------
+router.get('/agents', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT id, name, trigger, description, active, runs, conversions, steps, created_at
+         FROM automations WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ agents: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 module.exports = { router, ensureSchema };
