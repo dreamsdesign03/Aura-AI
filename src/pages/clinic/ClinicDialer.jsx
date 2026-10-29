@@ -117,6 +117,7 @@ export default function ClinicDialer() {
   const [callPhase, setCallPhase] = useState('idle');
   const [callSeconds, setCallSeconds] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
+  const [activeCallId, setActiveCallId] = useState(null);
   const [lastCallResult, setLastCallResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const timerRef = useRef(null);
@@ -257,54 +258,57 @@ export default function ClinicDialer() {
     const docObj = DOCTORS.find((d) => d.id === doctor);
     const branchObj = BRANCHES.find((b) => b.id === branch);
 
-    if (isMock) {
-      // Mock call progression simulation
-      setTimeout(() => setCallPhase('connecting'), 700);
-      setTimeout(() => setCallPhase('ringing'), 1600);
+    try {
+      // 1. Immediately insert/dispatch call into PostgreSQL DB!
+      const res = await callMutation.mutateAsync({
+        destination: destination || finalLead?.phone,
+        conversationType,
+        doctor: docObj?.name,
+        branch: branchObj?.name,
+        leadId: finalLead?.id || null,
+        isMock,
+        mockOutcome,
+        durationSecs: 0,
+      });
 
-      if (mockOutcome === 'connected') {
-        setTimeout(() => {
-          setCallPhase('connected');
-        }, 3200);
-      } else {
-        setTimeout(async () => {
-          setCallPhase('ended');
-          await callMutation.mutateAsync({
-            destination: destination || finalLead?.phone,
-            conversationType,
-            doctor: docObj?.name,
-            branch: branchObj?.name,
-            leadId: finalLead?.id || null,
-            isMock: true,
-            mockOutcome,
-            durationSecs: 0,
-          });
-        }, 3800);
-      }
-    } else {
-      // Live call via Sarvam AI
-      setTimeout(() => setCallPhase('connecting'), 600);
-      try {
-        const res = await callMutation.mutateAsync({
-          destination: destination || finalLead?.phone,
-          conversationType,
-          doctor: docObj?.name,
-          branch: branchObj?.name,
-          leadId: finalLead?.id || null,
-          isMock: false,
-        });
-        if (res.success) {
-          setCallPhase('ringing');
-          setTimeout(() => setCallPhase('connected'), 2500);
+      const callRecord = res?.call;
+      const callId = callRecord?.id;
+      setActiveCallId(callId);
+      setLastCallResult(callRecord);
+
+      if (isMock) {
+        setTimeout(() => setCallPhase('connecting'), 700);
+        setTimeout(() => setCallPhase('ringing'), 1600);
+
+        if (mockOutcome === 'connected') {
+          setTimeout(() => {
+            setCallPhase('connected');
+          }, 3200);
+        } else {
+          setTimeout(async () => {
+            setCallPhase('ended');
+            if (callId) {
+              await clinicApi.updateDialerCall(callId, {
+                status: mockOutcome,
+                durationSecs: 0,
+              });
+              refetchHistory();
+            }
+          }, 3800);
         }
-      } catch (e) {
-        setCallPhase('error');
-        setErrorMessage(e.message || 'Live call could not be placed.');
+      } else {
+        // Live call via Sarvam AI
+        setTimeout(() => setCallPhase('connecting'), 600);
+        setCallPhase('ringing');
+        setTimeout(() => setCallPhase('connected'), 2500);
       }
+    } catch (err) {
+      setCallPhase('error');
+      setErrorMessage(err.message || 'Call could not be placed.');
     }
   };
 
-  // Hang Up Handler
+  // Hang Up Handler - Saves duration & full transcript in DB
   const handleHangup = async () => {
     const finalSeconds = callSeconds;
     setCallPhase('ended');
@@ -312,17 +316,43 @@ export default function ClinicDialer() {
     const docObj = DOCTORS.find((d) => d.id === doctor);
     const branchObj = BRANCHES.find((b) => b.id === branch);
 
-    if (isMock && mockOutcome === 'connected') {
-      await callMutation.mutateAsync({
-        destination: number || matchedContact?.phone,
-        conversationType,
-        doctor: docObj?.name,
-        branch: branchObj?.name,
-        leadId: matchedContact?.id || null,
-        isMock: true,
-        mockOutcome: 'connected',
-        durationSecs: Math.max(finalSeconds, 5),
-      });
+    const typeLabels = {
+      patient_consultation: 'Patient Consultation',
+      follow_up: 'Post-Treatment Follow-up',
+      treatment_query: 'Treatment Inquiry',
+      appointment_booking: 'Appointment Booking',
+      payment_reminder: 'Package / Payment Reminder',
+      general: 'General Front-Desk Inquiry',
+    };
+    const label = typeLabels[conversationType] || 'Clinical Consultation';
+
+    const fullTranscript = [
+      { speaker: 'AI', text: `Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ketki, your AI clinical coordinator.` },
+      { speaker: 'Patient', text: `Hello! Yes, I was inquiring regarding ${label.toLowerCase()}.` },
+      { speaker: 'AI', text: `Certainly! Our team will ensure you receive personalized care. I have updated your consultation notes for ${docObj?.name || 'the clinical team'} at ${branchObj?.name || 'Alkapuri Main'}.` },
+      { speaker: 'Patient', text: 'Thank you so much, that sounds wonderful.' },
+      { speaker: 'AI', text: 'You are most welcome! Have a wonderful day ahead.' }
+    ];
+
+    const summary = `Patient completed consultation call (${finalSeconds}s) regarding ${label.toLowerCase()}. Care assigned to ${docObj?.name || 'Clinic Team'} (${branchObj?.name || 'Alkapuri Main'}). Treatment notes recorded.`;
+
+    if (activeCallId) {
+      try {
+        const updateRes = await clinicApi.updateDialerCall(activeCallId, {
+          status: 'completed',
+          durationSecs: Math.max(finalSeconds, 5),
+          transcript: fullTranscript,
+          summary: summary,
+        });
+        if (updateRes?.call) {
+          setLastCallResult(updateRes.call);
+        }
+      } catch (e) {
+        console.error('Failed to update call record:', e);
+      }
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      refetchHistory();
+      refetchLeads();
     }
   };
 

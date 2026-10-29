@@ -27,6 +27,7 @@ export const clinicApi = {
 
   patients: (search) => request(`/patients${search ? `?search=${encodeURIComponent(search)}` : ''}`),
   patient: (id) => request(`/patients/${id}`),
+  createPatient: (body) => request('/patients', { method: 'POST', body: JSON.stringify(body) }),
 
   addNote: (body) => request('/notes', { method: 'POST', body: JSON.stringify(body) }),
 
@@ -71,6 +72,7 @@ export const clinicApi = {
   // Dialer
   dialerLeads: () => request('/dialer/leads'),
   startDialerCall: (body) => request('/dialer/call', { method: 'POST', body: JSON.stringify(body) }),
+  updateDialerCall: (id, body) => request(`/dialer/call/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   addDialerContact: (body) => request('/dialer/contact', { method: 'POST', body: JSON.stringify(body) }),
 
   // Call review

@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
-import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi } from '@/clinic/ui';
+import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi, Modal } from '@/clinic/ui';
 
 function NoteForm({ leadId, onDone }) {
   const qc = useQueryClient();
@@ -251,14 +251,41 @@ function PatientDrawer({ id, onClose }) {
 }
 
 export default function ClinicPatients() {
+  const qc = useQueryClient();
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [openId, setOpenId] = useState(null);
+  const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [patientForm, setPatientForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    treatment: 'Laser Skin Rejuvenation',
+    branch: 'Alkapuri Main Clinic',
+  });
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['clinic', 'patients', term],
     queryFn: () => clinicApi.patients(term),
     refetchInterval: 30_000,
+  });
+
+  const addPatientMutation = useMutation({
+    mutationFn: (body) => clinicApi.createPatient(body),
+    onSuccess: () => {
+      setAddPatientOpen(false);
+      setPatientForm({
+        firstName: '',
+        lastName: '',
+        phone: '',
+        email: '',
+        treatment: 'Laser Skin Rejuvenation',
+        branch: 'Alkapuri Main Clinic',
+      });
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      refetch();
+    },
   });
 
   const patients = data?.patients || [];
@@ -268,13 +295,25 @@ export default function ClinicPatients() {
     value: patients.reduce((n, p) => n + Number(p.package_value || 0), 0),
   }), [patients]);
 
+  const handleCreatePatient = (e) => {
+    e.preventDefault();
+    if (!patientForm.firstName.trim()) return;
+    addPatientMutation.mutate(patientForm);
+  };
+
   return (
     <div className="clinic-os">
       <PageHead title="Patients" subtitle="Your Aura leads, seen through a clinic lens — visits, packages and notes.">
         <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
         </button>
-        <Link href="/leads" className="co-btn co-btn-primary co-btn-sm"><Plus size={14} /> Add patient</Link>
+        <button
+          type="button"
+          className="co-btn co-btn-primary co-btn-sm"
+          onClick={() => setAddPatientOpen(true)}
+        >
+          <Plus size={14} /> Add patient
+        </button>
       </PageHead>
 
       <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
@@ -313,7 +352,14 @@ export default function ClinicPatients() {
             <p className="co-sm co-mut" style={{ marginTop: 6 }}>
               {term ? 'Try a different name, phone or email.' : 'Add leads in Aura and they appear here automatically.'}
             </p>
-            {!term ? <Link href="/leads" className="co-btn co-btn-primary co-btn-sm" style={{ marginTop: 12 }}>Add your first patient</Link> : null}
+            <button
+              type="button"
+              className="co-btn co-btn-primary co-btn-sm"
+              style={{ marginTop: 12 }}
+              onClick={() => setAddPatientOpen(true)}
+            >
+              <Plus size={13} /> Add your first patient
+            </button>
           </EmptyState>
         ) : (
           <div className="co-table-wrap">
@@ -348,6 +394,114 @@ export default function ClinicPatients() {
       </Card>
 
       {openId ? <PatientDrawer id={openId} onClose={() => setOpenId(null)} /> : null}
+
+      {/* Add Patient Modal */}
+      {addPatientOpen && (
+        <Modal
+          title="Add New Patient"
+          subtitle="Add patient details to store in Aura AI database"
+          onClose={() => setAddPatientOpen(false)}
+        >
+          <form onSubmit={handleCreatePatient} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div className="co-form-grid">
+              <div className="co-field">
+                <label className="co-label">First Name *</label>
+                <input
+                  className="co-input"
+                  required
+                  value={patientForm.firstName}
+                  onChange={(e) => setPatientForm({ ...patientForm, firstName: e.target.value })}
+                  placeholder="e.g. Ramesh"
+                  autoFocus
+                />
+              </div>
+              <div className="co-field">
+                <label className="co-label">Last Name</label>
+                <input
+                  className="co-input"
+                  value={patientForm.lastName}
+                  onChange={(e) => setPatientForm({ ...patientForm, lastName: e.target.value })}
+                  placeholder="e.g. Patel"
+                />
+              </div>
+            </div>
+
+            <div className="co-form-grid">
+              <div className="co-field">
+                <label className="co-label">Phone Number *</label>
+                <input
+                  className="co-input"
+                  required
+                  value={patientForm.phone}
+                  onChange={(e) => setPatientForm({ ...patientForm, phone: e.target.value })}
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+              <div className="co-field">
+                <label className="co-label">Email</label>
+                <input
+                  className="co-input"
+                  type="email"
+                  value={patientForm.email}
+                  onChange={(e) => setPatientForm({ ...patientForm, email: e.target.value })}
+                  placeholder="patient@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="co-form-grid">
+              <div className="co-field">
+                <label className="co-label">Treatment Interest</label>
+                <select
+                  value={patientForm.treatment}
+                  onChange={(e) => setPatientForm({ ...patientForm, treatment: e.target.value })}
+                >
+                  <option value="Laser Hair Reduction">Laser Hair Reduction</option>
+                  <option value="Laser Skin Rejuvenation">Laser Skin Rejuvenation</option>
+                  <option value="Chemical Peel & Acne Treatment">Chemical Peel & Acne Treatment</option>
+                  <option value="Anti-Aging & Botox">Anti-Aging & Botox</option>
+                  <option value="Hair PRP / Growth Therapy">Hair PRP / Growth Therapy</option>
+                  <option value="General Consultation">General Consultation</option>
+                </select>
+              </div>
+              <div className="co-field">
+                <label className="co-label">Clinic Branch</label>
+                <select
+                  value={patientForm.branch}
+                  onChange={(e) => setPatientForm({ ...patientForm, branch: e.target.value })}
+                >
+                  <option value="Alkapuri Main Clinic">Alkapuri Main Clinic</option>
+                  <option value="Vasna Branch">Vasna Branch</option>
+                  <option value="Virtual Consultation Hub">Virtual Consultation Hub</option>
+                </select>
+              </div>
+            </div>
+
+            {addPatientMutation.isError && (
+              <p className="co-sm" style={{ color: '#B91C1C' }}>
+                {addPatientMutation.error?.message || 'Could not save patient'}
+              </p>
+            )}
+
+            <div className="co-row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+              <button
+                type="button"
+                className="co-btn"
+                onClick={() => setAddPatientOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="co-btn co-btn-primary"
+                disabled={addPatientMutation.isPending || !patientForm.firstName.trim()}
+              >
+                {addPatientMutation.isPending ? 'Saving to Database…' : 'Save Patient'}
+              </button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }
