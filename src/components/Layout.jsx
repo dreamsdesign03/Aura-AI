@@ -54,7 +54,6 @@ const navGroups = [
         items: [
             { href: "/outreach", label: "Outreach Engine", icon: Mail },
             { href: "/bulk-calling", label: "Bulk Calling", icon: PhoneOutgoing },
-            { href: "/meetings", label: "Meetings", icon: Calendar },
             { href: "/hubspot", label: "HubSpot Sync", icon: Building2, accent: "#DE377C", comingSoon: true },
         ],
     },
@@ -62,7 +61,7 @@ const navGroups = [
         group: "Clinic OS",
         items: [
             { href: "/clinic", label: "Clinic Command Center", icon: Activity, accent: "#A4285E", exact: true },
-            { href: "/clinic/appointments", label: "Appointments", icon: Calendar, accent: "#A4285E" },
+            { href: "/clinic/appointments", label: "Appointments & Meetings", icon: Calendar, accent: "#A4285E" },
             { href: "/clinic/patients", label: "Patients", icon: Users, accent: "#A4285E" },
             { href: "/clinic/inbox", label: "Inbox", icon: MessageSquare, accent: "#A4285E" },
             { href: "/clinic/dialer", label: "Dialer", icon: PhoneOutgoing, accent: "#A4285E" },

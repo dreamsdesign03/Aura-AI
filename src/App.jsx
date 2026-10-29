@@ -308,7 +308,8 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/audit" component={() => <RedirectTo to="/leads"/>}/>
         <Route path="/outreach" component={() => <Layout><Outreach /></Layout>}/>
         <Route path="/pipeline" component={() => <RedirectTo to="/leads?view=board"/>}/>
-        <Route path="/meetings" component={() => <Layout><Meetings /></Layout>}/>
+        <Route path="/meetings" component={() => <RedirectTo to="/clinic/appointments"/>}/>
+        <Route path="/appointments" component={() => <RedirectTo to="/clinic/appointments"/>}/>
         <Route path="/hubspot" component={() => <Layout><HubSpot /></Layout>}/>
         <Route path="/sales-brain" component={() => <Layout><SalesBrain /></Layout>}/>
         <Route path="/agents" component={() => <Layout><Agents /></Layout>}/>

@@ -1,11 +1,13 @@
-import { Fragment, useMemo, useState } from 'react';
+import { Fragment, useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Clock,
-  Check, Trash2, MapPin, Phone, IndianRupee,
+  Check, Trash2, MapPin, Phone, IndianRupee, List, ExternalLink,
+  Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User,
 } from 'lucide-react';
 import { clinicApi, fullName, money, timeLabel, dateLabel } from '@/clinic/api';
-import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Tabs } from '@/clinic/ui';
+import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
+import { cleanEmail } from '@/lib/emails';
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 08:00 → 20:00
 const STATUS_ACTIONS = [
@@ -104,12 +106,12 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
           <input id="co-phone" className="co-input" value={form.phone} onChange={set('phone')} placeholder="+91 …" />
         </div>
         <div className="co-field">
-          <label className="co-label" htmlFor="co-treatment">Treatment</label>
-          <input id="co-treatment" className="co-input" value={form.treatment} onChange={set('treatment')} placeholder="e.g. Laser hair reduction" />
+          <label className="co-label" htmlFor="co-treatment">Treatment / Service</label>
+          <input id="co-treatment" className="co-input" value={form.treatment} onChange={set('treatment')} placeholder="e.g. Consultation / Acne treatment" />
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-branch">Branch</label>
-          <input id="co-branch" className="co-input" value={form.branch} onChange={set('branch')} placeholder="e.g. Alkapuri" />
+          <input id="co-branch" className="co-input" value={form.branch} onChange={set('branch')} placeholder="e.g. Alkapuri Main Clinic" />
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-date">Date *</label>
@@ -149,22 +151,65 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
   const [time, setTime] = useState(toTimeInput(new Date(appointment.starts_at)));
   const [confirmDelete, setConfirmDelete] = useState(false);
 
+  const cleanPh = (appointment.phone || '').replace(/[^0-9]/g, '');
+  const isMeet = appointment.meeting_link && appointment.meeting_link.startsWith('http');
+
   return (
     <Modal
       title={appointment.patient_name}
       subtitle={`${dateLabel(appointment.starts_at)} · ${timeLabel(appointment.starts_at)}${appointment.treatment ? ` · ${appointment.treatment}` : ''}`}
       onClose={onClose}
-      width={520}
+      width={560}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
           <StatusChip status={appointment.status} />
-          {appointment.branch ? <span className="co-chip co-c-n"><MapPin size={11} /> {appointment.branch}</span> : null}
-          {appointment.phone ? <a href={`tel:${appointment.phone}`} className="co-chip co-c-p"><Phone size={11} /> {appointment.phone}</a> : null}
-          {Number(appointment.amount) > 0 ? <span className="co-chip co-c-n"><IndianRupee size={11} /> {money(appointment.amount)}</span> : null}
+          {appointment.source === 'cal.com' ? (
+            <span className="co-chip co-c-p" style={{ fontWeight: 600 }}>
+              <CalendarDays size={11} /> Cal.com Booking
+            </span>
+          ) : null}
+          {appointment.branch ? (
+            <span className="co-chip co-c-n"><MapPin size={11} /> {appointment.branch}</span>
+          ) : null}
+          {appointment.phone ? (
+            <a href={`tel:${appointment.phone}`} className="co-chip co-c-p"><Phone size={11} /> {appointment.phone}</a>
+          ) : null}
+          {cleanPh ? (
+            <a href={`https://wa.me/${cleanPh}`} target="_blank" rel="noopener noreferrer" className="co-chip co-c-g">
+              <MessageCircle size={11} /> WhatsApp
+            </a>
+          ) : null}
+          {cleanEmail(appointment.email) ? (
+            <a href={`mailto:${cleanEmail(appointment.email)}`} className="co-chip co-c-n">
+              <Mail size={11} /> {cleanEmail(appointment.email)}
+            </a>
+          ) : null}
+          {Number(appointment.amount) > 0 ? (
+            <span className="co-chip co-c-n"><IndianRupee size={11} /> {money(appointment.amount)}</span>
+          ) : null}
         </div>
 
-        {appointment.notes ? <p className="co-sm co-mut">{appointment.notes}</p> : null}
+        {isMeet ? (
+          <div style={{ padding: '10px 14px', background: '#EFF6FF', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Video size={16} style={{ color: '#2563EB' }} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#1E40AF' }}>Online Video Consultation</span>
+            </div>
+            <a href={appointment.meeting_link} target="_blank" rel="noopener noreferrer" className="co-btn co-btn-sm co-btn-primary">
+              <ExternalLink size={12} /> Join Google Meet
+            </a>
+          </div>
+        ) : null}
+
+        {appointment.notes ? (
+          <div style={{ background: '#FDF7FA', border: '1px solid #F3D9E5', borderRadius: 10, padding: '12px 14px' }}>
+            <div className="co-label" style={{ marginBottom: 6, color: '#A4285E' }}>Booking Notes &amp; Details</div>
+            <p className="co-sm" style={{ color: '#374151', whiteSpace: 'pre-line', lineHeight: 1.5 }}>
+              {appointment.notes}
+            </p>
+          </div>
+        ) : null}
 
         <div>
           <div className="co-label" style={{ marginBottom: 8 }}>Update status</div>
@@ -302,10 +347,40 @@ function TaskQueue() {
 export default function ClinicAppointments() {
   const qc = useQueryClient();
   const [anchor, setAnchor] = useState(() => new Date());
-  const [view, setView] = useState('week');
-  const [booking, setBooking] = useState(null); // { startsAt, patientName, phone, treatment, branch }
+  
+  // View toggle: 'calendar' or 'list'
+  const [viewMode, setViewMode] = useState(() => {
+    const v = new URLSearchParams(window.location.search).get('view');
+    return v === 'list' ? 'list' : 'calendar';
+  });
+
+  const handleViewChange = (mode) => {
+    setViewMode(mode);
+    const url = new URL(window.location.href);
+    if (mode === 'list') {
+      url.searchParams.set('view', 'list');
+    } else {
+      url.searchParams.delete('view');
+    }
+    window.history.replaceState({}, '', url.toString());
+  };
+
+  useEffect(() => {
+    const onPop = () => {
+      const v = new URLSearchParams(window.location.search).get('view');
+      setViewMode(v === 'list' ? 'list' : 'calendar');
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  const [booking, setBooking] = useState(null);
   const [selected, setSelected] = useState(null);
   const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState('');
 
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
   const from = useMemo(() => weekStart.toISOString(), [weekStart]);
@@ -313,13 +388,31 @@ export default function ClinicAppointments() {
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
   const today = new Date();
 
+  // Queries
   const appts = useQuery({
     queryKey: ['clinic', 'appointments', from, to],
     queryFn: () => clinicApi.appointments(from, to),
+    refetchInterval: 30_000,
   });
   const patientsQ = useQuery({ queryKey: ['clinic', 'patients'], queryFn: () => clinicApi.patients('') });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['clinic'] });
+
+  const handleSyncCalCom = async () => {
+    setIsSyncing(true);
+    setSyncFeedback('');
+    try {
+      const res = await clinicApi.syncAppointments();
+      invalidate();
+      setSyncFeedback(`Synced ${res.total || 0} live bookings from Cal.com!`);
+      setTimeout(() => setSyncFeedback(''), 4000);
+    } catch (err) {
+      setSyncFeedback('Sync error: ' + err.message);
+      setTimeout(() => setSyncFeedback(''), 5000);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const create = useMutation({
     mutationFn: clinicApi.createAppointment,
@@ -337,10 +430,25 @@ export default function ClinicAppointments() {
     onError: (err) => setError(err.message),
   });
 
-  const rows = appts.data?.appointments || [];
+  const weekRows = appts.data?.appointments || [];
+  const allRows = appts.data?.all_appointments || appts.data?.appointments || [];
+
+  // Filtered list view bookings
+  const filteredList = useMemo(() => {
+    return allRows.filter((a) => {
+      if (statusFilter !== 'all' && a.status !== statusFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const text = `${a.patient_name || ''} ${a.phone || ''} ${a.email || ''} ${a.treatment || ''} ${a.branch || ''} ${a.notes || ''}`.toLowerCase();
+        if (!text.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [allRows, statusFilter, searchQuery]);
+
   const byCell = useMemo(() => {
     const map = {};
-    for (const a of rows) {
+    for (const a of weekRows) {
       const d = new Date(a.starts_at);
       const di = days.findIndex((x) => sameDay(x, d));
       if (di < 0) continue;
@@ -348,9 +456,9 @@ export default function ClinicAppointments() {
       (map[key] = map[key] || []).push(a);
     }
     return map;
-  }, [rows, days]);
+  }, [weekRows, days]);
 
-  const away = rows.filter((a) => {
+  const away = weekRows.filter((a) => {
     const d = new Date(a.starts_at);
     return !days.some((x) => sameDay(x, d)) || d.getHours() < HOURS[0] || d.getHours() > HOURS[HOURS.length - 1];
   });
@@ -361,156 +469,387 @@ export default function ClinicAppointments() {
     setBooking(startsAt ? { startsAt } : { startsAt: fallback.toISOString() });
   };
 
+  // Jump anchor to most recent booking
+  const jumpToLatestBooking = () => {
+    if (allRows.length > 0) {
+      setAnchor(new Date(allRows[0].starts_at));
+    }
+  };
+
   return (
     <div className="clinic-os">
       <PageHead
-        title="Appointments"
-        subtitle="Week grid, bookings, reschedules and the front-desk task queue."
+        title="Appointments & Meetings"
+        subtitle="Live Cal.com bookings, clinical consultations & schedule without demo data."
       >
-        <button type="button" className="co-btn co-btn-sm" onClick={() => setAnchor(new Date())}>
-          <CalendarDays size={13} /> Today
+        {/* View Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: 3, borderRadius: 10, border: '1px solid #E2E8F0' }}>
+          <button
+            type="button"
+            onClick={() => handleViewChange('calendar')}
+            className={`co-btn co-btn-sm ${viewMode === 'calendar' ? 'co-btn-primary' : ''}`}
+            style={viewMode === 'calendar' ? { boxShadow: '0 2px 6px rgba(164,40,94,0.3)' } : { background: 'transparent', border: 'none', color: '#64748B' }}
+          >
+            <CalendarDays size={13} /> Calendar View
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('list')}
+            className={`co-btn co-btn-sm ${viewMode === 'list' ? 'co-btn-primary' : ''}`}
+            style={viewMode === 'list' ? { boxShadow: '0 2px 6px rgba(164,40,94,0.3)' } : { background: 'transparent', border: 'none', color: '#64748B' }}
+          >
+            <List size={13} /> List View ({allRows.length})
+          </button>
+        </div>
+
+        {/* Sync Cal.com Button */}
+        <button
+          type="button"
+          className="co-btn co-btn-sm"
+          onClick={handleSyncCalCom}
+          disabled={isSyncing}
+          title="Sync live Cal.com bookings"
+          style={{ borderColor: '#F3D9E5', color: '#A4285E' }}
+        >
+          <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+          {isSyncing ? 'Syncing Cal.com…' : 'Sync Cal.com'}
         </button>
+
+        {/* Public Booking Page link */}
+        <a
+          href="https://cal.com/aura-laser-cosmetic-clinic/30min"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="co-btn co-btn-sm"
+          style={{ borderColor: '#F3D9E5', color: '#CB3273' }}
+          title="Open public booking link"
+        >
+          <ExternalLink size={13} /> Booking Page
+        </a>
+
+        {/* New Booking */}
         <button type="button" className="co-btn co-btn-primary co-btn-sm" onClick={() => openBooking(null)}>
           <Plus size={14} /> New booking
         </button>
       </PageHead>
 
-      <div className="co-row" style={{ flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
-        <div className="co-row">
-          <button type="button" className="co-btn co-btn-sm co-icon-btn" aria-label="Previous week" onClick={() => setAnchor(addDays(weekStart, -7))}>
-            <ChevronLeft size={15} />
-          </button>
-          <span className="co-strong" style={{ minWidth: 190, textAlign: 'center', fontSize: 13.5 }}>
-            {dateLabel(days[0])} – {dateLabel(days[6])}
-          </span>
-          <button type="button" className="co-btn co-btn-sm co-icon-btn" aria-label="Next week" onClick={() => setAnchor(addDays(weekStart, 7))}>
-            <ChevronRight size={15} />
-          </button>
-          <button
-            type="button"
-            className="co-btn co-btn-sm"
-            aria-label="Refresh appointments"
-            onClick={() => appts.refetch()}
-            disabled={appts.isFetching}
-          >
-            <RefreshCw size={13} className={appts.isFetching ? 'animate-spin' : ''} />
-          </button>
+      {syncFeedback ? (
+        <div style={{ padding: '8px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, fontSize: 13, color: '#166534', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <CheckCircle2 size={15} /> {syncFeedback}
         </div>
-        <Tabs
-          value={view}
-          onChange={setView}
-          items={[{ value: 'week', label: `Week (${rows.length})` }, { value: 'list', label: 'List' }]}
-        />
-      </div>
+      ) : null}
 
-      {appts.isError ? (
-        <Card><EmptyState title="Could not load appointments"><p className="co-sm co-mut">{appts.error?.message}</p></EmptyState></Card>
-      ) : appts.isLoading ? (
-        <Card><Spinner label="Loading calendar…" /></Card>
-      ) : view === 'week' ? (
-        <Card flush rise="co-rise-1">
-          <div className="co-week">
-            <div className="co-week-hd" />
-            {days.map((d) => {
-              const isToday = sameDay(d, today);
-              return (
-                <div key={d.toISOString()} className={`co-week-hd ${isToday ? 'today' : ''}`}>
-                  <div style={{ textTransform: 'uppercase', letterSpacing: '.06em' }}>{d.toLocaleDateString('en-IN', { weekday: 'short' })}</div>
-                  <div style={{ fontSize: 13, marginTop: 1 }}>{d.getDate()}</div>
-                </div>
-              );
-            })}
-            {HOURS.map((hour) => (
-              <Fragment key={hour}>
-                <div className="co-week-time">{String(hour).padStart(2, '0')}:00</div>
-                {days.map((d, di) => {
+      {/* ── View 1: Calendar View ──────────────────────────────────── */}
+      {viewMode === 'calendar' ? (
+        <>
+          <div className="co-row" style={{ flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 }}>
+            <div className="co-row">
+              <button type="button" className="co-btn co-btn-sm co-icon-btn" aria-label="Previous week" onClick={() => setAnchor(addDays(weekStart, -7))}>
+                <ChevronLeft size={15} />
+              </button>
+              <span className="co-strong" style={{ minWidth: 200, textAlign: 'center', fontSize: 13.5 }}>
+                {dateLabel(days[0])} – {dateLabel(days[6])}
+              </span>
+              <button type="button" className="co-btn co-btn-sm co-icon-btn" aria-label="Next week" onClick={() => setAnchor(addDays(weekStart, 7))}>
+                <ChevronRight size={15} />
+              </button>
+              <button type="button" className="co-btn co-btn-sm" onClick={() => setAnchor(new Date())}>
+                <CalendarDays size={13} /> Today
+              </button>
+              {allRows.length > 0 && weekRows.length === 0 ? (
+                <button type="button" className="co-btn co-btn-sm" onClick={jumpToLatestBooking} style={{ color: '#A4285E', borderColor: '#F3D9E5' }}>
+                  Jump to Latest ({allRows.length})
+                </button>
+              ) : null}
+            </div>
+
+            <div style={{ fontSize: 12, color: '#64748B', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Showing {weekRows.length} in this week</span>
+              <span>·</span>
+              <button type="button" onClick={() => handleViewChange('list')} style={{ color: '#CB3273', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}>
+                View all {allRows.length} bookings in List View →
+              </button>
+            </div>
+          </div>
+
+          {appts.isError ? (
+            <Card><EmptyState title="Could not load appointments"><p className="co-sm co-mut">{appts.error?.message}</p></EmptyState></Card>
+          ) : appts.isLoading ? (
+            <Card><Spinner label="Loading Cal.com bookings…" /></Card>
+          ) : (
+            <Card flush rise="co-rise-1">
+              <div className="co-week">
+                <div className="co-week-hd" />
+                {days.map((d) => {
                   const isToday = sameDay(d, today);
-                  const items = byCell[`${di}-${hour}`] || [];
                   return (
-                    <div
-                      key={`${di}-${hour}`}
-                      className={`co-week-cell ${isToday ? 'today' : ''}`}
-                      onClick={() => openBooking(new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0).toISOString())}
-                      role="presentation"
-                    >
-                      {items.map((a) => (
-                        <button
-                          key={a.id}
-                          type="button"
-                          className={`co-slot ${a.status}`}
-                          onClick={(e) => { e.stopPropagation(); setSelected(a); }}
-                          title={`${a.patient_name} · ${a.treatment || 'Appointment'}`}
-                        >
-                          {a.patient_name}
-                          <small>{timeLabel(a.starts_at)}{a.treatment ? ` · ${a.treatment}` : ''}</small>
-                        </button>
-                      ))}
+                    <div key={d.toISOString()} className={`co-week-hd ${isToday ? 'today' : ''}`}>
+                      <div style={{ textTransform: 'uppercase', letterSpacing: '.06em' }}>{d.toLocaleDateString('en-IN', { weekday: 'short' })}</div>
+                      <div style={{ fontSize: 13, marginTop: 1 }}>{d.getDate()}</div>
                     </div>
                   );
                 })}
-              </Fragment>
-            ))}
-          </div>
-        </Card>
-      ) : (
-        <Card flush rise="co-rise-1">
-          <div className="co-table-wrap">
-            <table className="co-table">
-              <thead>
-                <tr><th>When</th><th>Patient</th><th>Treatment</th><th>Branch</th><th>Value</th><th>Status</th></tr>
-              </thead>
-              <tbody>
-                {rows.length === 0 ? (
-                  <tr><td colSpan="6"><div className="co-empty">No appointments this week.</div></td></tr>
-                ) : rows.map((a) => (
-                  <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => setSelected(a)}>
-                    <td className="co-strong" style={{ whiteSpace: 'nowrap' }}>{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)}</td>
-                    <td>{a.patient_name}</td>
-                    <td>{a.treatment || '—'}</td>
-                    <td className="co-mut">{a.branch || '—'}</td>
-                    <td>{Number(a.amount) > 0 ? money(a.amount) : '—'}</td>
-                    <td><StatusChip status={a.status} /></td>
-                  </tr>
+                {HOURS.map((hour) => (
+                  <Fragment key={hour}>
+                    <div className="co-week-time">{String(hour).padStart(2, '0')}:00</div>
+                    {days.map((d, di) => {
+                      const isToday = sameDay(d, today);
+                      const items = byCell[`${di}-${hour}`] || [];
+                      return (
+                        <div
+                          key={`${di}-${hour}`}
+                          className={`co-week-cell ${isToday ? 'today' : ''}`}
+                          onClick={() => openBooking(new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0).toISOString())}
+                          role="presentation"
+                        >
+                          {items.map((a) => (
+                            <button
+                              key={a.id}
+                              type="button"
+                              className={`co-slot ${a.status}`}
+                              onClick={(e) => { e.stopPropagation(); setSelected(a); }}
+                              title={`${a.patient_name} · ${a.treatment || 'Appointment'}`}
+                            >
+                              {a.patient_name}
+                              <small>{timeLabel(a.starts_at)}{a.treatment ? ` · ${a.treatment}` : ''}</small>
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </Fragment>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </Card>
+          )}
+
+          {away.length > 0 ? (
+            <Card>
+              <CardHead title="Outside the grid" hint="Appointments scheduled outside 08:00 – 20:00" />
+              <div className="co-list">
+                {away.map((a) => (
+                  <div className="co-list-item" key={a.id}>
+                    <span className="co-dot" />
+                    <div style={{ flex: 1 }}>
+                      <div className="co-strong" style={{ fontSize: 13 }}>{a.patient_name}</div>
+                      <div className="co-xs co-mut">{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)} · {a.treatment || 'Appointment'}</div>
+                    </div>
+                    <button type="button" className="co-btn co-btn-sm" onClick={() => setSelected(a)}>Open</button>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          ) : null}
+        </>
+      ) : (
+        /* ── View 2: List View ──────────────────────────────────────── */
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* List Search & Filter Bar */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+            <div style={{ position: 'relative', width: 320 }}>
+              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
+              <input
+                type="text"
+                className="co-input"
+                style={{ paddingLeft: 32, fontSize: 13 }}
+                placeholder="Search attendee, phone, treatment, notes…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
+
+            {/* Status pills */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {[
+                ['all', `All (${allRows.length})`],
+                ['confirmed', `Confirmed (${allRows.filter((r) => r.status === 'confirmed').length})`],
+                ['completed', `Completed (${allRows.filter((r) => r.status === 'completed').length})`],
+                ['cancelled', `Cancelled (${allRows.filter((r) => r.status === 'cancelled').length})`],
+              ].map(([st, label]) => (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setStatusFilter(st)}
+                  className={`co-btn co-btn-sm ${statusFilter === st ? 'co-btn-primary' : ''}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </Card>
+
+          {/* List Data Table */}
+          <Card flush rise="co-rise-1">
+            <div className="co-table-wrap">
+              <table className="co-table">
+                <thead>
+                  <tr>
+                    <th>Date &amp; Time</th>
+                    <th>Attendee / Patient</th>
+                    <th>Contact Info</th>
+                    <th>Treatment / Purpose</th>
+                    <th>Branch / Location</th>
+                    <th>Source</th>
+                    <th>Status</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredList.length === 0 ? (
+                    <tr>
+                      <td colSpan="8">
+                        <div className="co-empty" style={{ padding: '36px 16px' }}>
+                          <CalendarDays size={28} style={{ color: '#CBD5E1', marginBottom: 8 }} />
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>No bookings found</div>
+                          <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
+                            {searchQuery ? 'Try clearing your search query' : 'Sync Cal.com to pull your live bookings'}
+                          </div>
+                          <button
+                            type="button"
+                            className="co-btn co-btn-primary co-btn-sm"
+                            style={{ marginTop: 12 }}
+                            onClick={handleSyncCalCom}
+                            disabled={isSyncing}
+                          >
+                            <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
+                            Sync Cal.com Now
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredList.map((a) => {
+                      const cleanPh = (a.phone || '').replace(/[^0-9]/g, '');
+                      const isMeet = a.meeting_link && a.meeting_link.startsWith('http');
+                      return (
+                        <tr key={a.id} style={{ cursor: 'pointer' }} onClick={() => setSelected(a)}>
+                          <td className="co-strong" style={{ whiteSpace: 'nowrap' }}>
+                            <div>{dateLabel(a.starts_at)}</div>
+                            <div style={{ fontSize: 11, color: '#64748B', fontWeight: 500 }}>
+                              {timeLabel(a.starts_at)} IST
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Avatar name={a.patient_name} size="sm" />
+                              <div>
+                                <div style={{ fontWeight: 600, color: '#0F172A' }}>{a.patient_name}</div>
+                                {cleanEmail(a.email) ? (
+                                  <div style={{ fontSize: 11, color: '#64748B' }}>{cleanEmail(a.email)}</div>
+                                ) : null}
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {a.phone ? (
+                                <a
+                                  href={`tel:${a.phone}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="co-chip co-c-p"
+                                  style={{ padding: '3px 8px', fontSize: 11 }}
+                                  title="Call number"
+                                >
+                                  <Phone size={10} /> {a.phone}
+                                </a>
+                              ) : <span className="co-mut">—</span>}
+                              {cleanPh ? (
+                                <a
+                                  href={`https://wa.me/${cleanPh}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="co-chip co-c-g"
+                                  style={{ padding: '3px 6px' }}
+                                  title="Open WhatsApp chat"
+                                >
+                                  <MessageCircle size={10} />
+                                </a>
+                              ) : null}
+                            </div>
+                          </td>
+                          <td>
+                            <div style={{ fontWeight: 500 }}>{a.treatment || 'Consultation'}</div>
+                            {a.notes ? (
+                              <div style={{ fontSize: 11, color: '#64748B', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {a.notes}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>
+                            {isMeet ? (
+                              <a
+                                href={a.meeting_link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#2563EB', fontWeight: 500 }}
+                              >
+                                <Video size={12} /> Google Meet <ExternalLink size={10} />
+                              </a>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                                <MapPin size={12} style={{ color: '#CB3273' }} /> {a.branch || 'Clinic'}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span className="co-chip co-c-p" style={{ fontSize: 10, fontWeight: 600 }}>
+                              Cal.com
+                            </span>
+                          </td>
+                          <td><StatusChip status={a.status} /></td>
+                          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className="co-btn co-btn-sm"
+                              onClick={() => setSelected(a)}
+                            >
+                              Details
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </div>
       )}
 
-      {view === 'week' && away.length > 0 ? (
-        <Card>
-          <CardHead title="Outside the grid" hint="Appointments before 08:00 or after 21:00" />
-          <div className="co-list">
-            {away.map((a) => (
-              <div className="co-list-item" key={a.id}>
-                <span className="co-dot" />
-                <div style={{ flex: 1 }}>
-                  <div className="co-strong" style={{ fontSize: 13 }}>{a.patient_name}</div>
-                  <div className="co-xs co-mut">{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)} · {a.treatment || 'Appointment'}</div>
-                </div>
-                <button type="button" className="co-btn co-btn-sm" onClick={() => setSelected(a)}>Open</button>
-              </div>
-            ))}
-          </div>
-        </Card>
-      ) : null}
-
+      {/* Task Queue Section */}
       <div className="co-split">
         <TaskQueue />
         <Card>
-          <CardHead title="How it works" hint="Live data, Aura database" />
+          <CardHead title="Live Cal.com Integration" hint="cal.com/aura-laser-cosmetic-clinic" />
           <div className="co-list">
-            <div className="co-list-item"><span className="co-dot ok" /><div className="co-sm">Click any empty grid cell to book at that time.</div></div>
-            <div className="co-list-item"><span className="co-dot ok" /><div className="co-sm">Click a booking to change status or reschedule it.</div></div>
-            <div className="co-list-item"><span className="co-dot ok" /><div className="co-sm">Every booking is saved to <span className="co-strong">clinic_appointments</span> and appears on the patient timeline.</div></div>
-            <div className="co-list-item"><span className="co-dot ok" /><div className="co-sm">Tasks are real follow-ups stored in <span className="co-strong">clinic_tasks</span>.</div></div>
+            <div className="co-list-item">
+              <span className="co-dot ok" />
+              <div className="co-sm">
+                Bookings booked on your <a href="https://cal.com/aura-laser-cosmetic-clinic/30min" target="_blank" rel="noopener noreferrer" style={{ color: '#A4285E', fontWeight: 600, textDecoration: 'underline' }}>Cal.com page</a> sync automatically.
+              </div>
+            </div>
+            <div className="co-list-item">
+              <span className="co-dot ok" />
+              <div className="co-sm">Switch between <span className="co-strong">Calendar View</span> and <span className="co-strong">List View</span> at any time.</div>
+            </div>
+            <div className="co-list-item">
+              <span className="co-dot ok" />
+              <div className="co-sm">All attendees receive automated Google Calendar invites and email confirmations.</div>
+            </div>
+            <div className="co-list-item">
+              <span className="co-dot ok" />
+              <div className="co-sm">Zero mock data — showing verified live database records.</div>
+            </div>
           </div>
         </Card>
       </div>
 
+      {/* New Booking Modal */}
       {booking ? (
-        <Modal title="New appointment" subtitle="Book a patient into a real slot." onClose={() => setBooking(null)} width={620}>
+        <Modal title="New appointment" subtitle="Schedule an appointment or consultation slot." onClose={() => setBooking(null)} width={620}>
           <BookingForm
             initial={booking}
             patients={patientsQ.data?.patients || []}
@@ -522,6 +861,7 @@ export default function ClinicAppointments() {
         </Modal>
       ) : null}
 
+      {/* Selected Appointment Detail Modal */}
       {selected ? (
         <AppointmentPanel
           appointment={selected}

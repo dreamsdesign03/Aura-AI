@@ -73,17 +73,15 @@ export default function ClinicOverview() {
           <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <span className="co-avatar co-avatar-lg" style={{ background: '#FBE9F1' }}><Sparkles size={20} /></span>
             <div style={{ flex: 1, minWidth: 240 }}>
-              <h2>Set up your clinic day</h2>
+              <h2>Clinic Day Overview</h2>
               <p className="co-sm co-mut" style={{ marginTop: 6, maxWidth: 620 }}>
-                Clinic OS reads your existing Aura leads as patients. Add a lead, or load a sample
-                day to see appointments, the patient timeline and the task queue working end to end.
+                Clinic OS displays live appointments synced from Cal.com, patients, and clinical tasks.
               </p>
-              {seedError ? <p className="co-sm" style={{ color: '#B91C1C', marginTop: 8 }}>{seedError}</p> : null}
               <div className="co-row" style={{ marginTop: 16, flexWrap: 'wrap' }}>
-                <button type="button" className="co-btn co-btn-primary" onClick={() => seed.mutate()} disabled={seed.isPending}>
-                  {seed.isPending ? <RefreshCw size={14} className="animate-spin" /> : <Sparkles size={14} />} Load sample day
-                </button>
-                <Link href="/leads" className="co-btn">Add your first patient</Link>
+                <Link href="/clinic/appointments" className="co-btn co-btn-primary">
+                  <CalendarDays size={14} /> Open Appointments &amp; Meetings
+                </Link>
+                <Link href="/leads" className="co-btn">View Patients</Link>
               </div>
             </div>
           </div>

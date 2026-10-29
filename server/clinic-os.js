@@ -193,6 +193,57 @@ function safeDate(value) {
   return isNaN(d.getTime()) ? null : d;
 }
 
+function mapCalRowToClinic(row) {
+  const q = row.questions || {};
+  let phone = q['Phone / WhatsApp'] || q['phone'] || '';
+  if (!phone && row.invitee_email && row.invitee_email.includes('@sms.cal.com')) {
+    const match = row.invitee_email.match(/^(\d+)/);
+    if (match) phone = match[1];
+  }
+  const rawNotes = q['notes'] || q['Please provide a brief summary of your business & what it is that you do?'] || '';
+  
+  let treatment = row.event_name || 'Clinic Consultation';
+  const serviceMatch = rawNotes.match(/Service:\s*([^|]+)/i);
+  if (serviceMatch) {
+    treatment = serviceMatch[1].trim();
+  }
+
+  let branch = 'Alkapuri Main Clinic';
+  const branchMatch = rawNotes.match(/Branch:\s*([^|]+)/i);
+  if (branchMatch) {
+    branch = branchMatch[1].trim();
+  } else if (row.meeting_link && !row.meeting_link.startsWith('http')) {
+    branch = row.meeting_link;
+  }
+
+  const start = new Date(row.start_time);
+  const end = row.end_time ? new Date(row.end_time) : new Date(start.getTime() + 30 * 60000);
+  const durationMin = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000)) || 30;
+
+  return {
+    id: row.id,
+    user_id: row.user_id,
+    lead_id: null,
+    patient_name: row.invitee_name || 'Consultation Patient',
+    phone: phone,
+    email: row.invitee_email || '',
+    treatment: treatment,
+    branch: branch,
+    starts_at: row.start_time,
+    ends_at: row.end_time,
+    duration_min: durationMin,
+    status: row.status || 'confirmed',
+    amount: 0,
+    notes: rawNotes,
+    meeting_link: row.meeting_link || '',
+    location: row.location || 'inperson',
+    source: 'cal.com',
+    calendly_uri: row.calendly_uri,
+    created_at: row.created_at,
+    updated_at: row.created_at,
+  };
+}
+
 async function tryQuery(sql, params) {
   try { return await db.query(sql, params); }
   catch (err) { console.warn('[clinic-os] optional query skipped:', err.message); return { rows: [] }; }
@@ -218,25 +269,52 @@ router.get('/overview', requireUser, async (req, res) => {
     const horizon = new Date(end); horizon.setDate(horizon.getDate() + 7);
 
     const [leads, pipeline, today, upcoming, tasks, packages, notes, apptToday, calls] = await Promise.all([
-      db.query('SELECT COUNT(*)::int AS n FROM leads WHERE user_id = $1', [userId]),
+      db.query('SELECT COUNT(*)::int AS n FROM leads WHERE (user_id = $1 OR user_id IS NULL)', [userId]),
       db.query(
         `SELECT COALESCE(pipeline_stage, 'Lead In') AS stage, COUNT(*)::int AS n
-           FROM leads WHERE user_id = $1 GROUP BY 1`,
+           FROM leads WHERE (user_id = $1 OR user_id IS NULL) GROUP BY 1`,
         [userId]
       ),
-      db.query(
-        `SELECT * FROM clinic_appointments
-          WHERE user_id = $1 AND starts_at >= $2 AND starts_at < $3
-          ORDER BY starts_at ASC`,
-        [userId, start, end]
-      ),
-      db.query(
-        `SELECT * FROM clinic_appointments
-          WHERE user_id = $1 AND starts_at >= $2 AND starts_at < $3
-            AND status IN ('booked','confirmed')
-          ORDER BY starts_at ASC LIMIT 12`,
-        [userId, end, horizon]
-      ),
+      (async () => {
+        const [mAppts, cAppts] = await Promise.all([
+          db.query(
+            `SELECT * FROM clinic_appointments
+              WHERE (user_id = $1 OR user_id IS NULL) AND starts_at >= $2 AND starts_at < $3
+              ORDER BY starts_at ASC`,
+            [userId, start, end]
+          ),
+          db.query(
+            `SELECT * FROM calendly_events
+              WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false
+                AND start_time >= $2 AND start_time < $3
+              ORDER BY start_time ASC`,
+            [userId, start, end]
+          )
+        ]);
+        const mappedCal = cAppts.rows.map(mapCalRowToClinic);
+        return { rows: [...mAppts.rows, ...mappedCal].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)) };
+      })(),
+      (async () => {
+        const [mAppts, cAppts] = await Promise.all([
+          db.query(
+            `SELECT * FROM clinic_appointments
+              WHERE (user_id = $1 OR user_id IS NULL) AND starts_at >= $2 AND starts_at < $3
+                AND status IN ('booked','confirmed')
+              ORDER BY starts_at ASC LIMIT 12`,
+            [userId, end, horizon]
+          ),
+          db.query(
+            `SELECT * FROM calendly_events
+              WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false
+                AND start_time >= $2 AND start_time < $3
+                AND status IN ('confirmed','accepted','booked')
+              ORDER BY start_time ASC LIMIT 12`,
+            [userId, end, horizon]
+          )
+        ]);
+        const mappedCal = cAppts.rows.map(mapCalRowToClinic);
+        return { rows: [...mAppts.rows, ...mappedCal].sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at)).slice(0, 12) };
+      })(),
       db.query(
         `SELECT * FROM clinic_tasks WHERE user_id = $1 AND status = 'open'
           ORDER BY (priority = 'high') DESC, due_at NULLS LAST, created_at DESC LIMIT 20`,
@@ -314,24 +392,118 @@ router.get('/overview', requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Appointments
+// Appointments & Meetings (Cal.com Live Integration + Clinic Slots)
 // ---------------------------------------------------------------------------
 router.get('/appointments', requireUser, async (req, res) => {
   try {
     const userId = req.user.id;
-    const from = safeDate(req.query.from) || (() => { const d = new Date(); d.setDate(d.getDate() - 7); return d; })();
-    const to = safeDate(req.query.to) || (() => { const d = new Date(); d.setDate(d.getDate() + 21); return d; })();
+    const isAll = req.query.all === 'true' || req.query.view === 'list';
+    const from = safeDate(req.query.from) || (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })();
+    const to = safeDate(req.query.to) || (() => { const d = new Date(); d.setDate(d.getDate() + 60); return d; })();
 
-    const r = await db.query(
-      `SELECT a.*, l.first_name, l.last_name, l.email AS lead_email
-         FROM clinic_appointments a
-         LEFT JOIN leads l ON l.id = a.lead_id
-        WHERE a.user_id = $1 AND a.starts_at >= $2 AND a.starts_at < $3
-        ORDER BY a.starts_at ASC`,
-      [userId, from, to]
-    );
-    res.json({ appointments: r.rows });
+    const [calRes, clinicRes] = await Promise.all([
+      db.query(
+        `SELECT * FROM calendly_events
+          WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false
+          ORDER BY start_time DESC`,
+        [userId]
+      ),
+      db.query(
+        `SELECT a.*, l.first_name, l.last_name, l.email AS lead_email
+           FROM clinic_appointments a
+           LEFT JOIN leads l ON l.id = a.lead_id
+          WHERE (a.user_id = $1 OR a.user_id IS NULL)
+          ORDER BY a.starts_at DESC`,
+        [userId]
+      )
+    ]);
+
+    const mappedCal = calRes.rows.map(mapCalRowToClinic);
+    const mappedClinic = clinicRes.rows.map(r => ({ ...r, source: 'clinic' }));
+    const all = [...mappedCal, ...mappedClinic].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+
+    if (isAll) {
+      return res.json({ appointments: all, total: all.length, calCount: mappedCal.length });
+    }
+
+    // Filter by requested range (e.g. week grid)
+    const inRange = all.filter(a => {
+      const t = new Date(a.starts_at).getTime();
+      return t >= from.getTime() && t < to.getTime();
+    });
+
+    res.json({
+      appointments: inRange,
+      all_appointments: all,
+      total: all.length,
+      calCount: mappedCal.length
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/appointments/sync', requireUser, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const apiKey = process.env.CAL_API_KEY || process.env.CALCOM_API_KEY || 'cal_live_92ae6d6107040c70be9b0930559ffa17';
+    const calRes = await fetch('https://api.cal.com/v2/bookings', {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'cal-api-version': '2024-08-13'
+      }
+    });
+    if (!calRes.ok) {
+      const txt = await calRes.text();
+      return res.status(500).json({ error: `Cal.com sync failed (${calRes.status}): ${txt.slice(0, 100)}` });
+    }
+    const body = await calRes.json();
+    const bookings = body.data || [];
+    let added = 0, updated = 0;
+
+    for (const b of bookings) {
+      const bookingUri = `cal_${b.id || b.uid}`;
+      const attendee = (b.attendees && b.attendees[0]) || {};
+      const bfr = b.bookingFieldsResponses || {};
+      const inviteeName = attendee.name || bfr.name || b.title?.split(' and ').pop()?.trim() || 'Patient';
+      const inviteeEmail = attendee.email || bfr.email || '';
+      let phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
+      const notes = b.description || bfr.notes || '';
+      const startIso = b.start ? new Date(b.start).toISOString() : null;
+      const endIso = b.end ? new Date(b.end).toISOString() : null;
+      const rawStatus = (b.status || '').toLowerCase();
+      let status = 'confirmed';
+      if (/cancelled|canceled|rejected/.test(rawStatus)) status = 'cancelled';
+      else if (startIso && new Date(startIso).getTime() < Date.now()) status = 'completed';
+
+      const existing = await db.query('SELECT id FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
+      const questionsObj = {
+        "Phone / WhatsApp": phone,
+        "phone": phone,
+        "notes": notes,
+        "Please provide a brief summary of your business & what it is that you do?": notes
+      };
+      if (existing.rows.length > 0) {
+        await db.query(
+          `UPDATE calendly_events
+              SET invitee_name = $1, invitee_email = $2, start_time = $3, end_time = $4,
+                  status = $5, questions = $6::jsonb, meeting_link = $7, is_deleted = $8
+            WHERE calendly_uri = $9`,
+          [inviteeName, inviteeEmail, startIso, endIso, status, JSON.stringify(questionsObj), b.meetingUrl || b.location || '', status === 'cancelled', bookingUri]
+        );
+        updated++;
+      } else {
+        await db.query(
+          `INSERT INTO calendly_events
+             (user_id, calendly_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, meeting_link, questions, source, is_deleted)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, 'cal.com', $11)`,
+          [userId, bookingUri, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, b.meetingUrl || b.location || '', JSON.stringify(questionsObj), status === 'cancelled']
+        );
+        added++;
+      }
+    }
+    res.json({ success: true, added, updated, total: bookings.length });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.post('/appointments', requireUser, async (req, res) => {
@@ -361,6 +533,30 @@ router.post('/appointments', requireUser, async (req, res) => {
 router.patch('/appointments/:id', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
+    const { status, startsAt } = req.body || {};
+    
+    // Check if it's in calendly_events (Cal.com booking)
+    const calCheck = await db.query('SELECT id, calendly_uri FROM calendly_events WHERE id = $1', [req.params.id]);
+    if (calCheck.rows.length > 0) {
+      const sets = [];
+      const vals = [];
+      if (status) {
+        vals.push(status);
+        sets.push(`status = $${vals.length}`);
+      }
+      if (startsAt) {
+        vals.push(new Date(startsAt).toISOString());
+        sets.push(`start_time = $${vals.length}`);
+      }
+      if (sets.length > 0) {
+        vals.push(req.params.id);
+        await db.query(`UPDATE calendly_events SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+      }
+      await audit(uid, 'updated', 'cal_booking', req.params.id, status || 'rescheduled');
+      return res.json({ ok: true });
+    }
+
+    // Otherwise update clinic_appointments
     const allowed = ['patient_name', 'phone', 'treatment', 'branch', 'starts_at', 'duration_min', 'status', 'notes', 'amount', 'lead_id'];
     const map = {
       patientName: 'patient_name', startsAt: 'starts_at', durationMin: 'duration_min', leadId: 'lead_id',
@@ -374,10 +570,10 @@ router.patch('/appointments/:id', requireUser, async (req, res) => {
       sets.push(`${col} = $${vals.length}`);
     }
     if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
-    vals.push(req.params.id, uid);
+    vals.push(req.params.id);
     const r = await db.query(
       `UPDATE clinic_appointments SET ${sets.join(', ')}, updated_at = NOW()
-        WHERE id = $${vals.length - 1} AND user_id = $${vals.length} RETURNING *`,
+        WHERE id = $${vals.length} RETURNING *`,
       vals
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
@@ -388,7 +584,13 @@ router.patch('/appointments/:id', requireUser, async (req, res) => {
 
 router.delete('/appointments/:id', requireUser, async (req, res) => {
   try {
-    await db.query('DELETE FROM clinic_appointments WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    const calCheck = await db.query('SELECT id, calendly_uri FROM calendly_events WHERE id = $1', [req.params.id]);
+    if (calCheck.rows.length > 0) {
+      await db.query('UPDATE calendly_events SET is_deleted = TRUE, status = $1 WHERE id = $2', ['cancelled', req.params.id]);
+      await audit(req.user.id, 'deleted', 'cal_booking', req.params.id);
+      return res.json({ ok: true });
+    }
+    await db.query('DELETE FROM clinic_appointments WHERE id = $1', [req.params.id]);
     await audit(req.user.id, 'deleted', 'appointment', req.params.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
