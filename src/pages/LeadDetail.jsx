@@ -145,9 +145,6 @@ export default function LeadDetail() {
     const authUser = useAuthUser();
     const canReassign = authUser?.role === "owner" || authUser?.role === "admin";
     const leadMeetings = allMeetings.filter(m => m.lead?.id === id);
-    useEffect(() => {
-        setRescoreError(null);
-    }, [id]);
     const { data: fetchedLead, isLoading: isLeadLoading } = useGetLead(id, {
         query: { enabled: !!id, queryKey: getGetLeadQueryKey(id) },
     });
@@ -223,7 +220,6 @@ export default function LeadDetail() {
     const set = (field) => (e) => setDraft((d) => d ? { ...d, [field]: e.target.value } : d);
     const API_BASE = "/api";
     const refreshLead = async () => {
-        setRescoreError(null);
         await qc.invalidateQueries({ queryKey: getGetLeadQueryKey(id) });
         await qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
     };
@@ -236,7 +232,6 @@ export default function LeadDetail() {
     if (!lead) {
         return <div className="p-6 text-muted-foreground text-sm">Lead not found</div>;
     }
-    const bantBreakdown = lead.bantBreakdown;
     const leadOptionsFromList = (leadsResp?.leads ?? []).map((l) => ({
         id: l.id,
         firstName: l.firstName ?? "",
