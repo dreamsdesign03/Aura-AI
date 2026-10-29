@@ -54,7 +54,6 @@ const navGroups = [
         items: [
             { href: "/outreach", label: "Outreach Engine", icon: Mail },
             { href: "/bulk-calling", label: "Bulk Calling", icon: PhoneOutgoing },
-            { href: "/pipeline", label: "Sales Pipeline", icon: KanbanSquare },
             { href: "/meetings", label: "Meetings", icon: Calendar },
             { href: "/hubspot", label: "HubSpot Sync", icon: Building2, accent: "#DE377C", comingSoon: true },
         ],

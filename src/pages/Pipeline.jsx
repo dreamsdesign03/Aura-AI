@@ -292,7 +292,7 @@ function Column({ stage, leads, collapsed, onToggleCollapse, onSendWhatsApp, onS
     </div>);
 }
 // ── Pipeline page ─────────────────────────────────────────────────────────────
-export default function Pipeline() {
+export default function Pipeline({ embedded = false }) {
     const qc = useQueryClient();
     const [, navigate] = useLocation();
     const { data: allLeads = [], isLoading } = useQuery({
@@ -384,7 +384,6 @@ export default function Pipeline() {
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ["leads-pipeline"] });
             qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
-            qc.invalidateQueries({ queryKey: getGetQualifyQueueQueryKey() });
             qc.refetchQueries({ queryKey: ["leads-pipeline"] });
             qc.refetchQueries({ queryKey: getListLeadsQueryKey() });
         },
@@ -616,27 +615,29 @@ export default function Pipeline() {
     };
 
     // ── Render ────────────────────────────────────────────────────────────────
-    return (<div className="flex flex-col bg-white" style={{ height: "calc(100vh - 56px)" }}>
+    return (<div className={cn("flex flex-col bg-white", embedded ? "flex-1 min-h-0 overflow-hidden" : "")} style={embedded ? undefined : { height: "calc(100vh - 56px)" }}>
 
-      {/* ── Row 1: breadcrumb + add deal ───────────────────────────── */}
-      <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-white">
-        {/* Left: All deals tab */}
-        <div className="flex items-center gap-1">
-          <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12.5px] font-semibold text-gray-800 hover:bg-gray-100 transition-colors">
-            All deals
-            <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-semibold text-gray-600">
-              {filteredLeads.length.toLocaleString()}
-            </span>
-          </button>
-        </div>
+      {/* ── Row 1: breadcrumb + add deal (only when standalone) ─────────── */}
+      {!embedded && (
+        <div className="flex-shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-gray-200 bg-white">
+          {/* Left: All deals tab */}
+          <div className="flex items-center gap-1">
+            <button className="flex items-center gap-1.5 px-2.5 py-1 rounded text-[12.5px] font-semibold text-gray-800 hover:bg-gray-100 transition-colors">
+              All deals
+              <span className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] font-semibold text-gray-600">
+                {filteredLeads.length.toLocaleString()}
+              </span>
+            </button>
+          </div>
 
-        {/* Right */}
-        <div className="flex items-center gap-1.5">
-          <button onClick={() => handleOpenAddLead("new_enquiry")} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">
-            <Plus className="w-3.5 h-3.5"/> Add deal
-          </button>
+          {/* Right */}
+          <div className="flex items-center gap-1.5">
+            <button onClick={() => handleOpenAddLead("new_enquiry")} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-[12px] font-semibold text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">
+              <Plus className="w-3.5 h-3.5"/> Add deal
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Row 2: search + view controls ──────────────────────────── */}
       <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 border-b border-gray-200 bg-white flex-wrap">
@@ -716,3 +717,5 @@ export default function Pipeline() {
       <AddLeadModal isOpen={isAddLeadModalOpen} initialStage={addLeadStage} onClose={() => setIsAddLeadModalOpen(false)}/>
     </div>);
 }
+
+export { Pipeline as PipelineBoard };

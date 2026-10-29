@@ -11,7 +11,8 @@ import { StatusBadge } from "@/components/Badge";
 import { formatDate, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
-import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing } from "lucide-react";
+import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing, List, KanbanSquare } from "lucide-react";
+import { PipelineBoard } from "./Pipeline";
 import FetchLeads from "./FetchLeads";
 import { AiBanner } from "@/components/AiLoader";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
@@ -85,6 +86,30 @@ export default function Leads() {
     const [showAdd, setShowAdd] = useState(false);
     const [showImport, setShowImport] = useState(false);
     const [viewTab, setViewTab] = useState("leads");
+    const [viewMode, setViewMode] = useState(() => {
+        const v = new URLSearchParams(window.location.search).get("view");
+        return v === "board" ? "board" : "list";
+    });
+
+    const handleViewModeChange = (mode) => {
+        setViewMode(mode);
+        const url = new URL(window.location.href);
+        if (mode === "board") {
+            url.searchParams.set("view", "board");
+        } else {
+            url.searchParams.delete("view");
+        }
+        window.history.replaceState({}, "", url.toString());
+    };
+
+    useEffect(() => {
+        const onPopState = () => {
+            const v = new URLSearchParams(window.location.search).get("view");
+            setViewMode(v === "board" ? "board" : "list");
+        };
+        window.addEventListener("popstate", onPopState);
+        return () => window.removeEventListener("popstate", onPopState);
+    }, []);
     const [unqualifiedLeads, setUnqualifiedLeads] = useState([]);
     const [unqualifiedTotal, setUnqualifiedTotal] = useState(0);
     const [unqualifiedLoading, setUnqualifiedLoading] = useState(false);
@@ -887,11 +912,45 @@ export default function Leads() {
 
       {/* ── Top bar ─────────────────────────────────────────────── */}
       <div className="flex-shrink-0 border-b border-gray-200 bg-white">
-        {/* Title + action buttons */}
-        <div className="px-5 pt-3 pb-0 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Users className="w-4 h-4 text-violet-500"/>
-            <span className="text-[13px] font-semibold text-gray-800">Contacts</span>
+        {/* Title + View Mode Toggle + Action Buttons */}
+        <div className="px-5 pt-3 pb-2.5 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-violet-500"/>
+              <span className="text-[13px] font-semibold text-gray-800">Contacts</span>
+            </div>
+
+            {/* List / Board View Switcher */}
+            <div className="flex items-center bg-gray-100 p-0.5 rounded-lg border border-gray-200">
+              <button
+                type="button"
+                onClick={() => handleViewModeChange("list")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 text-[11.5px] font-semibold rounded-md transition-all",
+                  viewMode === "list"
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+                title="Table List View"
+              >
+                <List className="w-3.5 h-3.5" />
+                List View
+              </button>
+              <button
+                type="button"
+                onClick={() => handleViewModeChange("board")}
+                className={cn(
+                  "flex items-center gap-1.5 px-2.5 py-1 text-[11.5px] font-semibold rounded-md transition-all",
+                  viewMode === "board"
+                    ? "bg-white text-pink-700 shadow-sm"
+                    : "text-gray-500 hover:text-gray-900"
+                )}
+                title="Kanban Board View (Sales Pipeline)"
+              >
+                <KanbanSquare className="w-3.5 h-3.5" />
+                Board View
+              </button>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowFetch(true)} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-md border border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">
@@ -923,29 +982,36 @@ export default function Leads() {
           </div>
         </div>
         {/* Underline tabs */}
-        <div className="px-5 pt-2 flex items-center gap-1">
-          <button onClick={() => setViewTab("leads")} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "leads" ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
-            <Layers className="w-3.5 h-3.5"/>
-            All Contacts
-            <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold", viewTab === "leads" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500")}>
-              {filteredLeads.length.toLocaleString()}
-            </span>
-          </button>
-          <button onClick={() => setViewTab("lists")} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "lists" ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
-            <ListPlus className="w-3.5 h-3.5"/> My Leads
-          </button>
-          <button onClick={() => { setViewTab("unqualified"); loadUnqualifiedLeads(); }} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "unqualified" ? "border-orange-500 text-orange-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
-            <ShieldAlert className="w-3.5 h-3.5"/>
-            Unqualified
-            {unqualifiedTotal > 0 && <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 text-[10px] font-semibold">{unqualifiedTotal}</span>}
-          </button>
-          <button onClick={() => { setViewTab("dead-pool"); loadDeadPool(); }} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "dead-pool" ? "border-red-500 text-red-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
-            <WifiOff className="w-3.5 h-3.5"/>
-            Dead Websites
-            {whcStatus?.counts?.dead != null && whcStatus.counts.dead > 0 && (<span className="px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[10px] font-semibold">{whcStatus.counts.dead}</span>)}
-          </button>
-        </div>
+        {viewMode === "list" && (
+          <div className="px-5 pt-1 flex items-center gap-1">
+            <button onClick={() => setViewTab("leads")} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "leads" ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
+              <Layers className="w-3.5 h-3.5"/>
+              All Contacts
+              <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold", viewTab === "leads" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500")}>
+                {filteredLeads.length.toLocaleString()}
+              </span>
+            </button>
+            <button onClick={() => setViewTab("lists")} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "lists" ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
+              <ListPlus className="w-3.5 h-3.5"/> My Leads
+            </button>
+            <button onClick={() => { setViewTab("unqualified"); loadUnqualifiedLeads(); }} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "unqualified" ? "border-orange-500 text-orange-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
+              <ShieldAlert className="w-3.5 h-3.5"/>
+              Unqualified
+              {unqualifiedTotal > 0 && <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 text-[10px] font-semibold">{unqualifiedTotal}</span>}
+            </button>
+            <button onClick={() => { setViewTab("dead-pool"); loadDeadPool(); }} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "dead-pool" ? "border-red-500 text-red-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
+              <WifiOff className="w-3.5 h-3.5"/>
+              Dead Websites
+              {whcStatus?.counts?.dead != null && whcStatus.counts.dead > 0 && (<span className="px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[10px] font-semibold">{whcStatus.counts.dead}</span>)}
+            </button>
+          </div>
+        )}
       </div>
+
+      {viewMode === "board" ? (
+        <PipelineBoard embedded={true} />
+      ) : (
+        <>
 
       {/* ── Mobile filter bar (< md) ───────────────────────────── */}
       {viewTab === "leads" && (<div className="flex-shrink-0 md:hidden bg-white px-3 pt-2.5 pb-2 border-b border-gray-100 space-y-2.5">
@@ -1772,6 +1838,7 @@ export default function Leads() {
             {l}
           </span>))}
       </div>
+      </>)}
 
       {/* Add Lead Modal */}
       {showAdd && (<div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">

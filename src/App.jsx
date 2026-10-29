@@ -307,7 +307,7 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/icp" component={() => <Layout><IcpManager /></Layout>}/>
         <Route path="/audit" component={() => <RedirectTo to="/leads"/>}/>
         <Route path="/outreach" component={() => <Layout><Outreach /></Layout>}/>
-        <Route path="/pipeline" component={() => <Layout><Pipeline /></Layout>}/>
+        <Route path="/pipeline" component={() => <RedirectTo to="/leads?view=board"/>}/>
         <Route path="/meetings" component={() => <Layout><Meetings /></Layout>}/>
         <Route path="/hubspot" component={() => <Layout><HubSpot /></Layout>}/>
         <Route path="/sales-brain" component={() => <Layout><SalesBrain /></Layout>}/>
