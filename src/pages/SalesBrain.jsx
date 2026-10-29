@@ -39,6 +39,21 @@ function timeAgo(ts) {
         return "";
     }
 }
+function bantFromMeta(metadata) {
+    if (!metadata) return null;
+    let data = metadata;
+    if (typeof data === "string") {
+        try {
+            data = JSON.parse(data);
+        } catch {
+            return null;
+        }
+    }
+    const bant = data?.bant;
+    if (!bant || (!bant.budget && !bant.authority && !bant.need && !bant.timeline))
+        return null;
+    return bant;
+}
 // ─── Shared API helper ────────────────────────────────────────────────────────
 async function apiFetch(path, opts) {
     const r = await fetch(`/api${path}`, { credentials: "include", ...opts });

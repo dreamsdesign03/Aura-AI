@@ -44,6 +44,16 @@ const BulkCalling = lazy(() => import("@/pages/BulkCalling"));
 const ClinicOverview = lazy(() => import("@/pages/clinic/ClinicOverview"));
 const ClinicAppointments = lazy(() => import("@/pages/clinic/ClinicAppointments"));
 const ClinicPatients = lazy(() => import("@/pages/clinic/ClinicPatients"));
+const ClinicInbox = lazy(() => import("@/pages/clinic/ClinicInbox"));
+const ClinicCallReview = lazy(() => import("@/pages/clinic/ClinicCallReview"));
+const ClinicDialer = lazy(() => import("@/pages/clinic/ClinicDialer"));
+const ClinicAgents = lazy(() => import("@/pages/clinic/ClinicAgents"));
+const ClinicReports = lazy(() => import("@/pages/clinic/ClinicReports"));
+const ClinicReviews = lazy(() => import("@/pages/clinic/ClinicReviews"));
+const ClinicRetention = lazy(() => import("@/pages/clinic/ClinicRetention"));
+const ClinicCampaigns = lazy(() => import("@/pages/clinic/ClinicCampaigns"));
+const ClinicPlaybooks = lazy(() => import("@/pages/clinic/ClinicPlaybooks"));
+const ClinicSettings = lazy(() => import("@/pages/clinic/ClinicSettings"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const queryClient = new QueryClient({
     defaultOptions: {
@@ -325,6 +335,16 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/clinic" component={() => <Layout><ClinicOverview /></Layout>}/>
         <Route path="/clinic/appointments" component={() => <Layout><ClinicAppointments /></Layout>}/>
         <Route path="/clinic/patients" component={() => <Layout><ClinicPatients /></Layout>}/>
+        <Route path="/clinic/inbox" component={() => <Layout><ClinicInbox /></Layout>}/>
+        <Route path="/clinic/call-review/:id" component={() => <Layout><ClinicCallReview /></Layout>}/>
+        <Route path="/clinic/dialer" component={() => <Layout><ClinicDialer /></Layout>}/>
+        <Route path="/clinic/agents" component={() => <Layout><ClinicAgents /></Layout>}/>
+        <Route path="/clinic/reports" component={() => <Layout><ClinicReports /></Layout>}/>
+        <Route path="/clinic/reviews" component={() => <Layout><ClinicReviews /></Layout>}/>
+        <Route path="/clinic/retention" component={() => <Layout><ClinicRetention /></Layout>}/>
+        <Route path="/clinic/campaigns" component={() => <Layout><ClinicCampaigns /></Layout>}/>
+        <Route path="/clinic/playbooks" component={() => <Layout><ClinicPlaybooks /></Layout>}/>
+        <Route path="/clinic/settings" component={() => <Layout><ClinicSettings /></Layout>}/>
         <Route component={NotFound}/>
       </Switch>
     </Suspense>);

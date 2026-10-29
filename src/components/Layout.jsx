@@ -30,7 +30,7 @@ function usePendingEmailCountdown(expiresAt) {
     const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     return { expired: false, label, nearExpiry: totalMinutes < 10 };
 }
-import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, PhoneOutgoing } from "lucide-react";
+import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, MessageSquare, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, PhoneOutgoing, Star, Headphones, BookOpen } from "lucide-react";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import MysaAssistant from "@/components/MysaAssistant";
 import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
@@ -65,6 +65,16 @@ const navGroups = [
             { href: "/clinic", label: "Clinic Command Center", icon: Activity, accent: "#A4285E", exact: true },
             { href: "/clinic/appointments", label: "Appointments", icon: Calendar, accent: "#A4285E" },
             { href: "/clinic/patients", label: "Patients", icon: Users, accent: "#A4285E" },
+            { href: "/clinic/inbox", label: "Inbox", icon: MessageSquare, accent: "#A4285E" },
+            { href: "/clinic/dialer", label: "Dialer", icon: PhoneOutgoing, accent: "#A4285E" },
+            { href: "/clinic/agents", label: "Agents", icon: Bot, accent: "#A4285E" },
+            { href: "/clinic/call-review", label: "Call Review", icon: Headphones, accent: "#A4285E" },
+            { href: "/clinic/reports", label: "Reports", icon: BarChart2, accent: "#A4285E" },
+            { href: "/clinic/reviews", label: "Reviews", icon: Star, accent: "#A4285E" },
+            { href: "/clinic/retention", label: "Retention", icon: RefreshCw, accent: "#A4285E" },
+            { href: "/clinic/campaigns", label: "Campaigns", icon: Mail, accent: "#A4285E" },
+            { href: "/clinic/playbooks", label: "Playbooks", icon: BookOpen, accent: "#A4285E" },
+            { href: "/clinic/settings", label: "Settings", icon: Settings, accent: "#A4285E" },
         ],
     },
     {
