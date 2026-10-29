@@ -6,6 +6,7 @@ import { useAuthUser } from "@/contexts/AuthContext";
 import { getListLeadsQueryKey, getLeadAssigneeCountsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useBatchPoller } from "@/hooks/useBatchPoller";
 import { StatusBadge } from "@/components/Badge";
 import { formatDate, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
