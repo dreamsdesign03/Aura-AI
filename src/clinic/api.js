@@ -70,6 +70,8 @@ export const clinicApi = {
 
   // Dialer
   dialerLeads: () => request('/dialer/leads'),
+  startDialerCall: (body) => request('/dialer/call', { method: 'POST', body: JSON.stringify(body) }),
+  addDialerContact: (body) => request('/dialer/contact', { method: 'POST', body: JSON.stringify(body) }),
 
   // Call review
   callReviews: () => request('/call-review'),

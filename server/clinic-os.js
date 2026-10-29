@@ -866,6 +866,181 @@ router.get('/dialer/leads', requireUser, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+router.post('/dialer/call', requireUser, async (req, res) => {
+  try {
+    const {
+      destination,
+      conversationType = 'patient_consultation',
+      doctor,
+      branch,
+      leadId,
+      isMock = false,
+      mockOutcome = 'connected',
+      durationSecs = 45,
+    } = req.body || {};
+
+    if (!destination && !leadId) {
+      return res.status(400).json({ error: 'Destination phone number or lead ID is required' });
+    }
+
+    let finalLeadId = leadId ? Number(leadId) : null;
+    let contactName = 'Unknown Patient';
+    let companyName = branch || 'Aura Laser & Cosmetic Clinic';
+
+    if (finalLeadId) {
+      const l = await db.query('SELECT first_name, last_name, phone, company FROM leads WHERE id = $1', [finalLeadId]);
+      if (l.rows.length > 0) {
+        contactName = [l.rows[0].first_name, l.rows[0].last_name].filter(Boolean).join(' ') || contactName;
+        companyName = l.rows[0].company || companyName;
+      }
+    } else if (destination) {
+      const cleaned = destination.replace(/[^\d+]/g, '');
+      const l = await db.query(
+        'SELECT id, first_name, last_name, company FROM leads WHERE user_id = $1 AND (phone = $2 OR phone LIKE $3) LIMIT 1',
+        [req.user.id, cleaned, `%${cleaned.slice(-10)}%`]
+      );
+      if (l.rows.length > 0) {
+        finalLeadId = l.rows[0].id;
+        contactName = [l.rows[0].first_name, l.rows[0].last_name].filter(Boolean).join(' ') || contactName;
+        companyName = l.rows[0].company || companyName;
+      }
+    }
+
+    if (isMock) {
+      const convId = `mock_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const callSid = `MCK_${Date.now()}`;
+      const status = mockOutcome === 'connected' ? 'completed' : mockOutcome;
+      const actualDuration = status === 'completed' ? (durationSecs || Math.floor(Math.random() * 60 + 35)) : 0;
+
+      const typeLabels = {
+        patient_consultation: 'Patient Consultation',
+        follow_up: 'Post-Treatment Follow-up',
+        treatment_query: 'Treatment Inquiry',
+        appointment_booking: 'Appointment Booking',
+        payment_reminder: 'Package / Payment Reminder',
+        general: 'General Front-Desk Inquiry',
+      };
+      const label = typeLabels[conversationType] || 'Clinical Consultation';
+
+      const transcriptsByOutcome = {
+        completed: [
+          { speaker: 'AI', text: `Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ketki, your AI clinical coordinator.` },
+          { speaker: 'Patient', text: `Hello! Yes, I was inquiring regarding ${label.toLowerCase()}.` },
+          { speaker: 'AI', text: `Certainly! Our team will ensure you receive personalized care. I have updated your consultation notes for ${doctor || 'the clinical team'} at ${branch || 'Alkapuri Main'}.` },
+          { speaker: 'Patient', text: 'Thank you so much, that sounds wonderful.' },
+          { speaker: 'AI', text: 'You are most welcome! Have a wonderful day ahead.' },
+        ],
+        busy: [
+          { speaker: 'System', text: 'Subscriber line was reported busy. Call could not be connected.' },
+        ],
+        'no-answer': [
+          { speaker: 'System', text: 'No answer from subscriber destination after 30 seconds of ringing.' },
+        ],
+        failed: [
+          { speaker: 'System', text: 'Carrier returned network error or unreachable route.' },
+        ],
+      };
+
+      const transcript = transcriptsByOutcome[status] || transcriptsByOutcome.completed;
+      const summary = status === 'completed'
+        ? `Patient discussed ${label.toLowerCase()} with coordinator. Assigned to ${doctor || 'Clinic Team'} (${branch || 'Alkapuri Main'}). Follow-up logged.`
+        : `Call attempt ended with status: ${status}.`;
+
+      const inserted = await db.query(
+        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status, booking_type, duration_secs, transcript_summary, transcript, started_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+         RETURNING *`,
+        [finalLeadId, convId, callSid, destination, contactName, companyName, status, conversationType, actualDuration, summary, JSON.stringify(transcript)]
+      );
+
+      return res.json({ success: true, isMock: true, call: inserted.rows[0] });
+    }
+
+    // Live AI call: dispatch via Sarvam
+    if (!finalLeadId) {
+      const insLead = await db.query(
+        `INSERT INTO leads (user_id, first_name, last_name, phone, company, status, pipeline_stage, created_at, updated_at)
+         VALUES ($1, 'Patient', 'Contact', $2, $3, 'Active', 'Outreach', NOW(), NOW())
+         RETURNING id`,
+        [req.user.id, destination, companyName]
+      );
+      finalLeadId = insLead.rows[0].id;
+    }
+
+    if (!process.env.SARVAM_API_KEY) {
+      return res.status(400).json({
+        error: 'SARVAM_API_KEY is not configured on this server. Switch to Mock Mode to test full dialer workflows without telecom credentials.',
+      });
+    }
+
+    const { dispatchSarvamCall, buildAgentVars } = require('./sarvam');
+    const { canCall } = require('./call-utils');
+
+    const leadResult = await db.query('SELECT * FROM leads WHERE id = $1', [finalLeadId]);
+    const lead = leadResult.rows[0];
+    const check = canCall(lead);
+    if (!check.ok) return res.status(400).json({ error: check.reason });
+
+    const sarvamRes = await dispatchSarvamCall({
+      phoneE164: check.e164,
+      vars: buildAgentVars({
+        name: contactName,
+        phone: lead.phone,
+        email: lead.email,
+      }),
+      metadata: { kind: 'single', lead_id: String(lead.id), conversation_type: conversationType },
+    });
+
+    const requestId = sarvamRes.attempt_id;
+    await db.query(`
+      UPDATE leads
+      SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
+      WHERE id = $2
+    `, [requestId, lead.id]);
+
+    const insCall = await db.query(
+      `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status, booking_type, started_at)
+       VALUES ($1, $2, $2, $3, $4, $5, 'queued', $6, NOW())
+       RETURNING *`,
+      [lead.id, requestId, check.e164, contactName, companyName, conversationType]
+    );
+
+    return res.json({ success: true, isMock: false, requestId, call: insCall.rows[0] });
+  } catch (err) {
+    console.error('[Clinic Dialer Call Error]:', err);
+    res.status(500).json({ error: err.message || 'Call dispatch failed' });
+  }
+});
+
+router.post('/dialer/contact', requireUser, async (req, res) => {
+  try {
+    const { name, phone, email, company, callId } = req.body || {};
+    if (!name || !phone) return res.status(400).json({ error: 'Name and phone are required' });
+    const parts = name.trim().split(/\s+/);
+    const firstName = parts[0] || 'Patient';
+    const lastName = parts.slice(1).join(' ') || '';
+
+    const ins = await db.query(
+      `INSERT INTO leads (user_id, first_name, last_name, phone, email, company, pipeline_stage, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'New Lead', 'Active', NOW(), NOW())
+       RETURNING *`,
+      [req.user.id, firstName, lastName, phone.trim(), email || null, company || 'Aura Laser & Cosmetic Clinic']
+    );
+    const lead = ins.rows[0];
+
+    if (callId) {
+      await db.query(
+        `UPDATE ai_calls SET lead_id = $1, lead_name = $2 WHERE id = $3`,
+        [lead.id, name.trim(), callId]
+      );
+    }
+
+    res.json({ success: true, lead });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Call review: get transcript by call id or list recent calls
 // ---------------------------------------------------------------------------
