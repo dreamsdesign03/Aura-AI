@@ -299,7 +299,12 @@ router.get('/:id/contacts', async (req, res) => {
 // GET attempts for a contact
 router.get('/:id/contacts/:contactId/attempts', async (req, res) => {
   try {
-    const attempts = await db.query('SELECT * FROM bulk_attempts WHERE contact_id = $1 ORDER BY attempt_no ASC', [req.params.contactId]);
+    // Scope by campaign too, so a stale/mismatched contact id can never leak another
+    // campaign's conversation into this contact's drawer.
+    const attempts = await db.query(
+      'SELECT * FROM bulk_attempts WHERE contact_id = $1 AND campaign_id = $2 ORDER BY attempt_no ASC, id ASC',
+      [req.params.contactId, req.params.id]
+    );
     res.json(attempts.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -371,7 +376,12 @@ async function syncSarvamResults(camp) {
     const n = (perContact.get(contact.id) || 0) + 1;
     perContact.set(contact.id, n);
 
-    const done = await db.query('SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND request_id = $2 LIMIT 1', [camp.id, a.attempt_id]);
+    // Match within the same contact only. Without contact_id here a Sarvam attempt could be
+    // attached to (and overwrite) another contact's attempt row.
+    const done = await db.query(
+      'SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND contact_id = $2 AND request_id = $3 LIMIT 1',
+      [camp.id, contact.id, a.attempt_id]
+    );
 
     const { callStatus, outcome, summary, sentiment, confirmedSlot } = mapSarvamOutcome(adaptCampaignPayload({
       connectivity_status: a.connectivity_status,

@@ -51,10 +51,12 @@ async function handleCampaignWebhook(campaignId, payload) {
   const requestId = payload.attempt_id || interactionId || `att-${Date.now()}`;
   const recUrl = recordingProxyUrl(interactionId);
 
-  // Check if attempt exists for this contact & attempt_no or interaction_id
+  // Check if an attempt exists for this same contact & request/interaction id.
+  // contact_id must be part of the lookup: otherwise a shared/duplicated id can pull in
+  // (and overwrite) a completely different person's attempt row.
   const existing = await db.query(
-    'SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND (request_id = $2 OR interaction_id = $3) LIMIT 1',
-    [campaignId, requestId, interactionId]
+    'SELECT * FROM bulk_attempts WHERE campaign_id = $1 AND contact_id = $2 AND (request_id = $3 OR interaction_id = $4) LIMIT 1',
+    [campaignId, contact.id, requestId, interactionId]
   );
 
   let attempt = existing.rows[0];

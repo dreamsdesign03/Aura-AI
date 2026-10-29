@@ -190,13 +190,17 @@ function BulkCallDetail({ id, onBack }) {
   }, [campaign?.sarvam_campaign_id, campaign?.enabled]);
 
   useEffect(() => {
-    if (drawerContact) {
-      fetch(`/api/bulk-calling/${campaign.id}/contacts/${drawerContact.id}/attempts`)
-        .then(r => r.json())
-        .then(setAttempts)
-        .catch(console.error);
-    }
-  }, [drawerContact, campaign?.id]);
+    if (!drawerContact) { setAttempts([]); return; }
+    let cancelled = false;
+    // Clear immediately so the previous contact's attempts/conversation never flash
+    // while this contact's history is loading.
+    setAttempts([]);
+    fetch(`/api/bulk-calling/${campaign.id}/contacts/${drawerContact.id}/attempts`)
+      .then(r => r.json())
+      .then(data => { if (!cancelled) setAttempts(Array.isArray(data) ? data : []); })
+      .catch(console.error);
+    return () => { cancelled = true; };
+  }, [drawerContact?.id, campaign?.id]);
 
   // Tick endpoint - fires every 8s while campaign is ON to dispatch next call
   useEffect(() => {
@@ -533,7 +537,7 @@ function BulkCallDetail({ id, onBack }) {
                       )}
 
                       {/* AI Conversation Transcript */}
-                      <CallConversation interactionId={a.interaction_id} />
+                      <CallConversation key={a.interaction_id || a.id} interactionId={a.interaction_id} />
                       {!a.interaction_id && transcript && transcript.length > 0 && (
                         <div className="mb-3">
                           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
@@ -582,7 +586,13 @@ function CallConversation({ interactionId }) {
   const [loading, setLoading] = useState(false);
   const iid = encodeURIComponent(interactionId);
 
-  useEffect(() => { if (interactionId) load(); }, [interactionId]);
+  useEffect(() => {
+    // Reset before loading so a different interaction never shows the previous
+    // conversation while its transcript is in flight.
+    setMsgs(null);
+    setErr("");
+    if (interactionId) load();
+  }, [interactionId]);
 
   const load = async () => {
     setLoading(true);
