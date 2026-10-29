@@ -1028,10 +1028,50 @@ router.post('/dialer/call', requireUser, async (req, res) => {
       return res.json({ success: true, isMock: true, call: inserted.rows[0] });
     }
 
-    // Live AI call: dispatch via Sarvam
+    // 1. Plivo Real Call (Default when live telephony engine is Plivo)
+    const { engine = 'plivo' } = req.body || {};
+    if (engine === 'plivo') {
+      const plivo = require('./plivo');
+      const creds = plivo.getPlivoCredentials();
+      if (!creds.isConfigured) {
+        return res.status(400).json({
+          error: 'Plivo credentials are not configured yet. Please configure your Plivo Auth ID, Auth Token, and Plivo Number.',
+          requiresPlivoConfig: true,
+        });
+      }
+
+      const hostUrl = `${req.protocol}://${req.get('host')}`;
+      const plivoResult = await plivo.dispatchPlivoCall({
+        to: destination,
+        from: creds.callerId,
+        conversationType,
+        doctor,
+        branch,
+        hostUrl,
+      });
+
+      const inserted = await db.query(
+        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status, booking_type, started_at)
+         VALUES ($1, $2, $2, $3, $4, $5, 'ringing', $6, NOW())
+         RETURNING *`,
+        [finalLeadId, plivoResult.callUuid, plivoResult.to, contactName, companyName, conversationType]
+      );
+
+      if (finalLeadId) {
+        await db.query(
+          `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+           VALUES ($1, $2, 'call', $3, $4, NOW())`,
+          [req.user.id, finalLeadId, `Plivo Call: ${label}`, `Real outbound call placed via Plivo to ${plivoResult.to}. Call UUID: ${plivoResult.callUuid}`]
+        );
+      }
+
+      return res.json({ success: true, isMock: false, engine: 'plivo', call: inserted.rows[0], callUuid: plivoResult.callUuid });
+    }
+
+    // 2. Live AI call: dispatch via Sarvam
     if (!process.env.SARVAM_API_KEY) {
       return res.status(400).json({
-        error: 'SARVAM_API_KEY is not configured on this server. Switch to Mock Mode to test full dialer workflows without telecom credentials.',
+        error: 'SARVAM_API_KEY is not configured on this server. Switch to Mock Mode or Plivo.',
       });
     }
 
@@ -1158,6 +1198,68 @@ router.post('/dialer/contact', requireUser, async (req, res) => {
     }
 
     res.json({ success: true, lead });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Plivo Telephony Webhooks & Settings
+// ---------------------------------------------------------------------------
+router.post('/dialer/plivo/answer', async (req, res) => {
+  const { type = 'patient_consultation', doctor = 'Dr. Aditya Shah', branch = 'Alkapuri Main Clinic' } = req.query;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Speak language="en-IN" voice="Polly.Aditi">Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Your consultation call is now connected.</Speak>
+  <Record startOnDialAnswer="true" maxLength="900" playBeep="false" />
+</Response>`;
+  res.set('Content-Type', 'text/xml');
+  res.send(xml);
+});
+
+router.post('/dialer/plivo/hangup', async (req, res) => {
+  try {
+    const { CallUUID, Duration, CallStatus } = req.body || {};
+    if (CallUUID) {
+      await db.query(
+        `UPDATE ai_calls
+            SET status = $1,
+                duration_secs = GREATEST(duration_secs, $2),
+                updated_at = NOW()
+          WHERE call_sid = $3 OR conversation_id = $3`,
+        [CallStatus === 'completed' ? 'completed' : (CallStatus || 'completed'), Number(Duration) || 0, CallUUID]
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/dialer/settings', requireUser, async (req, res) => {
+  try {
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    res.json({
+      plivoConfigured: creds.isConfigured,
+      plivoCallerId: creds.callerId || '',
+      plivoAuthId: creds.authId ? `${creds.authId.slice(0, 6)}...` : '',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/dialer/settings', requireUser, async (req, res) => {
+  try {
+    const { plivoAuthId, plivoAuthToken, plivoCallerId } = req.body || {};
+    if (plivoAuthId) process.env.PLIVO_AUTH_ID = String(plivoAuthId).trim();
+    if (plivoAuthToken) process.env.PLIVO_AUTH_TOKEN = String(plivoAuthToken).trim();
+    if (plivoCallerId) process.env.PLIVO_CALLER_ID = String(plivoCallerId).trim();
+
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    res.json({ success: true, plivoConfigured: creds.isConfigured });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

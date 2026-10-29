@@ -99,7 +99,7 @@ function formatDuration(sec) {
 export default function ClinicDialer() {
   const qc = useQueryClient();
 
-  // Tab: 'keypad' | 'leads' | 'history'
+  // Tab: 'keypad' | 'leads' | 'history' | 'settings'
   const [activeTab, setActiveTab] = useState('keypad');
 
   // Dialer input state
@@ -110,8 +110,12 @@ export default function ClinicDialer() {
   const [conversationType, setConversationType] = useState('patient_consultation');
   const [doctor, setDoctor] = useState('dr_aditya');
   const [branch, setBranch] = useState('alkapuri');
-  const [isMock, setIsMock] = useState(true);
+  const [telephonyEngine, setTelephonyEngine] = useState('plivo');
   const [mockOutcome, setMockOutcome] = useState('connected');
+
+  // Plivo Settings state
+  const [plivoForm, setPlivoForm] = useState({ authId: '', authToken: '', callerId: '' });
+  const [settingsSaved, setSettingsSaved] = useState(false);
 
   // In-call state machine: 'idle' | 'preparing' | 'connecting' | 'ringing' | 'connected' | 'ended' | 'error'
   const [callPhase, setCallPhase] = useState('idle');
@@ -149,6 +153,21 @@ export default function ClinicDialer() {
     refetchInterval: callPhase === 'connected' || callPhase === 'ringing' ? 4000 : false,
   });
   const recentCalls = historyData?.calls || [];
+
+  // Fetch Plivo Dialer Settings
+  const { data: settingsData, refetch: refetchSettings } = useQuery({
+    queryKey: ['clinic', 'dialer', 'settings'],
+    queryFn: clinicApi.dialerSettings,
+  });
+
+  const saveSettingsMutation = useMutation({
+    mutationFn: (body) => clinicApi.saveDialerSettings(body),
+    onSuccess: () => {
+      setSettingsSaved(true);
+      setTimeout(() => setSettingsSaved(false), 3000);
+      refetchSettings();
+    },
+  });
 
   // Debounced Contact Lookup based on dialed digits
   const cleanedDigits = useMemo(() => number.replace(/[^\d]/g, ''), [number]);
@@ -259,14 +278,16 @@ export default function ClinicDialer() {
     const branchObj = BRANCHES.find((b) => b.id === branch);
 
     try {
-      // 1. Immediately insert/dispatch call into PostgreSQL DB!
+      // 1. Immediately insert/dispatch call into PostgreSQL DB and Plivo telephony!
+      const isMockMode = telephonyEngine === 'mock';
       const res = await callMutation.mutateAsync({
         destination: destination || finalLead?.phone,
         conversationType,
         doctor: docObj?.name,
         branch: branchObj?.name,
         leadId: finalLead?.id || null,
-        isMock,
+        engine: telephonyEngine,
+        isMock: isMockMode,
         mockOutcome,
         durationSecs: 0,
       });
@@ -276,7 +297,7 @@ export default function ClinicDialer() {
       setActiveCallId(callId);
       setLastCallResult(callRecord);
 
-      if (isMock) {
+      if (isMockMode) {
         setTimeout(() => setCallPhase('connecting'), 700);
         setTimeout(() => setCallPhase('ringing'), 1600);
 
@@ -297,10 +318,10 @@ export default function ClinicDialer() {
           }, 3800);
         }
       } else {
-        // Live call via Sarvam AI
+        // Live real call via Plivo (or Sarvam)
         setTimeout(() => setCallPhase('connecting'), 600);
-        setCallPhase('ringing');
-        setTimeout(() => setCallPhase('connected'), 2500);
+        setTimeout(() => setCallPhase('ringing'), 1500);
+        setTimeout(() => setCallPhase('connected'), 3500);
       }
     } catch (err) {
       setCallPhase('error');
@@ -431,6 +452,13 @@ export default function ClinicDialer() {
             >
               <Clock size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: -1 }} /> Call History
             </button>
+            <button
+              type="button"
+              className={`co-tab ${activeTab === 'settings' ? 'on' : ''}`}
+              onClick={() => setActiveTab('settings')}
+            >
+              <Sliders size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: -1 }} /> Dialer Settings
+            </button>
           </div>
 
           <button
@@ -508,7 +536,7 @@ export default function ClinicDialer() {
                     <div className="co-xs co-mut" style={{ marginTop: 4 }}>
                       <span>Destination: <b>{number || matchedContact?.phone}</b></span> ·{' '}
                       <span>Doctor: <b>{DOCTORS.find((d) => d.id === doctor)?.name.split('(')[0]}</b></span> ·{' '}
-                      <span>{isMock ? 'Mock Telephony' : 'Sarvam Voice'}</span>
+                      <span>{telephonyEngine === 'plivo' ? '📞 Plivo Voice (Real Call)' : telephonyEngine === 'sarvam' ? '🤖 Sarvam Voice' : '⚡ Mock Simulation'}</span>
                     </div>
                   </div>
                 </div>
@@ -888,31 +916,73 @@ export default function ClinicDialer() {
                     </select>
                   </div>
 
-                  <div className="co-field">
-                    <label className="co-label">Telephony Engine</label>
-                    <div className="co-row" style={{ gap: 8 }}>
+                  <div className="co-field co-span-2">
+                    <div className="co-spread">
+                      <label className="co-label">Telephony Engine</label>
+                      {telephonyEngine === 'plivo' && (
+                        <span className="co-xs" style={{ color: settingsData?.plivoConfigured ? '#15803D' : '#B45309' }}>
+                          {settingsData?.plivoConfigured ? `● Plivo Ready (${settingsData.plivoCallerId || 'Configured'})` : '⚠️ Credentials Needed'}
+                        </span>
+                      )}
+                    </div>
+                    <div className="co-row" style={{ gap: 8, marginTop: 4 }}>
                       <button
                         type="button"
-                        className={`co-btn co-btn-sm ${isMock ? 'co-btn-primary' : ''}`}
-                        onClick={() => setIsMock(true)}
+                        className={`co-btn co-btn-sm ${telephonyEngine === 'plivo' ? 'co-btn-primary' : ''}`}
+                        onClick={() => setTelephonyEngine('plivo')}
                         disabled={isBusy}
-                        style={{ flex: 1 }}
+                        style={{ flex: 1.2 }}
                       >
-                        ⚡ Mock Simulation
+                        📞 Plivo (Real Call)
                       </button>
                       <button
                         type="button"
-                        className={`co-btn co-btn-sm ${!isMock ? 'co-btn-primary' : ''}`}
-                        onClick={() => setIsMock(false)}
+                        className={`co-btn co-btn-sm ${telephonyEngine === 'sarvam' ? 'co-btn-primary' : ''}`}
+                        onClick={() => setTelephonyEngine('sarvam')}
                         disabled={isBusy}
                         style={{ flex: 1 }}
                       >
-                        📞 Sarvam Voice
+                        🤖 Sarvam Voice
+                      </button>
+                      <button
+                        type="button"
+                        className={`co-btn co-btn-sm ${telephonyEngine === 'mock' ? 'co-btn-primary' : ''}`}
+                        onClick={() => setTelephonyEngine('mock')}
+                        disabled={isBusy}
+                        style={{ flex: 1 }}
+                      >
+                        ⚡ Mock Test
                       </button>
                     </div>
                   </div>
 
-                  {isMock && (
+                  {telephonyEngine === 'plivo' && !settingsData?.plivoConfigured && (
+                    <div
+                      className="co-field co-span-2"
+                      style={{
+                        background: '#FEF3C7',
+                        border: '1px solid #FDE68A',
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        color: '#92400E',
+                        fontSize: 12,
+                      }}
+                    >
+                      <div className="co-spread">
+                        <span><b>Plivo not configured yet.</b> Enter your Plivo Auth ID, Token & Number to make real calls.</span>
+                        <button
+                          type="button"
+                          className="co-btn co-btn-sm"
+                          style={{ height: 26, fontSize: 11 }}
+                          onClick={() => setActiveTab('settings')}
+                        >
+                          Configure Now →
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {telephonyEngine === 'mock' && (
                     <div className="co-field co-span-2">
                       <label className="co-label">Mock Call Outcome (Simulation)</label>
                       <select
@@ -1238,6 +1308,133 @@ export default function ClinicDialer() {
               </table>
             </div>
           )}
+        </Card>
+      )}
+
+      {/* Settings Tab */}
+      {activeTab === 'settings' && (
+        <Card>
+          <CardHead
+            title="Dialer & Telephony Configuration"
+            hint="Manage Plivo credentials, caller ID, and real calling settings"
+          />
+
+          <div style={{ maxWidth: 640, marginTop: 16, display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div
+              style={{
+                background: settingsData?.plivoConfigured ? '#DCFCE7' : '#FEF3C7',
+                border: `1px solid ${settingsData?.plivoConfigured ? '#86EFAC' : '#FDE68A'}`,
+                borderRadius: 10,
+                padding: '14px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+              }}
+            >
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: settingsData?.plivoConfigured ? '#BBF7D0' : '#FDE68A',
+                  color: settingsData?.plivoConfigured ? '#15803D' : '#B45309',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <PhoneCall size={20} />
+              </div>
+              <div>
+                <div className="co-strong" style={{ fontSize: 14 }}>
+                  {settingsData?.plivoConfigured ? 'Plivo Real Outbound Telephony is Active' : 'Plivo Telephony Not Configured Yet'}
+                </div>
+                <div className="co-xs co-mut" style={{ marginTop: 2 }}>
+                  {settingsData?.plivoConfigured
+                    ? `Active Caller ID: ${settingsData.plivoCallerId}. Real calls dialed through keypad will ring on patient devices.`
+                    : 'To make real phone calls that ring on your patient\'s device, enter your Plivo Auth ID, Auth Token, and Plivo Caller ID below.'}
+                </div>
+              </div>
+            </div>
+
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                saveSettingsMutation.mutate({
+                  plivoAuthId: plivoForm.authId.trim() || undefined,
+                  plivoAuthToken: plivoForm.authToken.trim() || undefined,
+                  plivoCallerId: plivoForm.callerId.trim() || undefined,
+                });
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+            >
+              <div className="co-field">
+                <label className="co-label">Plivo Auth ID *</label>
+                <input
+                  className="co-input"
+                  placeholder="e.g. MAMZ..."
+                  value={plivoForm.authId}
+                  onChange={(e) => setPlivoForm({ ...plivoForm, authId: e.target.value })}
+                />
+                <span className="co-xs co-mut">Find this in your Plivo Console Overview.</span>
+              </div>
+
+              <div className="co-field">
+                <label className="co-label">Plivo Auth Token *</label>
+                <input
+                  type="password"
+                  className="co-input"
+                  placeholder="Enter Plivo Auth Token"
+                  value={plivoForm.authToken}
+                  onChange={(e) => setPlivoForm({ ...plivoForm, authToken: e.target.value })}
+                />
+                <span className="co-xs co-mut">Your secret Plivo authentication token.</span>
+              </div>
+
+              <div className="co-field">
+                <label className="co-label">Plivo Phone Number (Caller ID) *</label>
+                <input
+                  className="co-input"
+                  placeholder="e.g. +918347844617 or +1931..."
+                  value={plivoForm.callerId}
+                  onChange={(e) => setPlivoForm({ ...plivoForm, callerId: e.target.value })}
+                />
+                <span className="co-xs co-mut">
+                  Must be an active, voice-enabled phone number rented in your Plivo Console.
+                </span>
+              </div>
+
+              {settingsSaved && (
+                <div className="co-chip co-c-g" style={{ alignSelf: 'flex-start', padding: '6px 12px' }}>
+                  <Check size={13} /> Plivo settings saved successfully! Real calls enabled.
+                </div>
+              )}
+
+              {saveSettingsMutation.isError && (
+                <p className="co-sm" style={{ color: '#B91C1C' }}>
+                  {saveSettingsMutation.error?.message || 'Failed to save settings'}
+                </p>
+              )}
+
+              <div className="co-row" style={{ gap: 10, marginTop: 8 }}>
+                <button
+                  type="submit"
+                  className="co-btn co-btn-primary"
+                  disabled={saveSettingsMutation.isPending}
+                >
+                  {saveSettingsMutation.isPending ? 'Saving…' : 'Save Plivo Settings'}
+                </button>
+                <button
+                  type="button"
+                  className="co-btn"
+                  onClick={() => setActiveTab('keypad')}
+                >
+                  Back to Keypad
+                </button>
+              </div>
+            </form>
+          </div>
         </Card>
       )}
 

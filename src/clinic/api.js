@@ -74,6 +74,8 @@ export const clinicApi = {
   startDialerCall: (body) => request('/dialer/call', { method: 'POST', body: JSON.stringify(body) }),
   updateDialerCall: (id, body) => request(`/dialer/call/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   addDialerContact: (body) => request('/dialer/contact', { method: 'POST', body: JSON.stringify(body) }),
+  dialerSettings: () => request('/dialer/settings'),
+  saveDialerSettings: (body) => request('/dialer/settings', { method: 'POST', body: JSON.stringify(body) }),
 
   // Call review
   callReviews: () => request('/call-review'),
