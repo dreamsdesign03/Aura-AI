@@ -260,46 +260,50 @@ function PatientDrawer({ id, onClose }) {
 
 export default function ClinicPatients() {
   const qc = useQueryClient();
-  const [location, navigate] = useLocation();
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [openId, setOpenId] = useState(null);
   const [addPatientOpen, setAddPatientOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState(null);
 
-  // Sync viewMode with URL: /clinic/journey -> journey, /clinic/patients -> list
-  const isJourneyRoute = location.includes('/journey');
-  const [viewMode, setViewMode] = useState(isJourneyRoute ? 'journey' : 'list');
-
-  useEffect(() => {
-    if (location.includes('/journey')) {
-      setViewMode('journey');
-    } else if (location.includes('/patients')) {
-      setViewMode('list');
+  // Default to 'journey' view on landing, or 'list' if URL parameter specifies it
+  const [viewMode, setViewMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('view') === 'list') return 'list';
     }
-  }, [location]);
+    return 'journey';
+  });
 
   const switchToJourney = () => {
     setViewMode('journey');
-    if (!location.includes('/journey')) {
-      navigate('/clinic/journey');
-    }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'journey');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    } catch {}
   };
 
   const switchToList = (clearFilter = true) => {
     if (clearFilter) setSelectedStage(null);
     setViewMode('list');
-    if (!location.includes('/patients')) {
-      navigate('/clinic/patients');
-    }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'list');
+      if (clearFilter) url.searchParams.delete('stage');
+      window.history.replaceState({}, '', url.pathname + url.search);
+    } catch {}
   };
 
   const handleSelectStage = (stage) => {
     setSelectedStage(stage);
     setViewMode('list');
-    if (!location.includes('/patients')) {
-      navigate('/clinic/patients');
-    }
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'list');
+      if (stage?.n) url.searchParams.set('stage', stage.n);
+      window.history.replaceState({}, '', url.pathname + url.search);
+    } catch {}
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 

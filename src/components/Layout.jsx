@@ -61,7 +61,6 @@ const navGroups = [
         group: "Clinic OS",
         items: [
             { href: "/clinic", label: "Clinic Command Center", icon: Activity, accent: "#A4285E", exact: true },
-            { href: "/clinic/journey", label: "Patient Journey", icon: RouteIcon, accent: "#A4285E" },
             { href: "/clinic/appointments", label: "Appointments & Meetings", icon: Calendar, accent: "#A4285E" },
             { href: "/clinic/patients", label: "Patients", icon: Users, accent: "#A4285E" },
             { href: "/clinic/inbox", label: "Inbox", icon: MessageSquare, accent: "#A4285E" },
