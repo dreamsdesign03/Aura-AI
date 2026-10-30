@@ -266,45 +266,18 @@ export default function ClinicPatients() {
   const [addPatientOpen, setAddPatientOpen] = useState(false);
   const [selectedStage, setSelectedStage] = useState(null);
 
-  // Default to 'journey' view on landing, or 'list' if URL parameter specifies it
-  const [viewMode, setViewMode] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const p = new URLSearchParams(window.location.search);
-      if (p.get('view') === 'list') return 'list';
-    }
-    return 'journey';
-  });
-
-  const switchToJourney = () => {
-    setViewMode('journey');
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('view', 'journey');
-      window.history.replaceState({}, '', url.pathname + url.search);
-    } catch {}
-  };
-
-  const switchToList = (clearFilter = true) => {
-    if (clearFilter) setSelectedStage(null);
-    setViewMode('list');
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('view', 'list');
-      if (clearFilter) url.searchParams.delete('stage');
-      window.history.replaceState({}, '', url.pathname + url.search);
-    } catch {}
-  };
-
   const handleSelectStage = (stage) => {
-    setSelectedStage(stage);
-    setViewMode('list');
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('view', 'list');
-      if (stage?.n) url.searchParams.set('stage', stage.n);
-      window.history.replaceState({}, '', url.pathname + url.search);
-    } catch {}
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // If clicking same stage, deselect; otherwise select and filter below
+    if (selectedStage?.n === stage?.n) {
+      setSelectedStage(null);
+    } else {
+      setSelectedStage(stage);
+      // Smoothly scroll down to the patient list
+      const el = document.getElementById('patients-directory-table');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
   };
 
   const [patientForm, setPatientForm] = useState({
@@ -345,27 +318,27 @@ export default function ClinicPatients() {
     if (!selectedStage) return patients;
     const sN = selectedStage.n;
     if (sN === 5) {
-      // Book / Appointments
-      return patients.filter((p) => Number(p.appointments || 0) > 0 || (p.pipeline_stage || '').toLowerCase().includes('new patient') || (p.pipeline_stage || '').toLowerCase().includes('patient'));
+      // Stage 5: Book — All patients with booked appointments & Cal.com visits
+      return patients.filter((p) => Number(p.appointments || 0) > 0 || (p.pipeline_stage || '').toLowerCase().includes('patient'));
     }
     if (sN === 6) {
-      // Consult and convert
-      return patients.filter((p) => (p.pipeline_stage || '').toLowerCase().includes('consult') || (p.pipeline_stage || '').toLowerCase().includes('follow'));
+      // Stage 6: Consult and convert — Patients with consultation records or booked visits
+      return patients.filter((p) => Number(p.appointments || 0) > 0 || (p.pipeline_stage || '').toLowerCase().includes('consult') || (p.pipeline_stage || '').toLowerCase().includes('patient'));
     }
     if (sN === 7) {
-      // Treat / Packages
-      return patients.filter((p) => Number(p.packages || 0) > 0 || (p.pipeline_stage || '').toLowerCase().includes('active'));
+      // Stage 7: Treat and complete — Active patients under care
+      return patients.filter((p) => (p.pipeline_stage || '').toLowerCase().includes('active') || Number(p.packages || 0) > 0);
+    }
+    if (sN === 8) {
+      // Stage 8: Delight and review — Patients completed treatment
+      return patients.filter((p) => Number(p.appointments || 0) >= 1);
     }
     if (sN === 9 || sN === 10) {
-      // Retain / Repeat visits
+      // Stage 9 & 10: Retain & Refer — Repeat visits / multi-session patients
       return patients.filter((p) => Number(p.appointments || 0) > 1 || Number(p.packages || 0) > 1);
     }
-    const kw = selectedStage.filterKeywords || [];
-    const matched = patients.filter((p) => {
-      const txt = `${p.first_name} ${p.last_name} ${p.pipeline_stage || ''} ${p.status || ''} ${p.company || ''}`.toLowerCase();
-      return kw.some((k) => txt.includes(k.toLowerCase()));
-    });
-    return matched;
+    // Stages 1 to 4: Discover, Engage, Capture, Qualify
+    return patients;
   }, [patients, selectedStage]);
 
   const totals = useMemo(() => ({
@@ -381,247 +354,211 @@ export default function ClinicPatients() {
   };
 
   return (
-    <div className="clinic-os">
-      {/* ── TOP VIEW SWITCHER & ACTIONS ─────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 14 }}>
-        <div className="aura-view-switcher">
-          <button
-            type="button"
-            className={`aura-view-btn ${viewMode === 'journey' ? 'active' : ''}`}
-            onClick={switchToJourney}
-          >
-            <Compass size={16} /> Patient Journey
-            <span className="aura-view-badge">10 Stages</span>
-          </button>
-          <button
-            type="button"
-            className={`aura-view-btn ${viewMode === 'list' ? 'active' : ''}`}
-            onClick={() => switchToList(true)}
-          >
-            <Users size={16} /> Patient Directory
-            <span className="aura-view-badge">{totals.count}</span>
-          </button>
-        </div>
+    <div className="clinic-os" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* ── TOP SECTION: PATIENT JOURNEY 10 STAGES (REAL LIVE DATA) ── */}
+      <PatientJourneySection
+        selectedStage={selectedStage?.n}
+        onSelectStage={handleSelectStage}
+        onViewPatientList={() => {
+          setSelectedStage(null);
+          const el = document.getElementById('patients-directory-table');
+          if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+        totalPatients={totals.count}
+      />
 
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          {viewMode === 'list' ? (
-            <>
-              {selectedStage && (
-                <button
-                  type="button"
-                  className="co-btn co-btn-sm"
-                  onClick={() => setSelectedStage(null)}
-                >
-                  <X size={13} /> View all patients ({totals.count})
-                </button>
-              )}
-              <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
-                <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
-              </button>
+      {/* ── DIRECTLY BELOW: PATIENTS DIRECTORY TABLE ──────────────── */}
+      <div id="patients-directory-table" style={{ paddingTop: 8, borderTop: '1px solid #EDF2F1' }}>
+        {/* Stage Filter Banner (shows when a stage is clicked) */}
+        {selectedStage && (
+          <div className="aura-stage-banner">
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <span className="pj-num">{selectedStage.n}</span>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <h3 style={{ margin: 0, font: '600 18px Poppins, Inter, sans-serif', color: '#172326' }}>
+                    Stage {selectedStage.n}: {selectedStage.name}
+                  </h3>
+                  <span className={`pj-badge ${selectedStage.ok ? 'on-target' : 'below-target'}`}>
+                    {selectedStage.measure}: {selectedStage.value} (Target {selectedStage.target})
+                  </span>
+                  <span
+                    style={{
+                      background: '#FDF3F8',
+                      color: '#A4285E',
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: 999,
+                      border: '1px solid #F3D9E5',
+                    }}
+                  >
+                    {displayPatients.length} patient{displayPatients.length === 1 ? '' : 's'} matching
+                  </span>
+                </div>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#5F6B6D' }}>
+                  {selectedStage.does}
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
               <button
                 type="button"
-                className="co-btn co-btn-primary co-btn-sm"
-                onClick={() => setAddPatientOpen(true)}
+                className="co-btn co-btn-sm"
+                onClick={() => setSelectedStage(null)}
+                style={{ background: '#fff', borderColor: '#F3D9E5', color: '#A4285E' }}
               >
-                <Plus size={14} /> Add patient
+                <X size={13} /> View All Patients ({totals.count})
               </button>
-            </>
-          ) : (
+            </div>
+          </div>
+        )}
+
+        {/* Directory Head */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h2 style={{ margin: 0, font: '600 22px/1.2 Poppins, Inter, sans-serif', color: '#172326' }}>
+                {selectedStage ? `Stage ${selectedStage.n} Patient Records` : 'Clinical Patients Directory'}
+              </h2>
+              {selectedStage && (
+                <span
+                  style={{
+                    background: '#FDF3F8',
+                    color: '#A4285E',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: '2px 8px',
+                    borderRadius: 999,
+                    border: '1px solid #F3D9E5',
+                  }}
+                >
+                  Filtered: {selectedStage.name}
+                </span>
+              )}
+            </div>
+            <p style={{ margin: '4px 0 0', fontSize: 13, color: '#5F6B6D' }}>
+              Individual medical &amp; cosmetic consultation records, package sessions, and clinical history
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {selectedStage && (
+              <button
+                type="button"
+                className="co-btn co-btn-sm"
+                onClick={() => setSelectedStage(null)}
+              >
+                <X size={13} /> View all ({totals.count})
+              </button>
+            )}
+            <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
+            </button>
             <button
               type="button"
               className="co-btn co-btn-primary co-btn-sm"
-              onClick={() => switchToList(true)}
+              onClick={() => setAddPatientOpen(true)}
             >
-              <Users size={14} /> View Whole Patient List ({totals.count}) →
+              <Plus size={14} /> Add patient
             </button>
-          )}
+          </div>
         </div>
-      </div>
 
-      {/* ── VIEW 1: PATIENT JOURNEY (10 STAGES + TARGETS + DEEP DIVES) ── */}
-      {viewMode === 'journey' && (
-        <PatientJourneySection
-          selectedStage={selectedStage?.n}
-          onSelectStage={handleSelectStage}
-          onViewPatientList={() => switchToList(true)}
-          totalPatients={totals.count}
-        />
-      )}
+        {/* KPIs Summary */}
+        <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 16 }}>
+          <Kpi label="Patients" value={selectedStage ? displayPatients.length : totals.count} foot={selectedStage ? `Filtered to Stage ${selectedStage.n}` : 'Registered clinic patients'} icon={Users} />
+          <Kpi label="Consultations & visits" value={totals.visits} foot="Cal.com & clinic bookings" icon={CalendarDays} />
+          <Kpi label="Treatment packages" value={money(totals.value)} foot="Active patient care plans" icon={IndianRupee} />
+        </div>
 
-      {/* ── VIEW 2: PATIENT DIRECTORY (FILTERED BY STAGE OR WHOLE LIST) ─ */}
-      {viewMode === 'list' && (
-        <div>
-          {/* Stage Filter Banner */}
-          {selectedStage && (
-            <div className="aura-stage-banner">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <span className="pj-num">{selectedStage.n}</span>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <h3 style={{ margin: 0, font: '600 18px Poppins, Inter, sans-serif', color: '#172326' }}>
-                      Stage {selectedStage.n}: {selectedStage.name}
-                    </h3>
-                    <span className={`pj-badge ${selectedStage.ok ? 'on-target' : 'below-target'}`}>
-                      {selectedStage.measure}: {selectedStage.value} (Target {selectedStage.target})
-                    </span>
-                    <span
-                      style={{
-                        background: '#FDF3F8',
-                        color: '#A4285E',
-                        fontSize: 12,
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: 999,
-                        border: '1px solid #F3D9E5',
-                      }}
-                    >
-                      {displayPatients.length} patient{displayPatients.length === 1 ? '' : 's'} matching
-                    </span>
-                  </div>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#5F6B6D' }}>
-                    {selectedStage.does}
-                  </p>
-                </div>
+        <Card rise="co-rise-2">
+          <form
+            className="co-row"
+            style={{ marginBottom: 12 }}
+            onSubmit={(e) => { e.preventDefault(); setTerm(search.trim()); }}
+          >
+            <div style={{ position: 'relative', flex: 1 }}>
+              <Search size={14} style={{ position: 'absolute', left: 12, top: 12, color: '#9CA3AF' }} />
+              <input
+                className="co-input"
+                style={{ paddingLeft: 34 }}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, phone or email…"
+                aria-label="Search patients"
+              />
+            </div>
+            <button type="submit" className="co-btn co-btn-primary co-btn-sm">Search</button>
+            {term ? <button type="button" className="co-btn co-btn-sm" onClick={() => { setSearch(''); setTerm(''); }}>Clear</button> : null}
+          </form>
+
+          {isError ? (
+            <EmptyState title="Could not load patients"><p className="co-sm co-mut">{error?.message}</p></EmptyState>
+          ) : isLoading ? (
+            <Spinner label="Loading patients…" />
+          ) : displayPatients.length === 0 ? (
+            <EmptyState title={term ? 'No matching patients' : selectedStage ? `No patients currently in Stage ${selectedStage.n} (${selectedStage.name})` : 'No patients yet'}>
+              <p className="co-sm co-mut" style={{ marginTop: 6 }}>
+                {term
+                  ? 'Try a different name, phone or email.'
+                  : selectedStage
+                  ? `Clear the filter to view all ${totals.count} registered clinic patients.`
+                  : 'No clinic patients registered yet. Add a patient or sync from Cal.com bookings.'}
+              </p>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
+                {selectedStage ? (
+                  <button
+                    type="button"
+                    className="co-btn co-btn-primary co-btn-sm"
+                    onClick={() => setSelectedStage(null)}
+                  >
+                    <X size={13} /> View all patients ({totals.count})
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="co-btn co-btn-primary co-btn-sm"
+                    onClick={() => setAddPatientOpen(true)}
+                  >
+                    <Plus size={13} /> Add your first patient
+                  </button>
+                )}
               </div>
-
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button
-                  type="button"
-                  className="co-btn co-btn-sm"
-                  onClick={switchToJourney}
-                  style={{ background: '#fff', borderColor: '#F3D9E5', color: '#A4285E' }}
-                >
-                  <ArrowLeft size={13} /> Back to Patient Journey
-                </button>
-                <button
-                  type="button"
-                  className="co-btn co-btn-sm"
-                  onClick={() => setSelectedStage(null)}
-                >
-                  <X size={13} /> View All Patients ({totals.count})
-                </button>
-              </div>
+            </EmptyState>
+          ) : (
+            <div className="co-table-wrap">
+              <table className="co-table">
+                <thead>
+                  <tr><th>Patient</th><th>Phone</th><th>Care Stage</th><th>Visits</th><th>Last visit</th><th>Packages</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {displayPatients.map((p) => (
+                    <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setOpenId(p.id)}>
+                      <td>
+                        <div className="co-row">
+                          <Avatar first={p.first_name} last={p.last_name} />
+                          <div style={{ minWidth: 0 }}>
+                            <div className="co-strong">{fullName(p)}</div>
+                            <div className="co-xs co-mut">{p.email || 'No email'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{p.phone || '—'}</td>
+                      <td><span className="co-chip co-c-p">{p.pipeline_stage || 'Active Patient'}</span></td>
+                      <td className="co-strong">{p.appointments || 0}</td>
+                      <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>{p.last_visit ? dateLabel(p.last_visit) : '—'}</td>
+                      <td>{p.packages ? `${p.packages} · ${money(p.package_value)}` : '—'}</td>
+                      <td><span className="co-btn co-btn-sm co-btn-ghost">Open <ArrowUpRight size={12} /></span></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
-
-          {/* If viewing whole list, show directory heading & KPIs */}
-          {!selectedStage && (
-            <>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                <div>
-                  <h2 style={{ margin: 0, font: '600 22px/1.2 Poppins, Inter, sans-serif', color: '#172326' }}>
-                    Clinical Patients Directory
-                  </h2>
-                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#5F6B6D' }}>
-                    Individual medical &amp; cosmetic consultation records, package sessions, and clinical history
-                  </p>
-                </div>
-              </div>
-
-              <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', marginBottom: 16 }}>
-                <Kpi label="Patients" value={totals.count} foot="Registered clinic patients" icon={Users} />
-                <Kpi label="Consultations & visits" value={totals.visits} foot="Cal.com & clinic bookings" icon={CalendarDays} />
-                <Kpi label="Treatment packages" value={money(totals.value)} foot="Active patient care plans" icon={IndianRupee} />
-              </div>
-            </>
-          )}
-
-          <Card rise="co-rise-2">
-            <form
-              className="co-row"
-              style={{ marginBottom: 12 }}
-              onSubmit={(e) => { e.preventDefault(); setTerm(search.trim()); }}
-            >
-              <div style={{ position: 'relative', flex: 1 }}>
-                <Search size={14} style={{ position: 'absolute', left: 12, top: 12, color: '#9CA3AF' }} />
-                <input
-                  className="co-input"
-                  style={{ paddingLeft: 34 }}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name, phone or email…"
-                  aria-label="Search patients"
-                />
-              </div>
-              <button type="submit" className="co-btn co-btn-primary co-btn-sm">Search</button>
-              {term ? <button type="button" className="co-btn co-btn-sm" onClick={() => { setSearch(''); setTerm(''); }}>Clear</button> : null}
-            </form>
-
-            {isError ? (
-              <EmptyState title="Could not load patients"><p className="co-sm co-mut">{error?.message}</p></EmptyState>
-            ) : isLoading ? (
-              <Spinner label="Loading patients…" />
-            ) : displayPatients.length === 0 ? (
-              <EmptyState title={term ? 'No matching patients' : selectedStage ? `No patients currently in Stage ${selectedStage.n} (${selectedStage.name})` : 'No patients yet'}>
-                <p className="co-sm co-mut" style={{ marginTop: 6 }}>
-                  {term
-                    ? 'Try a different name, phone or email.'
-                    : selectedStage
-                    ? 'Clear the stage filter above to view all registered clinic patients, or switch back to the journey view.'
-                    : 'No clinic patients registered yet. Add a patient or sync from Cal.com bookings.'}
-                </p>
-                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
-                  {selectedStage ? (
-                    <>
-                      <button
-                        type="button"
-                        className="co-btn co-btn-sm"
-                        onClick={switchToJourney}
-                      >
-                        <ArrowLeft size={13} /> Back to Patient Journey
-                      </button>
-                      <button
-                        type="button"
-                        className="co-btn co-btn-primary co-btn-sm"
-                        onClick={() => setSelectedStage(null)}
-                      >
-                        <X size={13} /> View all patients ({totals.count})
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      className="co-btn co-btn-primary co-btn-sm"
-                      onClick={() => setAddPatientOpen(true)}
-                    >
-                      <Plus size={13} /> Add your first patient
-                    </button>
-                  )}
-                </div>
-              </EmptyState>
-            ) : (
-              <div className="co-table-wrap">
-                <table className="co-table">
-                  <thead>
-                    <tr><th>Patient</th><th>Phone</th><th>Care Stage</th><th>Visits</th><th>Last visit</th><th>Packages</th><th></th></tr>
-                  </thead>
-                  <tbody>
-                    {displayPatients.map((p) => (
-                      <tr key={p.id} style={{ cursor: 'pointer' }} onClick={() => setOpenId(p.id)}>
-                        <td>
-                          <div className="co-row">
-                            <Avatar first={p.first_name} last={p.last_name} />
-                            <div style={{ minWidth: 0 }}>
-                              <div className="co-strong">{fullName(p)}</div>
-                              <div className="co-xs co-mut">{p.email || 'No email'}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{p.phone || '—'}</td>
-                        <td><span className="co-chip co-c-p">{p.pipeline_stage || 'Active Patient'}</span></td>
-                        <td className="co-strong">{p.appointments || 0}</td>
-                        <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>{p.last_visit ? dateLabel(p.last_visit) : '—'}</td>
-                        <td>{p.packages ? `${p.packages} · ${money(p.package_value)}` : '—'}</td>
-                        <td><span className="co-btn co-btn-sm co-btn-ghost">Open <ArrowUpRight size={12} /></span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-        </div>
-      )}
+        </Card>
+      </div>
 
       {openId ? <PatientDrawer id={openId} onClose={() => setOpenId(null)} /> : null}
 

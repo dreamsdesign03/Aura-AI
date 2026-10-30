@@ -20,6 +20,7 @@ async function request(path, options = {}) {
 
 export const clinicApi = {
   overview: (date) => request(`/overview${date ? `?date=${encodeURIComponent(date)}` : ''}`),
+  journeyStats: () => request('/journey-stats'),
   appointments: (from, to, all = false) => request(`/appointments?${all ? 'all=true' : `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}`),
   syncAppointments: () => request('/appointments/sync', { method: 'POST' }),
   createAppointment: (body) => request('/appointments', { method: 'POST', body: JSON.stringify(body) }),

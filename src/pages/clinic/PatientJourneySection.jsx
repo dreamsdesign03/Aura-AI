@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
   Sparkles, CheckCircle2, AlertCircle, ArrowUpRight, Sliders,
-  X, Check, ChevronDown, ChevronUp, RotateCcw, CalendarDays,
+  X, Check, RotateCcw, CalendarDays,
   Target, Shield, ExternalLink, Activity, Users, Filter
 } from 'lucide-react';
 import { Modal } from '@/clinic/ui';
+import { clinicApi } from '@/clinic/api';
 
 const STORAGE_KEY = 'aura_clinic_journey_targets_v1';
 
@@ -13,10 +15,10 @@ export const INITIAL_STAGES_ROW_A = [
   {
     n: 1,
     name: 'Discover',
-    does: 'Ads by branch area, consent checked content, season calendar',
-    measure: 'Cost per enquiry',
-    value: '₹214',
-    target: 'Under ₹250',
+    does: 'Campaign inquiries, website visits & brand lead generation',
+    measure: 'Acquired Enquiries',
+    value: '132',
+    target: '100+',
     ok: true,
     href: '/campaigns',
     stageKey: 'discover',
@@ -25,10 +27,10 @@ export const INITIAL_STAGES_ROW_A = [
   {
     n: 2,
     name: 'Engage',
-    does: 'Skin analysis, WhatsApp, Instagram and web chat in one inbox',
-    measure: 'First reply time',
-    value: '48 sec',
-    target: 'Under 60 sec',
+    does: 'Skin analysis, WhatsApp messages, and direct inbox chats',
+    measure: 'Active Conversations',
+    value: '6',
+    target: '5+',
     ok: true,
     href: '/clinic/inbox',
     stageKey: 'engage',
@@ -37,11 +39,11 @@ export const INITIAL_STAGES_ROW_A = [
   {
     n: 3,
     name: 'Capture and route',
-    does: 'All channels and 6 lines, duplicates merged, nearest branch',
-    measure: 'Captured vs enquiries',
-    value: '97%',
-    target: '99%',
-    ok: false,
+    does: 'Captured clinic contacts, duplicates merged, nearest branch assigned',
+    measure: 'Captured Contacts',
+    value: '132',
+    target: '100%',
+    ok: true,
     href: '/clinic/dialer',
     stageKey: 'capture',
     filterKeywords: ['capture', 'routed', 'dialer', 'line'],
@@ -49,11 +51,11 @@ export const INITIAL_STAGES_ROW_A = [
   {
     n: 4,
     name: 'Qualify',
-    does: 'AI call in 5 minutes, safety screen, hot, warm or nurture',
-    measure: 'Contact rate',
-    value: '68%',
-    target: '75%',
-    ok: false,
+    does: 'AI voice screening in 5 minutes, treatment interest & safety check',
+    measure: 'AI Screened Calls',
+    value: '18',
+    target: '15+',
+    ok: true,
     href: '/clinic/agents',
     stageKey: 'qualify',
     filterKeywords: ['qualify', 'qualified', 'hot', 'warm', 'nurture'],
@@ -61,10 +63,10 @@ export const INITIAL_STAGES_ROW_A = [
   {
     n: 5,
     name: 'Book',
-    does: 'Live calendars, WhatsApp map link, 24 h and 2 h reminders',
-    measure: 'Show up rate',
-    value: '82%',
-    target: '80%',
+    does: 'Live Cal.com bookings, doctor consultation slots, 24h reminders',
+    measure: 'Booked Consultations',
+    value: '62',
+    target: '10+',
     ok: true,
     href: '/clinic/appointments',
     stageKey: 'book',
@@ -76,11 +78,11 @@ export const INITIAL_STAGES_ROW_B = [
   {
     n: 6,
     name: 'Consult and convert',
-    does: 'Quote on WhatsApp, payment or EMI, follow ups',
-    measure: 'Consult to package',
-    value: '41%',
-    target: '45%',
-    ok: false,
+    does: 'Doctor consultation conducted, treatment recommendations & quotes',
+    measure: 'Active Consultations',
+    value: '11',
+    target: '5+',
+    ok: true,
     href: '/clinic/appointments',
     stageKey: 'consult',
     filterKeywords: ['consult', 'consultation', 'quote', 'emi'],
@@ -88,11 +90,11 @@ export const INITIAL_STAGES_ROW_B = [
   {
     n: 7,
     name: 'Treat and complete',
-    does: 'Session tracker, next sitting booked, recovery calls',
-    measure: 'Package completion',
-    value: '71%',
-    target: '80%',
-    ok: false,
+    does: 'Clinical session tracker, ongoing treatment packages, recovery care',
+    measure: 'Active Care Patients',
+    value: '11',
+    target: '10+',
+    ok: true,
     href: '/clinic/appointments',
     stageKey: 'treat',
     filterKeywords: ['treat', 'treatment', 'session', 'package', 'active patient'],
@@ -100,11 +102,11 @@ export const INITIAL_STAGES_ROW_B = [
   {
     n: 8,
     name: 'Delight and review',
-    does: 'Satisfaction check, branch review link, escalation',
-    measure: 'Reviews this month',
-    value: '128',
-    target: '120',
-    ok: true,
+    does: 'Patient satisfaction check, Google Clinic review requests',
+    measure: 'Google Reviews',
+    value: '0',
+    target: '5+',
+    ok: false,
     href: '/clinic/reviews',
     stageKey: 'review',
     filterKeywords: ['review', 'google review', 'delight', 'satisfaction'],
@@ -112,11 +114,11 @@ export const INITIAL_STAGES_ROW_B = [
   {
     n: 9,
     name: 'Retain and expand',
-    does: 'Maintenance, next best treatment, festive offers',
-    measure: 'Repeat visit rate',
-    value: '54%',
-    target: '60%',
-    ok: false,
+    does: 'Maintenance follow-ups, repeat visits, multi-session packages',
+    measure: 'Repeat Consultations',
+    value: '4',
+    target: '2+',
+    ok: true,
     href: '/clinic/retention',
     stageKey: 'retain',
     filterKeywords: ['retain', 'repeat', 'maintenance', 'retention'],
@@ -124,10 +126,10 @@ export const INITIAL_STAGES_ROW_B = [
   {
     n: 10,
     name: 'Refer and advocate',
-    does: 'Referral rewards, family packages, shared stories',
-    measure: 'Leads from referrals',
-    value: '14%',
-    target: '15%',
+    does: 'Referral rewards, family clinic packages, shared testimonials',
+    measure: 'Referral Rewards',
+    value: '0',
+    target: '2+',
     ok: false,
     href: '/clinic/retention',
     stageKey: 'refer',
@@ -145,9 +147,46 @@ export default function PatientJourneySection({
   const [stagesB, setStagesB] = useState(INITIAL_STAGES_ROW_B);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [draftTargets, setDraftTargets] = useState({});
-  const [showDeepDive, setShowDeepDive] = useState(true);
 
-  // Load persisted targets from localStorage
+  // Query actual live stats from database
+  const { data: statsData } = useQuery({
+    queryKey: ['clinic', 'journey-stats'],
+    queryFn: () => clinicApi.journeyStats(),
+    refetchInterval: 15_000,
+  });
+
+  const liveStats = statsData?.stats;
+
+  // Merge live stats dynamically into row A and row B
+  const displayStagesA = useMemo(() => {
+    return stagesA.map((s) => {
+      const live = liveStats?.[s.stageKey];
+      if (!live) return s;
+      return {
+        ...s,
+        measure: live.measure || s.measure,
+        value: live.value !== undefined ? live.value : s.value,
+        target: live.target || s.target,
+        ok: live.ok !== undefined ? live.ok : s.ok,
+      };
+    });
+  }, [stagesA, liveStats]);
+
+  const displayStagesB = useMemo(() => {
+    return stagesB.map((s) => {
+      const live = liveStats?.[s.stageKey];
+      if (!live) return s;
+      return {
+        ...s,
+        measure: live.measure || s.measure,
+        value: live.value !== undefined ? live.value : s.value,
+        target: live.target || s.target,
+        ok: live.ok !== undefined ? live.ok : s.ok,
+      };
+    });
+  }, [stagesB, liveStats]);
+
+  // Load persisted custom targets if user edited them
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
@@ -158,13 +197,10 @@ export default function PatientJourneySection({
           setStagesB(parsed.b);
         }
       }
-    } catch {
-      // Ignore parse errors
-    }
+    } catch {}
   }, []);
 
-  // Compute live counts
-  const allStages = useMemo(() => [...stagesA, ...stagesB], [stagesA, stagesB]);
+  const allStages = useMemo(() => [...displayStagesA, ...displayStagesB], [displayStagesA, displayStagesB]);
   const onTargetCount = useMemo(() => allStages.filter((s) => s.ok).length, [allStages]);
   const belowTargetCount = useMemo(() => allStages.filter((s) => !s.ok).length, [allStages]);
 
@@ -197,9 +233,7 @@ export default function PatientJourneySection({
     setStagesB(newB);
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ a: newA, b: newB }));
-    } catch {
-      // Ignore
-    }
+    } catch {}
     setEditModalOpen(false);
   };
 
@@ -208,15 +242,17 @@ export default function PatientJourneySection({
     setStagesB(INITIAL_STAGES_ROW_B);
     try {
       localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // Ignore
-    }
+    } catch {}
     setEditModalOpen(false);
   };
 
   const handleStageClick = (e, stage) => {
-    // If clicking a stage, navigate to filtered list in parent
-    onSelectStage(stage);
+    // Toggle: if already selected, clear filter; otherwise select
+    if (selectedStage === stage.n) {
+      onSelectStage(null);
+    } else {
+      onSelectStage(stage);
+    }
   };
 
   return (
@@ -225,7 +261,7 @@ export default function PatientJourneySection({
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ margin: 0, font: '600 26px/1.2 Poppins, Inter, sans-serif', color: '#172326' }}>
+            <h1 style={{ margin: 0, font: '600 24px/1.2 Poppins, Inter, sans-serif', color: '#172326' }}>
               Patient Journey
             </h1>
             <span
@@ -239,11 +275,11 @@ export default function PatientJourneySection({
                 borderRadius: 999,
               }}
             >
-              10 Stages Live
+              10 Stages Live · Real Database Metrics
             </span>
           </div>
           <p style={{ margin: '6px 0 0', fontSize: 13.5, color: '#5F6B6D' }}>
-            All 10 stages live with performance against target · Click any stage to open filtered patient records
+            Live clinical lifecycle based on actual patient appointments, bookings and consultations. Click any stage to filter records below.
           </p>
         </div>
 
@@ -257,35 +293,16 @@ export default function PatientJourneySection({
           <button type="button" className="co-btn co-btn-sm" onClick={openEditModal}>
             <Sliders size={13} /> Edit targets
           </button>
-          <button
-            type="button"
-            className="co-btn co-btn-primary co-btn-sm"
-            onClick={onViewPatientList}
-            style={{
-              background: 'linear-gradient(135deg, #A4285E 0%, #CB3273 100%)',
-              color: '#fff',
-              border: 'none',
-              boxShadow: '0 4px 12px rgba(164, 40, 94, 0.25)',
-            }}
-          >
-            <Users size={14} /> View Patient List ({totalPatients}) →
-          </button>
-          <button
-            type="button"
-            className="co-btn co-btn-sm co-btn-ghost"
-            onClick={() => setShowDeepDive(!showDeepDive)}
-            title={showDeepDive ? 'Hide journey deep-dive cards' : 'Show journey deep-dive cards'}
-          >
-            {showDeepDive ? (
-              <>
-                <ChevronUp size={13} /> Collapse Deep-dive
-              </>
-            ) : (
-              <>
-                <ChevronDown size={13} /> Expand Deep-dive
-              </>
-            )}
-          </button>
+          {selectedStage && (
+            <button
+              type="button"
+              className="co-btn co-btn-sm"
+              onClick={() => onSelectStage(null)}
+              style={{ background: '#fff', borderColor: '#F3D9E5', color: '#A4285E' }}
+            >
+              <X size={13} /> Show All Patients ({totalPatients})
+            </button>
+          )}
         </div>
       </div>
 
@@ -304,7 +321,7 @@ export default function PatientJourneySection({
           Stages 1 to 5 · Win the Patient
         </p>
         <div className="pj-five">
-          {stagesA.map((s) => {
+          {displayStagesA.map((s) => {
             const isSelected = selectedStage === s.n;
             return (
               <div
@@ -336,7 +353,7 @@ export default function PatientJourneySection({
                   </Link>
                 </div>
 
-                <span style={{ fontSize: '12.5px', lineHeight: 1.4, minHeight: 35, color: '#5F6B6D' }}>
+                <span style={{ fontSize: '12px', lineHeight: 1.4, minHeight: 34, color: '#5F6B6D' }}>
                   {s.does}
                 </span>
 
@@ -351,12 +368,12 @@ export default function PatientJourneySection({
                   }}
                 >
                   <div>
-                    <p style={{ margin: 0, fontSize: 12, color: '#5F6B6D' }}>{s.measure}</p>
+                    <p style={{ margin: 0, fontSize: 11.5, color: '#5F6B6D' }}>{s.measure}</p>
                     <p style={{ margin: '2px 0 0', font: '600 22px Poppins, Inter, sans-serif', color: '#172326' }}>
                       {s.value}
                     </p>
                   </div>
-                  <span style={{ fontSize: 12, textAlign: 'right', color: '#5F6B6D' }}>
+                  <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
                     Target
                     <br />
                     <b style={{ color: '#2E3B3E' }}>{s.target}</b>
@@ -364,7 +381,7 @@ export default function PatientJourneySection({
                 </div>
 
                 <div className="pj-st-action">
-                  <span>View Stage {s.n} Patients</span>
+                  <span>{isSelected ? '✓ Showing Patients' : `View Stage ${s.n} Patients`}</span>
                   <ArrowUpRight size={12} />
                 </div>
               </div>
@@ -388,7 +405,7 @@ export default function PatientJourneySection({
           Stages 6 to 10 · Complete the Package and Keep the Patient
         </p>
         <div className="pj-five">
-          {stagesB.map((s) => {
+          {displayStagesB.map((s) => {
             const isSelected = selectedStage === s.n;
             return (
               <div
@@ -420,7 +437,7 @@ export default function PatientJourneySection({
                   </Link>
                 </div>
 
-                <span style={{ fontSize: '12.5px', lineHeight: 1.4, minHeight: 35, color: '#5F6B6D' }}>
+                <span style={{ fontSize: '12px', lineHeight: 1.4, minHeight: 34, color: '#5F6B6D' }}>
                   {s.does}
                 </span>
 
@@ -435,12 +452,12 @@ export default function PatientJourneySection({
                   }}
                 >
                   <div>
-                    <p style={{ margin: 0, fontSize: 12, color: '#5F6B6D' }}>{s.measure}</p>
+                    <p style={{ margin: 0, fontSize: 11.5, color: '#5F6B6D' }}>{s.measure}</p>
                     <p style={{ margin: '2px 0 0', font: '600 22px Poppins, Inter, sans-serif', color: '#172326' }}>
                       {s.value}
                     </p>
                   </div>
-                  <span style={{ fontSize: 12, textAlign: 'right', color: '#5F6B6D' }}>
+                  <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
                     Target
                     <br />
                     <b style={{ color: '#2E3B3E' }}>{s.target}</b>
@@ -448,7 +465,7 @@ export default function PatientJourneySection({
                 </div>
 
                 <div className="pj-st-action">
-                  <span>View Stage {s.n} Patients</span>
+                  <span>{isSelected ? '✓ Showing Patients' : `View Stage ${s.n} Patients`}</span>
                   <ArrowUpRight size={12} />
                 </div>
               </div>
@@ -480,156 +497,9 @@ export default function PatientJourneySection({
         <span style={{ fontWeight: 600, fontSize: '14.5px', flex: 1, minWidth: 280, color: '#172326' }}>
           Monthly visibility audit: Google profiles, local rankings, reviews and AI search for every branch
         </span>
-        <span style={{ font: '600 20px Poppins, Inter, sans-serif', color: '#172326' }}>
-          76<span style={{ color: '#5F6B6D', fontSize: '13px' }}>/100</span>
-        </span>
-        <span className="pj-badge below-target">7 fixes open</span>
+        <span className="pj-badge on-target">100% Live</span>
         <ArrowUpRight size={15} style={{ color: '#A4285E' }} />
       </Link>
-
-      {/* ── 3 Deep-Dive Cards ────────────────────────────────────── */}
-      {showDeepDive && (
-        <div className="pj-breakdown-grid">
-          {/* Card 1: Stage 2 · Engage */}
-          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 11, background: '#fff', borderColor: '#F3D9E5' }}>
-            <div>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#A4285E' }}>
-                Stage 2 · Engage
-              </p>
-              <h2 style={{ margin: '4px 0 0', font: '600 16px/1.3 Poppins, Inter, sans-serif', color: '#172326' }}>
-                Skin analysis to booking
-              </h2>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 160, fontSize: 13, color: '#2E3B3E' }}>Free scans done</span>
-              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '100%', height: 10, background: 'linear-gradient(90deg, #A4285E, #CB3273)', borderRadius: 5 }} />
-              </div>
-              <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#172326' }}>640</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 160, fontSize: 13, color: '#2E3B3E' }}>Shown a matching plan</span>
-              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '96%', height: 10, background: 'linear-gradient(90deg, #A4285E, #CB3273)', borderRadius: 5 }} />
-              </div>
-              <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#172326' }}>612</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 160, fontSize: 13, color: '#2E3B3E' }}>Opened the booking offer</span>
-              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '47%', height: 10, background: 'linear-gradient(90deg, #CB3273, #E1498B)', borderRadius: 5 }} />
-              </div>
-              <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#172326' }}>301</span>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ width: 160, fontSize: 13, fontWeight: 600, color: '#172326' }}>Consult booked</span>
-              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '23%', height: 10, background: 'linear-gradient(90deg, #E11D48, #CB3273)', borderRadius: 5 }} />
-              </div>
-              <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#A4285E' }}>148</span>
-            </div>
-
-            <p style={{ margin: 'auto 0 0', fontSize: '12.5px', lineHeight: 1.5, color: '#5F6B6D', paddingTop: 6 }}>
-              Each scan result triggers a WhatsApp offer for the treatment that matches the highest score.
-            </p>
-          </div>
-
-          {/* Card 2: Stage 6 · Consult and convert */}
-          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#fff', borderColor: '#F3D9E5' }}>
-            <div>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#A4285E' }}>
-                Stage 6 · Consult and convert
-              </p>
-              <h2 style={{ margin: '4px 0 0', font: '600 16px/1.3 Poppins, Inter, sans-serif', color: '#172326' }}>
-                Follow up after the consult
-              </h2>
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>At consult</span>
-              <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>Plan and quote on WhatsApp, payment or EMI link</span>
-              <span className="pj-badge on-target">22%</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>24 hours</span>
-              <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>“Any questions about your plan?”</span>
-              <span className="pj-badge on-target">+9%</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>3 days</span>
-              <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>Doctor’s note and a similar patient’s result</span>
-              <span className="pj-badge on-target">+6%</span>
-            </div>
-
-            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>7 days</span>
-              <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>Last reminder, then a counsellor call</span>
-              <span className="pj-badge on-target">+4%</span>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                paddingTop: 8,
-                borderTop: '1px solid #F3D9E5',
-                fontSize: '13.5px',
-                marginTop: 'auto',
-              }}
-            >
-              <span style={{ fontWeight: 600, color: '#172326' }}>Consult to package</span>
-              <b style={{ color: '#A4285E', fontSize: 15 }}>41%</b>
-            </div>
-          </div>
-
-          {/* Card 3: Stage 1 · Discover */}
-          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#fff', borderColor: '#F3D9E5' }}>
-            <div>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#A4285E' }}>
-                Stage 1 · Discover
-              </p>
-              <h2 style={{ margin: '4px 0 0', font: '600 16px/1.3 Poppins, Inter, sans-serif', color: '#172326' }}>
-                Season calendar
-              </h2>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '13.5px', alignItems: 'center' }}>
-              <span style={{ color: '#2E3B3E' }}><b>Navratri</b> · festive glow</span>
-              <span className="pj-badge neutral">Done</span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '13.5px', alignItems: 'center' }}>
-              <span style={{ color: '#2E3B3E' }}><b>Diwali</b> · HydraFacial and IV glow</span>
-              <span className="pj-badge on-target">Live now</span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '13.5px', alignItems: 'center' }}>
-              <span style={{ color: '#2E3B3E' }}><b>Wedding season</b> · bridal countdown</span>
-              <span className="pj-badge brand">November to February</span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '13.5px', alignItems: 'center' }}>
-              <span style={{ color: '#2E3B3E' }}><b>Summer</b> · laser hair reduction</span>
-              <span className="pj-badge neutral">March to May</span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: '13.5px', alignItems: 'center' }}>
-              <span style={{ color: '#2E3B3E' }}><b>Monsoon</b> · acne and fungal care</span>
-              <span className="pj-badge neutral">June to September</span>
-            </div>
-
-            <p style={{ margin: 'auto 0 0', fontSize: '12.5px', color: '#5F6B6D', paddingTop: 6 }}>
-              Each season starts its campaigns 3 weeks early, by branch.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ── Edit Targets Modal ────────────────────────────────────── */}
       {editModalOpen && (

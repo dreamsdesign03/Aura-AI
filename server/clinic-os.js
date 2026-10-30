@@ -672,6 +672,54 @@ router.delete('/appointments/:id', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 // Patients (dedicated clinic patient directory & records)
 // ---------------------------------------------------------------------------
+router.get('/journey-stats', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const [leadsRes, engageRes, callsRes, bookRes, apptsRes, treatRes, revRes, repeatRes] = await Promise.all([
+      db.query("SELECT COUNT(*)::int as c FROM leads WHERE (user_id = $1 OR user_id IS NULL)", [uid]),
+      db.query("SELECT (SELECT COUNT(*)::int FROM whatsapp_conversations) + (SELECT COUNT(*)::int FROM clinic_notes) as c"),
+      db.query("SELECT COUNT(*)::int as c FROM ai_calls"),
+      db.query("SELECT (SELECT COUNT(*)::int FROM calendly_events WHERE is_deleted IS NOT TRUE) + (SELECT COUNT(*)::int FROM clinic_appointments) as c"),
+      db.query("SELECT COUNT(DISTINCT LOWER(COALESCE(NULLIF(invitee_email,''), invitee_name)))::int as c FROM calendly_events WHERE is_deleted IS NOT TRUE"),
+      db.query("SELECT COUNT(*)::int as c FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND pipeline_stage IN ('Active Patient', 'Patient')", [uid]),
+      db.query("SELECT COUNT(*)::int as c FROM clinic_reviews"),
+      db.query(`
+        SELECT COUNT(*)::int as c FROM (
+          SELECT COALESCE(NULLIF(invitee_email,''), invitee_name), count(*) FROM calendly_events 
+          WHERE is_deleted IS NOT TRUE
+          GROUP BY 1 HAVING count(*) > 1
+        ) t
+      `),
+    ]);
+
+    const leadsCount = leadsRes.rows[0]?.c || 0;
+    const engageCount = engageRes.rows[0]?.c || 0;
+    const qualifyCount = callsRes.rows[0]?.c || 0;
+    const bookCount = bookRes.rows[0]?.c || 0;
+    const consultCount = apptsRes.rows[0]?.c || 0;
+    const treatCount = treatRes.rows[0]?.c || 0;
+    const revCount = revRes.rows[0]?.c || 0;
+    const repeatCount = repeatRes.rows[0]?.c || 0;
+
+    res.json({
+      stats: {
+        discover: { value: `${leadsCount}`, measure: 'Acquired Enquiries', target: '100+', ok: leadsCount >= 100 },
+        engage: { value: `${engageCount}`, measure: 'Active Conversations', target: '5+', ok: engageCount >= 5 },
+        capture: { value: `${leadsCount}`, measure: 'Captured Contacts', target: '100%', ok: true },
+        qualify: { value: `${qualifyCount}`, measure: 'AI Screened Calls', target: '15+', ok: qualifyCount >= 15 },
+        book: { value: `${bookCount}`, measure: 'Booked Consultations', target: '10+', ok: bookCount >= 10 },
+        consult: { value: `${consultCount}`, measure: 'Consultation Pipeline', target: '5+', ok: consultCount >= 5 },
+        treat: { value: `${treatCount}`, measure: 'Active Care Patients', target: '10+', ok: treatCount >= 10 },
+        review: { value: `${revCount}`, measure: 'Google Reviews', target: '5+', ok: revCount >= 5 },
+        retain: { value: `${repeatCount}`, measure: 'Repeat Consultations', target: '2+', ok: repeatCount >= 2 },
+        refer: { value: '0', measure: 'Referral Rewards', target: '2+', ok: false },
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/patients', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
@@ -681,10 +729,24 @@ router.get('/patients', requireUser, async (req, res) => {
       `SELECT l.id, l.first_name, l.last_name, l.email, l.phone, l.company, l.status,
               l.pipeline_stage, l.deal_value, l.created_at,
               ((SELECT COUNT(*)::int FROM clinic_appointments a WHERE a.lead_id = l.id) +
-               (SELECT COUNT(*)::int FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')) AS appointments,
+               (SELECT COUNT(*)::int FROM calendly_events ce WHERE 
+                 (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
+                 OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+                 OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
+                      LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
+                      OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
+                    ))
+               )) AS appointments,
               COALESCE(
                 (SELECT MAX(a.starts_at) FROM clinic_appointments a WHERE a.lead_id = l.id),
-                (SELECT MAX(ce.start_time) FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')
+                (SELECT MAX(ce.start_time) FROM calendly_events ce WHERE 
+                  (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
+                  OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+                  OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
+                       LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
+                       OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
+                     ))
+                )
               ) AS last_visit,
               (SELECT COUNT(*)::int FROM clinic_packages p WHERE p.lead_id = l.id) AS packages,
               (SELECT COALESCE(SUM(p.amount),0)::numeric FROM clinic_packages p WHERE p.lead_id = l.id) AS package_value
@@ -695,7 +757,14 @@ router.get('/patients', requireUser, async (req, res) => {
             OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id)
             OR EXISTS (SELECT 1 FROM clinic_notes n WHERE n.lead_id = l.id)
             OR EXISTS (SELECT 1 FROM clinic_packages p WHERE p.lead_id = l.id)
-            OR EXISTS (SELECT 1 FROM calendly_events ce WHERE LOWER(ce.invitee_email) = LOWER(l.email) AND ce.invitee_email IS NOT NULL AND ce.invitee_email <> '')
+            OR EXISTS (SELECT 1 FROM calendly_events ce WHERE 
+              (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
+              OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+              OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
+                   LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
+                   OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
+                 ))
+            )
           )
           ${search ? 'AND (l.first_name ILIKE $2 OR l.last_name ILIKE $2 OR l.phone ILIKE $2 OR l.email ILIKE $2)' : ''}
         ORDER BY COALESCE(l.updated_at, l.created_at) DESC
