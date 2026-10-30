@@ -26,6 +26,11 @@ function sanitizeApiKey(raw) {
   return value;
 }
 
+function getSarvamApiKey() {
+  const k = process.env.SARVAM_SAMVAAD_API_KEY || process.env.SARVAM_API_KEY || '';
+  return sanitizeApiKey(k);
+}
+
 // Trim, strip control characters and quotes, collapse whitespace.
 function cleanDisplayName(raw) {
   if (raw == null) return '';
@@ -87,16 +92,17 @@ function extractErrorMessage(data, res) {
 }
 
 async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
-  const missing = REQUIRED_ENV.filter(name => !process.env[name]);
+  const missing = REQUIRED_ENV.filter(name => {
+    if (name === 'SARVAM_API_KEY') {
+      return !process.env.SARVAM_SAMVAAD_API_KEY && !process.env.SARVAM_API_KEY;
+    }
+    return !process.env[name];
+  });
   if (missing.length > 0) {
     throw new Error('Missing required Sarvam configuration: ' + missing.join(', '));
   }
 
-  const rawKey = process.env.SARVAM_API_KEY == null ? '' : String(process.env.SARVAM_API_KEY);
-  const apiKey = sanitizeApiKey(rawKey);
-  if (apiKey.length !== rawKey.length) {
-    console.log('[Sarvam] key sanitization changed length: ' + rawKey.length + ' -> ' + apiKey.length);
-  }
+  const apiKey = getSarvamApiKey();
   console.log('[Sarvam] key present: ' + (apiKey ? 'yes' : 'no') + ', length ' + apiKey.length);
 
   const url = `https://apps.sarvam.ai/api/outbounds/v1/orgs/${process.env.SARVAM_ORG_ID}/workspaces/${process.env.SARVAM_WORKSPACE_ID}/outbounds`;
@@ -230,14 +236,19 @@ function campaignEnabled() {
 }
 
 function requireSarvamEnv(names) {
-  const missing = names.filter(n => !process.env[n]);
+  const missing = names.filter(n => {
+    if (n === 'SARVAM_API_KEY') {
+      return !process.env.SARVAM_SAMVAAD_API_KEY && !process.env.SARVAM_API_KEY;
+    }
+    return !process.env[n];
+  });
   if (missing.length) throw new Error('Missing required Sarvam configuration: ' + missing.join(', '));
 }
 
 async function sarvamJson(method, url, body) {
   const res = await fetch(url, {
     method,
-    headers: { 'X-API-Key': sanitizeApiKey(process.env.SARVAM_API_KEY), 'Content-Type': 'application/json' },
+    headers: { 'X-API-Key': getSarvamApiKey(), 'Content-Type': 'application/json' },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   const data = await res.json().catch(() => null);
@@ -484,7 +495,7 @@ async function fetchSarvamTranscript(interactionId) {
 async function fetchSarvamRecording(interactionId) {
   if (!validInteractionId(interactionId)) throw new Error('Invalid interaction_id');
   const res = await fetch(analyticsUrl('recordings', interactionId), {
-    headers: { 'X-API-Key': sanitizeApiKey(process.env.SARVAM_API_KEY) }
+    headers: { 'X-API-Key': getSarvamApiKey() }
   });
   if (!res.ok) {
     const err = new Error('Recording not available (' + res.status + ')');

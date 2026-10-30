@@ -210,12 +210,12 @@ async function syncBulkCallsToAiCalls() {
             lead_id, conversation_id, call_sid, to_phone, from_phone,
             lead_name, company_name, status, booking_type, duration_secs,
             transcript_summary, recording_url, sentiment, outcome, provider,
-            direction, started_at, created_at, updated_at
+            direction, transcript, started_at, created_at, updated_at
           ) VALUES (
             $1, $2, $3, $4, $5,
             $6, $7, $8, 'bulk_campaign', $9,
             $10, $11, $12, $13, 'sarvam',
-            $14, COALESCE($15, NOW()), NOW(), NOW()
+            $14, $15, COALESCE($16, NOW()), NOW(), NOW()
           )
         `, [
           a.bc_lead_id || null,
@@ -232,7 +232,13 @@ async function syncBulkCallsToAiCalls() {
           a.sentiment || 'Neutral',
           a.outcome || 'booked',
           direction,
+          a.transcript ? (typeof a.transcript === 'string' ? a.transcript : JSON.stringify(a.transcript)) : null,
           a.started_at
+        ]);
+      } else if (!existing.rows[0].transcript && a.transcript) {
+        await db.query('UPDATE ai_calls SET transcript = $1 WHERE id = $2', [
+          typeof a.transcript === 'string' ? a.transcript : JSON.stringify(a.transcript),
+          existing.rows[0].id
         ]);
       }
     }
@@ -2228,7 +2234,24 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
       [req.params.id, req.user.id]
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
-    res.json({ call: r.rows[0] });
+    const call = r.rows[0];
+
+    // Auto-fetch and cache Sarvam transcript if not already cached
+    if (call.provider === 'sarvam' && (!call.transcript || call.transcript.length === 0) && call.conversation_id) {
+      try {
+        const { fetchSarvamTranscript } = require('./sarvam');
+        const msgs = await fetchSarvamTranscript(call.conversation_id);
+        if (msgs && msgs.length > 0) {
+          call.transcript = msgs;
+          await db.query('UPDATE ai_calls SET transcript = $1 WHERE id = $2', [JSON.stringify(msgs), call.id]);
+          await db.query('UPDATE bulk_attempts SET transcript = $1 WHERE interaction_id = $2', [JSON.stringify(msgs), call.conversation_id]).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('[Call Review] Could not fetch live Sarvam transcript:', err.message);
+      }
+    }
+
+    res.json({ call });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -39,6 +39,26 @@ function stripHtml(html) {
     .trim();
 }
 
+function renderTranscriptContent(rawTranscript) {
+  if (!rawTranscript) return 'Transcript recorded.';
+  let turns = rawTranscript;
+  if (typeof turns === 'string') {
+    try {
+      turns = JSON.parse(turns);
+    } catch {
+      return turns;
+    }
+  }
+  if (Array.isArray(turns)) {
+    return turns.map((t) => {
+      const speaker = t.speaker || (t.role === 'agent' || t.role === 'assistant' ? 'AI Coordinator' : 'Patient');
+      const text = t.text || t.message || t.content || '';
+      return `${speaker}: ${text}`;
+    }).filter(Boolean).join('\n\n');
+  }
+  return String(rawTranscript);
+}
+
 function ThreadRow({ thread, isSelected, onClick }) {
   const config = CHANNEL_CONFIG[thread.type] || CHANNEL_CONFIG.whatsapp;
   const Icon = config.icon;
@@ -502,7 +522,7 @@ function ThreadDrawer({ thread, onClose }) {
                       fontFamily: 'monospace',
                     }}
                   >
-                    {detail?.transcript || 'Transcript recorded.'}
+                    {renderTranscriptContent(detail?.transcript)}
                   </div>
                 </div>
               </div>
