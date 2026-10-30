@@ -6,7 +6,7 @@ import {
   RefreshCw, CalendarDays, PhoneCall, Phone, PhoneIncoming, PhoneOutgoing,
   Sparkles, Filter, Search, X, CheckCircle2, User, FileText, CheckCheck, MessageSquare
 } from 'lucide-react';
-import { clinicApi, dateLabel, timeLabel, fullName } from '@/clinic/api';
+import { clinicApi, dateLabel, timeLabel, datetimeLabel, fullName } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner } from '@/clinic/ui';
 
 function formatDuration(sec) {
