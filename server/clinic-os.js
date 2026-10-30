@@ -2162,7 +2162,8 @@ router.get('/call-review', requireUser, async (req, res) => {
              COALESCE(ac.to_phone, l.phone, '—') AS display_phone,
              COALESCE(ac.company_name, l.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
              COALESCE(ac.provider, 'plivo') AS provider,
-             COALESCE(ac.direction, 'outbound') AS direction
+             COALESCE(ac.direction, 'outbound') AS direction,
+             jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count
         FROM ai_calls ac
         LEFT JOIN leads l ON l.id = ac.lead_id
        WHERE (l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)
@@ -2251,7 +2252,28 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
       }
     }
 
-    res.json({ call });
+    // Fetch related/other calls for the same patient or phone number
+    let relatedCalls = [];
+    if (call.to_phone || call.lead_id) {
+      const cleanPhone = (call.to_phone || '').replace(/[^\d]/g, '');
+      const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+      const relRes = await db.query(
+        `SELECT ac.id, ac.provider, ac.direction, ac.duration_secs, ac.started_at, ac.status, 
+                ac.booking_type, ac.recording_url, ac.transcript_summary,
+                jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count
+           FROM ai_calls ac
+          WHERE ac.id != $1 
+            AND (
+              (ac.lead_id IS NOT NULL AND ac.lead_id = $2)
+              OR (ac.to_phone IS NOT NULL AND (ac.to_phone = $3 OR ac.to_phone LIKE $4))
+            )
+          ORDER BY ac.started_at DESC LIMIT 6`,
+        [call.id, call.lead_id || -1, call.to_phone || '', `%${last10}%`]
+      );
+      relatedCalls = relRes.rows;
+    }
+
+    res.json({ call, related_calls: relatedCalls });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

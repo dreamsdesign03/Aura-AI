@@ -347,15 +347,18 @@ export default function ClinicDialer() {
     };
     const label = typeLabels[conversationType] || 'Clinical Consultation';
 
-    const fullTranscript = [
-      { speaker: 'AI', text: `Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ketki, your AI clinical coordinator.` },
-      { speaker: 'Patient', text: `Hello! Yes, I was inquiring regarding ${label.toLowerCase()}.` },
-      { speaker: 'AI', text: `Certainly! Our team will ensure you receive personalized care. I have updated your consultation notes for ${docObj?.name || 'the clinical team'} at ${branchObj?.name || 'Alkapuri Main'}.` },
-      { speaker: 'Patient', text: 'Thank you so much, that sounds wonderful.' },
-      { speaker: 'AI', text: 'You are most welcome! Have a wonderful day ahead.' }
-    ];
+    const isMockMode = telephonyEngine === 'mock';
+    const fullTranscript = isMockMode ? [
+      { speaker: 'AI', text: `[Simulation] Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ketki, your AI clinical coordinator.` },
+      { speaker: 'Patient', text: `[Simulation] Hello! Yes, I was inquiring regarding ${label.toLowerCase()}.` },
+      { speaker: 'AI', text: `[Simulation] Certainly! Our team will ensure you receive personalized care. I have updated your consultation notes for ${docObj?.name || 'the clinical team'} at ${branchObj?.name || 'Alkapuri Main'}.` },
+      { speaker: 'Patient', text: '[Simulation] Thank you so much, that sounds wonderful.' },
+      { speaker: 'AI', text: '[Simulation] You are most welcome! Have a wonderful day ahead.' }
+    ] : [];
 
-    const summary = `Patient completed consultation call (${finalSeconds}s) regarding ${label.toLowerCase()}. Care assigned to ${docObj?.name || 'Clinic Team'} (${branchObj?.name || 'Alkapuri Main'}). Treatment notes recorded.`;
+    const summary = isMockMode
+      ? `[Simulation] Test call (${finalSeconds}s) regarding ${label.toLowerCase()}. Care assigned to ${docObj?.name || 'Clinic Team'} (${branchObj?.name || 'Alkapuri Main'}).`
+      : `Plivo direct telephony call (${finalSeconds}s) regarding ${label.toLowerCase()}. Care assigned to ${docObj?.name || 'Clinic Team'} (${branchObj?.name || 'Alkapuri Main'}). Direct manual voice call.`;
 
     if (activeCallId) {
       try {

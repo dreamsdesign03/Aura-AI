@@ -161,6 +161,26 @@ function ProviderBadge({ provider }) {
       </span>
     );
   }
+  if (p === 'twilio') {
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 4,
+          padding: '2px 8px',
+          borderRadius: 999,
+          fontSize: 10.5,
+          fontWeight: 600,
+          background: '#F8FAFC',
+          color: '#64748B',
+          border: '1px solid #E2E8F0',
+        }}
+      >
+        Twilio (Legacy)
+      </span>
+    );
+  }
   return (
     <span
       style={{
@@ -534,6 +554,18 @@ export default function ClinicCallReview({ id }) {
                             <div>
                               <div className="co-strong">{patientName}</div>
                               <div className="co-xs co-mut">{c.display_company || c.company || 'Aura Clinic'}</div>
+                              <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
+                                {Number(c.turn_count) > 0 && (
+                                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', padding: '1px 5px', borderRadius: 4, border: '1px solid #C7D2FE' }}>
+                                    {c.turn_count} turns
+                                  </span>
+                                )}
+                                {c.recording_url && (
+                                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#A4285E', background: '#FCE7F3', padding: '1px 5px', borderRadius: 4, border: '1px solid #FBCFE8', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                    <Volume2 size={9} /> Audio
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -570,11 +602,16 @@ export default function ClinicCallReview({ id }) {
                               </span>
                             )}
                             {c.recording_url && (
-                              <span style={{ color: '#A4285E', title: 'Recording available' }}>
+                              <span style={{ color: '#A4285E' }} title="Recording available">
                                 <Volume2 size={13} />
                               </span>
                             )}
                           </div>
+                          {c.transcript_summary && (
+                            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4, maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {c.transcript_summary}
+                            </div>
+                          )}
                         </td>
                         <td style={{ textAlign: 'right' }}>
                           <Link href={`/clinic/call-review/${c.id}`} className="co-btn co-btn-sm co-btn-primary">
@@ -622,10 +659,16 @@ export default function ClinicCallReview({ id }) {
   }
 
   const call = detailQuery.data?.call;
+  const relatedCalls = detailQuery.data?.related_calls || [];
   if (!call) return null;
 
   const turns = normalizeTranscriptTurns(call.transcript);
   const patientDisplayName = call.display_name || call.lead_name || fullName(call) || 'Patient';
+
+  // Check if there is an alternative Sarvam AI call for this patient with real turns or recording
+  const sarvamAlt = relatedCalls.find(
+    (c) => (c.provider || '').toLowerCase() === 'sarvam' && (Number(c.turn_count) > 0 || c.recording_url)
+  );
 
   return (
     <div className="clinic-os">
@@ -637,6 +680,54 @@ export default function ClinicCallReview({ id }) {
           <ChevronLeft size={13} /> Back to Calls
         </Link>
       </PageHead>
+
+      {/* Prominent banner if viewing a dialer test / simulation while a full Sarvam AI conversation exists */}
+      {sarvamAlt && (call.provider || '').toLowerCase() !== 'sarvam' && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
+            border: '1.5px solid #818CF8',
+            borderRadius: 12,
+            padding: '14px 18px',
+            marginBottom: 16,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 16,
+            boxShadow: '0 4px 12px rgba(99, 102, 241, 0.08)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ background: '#4F46E5', color: '#fff', padding: 8, borderRadius: 10 }}>
+              <Sparkles size={20} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: '#1E1B4B' }}>
+                Looking for the Real AI Consultation with {patientDisplayName}?
+              </div>
+              <div style={{ fontSize: 12, color: '#4338CA', marginTop: 2 }}>
+                This record is a {formatDuration(call.duration_secs)} {call.provider === 'mock' ? 'simulation' : 'manual dialer call'}. {patientDisplayName} has a complete <strong>Sarvam AI consultation</strong> ({formatDuration(sarvamAlt.duration_secs)}{sarvamAlt.turn_count > 0 ? `, ${sarvamAlt.turn_count} turns` : ''}) with full Hindi/English audio playback recorded on {datetimeLabel(sarvamAlt.started_at)}.
+              </div>
+            </div>
+          </div>
+          <Link
+            href={`/clinic/call-review/${sarvamAlt.id}`}
+            className="co-btn co-btn-primary"
+            style={{
+              background: '#4F46E5',
+              borderColor: '#4338CA',
+              whiteSpace: 'nowrap',
+              padding: '8px 16px',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <Sparkles size={14} /> View Sarvam AI Call ({sarvamAlt.turn_count} turns) <ArrowUpRight size={14} />
+          </Link>
+        </div>
+      )}
 
       <div className="co-split">
         <div className="co-grid" style={{ flex: 1 }}>
@@ -690,7 +781,22 @@ export default function ClinicCallReview({ id }) {
           {/* Audio Recording */}
           <Card>
             <CardHead title="Audio Recording Playback" />
-            <AudioPlayer src={call.recording_url} />
+            {call.recording_url ? (
+              <AudioPlayer src={call.recording_url} />
+            ) : (
+              <div style={{ padding: '12px 14px', background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0', marginTop: 4 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Volume2 size={14} /> Audio recording unavailable for this transaction
+                </div>
+                <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 4 }}>
+                  {(call.provider || '').toLowerCase() === 'plivo'
+                    ? 'This was a direct telephony call placed via Plivo carrier. Real-time recording was not enabled on this outbound session.'
+                    : (call.provider || '').toLowerCase() === 'mock'
+                    ? 'This was a simulated test call executed in the browser dialer.'
+                    : 'Audio media file not attached to this telephony session.'}
+                </div>
+              </div>
+            )}
           </Card>
 
           {/* AI Clinical Summary */}
@@ -707,7 +813,7 @@ export default function ClinicCallReview({ id }) {
 
           {/* Conversation Dialogue Transcript */}
           <Card>
-            <CardHead title="Full Conversation Transcript" hint={`${turns.length} message turn${turns.length === 1 ? '' : 's'}`} />
+            <CardHead title="Full Conversation Transcript" hint={turns.length > 0 ? `${turns.length} message turn${turns.length === 1 ? '' : 's'}` : 'No turns'} />
             {turns.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
                 {turns.map((t) => {
@@ -740,8 +846,14 @@ export default function ClinicCallReview({ id }) {
                 })}
               </div>
             ) : (
-              <div className="co-empty" style={{ padding: 20 }}>
-                <p className="co-sm co-mut">Transcript recorded without structured turns.</p>
+              <div style={{ padding: '24px 16px', textAlign: 'center', background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0', marginTop: 8 }}>
+                <MessageSquare size={24} style={{ color: '#94A3B8', margin: '0 auto 8px' }} />
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>No AI Transcript for this Call</div>
+                <p className="co-sm co-mut" style={{ maxWidth: 440, margin: '4px auto 0' }}>
+                  {(call.provider || '').toLowerCase() === 'plivo'
+                    ? 'This was a direct outbound dialer call between clinic staff and the patient. AI conversational transcription is active on Sarvam AI voice calls.'
+                    : 'No automated transcript stream was logged for this session.'}
+                </p>
               </div>
             )}
           </Card>
@@ -749,6 +861,41 @@ export default function ClinicCallReview({ id }) {
 
         {/* Sidebar Actions */}
         <div style={{ width: 320, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Related Calls for this patient */}
+          {relatedCalls.length > 0 && (
+            <Card>
+              <CardHead title="Patient Call History" hint={`${relatedCalls.length + 1} sessions`} />
+              <div className="co-list">
+                {relatedCalls.map((rc) => (
+                  <Link
+                    key={rc.id}
+                    href={`/clinic/call-review/${rc.id}`}
+                    className="co-list-item"
+                    style={{ textDecoration: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px' }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {(rc.provider || '').toLowerCase() === 'sarvam' ? (
+                        <Sparkles size={14} style={{ color: '#4F46E5' }} />
+                      ) : (
+                        <PhoneCall size={14} style={{ color: '#0284C7' }} />
+                      )}
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: '#1E293B' }}>
+                          {(rc.provider || '').toLowerCase() === 'sarvam' ? 'Sarvam AI Call' : (rc.provider || '').toLowerCase() === 'mock' ? 'Simulation' : 'Plivo Call'} · {formatDuration(rc.duration_secs)}
+                        </div>
+                        <div style={{ fontSize: 10.5, color: '#64748B' }}>
+                          {rc.started_at ? datetimeLabel(rc.started_at) : '—'}
+                          {Number(rc.turn_count) > 0 ? ` · ${rc.turn_count} turns` : ''}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowUpRight size={13} style={{ color: '#94A3B8' }} />
+                  </Link>
+                ))}
+              </div>
+            </Card>
+          )}
+
           <Card>
             <CardHead title="Patient Actions" />
             <div className="co-list">
