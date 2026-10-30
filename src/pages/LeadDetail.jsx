@@ -8,7 +8,7 @@ import { StatusBadge, Tag } from "@/components/Badge";
 import { formatDate, formatRelative } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
-import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Globe as Linkedin, Phone, Mail, Building2, MapPin, MessageCircle, Pencil, X, Check, Loader2, Sparkles, CalendarPlus, CalendarDays, Download, UserCheck, Send, FileText, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Globe as Linkedin, Phone, Mail, Building2, MapPin, MessageCircle, Pencil, X, Check, Loader2, Sparkles, CalendarPlus, CalendarDays, Download, UserCheck, Send, FileText, CheckCircle2, HeartPulse } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { NewMeetingModal, downloadICS } from "@/components/NewMeetingModal";
@@ -136,6 +136,30 @@ export default function LeadDetail() {
             console.error(e);
         } finally {
             setGenLoading(false);
+        }
+    };
+    const handleConvertToPatient = async () => {
+        if (!confirm(`Convert ${leadFullName} into a registered clinic patient? This contact will move to the Patients directory.`)) return;
+        try {
+            const res = await fetch(`/api/leads/${id}/convert-to-patient`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ stage: "Stage 1: Discover" }),
+            });
+            if (!res.ok) throw new Error("Conversion failed");
+            qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+            qc.invalidateQueries({ queryKey: ["clinic"] });
+            toast({
+                title: "Converted to Patient!",
+                description: `${leadFullName} has been moved to Clinic Patients directory.`,
+            });
+            navigate("/clinic/patients");
+        } catch (err) {
+            toast({
+                title: "Conversion failed",
+                description: err.message,
+                variant: "destructive",
+            });
         }
     };
     const { toast } = useToast();
@@ -568,6 +592,10 @@ export default function LeadDetail() {
           <div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
             <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-3">Quick Actions</div>
             <div className="space-y-2">
+              <button onClick={handleConvertToPatient} className="w-full text-xs py-2 px-3 rounded-lg border border-pink-200 bg-pink-50 text-pink-700 font-semibold hover:bg-pink-100 text-left flex items-center justify-between transition-all">
+                <span>🏥 Convert to Clinic Patient</span>
+                <HeartPulse className="w-3.5 h-3.5 text-pink-600"/>
+              </button>
               <button onClick={handleGenerateAiOutreach} className="w-full text-xs py-2 px-3 rounded-lg border border-purple-200 bg-purple-50 text-purple-700 font-semibold hover:bg-purple-100 text-left flex items-center justify-between transition-all">
                 <span>⚡ Generate AI Outreach Email</span>
                 <Sparkles className="w-3.5 h-3.5 text-purple-600"/>

@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/Badge";
 import { formatDate, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
-import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing, List, KanbanSquare } from "lucide-react";
+import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing, List, KanbanSquare, HeartPulse } from "lucide-react";
 import { PipelineBoard } from "./Pipeline";
 import FetchLeads from "./FetchLeads";
 import { AiBanner } from "@/components/AiLoader";
@@ -1524,9 +1524,33 @@ export default function Leads() {
                     <td className="px-3 py-2 text-gray-400 text-[11px]">{formatDate(lead.createdAt)}</td>
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (!confirm(`Convert ${leadNameStr} to a registered clinic patient?`)) return;
+                            try {
+                              const res = await fetch(`/api/leads/${lead.id}/convert-to-patient`, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ stage: 'Stage 1: Discover' })
+                              });
+                              if (res.ok) {
+                                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+                                qc.invalidateQueries({ queryKey: ['clinic'] });
+                                toast({ title: 'Converted to Patient', description: `${leadNameStr} moved to Clinic Patients directory.` });
+                              }
+                            } catch (err) {
+                              toast({ title: 'Conversion failed', description: err.message, variant: 'destructive' });
+                            }
+                          }}
+                          title="Convert to Clinic Patient"
+                          className="p-1 rounded hover:bg-pink-50 text-gray-400 hover:text-pink-600 transition-colors"
+                        >
+                          <HeartPulse className="w-3.5 h-3.5"/>
+                        </button>
                         <button onClick={() => navigate(`/leads/${lead.id}`)} title="Open"><ExternalLink className="w-3.5 h-3.5 text-gray-300 hover:text-gray-700"/></button>
                         <button onClick={() => { if (confirm("Delete this lead?"))
-                deleteLead.mutate({ id: lead.id }); }}>
+                deleteLead.mutate({ id: lead.id }); }} title="Delete lead">
                           <Trash2 className="w-3.5 h-3.5 text-gray-300 hover:text-red-500"/>
                         </button>
                       </div>

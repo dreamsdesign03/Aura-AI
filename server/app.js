@@ -1267,12 +1267,22 @@ app.get('/api/stats', async (req, res) => {
     let userFilter = '';
     let userParams = [];
 
+    const patientExclusion = `(
+      (pipeline_stage NOT IN ('Active Patient', 'Patient', 'New Patient', 'Consultation', 'Treatment Plan', 'In Treatment', 'Active Care', 'Completed') OR pipeline_stage IS NULL)
+      AND (designation IS NULL OR designation NOT ILIKE '%patient%')
+      AND (source IS NULL OR source NOT IN ('Clinic OS', 'Cal.com Booking'))
+    )`;
+
     if (email) {
       const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
       if (userRes.rows.length > 0) {
-        userFilter = 'WHERE user_id = $1';
+        userFilter = `WHERE user_id = $1 AND ${patientExclusion}`;
         userParams = [userRes.rows[0].id];
       }
+    }
+
+    if (!userFilter) {
+      userFilter = `WHERE ${patientExclusion}`;
     }
 
     const totalLeadsRes = await db.query(`SELECT COUNT(*) FROM leads ${userFilter}`, userParams);
@@ -1329,6 +1339,13 @@ app.get('/api/leads', async (req, res) => {
     if (stage) {
       queryParams.push(stage);
       whereClauses.push(`pipeline_stage = $${queryParams.length}`);
+    } else {
+      // Exclude clinical patients from general sales leads
+      whereClauses.push(`(
+        (pipeline_stage NOT IN ('Active Patient', 'Patient', 'New Patient', 'Consultation', 'Treatment Plan', 'In Treatment', 'Active Care', 'Completed') OR pipeline_stage IS NULL)
+        AND (designation IS NULL OR designation NOT ILIKE '%patient%')
+        AND (source IS NULL OR source NOT IN ('Clinic OS', 'Cal.com Booking'))
+      )`);
     }
 
     const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
@@ -1617,11 +1634,54 @@ app.patch('/api/leads/:id', async (req, res) => {
   }
 });
 
+// Helper for cascading deletion of leads and relations
+async function deleteLeadAndRelations(leadId) {
+  // Mark matching calendly events as deleted so syncCalcomBookings won't re-create them
+  const pRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+  if (pRes.rows.length > 0) {
+    const p = pRes.rows[0];
+    if (p.email && p.email.trim()) {
+      await db.query("UPDATE calendly_events SET is_deleted = true, status = 'canceled' WHERE LOWER(invitee_email) = LOWER($1)", [p.email.trim()]).catch(() => {});
+    }
+    if (p.phone && p.phone.trim()) {
+      const cleanPhone = p.phone.replace(/[^0-9]/g, '');
+      if (cleanPhone.length >= 10) {
+        await db.query("UPDATE calendly_events SET is_deleted = true, status = 'canceled' WHERE questions->>'Phone / WhatsApp' LIKE '%' || $1", [cleanPhone.slice(-10)]).catch(() => {});
+      }
+    }
+    if (p.first_name && p.last_name) {
+      await db.query("UPDATE calendly_events SET is_deleted = true, status = 'canceled' WHERE LOWER(invitee_name) ILIKE $1", [`%${p.first_name.trim()}%${p.last_name.trim()}%`]).catch(() => {});
+    }
+  }
+
+  // Delete relations in child tables
+  await db.query('DELETE FROM clinic_notes WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM clinic_appointments WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM clinic_packages WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM clinic_waitlist WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM appointments WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM ai_calls WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM touchpoints WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM meetings WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM proposals WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM lead_audits WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM audit_runs WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM outreach_emails WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM whatsapp_conversations WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM lead_brain_memory WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM agent_activities WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM agent_activity_log WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM lead_list_items WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM play_leads WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM hubspot_inbox_threads WHERE lead_id = $1', [leadId]).catch(() => {});
+  await db.query('DELETE FROM leads WHERE id = $1', [leadId]);
+}
+
 // Delete Lead
 app.delete('/api/leads/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM leads WHERE id = $1', [id]);
+    await deleteLeadAndRelations(id);
     res.json({ message: 'Lead deleted successfully', id });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -1633,8 +1693,44 @@ app.post('/api/leads/delete', async (req, res) => {
   try {
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: 'Lead ID is required' });
-    await db.query('DELETE FROM leads WHERE id = $1', [id]);
+    await deleteLeadAndRelations(id);
     res.json({ message: 'Lead deleted successfully', id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/leads/:id/convert-to-patient — Convert sales lead to clinic patient
+app.post(['/api/leads/:id/convert-to-patient', '/api/leads/convert-to-patient'], async (req, res) => {
+  try {
+    const leadId = req.params.id || req.body.id;
+    const { stage = 'Stage 1: Discover' } = req.body || {};
+    if (!leadId) return res.status(400).json({ error: 'Lead ID is required' });
+
+    const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+    if (leadRes.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
+    const lead = leadRes.rows[0];
+
+    await db.query(`
+      UPDATE leads
+      SET pipeline_stage = 'Active Patient',
+          designation = 'Patient',
+          source = COALESCE(source, 'Clinic OS'),
+          status = 'Active',
+          updated_at = NOW()
+      WHERE id = $1
+    `, [leadId]);
+
+    await db.query(`
+      INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+      VALUES ($1, $2, 'consult', 'Converted from Sales Lead', $3, NOW())
+    `, [
+      lead.user_id,
+      leadId,
+      `Lead "${[lead.first_name, lead.last_name].filter(Boolean).join(' ')}" was converted to an active Clinic Patient (${stage}).`
+    ]).catch(() => {});
+
+    res.json({ success: true, message: 'Lead converted to patient successfully', id: leadId });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -3,12 +3,56 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, RefreshCw, Plus, Phone, Mail, CalendarDays, IndianRupee,
   StickyNote, Package, PhoneCall, ArrowUpRight, Check, Clock, Users, MessageCircle,
-  Filter, X, Compass, ArrowLeft
+  Filter, X, Compass, ArrowLeft, Trash2
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi, Modal } from '@/clinic/ui';
 import PatientJourneySection from './PatientJourneySection';
+
+export const PATIENT_CARE_STAGES = [
+  { id: 1, key: 'discover', name: 'Stage 1: Discover', short: 'Enquiry', chipLabel: 'Stage 1 · Enquiry', color: '#6366F1', bg: '#EEF2FF', desc: 'New inquiry from ad, web, or social' },
+  { id: 2, key: 'engage', name: 'Stage 2: Engage', short: 'Engaged', chipLabel: 'Stage 2 · Engaged', color: '#0EA5E9', bg: '#F0F9FF', desc: 'Engaged on WhatsApp, web chat or skin scan' },
+  { id: 3, key: 'capture', name: 'Stage 3: Capture and route', short: 'Captured', chipLabel: 'Stage 3 · Captured', color: '#F59E0B', bg: '#FFFBEB', desc: 'Contact details verified & branch assigned' },
+  { id: 4, key: 'qualify', name: 'Stage 4: Qualify', short: 'Qualified', chipLabel: 'Stage 4 · Qualified', color: '#D97706', bg: '#FEF3C7', desc: 'Screened by AI / clinic coordinator' },
+  { id: 5, key: 'book', name: 'Stage 5: Book', short: 'Booked', chipLabel: 'Stage 5 · Booked Consult', color: '#10B981', bg: '#ECFDF5', desc: 'Consultation booked via Cal.com or clinic' },
+  { id: 6, key: 'consult', name: 'Stage 6: Consult and convert', short: 'Consulted', chipLabel: 'Stage 6 · Consulted', color: '#8B5CF6', bg: '#F5F3FF', desc: 'Doctor consultation completed & quote sent' },
+  { id: 7, key: 'treat', name: 'Stage 7: Treat and complete', short: 'In Treatment', chipLabel: 'Stage 7 · In Treatment', color: '#EC4899', bg: '#FDF2F8', desc: 'Active treatment sessions under Dr. Aditya' },
+  { id: 8, key: 'delight', name: 'Stage 8: Delight and review', short: 'Delight', chipLabel: 'Stage 8 · Delight & Review', color: '#14B8A6', bg: '#F0FDFA', desc: 'Treatment completed & review collected' },
+  { id: 9, key: 'retain', name: 'Stage 9: Retain and expand', short: 'Retained', chipLabel: 'Stage 9 · Retain & Expand', color: '#3B82F6', bg: '#EFF6FF', desc: 'Maintenance follow-ups & festive packages' },
+  { id: 10, key: 'refer', name: 'Stage 10: Refer and advocate', short: 'Advocate', chipLabel: 'Stage 10 · VIP & Referrals', color: '#A855F7', bg: '#FAF5FF', desc: 'Advocate sharing referrals and stories' },
+];
+
+export function getPatientCareStage(patient) {
+  if (!patient) return PATIENT_CARE_STAGES[0];
+  const stageStr = (patient.pipeline_stage || '').trim().toLowerCase();
+  
+  // 1. Direct match with stage number or key name
+  for (const s of PATIENT_CARE_STAGES) {
+    if (stageStr === s.name.toLowerCase() || stageStr.includes(s.key) || stageStr.startsWith(`stage ${s.id}`)) {
+      return s;
+    }
+  }
+
+  // 2. Intelligent clinical fallback:
+  if (Number(patient.packages || 0) > 0) {
+    return PATIENT_CARE_STAGES[6]; // Stage 7: Treat and complete
+  }
+  if (Number(patient.appointments || 0) > 0) {
+    return PATIENT_CARE_STAGES[4]; // Stage 5: Book
+  }
+  if (stageStr.includes('consult')) {
+    return PATIENT_CARE_STAGES[5]; // Stage 6: Consult and convert
+  }
+  if (stageStr.includes('engage')) {
+    return PATIENT_CARE_STAGES[1]; // Stage 2: Engage
+  }
+  if (stageStr.includes('qualif')) {
+    return PATIENT_CARE_STAGES[3]; // Stage 4: Qualify
+  }
+
+  return PATIENT_CARE_STAGES[4]; // Default to Stage 5: Book for active registered patients
+}
 
 function NoteForm({ leadId, onDone }) {
   const qc = useQueryClient();
@@ -99,7 +143,7 @@ function PackageForm({ leadId }) {
   );
 }
 
-function PatientDrawer({ id, onClose }) {
+function PatientDrawer({ id, onClose, onDeleteClick }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState('timeline');
   const { data, isLoading, isError, error } = useQuery({
@@ -112,20 +156,41 @@ function PatientDrawer({ id, onClose }) {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['clinic'] }),
   });
 
+  const updateStage = useMutation({
+    mutationFn: (stage) => clinicApi.updatePatientStage(id, stage),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+    },
+  });
+
   const p = data?.patient;
   const notes = data?.notes || [];
   const appts = data?.appointments || [];
   const packages = data?.packages || [];
   const calls = data?.calls || [];
+  const currentStage = p ? getPatientCareStage(p) : PATIENT_CARE_STAGES[0];
 
   return (
     <Drawer
       title={p ? fullName(p) : 'Patient'}
       subtitle={p ? [p.email, p.phone].filter(Boolean).join(' · ') : ''}
       onClose={onClose}
-      actions={p?.phone ? (
-        <a href={`tel:${p.phone}`} className="co-btn co-btn-sm co-icon-btn" aria-label="Call patient"><Phone size={14} /></a>
-      ) : null}
+      actions={
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {p?.phone ? (
+            <a href={`tel:${p.phone}`} className="co-btn co-btn-sm co-icon-btn" aria-label="Call patient"><Phone size={14} /></a>
+          ) : null}
+          <button
+            type="button"
+            className="co-btn co-btn-sm co-btn-ghost"
+            style={{ color: '#DC2626', borderColor: '#FCA5A5', background: '#FEF2F2' }}
+            onClick={() => p && onDeleteClick?.(p)}
+            title="Delete Patient"
+          >
+            <Trash2 size={13} /> Delete
+          </button>
+        </div>
+      }
     >
       {isLoading ? <Spinner label="Loading patient…" /> : isError ? (
         <EmptyState title="Could not load patient"><p className="co-sm co-mut">{error?.message}</p></EmptyState>
@@ -137,11 +202,41 @@ function PatientDrawer({ id, onClose }) {
               <div className="co-strong" style={{ fontSize: 15 }}>{fullName(p)}</div>
               <div className="co-xs co-mut">Aura Laser &amp; Cosmetic Clinic · Patient #{p.id}</div>
               <div className="co-row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-                <span className="co-chip co-c-p">{p.pipeline_stage || 'Active Patient'}</span>
+                <span
+                  className="co-chip"
+                  style={{
+                    background: currentStage.bg,
+                    color: currentStage.color,
+                    borderColor: currentStage.color + '40',
+                    fontWeight: 600,
+                    fontSize: 11,
+                  }}
+                >
+                  {currentStage.chipLabel}
+                </span>
                 <span className="co-chip co-c-n"><CalendarDays size={11} /> {appts.length} consultations / visits</span>
                 {packages.length > 0 ? <span className="co-chip co-c-n"><Package size={11} /> {packages.length} packages</span> : null}
               </div>
             </div>
+          </div>
+
+          {/* Care Stage selector */}
+          <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#F9FAFB', borderRadius: 8, border: '1px solid #E5E7EB' }}>
+            <span className="co-xs co-mut" style={{ fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>Care Stage:</span>
+            <select
+              value={currentStage.name}
+              onChange={(e) => updateStage.mutate(e.target.value)}
+              disabled={updateStage.isPending}
+              className="co-input"
+              style={{ padding: '4px 8px', fontSize: 12, fontWeight: 600, flex: 1, borderColor: '#D1D5DB' }}
+            >
+              {PATIENT_CARE_STAGES.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name} ({s.short})
+                </option>
+              ))}
+            </select>
+            {updateStage.isPending ? <RefreshCw size={12} className="animate-spin text-gray-400" /> : null}
           </div>
 
           <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
@@ -264,6 +359,7 @@ export default function ClinicPatients() {
   const [term, setTerm] = useState('');
   const [openId, setOpenId] = useState(null);
   const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [selectedStage, setSelectedStage] = useState(null);
 
   const handleSelectStage = (stage) => {
@@ -312,33 +408,27 @@ export default function ClinicPatients() {
     },
   });
 
+  const deletePatientMutation = useMutation({
+    mutationFn: (id) => clinicApi.deletePatient(id),
+    onSuccess: () => {
+      const deletedId = deleteConfirm?.id;
+      setDeleteConfirm(null);
+      if (openId === deletedId) setOpenId(null);
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      refetch();
+    },
+  });
+
   const patients = data?.patients || [];
 
   const displayPatients = useMemo(() => {
     if (!selectedStage) return patients;
     const sN = selectedStage.n;
-    if (sN === 5) {
-      // Stage 5: Book — All patients with booked appointments & Cal.com visits
-      return patients.filter((p) => Number(p.appointments || 0) > 0 || (p.pipeline_stage || '').toLowerCase().includes('patient'));
-    }
-    if (sN === 6) {
-      // Stage 6: Consult and convert — Patients with consultation records or booked visits
-      return patients.filter((p) => Number(p.appointments || 0) > 0 || (p.pipeline_stage || '').toLowerCase().includes('consult') || (p.pipeline_stage || '').toLowerCase().includes('patient'));
-    }
-    if (sN === 7) {
-      // Stage 7: Treat and complete — Active patients under care
-      return patients.filter((p) => (p.pipeline_stage || '').toLowerCase().includes('active') || Number(p.packages || 0) > 0);
-    }
-    if (sN === 8) {
-      // Stage 8: Delight and review — Patients completed treatment
-      return patients.filter((p) => Number(p.appointments || 0) >= 1);
-    }
-    if (sN === 9 || sN === 10) {
-      // Stage 9 & 10: Retain & Refer — Repeat visits / multi-session patients
-      return patients.filter((p) => Number(p.appointments || 0) > 1 || Number(p.packages || 0) > 1);
-    }
-    // Stages 1 to 4: Discover, Engage, Capture, Qualify
-    return patients;
+    return patients.filter((p) => {
+      const stage = getPatientCareStage(p);
+      return stage.id === sN;
+    });
   }, [patients, selectedStage]);
 
   const totals = useMemo(() => ({
@@ -546,11 +636,53 @@ export default function ClinicPatients() {
                         </div>
                       </td>
                       <td>{p.phone || '—'}</td>
-                      <td><span className="co-chip co-c-p">{p.pipeline_stage || 'Active Patient'}</span></td>
+                      <td>
+                        {(() => {
+                          const s = getPatientCareStage(p);
+                          return (
+                            <span
+                              className="co-chip"
+                              style={{
+                                background: s.bg,
+                                color: s.color,
+                                borderColor: s.color + '40',
+                                fontWeight: 600,
+                                fontSize: 11,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5
+                              }}
+                            >
+                              <span style={{ width: 6, height: 6, borderRadius: '50%', background: s.color }} />
+                              {s.chipLabel}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td className="co-strong">{p.appointments || 0}</td>
                       <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>{p.last_visit ? dateLabel(p.last_visit) : '—'}</td>
                       <td>{p.packages ? `${p.packages} · ${money(p.package_value)}` : '—'}</td>
-                      <td><span className="co-btn co-btn-sm co-btn-ghost">Open <ArrowUpRight size={12} /></span></td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                          <button
+                            type="button"
+                            className="co-btn co-btn-sm co-btn-ghost"
+                            onClick={() => setOpenId(p.id)}
+                            style={{ padding: '4px 8px' }}
+                          >
+                            Open <ArrowUpRight size={12} />
+                          </button>
+                          <button
+                            type="button"
+                            className="co-btn co-btn-sm co-btn-ghost"
+                            style={{ color: '#DC2626', padding: '4px 8px' }}
+                            onClick={() => setDeleteConfirm(p)}
+                            title="Delete patient from database"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -560,7 +692,52 @@ export default function ClinicPatients() {
         </Card>
       </div>
 
-      {openId ? <PatientDrawer id={openId} onClose={() => setOpenId(null)} /> : null}
+      {openId ? (
+        <PatientDrawer
+          id={openId}
+          onClose={() => setOpenId(null)}
+          onDeleteClick={(pat) => setDeleteConfirm(pat)}
+        />
+      ) : null}
+
+      {/* Delete Patient Confirmation Modal */}
+      {deleteConfirm && (
+        <Modal
+          title="Delete Patient"
+          subtitle={`Are you sure you want to delete ${fullName(deleteConfirm)}?`}
+          onClose={() => setDeleteConfirm(null)}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <p className="co-sm" style={{ color: '#4B5563', lineHeight: 1.5 }}>
+              This action will permanently delete <strong>{fullName(deleteConfirm)}</strong> and all their associated appointment bookings, clinical notes, and treatment packages from Aura AI database.
+            </p>
+            {deletePatientMutation.isError && (
+              <p className="co-sm" style={{ color: '#B91C1C' }}>
+                {deletePatientMutation.error?.message || 'Could not delete patient.'}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 10 }}>
+              <button
+                type="button"
+                className="co-btn"
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deletePatientMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="co-btn"
+                style={{ background: '#DC2626', color: '#fff', borderColor: '#DC2626' }}
+                disabled={deletePatientMutation.isPending}
+                onClick={() => deletePatientMutation.mutate(deleteConfirm.id)}
+              >
+                {deletePatientMutation.isPending ? 'Deleting…' : 'Delete Patient'}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {/* Add Patient Modal */}
       {addPatientOpen && (
