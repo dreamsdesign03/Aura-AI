@@ -306,7 +306,7 @@
   padding: 16px;
   border-radius: 14px;
   background: #FFFFFF;
-  border: 1px solid #E3EAE9;
+  border: 1px solid #E8EFF2;
   text-decoration: none;
   color: #172326;
   min-width: 0;
@@ -315,20 +315,21 @@
 }
 .pj-st:hover {
   transform: translateY(-2px);
-  border-color: #8FD3C6;
-  box-shadow: 0 10px 24px -10px rgba(11, 122, 106, 0.18);
+  border-color: #DE8FB4;
+  box-shadow: 0 10px 24px -10px rgba(164, 40, 94, 0.22);
   color: #172326;
 }
 .pj-st.pj-row-b {
-  background: #FAFDFE;
-  border-color: #CBE6EF;
+  background: #FFF9FC;
+  border-color: #F3D9E5;
 }
 .pj-st.pj-row-b:hover {
-  border-color: #8CC4D6;
-  box-shadow: 0 10px 24px -10px rgba(11, 93, 122, 0.18);
+  border-color: #A4285E;
+  box-shadow: 0 10px 24px -10px rgba(164, 40, 94, 0.25);
 }
 .pj-st.active {
   border-color: var(--co-brand);
+  background: #FDF3F8;
   box-shadow: 0 0 0 2px var(--co-soft), 0 10px 24px -10px rgba(164, 40, 94, 0.25);
 }
 
@@ -336,16 +337,18 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: #0B7A6A;
+  background: linear-gradient(135deg, #A4285E 0%, #CB3273 100%);
   color: #FFFFFF;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font: 600 13px Poppins, Inter, sans-serif;
+  font: 700 13px Poppins, Inter, sans-serif;
   flex: none;
+  box-shadow: 0 2px 6px rgba(164, 40, 94, 0.25);
 }
 .pj-row-b .pj-num {
-  background: #0B5D7A;
+  background: linear-gradient(135deg, #7C1B4A 0%, #9E245C 100%);
+  box-shadow: 0 2px 6px rgba(124, 27, 74, 0.25);
 }
 
 .pj-badge {
@@ -359,20 +362,20 @@
   white-space: nowrap;
 }
 .pj-badge.on-target {
-  background: #E6F5E4;
-  color: #2E7D32;
+  background: #ECFDF5;
+  color: #059669;
 }
 .pj-badge.below-target {
-  background: #FDEBD3;
-  color: #8A4A06;
+  background: #FFFBEB;
+  color: #D97706;
 }
 .pj-badge.neutral {
-  background: #E9EFEE;
-  color: #45504F;
+  background: #F1F5F9;
+  color: #475569;
 }
 .pj-badge.brand {
-  background: #DDF3EE;
-  color: #0A6F61;
+  background: #FBE9F1;
+  color: #A4285E;
 }
 
 .pj-foundation {
@@ -381,16 +384,17 @@
   gap: 16px;
   padding: 14px 18px;
   border-radius: 14px;
-  background: #EAF2F0;
-  border: 1px solid #C8DEDA;
+  background: linear-gradient(135deg, #FFF6FA 0%, #FDF3F8 100%);
+  border: 1px solid #F3D9E5;
   text-decoration: none;
   color: #172326;
   flex-wrap: wrap;
-  transition: border-color .18s, background .18s;
+  transition: border-color .18s, background .18s, transform .18s;
 }
 .pj-foundation:hover {
-  background: #E2ECE9;
-  border-color: #AECFC8;
+  background: #FBE9F1;
+  border-color: #DE8FB4;
+  transform: translateY(-1px);
 }
 
 .pj-breakdown-grid {
@@ -402,6 +406,88 @@
   .pj-breakdown-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ---------- Aura AI View Switcher & Stage Banner ---------- */
+.aura-view-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  background: #FDF3F8;
+  border: 1px solid #F3D9E5;
+  border-radius: 12px;
+}
+.aura-view-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #7C1B4A;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all .2s ease;
+  font-family: inherit;
+  line-height: 1.2;
+}
+.aura-view-btn:hover {
+  color: #A4285E;
+  background: rgba(164, 40, 94, 0.08);
+}
+.aura-view-btn.active {
+  background: linear-gradient(135deg, #A4285E 0%, #CB3273 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(164, 40, 94, 0.28);
+}
+.aura-view-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #FBE9F1;
+  color: #A4285E;
+  transition: background .2s ease, color .2s ease;
+}
+.aura-view-btn.active .aura-view-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #FFFFFF;
+}
+
+.pj-st-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed #F3D9E5;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #A4285E;
+  opacity: 0.85;
+  transition: opacity .2s, transform .2s;
+}
+.pj-st:hover .pj-st-action {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
+.aura-stage-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #FFF9FC 0%, #FDF3F8 100%);
+  border: 1px solid #F3D9E5;
+  border-left: 4px solid #A4285E;
+  border-radius: 12px;
+  padding: 12px 18px;
+  margin-bottom: 18px;
+  gap: 16px;
+  flex-wrap: wrap;
+  box-shadow: 0 4px 14px rgba(164, 40, 94, 0.05);
 }
 
 @media (prefers-reduced-motion: reduce) {

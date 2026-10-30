@@ -3,7 +3,7 @@ import { Link } from 'wouter';
 import {
   Sparkles, CheckCircle2, AlertCircle, ArrowUpRight, Sliders,
   X, Check, ChevronDown, ChevronUp, RotateCcw, CalendarDays,
-  Target, Shield, ExternalLink, Activity
+  Target, Shield, ExternalLink, Activity, Users, Filter
 } from 'lucide-react';
 import { Modal } from '@/clinic/ui';
 
@@ -138,6 +138,7 @@ export const INITIAL_STAGES_ROW_B = [
 export default function PatientJourneySection({
   selectedStage = null,
   onSelectStage = () => {},
+  onViewPatientList = () => {},
   totalPatients = 0,
 }) {
   const [stagesA, setStagesA] = useState(INITIAL_STAGES_ROW_A);
@@ -214,30 +215,27 @@ export default function PatientJourneySection({
   };
 
   const handleStageClick = (e, stage) => {
-    // If clicking to filter
-    if (selectedStage === stage.n) {
-      onSelectStage(null);
-    } else {
-      onSelectStage(stage);
-    }
+    // If clicking a stage, navigate to filtered list in parent
+    onSelectStage(stage);
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* ── Journey Head ────────────────────────────────────────── */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <h1 style={{ margin: 0, font: '600 26px/1.2 Poppins, Inter, sans-serif', color: '#172326' }}>
-              Patient journey
+              Patient Journey
             </h1>
             <span
               style={{
-                background: '#FBE9F1',
+                background: 'linear-gradient(135deg, #FBE9F1 0%, #FDF3F8 100%)',
                 color: '#A4285E',
+                border: '1px solid #F3D9E5',
                 fontSize: 12,
                 fontWeight: 700,
-                padding: '2px 8px',
+                padding: '3px 10px',
                 borderRadius: 999,
               }}
             >
@@ -245,7 +243,7 @@ export default function PatientJourneySection({
             </span>
           </div>
           <p style={{ margin: '6px 0 0', fontSize: 13.5, color: '#5F6B6D' }}>
-            All 10 stages, live, each with its measure against target · October 2026 · click a stage to view metrics or filter patients
+            All 10 stages live with performance against target · Click any stage to open filtered patient records
           </p>
         </div>
 
@@ -258,6 +256,19 @@ export default function PatientJourneySection({
           </span>
           <button type="button" className="co-btn co-btn-sm" onClick={openEditModal}>
             <Sliders size={13} /> Edit targets
+          </button>
+          <button
+            type="button"
+            className="co-btn co-btn-primary co-btn-sm"
+            onClick={onViewPatientList}
+            style={{
+              background: 'linear-gradient(135deg, #A4285E 0%, #CB3273 100%)',
+              color: '#fff',
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(164, 40, 94, 0.25)',
+            }}
+          >
+            <Users size={14} /> View Patient List ({totalPatients}) →
           </button>
           <button
             type="button"
@@ -278,35 +289,6 @@ export default function PatientJourneySection({
         </div>
       </div>
 
-      {/* ── Stage Filter Notice if active ────────────────────────── */}
-      {selectedStage && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            background: '#FDF3F8',
-            border: '1px solid #F3D9E5',
-            borderRadius: 10,
-            padding: '8px 14px',
-            fontSize: 13,
-            color: '#A4285E',
-          }}
-        >
-          <span>
-            <b>Filtering Patients:</b> Stage {selectedStage} ({allStages.find((s) => s.n === selectedStage)?.name})
-          </span>
-          <button
-            type="button"
-            className="co-btn co-btn-sm"
-            onClick={() => onSelectStage(null)}
-            style={{ height: 26, padding: '0 8px', fontSize: 11 }}
-          >
-            <X size={12} /> Clear Filter
-          </button>
-        </div>
-      )}
-
       {/* ── STAGES 1 TO 5 · WIN THE PATIENT ─────────────────────── */}
       <div>
         <p
@@ -316,10 +298,10 @@ export default function PatientJourneySection({
             fontWeight: 700,
             letterSpacing: '.06em',
             textTransform: 'uppercase',
-            color: '#5F6B6D',
+            color: '#7C1B4A',
           }}
         >
-          Stages 1 to 5 · win the patient
+          Stages 1 to 5 · Win the Patient
         </p>
         <div className="pj-five">
           {stagesA.map((s) => {
@@ -330,6 +312,7 @@ export default function PatientJourneySection({
                 className={`pj-st ${isSelected ? 'active' : ''}`}
                 style={{ cursor: 'pointer' }}
                 onClick={(e) => handleStageClick(e, s)}
+                title={`Click to view Stage ${s.n} (${s.name}) patients`}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="pj-num">{s.n}</span>
@@ -349,7 +332,7 @@ export default function PatientJourneySection({
                     style={{ padding: 2, borderRadius: 6 }}
                     title={`Open ${s.name} tool`}
                   >
-                    <ArrowUpRight size={14} style={{ color: '#0B7A6A' }} />
+                    <ArrowUpRight size={14} style={{ color: '#A4285E' }} />
                   </Link>
                 </div>
 
@@ -379,6 +362,11 @@ export default function PatientJourneySection({
                     <b style={{ color: '#2E3B3E' }}>{s.target}</b>
                   </span>
                 </div>
+
+                <div className="pj-st-action">
+                  <span>View Stage {s.n} Patients</span>
+                  <ArrowUpRight size={12} />
+                </div>
               </div>
             );
           })}
@@ -394,10 +382,10 @@ export default function PatientJourneySection({
             fontWeight: 700,
             letterSpacing: '.06em',
             textTransform: 'uppercase',
-            color: '#5F6B6D',
+            color: '#7C1B4A',
           }}
         >
-          Stages 6 to 10 · complete the package and keep the patient
+          Stages 6 to 10 · Complete the Package and Keep the Patient
         </p>
         <div className="pj-five">
           {stagesB.map((s) => {
@@ -408,6 +396,7 @@ export default function PatientJourneySection({
                 className={`pj-st pj-row-b ${isSelected ? 'active' : ''}`}
                 style={{ cursor: 'pointer' }}
                 onClick={(e) => handleStageClick(e, s)}
+                title={`Click to view Stage ${s.n} (${s.name}) patients`}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span className="pj-num">{s.n}</span>
@@ -427,7 +416,7 @@ export default function PatientJourneySection({
                     style={{ padding: 2, borderRadius: 6 }}
                     title={`Open ${s.name} tool`}
                   >
-                    <ArrowUpRight size={14} style={{ color: '#0B5D7A' }} />
+                    <ArrowUpRight size={14} style={{ color: '#A4285E' }} />
                   </Link>
                 </div>
 
@@ -441,7 +430,7 @@ export default function PatientJourneySection({
                     justifyContent: 'space-between',
                     alignItems: 'flex-end',
                     paddingTop: 8,
-                    borderTop: '1px solid #DCEFF5',
+                    borderTop: '1px solid #F3D9E5',
                     marginTop: 'auto',
                   }}
                 >
@@ -456,6 +445,11 @@ export default function PatientJourneySection({
                     <br />
                     <b style={{ color: '#2E3B3E' }}>{s.target}</b>
                   </span>
+                </div>
+
+                <div className="pj-st-action">
+                  <span>View Stage {s.n} Patients</span>
+                  <ArrowUpRight size={12} />
                 </div>
               </div>
             );
@@ -474,9 +468,10 @@ export default function PatientJourneySection({
             fontWeight: 700,
             letterSpacing: '.06em',
             textTransform: 'uppercase',
-            color: '#45504F',
-            background: '#DCE8E5',
-            padding: '3px 8px',
+            color: '#A4285E',
+            background: '#FBE9F1',
+            border: '1px solid #F3D9E5',
+            padding: '3px 9px',
             borderRadius: 6,
           }}
         >
@@ -489,16 +484,16 @@ export default function PatientJourneySection({
           76<span style={{ color: '#5F6B6D', fontSize: '13px' }}>/100</span>
         </span>
         <span className="pj-badge below-target">7 fixes open</span>
-        <ArrowUpRight size={15} style={{ color: '#0B7A6A' }} />
+        <ArrowUpRight size={15} style={{ color: '#A4285E' }} />
       </Link>
 
       {/* ── 3 Deep-Dive Cards ────────────────────────────────────── */}
       {showDeepDive && (
         <div className="pj-breakdown-grid">
           {/* Card 1: Stage 2 · Engage */}
-          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 11, background: '#fff' }}>
+          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 11, background: '#fff', borderColor: '#F3D9E5' }}>
             <div>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5F6B6D' }}>
+              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#A4285E' }}>
                 Stage 2 · Engage
               </p>
               <h2 style={{ margin: '4px 0 0', font: '600 16px/1.3 Poppins, Inter, sans-serif', color: '#172326' }}>
@@ -508,34 +503,34 @@ export default function PatientJourneySection({
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 160, fontSize: 13, color: '#2E3B3E' }}>Free scans done</span>
-              <div style={{ flex: 1, height: 10, background: '#E8F1EF', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '100%', height: 10, background: '#0B7A6A', borderRadius: 5 }} />
+              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
+                <div style={{ width: '100%', height: 10, background: 'linear-gradient(90deg, #A4285E, #CB3273)', borderRadius: 5 }} />
               </div>
               <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#172326' }}>640</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 160, fontSize: 13, color: '#2E3B3E' }}>Shown a matching plan</span>
-              <div style={{ flex: 1, height: 10, background: '#E8F1EF', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '96%', height: 10, background: '#0B7A6A', borderRadius: 5 }} />
+              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
+                <div style={{ width: '96%', height: 10, background: 'linear-gradient(90deg, #A4285E, #CB3273)', borderRadius: 5 }} />
               </div>
               <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#172326' }}>612</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 160, fontSize: 13, color: '#2E3B3E' }}>Opened the booking offer</span>
-              <div style={{ flex: 1, height: 10, background: '#E8F1EF', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '47%', height: 10, background: '#0B7A6A', borderRadius: 5 }} />
+              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
+                <div style={{ width: '47%', height: 10, background: 'linear-gradient(90deg, #CB3273, #E1498B)', borderRadius: 5 }} />
               </div>
               <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#172326' }}>301</span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <span style={{ width: 160, fontSize: 13, fontWeight: 600, color: '#172326' }}>Consult booked</span>
-              <div style={{ flex: 1, height: 10, background: '#E8F1EF', borderRadius: 5, overflow: 'hidden' }}>
-                <div style={{ width: '23%', height: 10, background: '#C2453F', borderRadius: 5 }} />
+              <div style={{ flex: 1, height: 10, background: '#FDF3F8', borderRadius: 5, overflow: 'hidden' }}>
+                <div style={{ width: '23%', height: 10, background: 'linear-gradient(90deg, #E11D48, #CB3273)', borderRadius: 5 }} />
               </div>
-              <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#C2453F' }}>148</span>
+              <span style={{ width: 40, textAlign: 'right', fontSize: 13, fontWeight: 600, color: '#A4285E' }}>148</span>
             </div>
 
             <p style={{ margin: 'auto 0 0', fontSize: '12.5px', lineHeight: 1.5, color: '#5F6B6D', paddingTop: 6 }}>
@@ -544,9 +539,9 @@ export default function PatientJourneySection({
           </div>
 
           {/* Card 2: Stage 6 · Consult and convert */}
-          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#fff' }}>
+          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#fff', borderColor: '#F3D9E5' }}>
             <div>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5F6B6D' }}>
+              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#A4285E' }}>
                 Stage 6 · Consult and convert
               </p>
               <h2 style={{ margin: '4px 0 0', font: '600 16px/1.3 Poppins, Inter, sans-serif', color: '#172326' }}>
@@ -555,25 +550,25 @@ export default function PatientJourneySection({
             </div>
 
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#0A6F61' }}>At consult</span>
+              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>At consult</span>
               <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>Plan and quote on WhatsApp, payment or EMI link</span>
               <span className="pj-badge on-target">22%</span>
             </div>
 
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#0A6F61' }}>24 hours</span>
+              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>24 hours</span>
               <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>“Any questions about your plan?”</span>
               <span className="pj-badge on-target">+9%</span>
             </div>
 
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#0A6F61' }}>3 days</span>
+              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>3 days</span>
               <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>Doctor’s note and a similar patient’s result</span>
               <span className="pj-badge on-target">+6%</span>
             </div>
 
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#0A6F61' }}>7 days</span>
+              <span style={{ width: 76, fontSize: '12.5px', fontWeight: 700, color: '#A4285E' }}>7 days</span>
               <span style={{ flex: 1, fontSize: 13, color: '#2E3B3E' }}>Last reminder, then a counsellor call</span>
               <span className="pj-badge on-target">+4%</span>
             </div>
@@ -583,20 +578,20 @@ export default function PatientJourneySection({
                 display: 'flex',
                 justifyContent: 'space-between',
                 paddingTop: 8,
-                borderTop: '1px solid #EDF2F1',
+                borderTop: '1px solid #F3D9E5',
                 fontSize: '13.5px',
                 marginTop: 'auto',
               }}
             >
               <span style={{ fontWeight: 600, color: '#172326' }}>Consult to package</span>
-              <b style={{ color: '#0B7A6A', fontSize: 15 }}>41%</b>
+              <b style={{ color: '#A4285E', fontSize: 15 }}>41%</b>
             </div>
           </div>
 
           {/* Card 3: Stage 1 · Discover */}
-          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#fff' }}>
+          <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 10, background: '#fff', borderColor: '#F3D9E5' }}>
             <div>
-              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#5F6B6D' }}>
+              <p style={{ margin: 0, fontSize: '11px', fontWeight: 700, letterSpacing: '.06em', textTransform: 'uppercase', color: '#A4285E' }}>
                 Stage 1 · Discover
               </p>
               <h2 style={{ margin: '4px 0 0', font: '600 16px/1.3 Poppins, Inter, sans-serif', color: '#172326' }}>
@@ -651,10 +646,10 @@ export default function PatientJourneySection({
                   <div
                     key={s.n}
                     style={{
-                      border: '1px solid #E3EAE9',
+                      border: '1px solid #F3D9E5',
                       borderRadius: 10,
                       padding: '10px 14px',
-                      background: s.n <= 5 ? '#FFFFFF' : '#FAFDFE',
+                      background: s.n <= 5 ? '#FFFFFF' : '#FFF9FC',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -664,7 +659,7 @@ export default function PatientJourneySection({
                             width: 22,
                             height: 22,
                             borderRadius: '50%',
-                            background: s.n <= 5 ? '#0B7A6A' : '#0B5D7A',
+                            background: s.n <= 5 ? 'linear-gradient(135deg, #A4285E 0%, #CB3273 100%)' : 'linear-gradient(135deg, #7C1B4A 0%, #9E245C 100%)',
                             color: '#fff',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -690,7 +685,7 @@ export default function PatientJourneySection({
                             })
                           }
                         />
-                        <span style={{ fontWeight: 600, color: draft.ok ? '#2E7D32' : '#8A4A06' }}>
+                        <span style={{ fontWeight: 600, color: draft.ok ? '#059669' : '#D97706' }}>
                           {draft.ok ? 'On target' : 'Below target'}
                         </span>
                       </label>
@@ -751,6 +746,10 @@ export default function PatientJourneySection({
                 <button
                   type="submit"
                   className="co-btn co-btn-sm co-btn-primary"
+                  style={{
+                    background: 'linear-gradient(135deg, #A4285E 0%, #CB3273 100%)',
+                    border: 'none',
+                  }}
                 >
                   <Check size={12} /> Save Targets
                 </button>
@@ -762,3 +761,4 @@ export default function PatientJourneySection({
     </div>
   );
 }
+
