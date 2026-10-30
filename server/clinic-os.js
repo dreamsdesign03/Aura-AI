@@ -2099,7 +2099,7 @@ router.post('/dialer/plivo/hangup', async (req, res) => {
   try {
     const { CallUUID, Duration, CallStatus, RecordUrl, TotalCost, Rate } = req.body || {};
     if (CallUUID) {
-      await db.query(
+      const upd = await db.query(
         `UPDATE ai_calls
             SET status = $1,
                 duration_secs = GREATEST(duration_secs, $2),
@@ -2107,7 +2107,8 @@ router.post('/dialer/plivo/hangup', async (req, res) => {
                 call_cost = COALESCE($4, call_cost),
                 call_rate = COALESCE($5, call_rate),
                 updated_at = NOW()
-          WHERE call_sid = $6 OR conversation_id = $6`,
+          WHERE call_sid = $6 OR conversation_id = $6
+          RETURNING id, recording_url`,
         [
           CallStatus === 'completed' ? 'completed' : (CallStatus || 'completed'),
           Number(Duration) || 0,
@@ -2117,12 +2118,157 @@ router.post('/dialer/plivo/hangup', async (req, res) => {
           CallUUID
         ]
       );
+      if (upd.rows.length > 0 && upd.rows[0].recording_url) {
+        transcribePlivoRecording(upd.rows[0].id, upd.rows[0].recording_url).catch(() => {});
+      }
     }
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
+
+// Plivo asynchronous recording callback
+router.post('/dialer/plivo/recording', async (req, res) => {
+  try {
+    const { CallUUID, RecordUrl, RecordingDuration } = req.body || {};
+    if (CallUUID && RecordUrl) {
+      const upd = await db.query(
+        `UPDATE ai_calls
+            SET recording_url = $1,
+                duration_secs = GREATEST(duration_secs, $2),
+                updated_at = NOW()
+          WHERE call_sid = $3 OR conversation_id = $3
+          RETURNING id`,
+        [RecordUrl, Math.round(Number(RecordingDuration) || 0), CallUUID]
+      );
+      if (upd.rows.length > 0) {
+        transcribePlivoRecording(upd.rows[0].id, RecordUrl).catch(() => {});
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stream Plivo recording securely with basic auth proxy
+router.get('/dialer/plivo/recording-stream/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const callRes = await db.query(
+      'SELECT id, recording_url, call_sid, conversation_id FROM ai_calls WHERE id = $1 OR call_sid = $1 OR conversation_id = $1 LIMIT 1',
+      [id]
+    );
+    if (callRes.rows.length === 0) return res.status(404).send('Call not found');
+
+    const rawUrl = callRes.rows[0].recording_url;
+    if (!rawUrl) return res.status(404).send('No recording available for this call');
+
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
+
+    const audioRes = await fetch(rawUrl, {
+      headers: rawUrl.includes('plivo.com') ? { Authorization: authHeader } : {}
+    });
+
+    if (!audioRes.ok) {
+      return res.status(audioRes.status).send('Could not fetch audio stream from Plivo');
+    }
+
+    res.set('Content-Type', audioRes.headers.get('content-type') || 'audio/mpeg');
+    res.set('Content-Length', audioRes.headers.get('content-length') || '');
+    res.set('Accept-Ranges', 'bytes');
+
+    const arrayBuf = await audioRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuf));
+  } catch (err) {
+    console.error('[Plivo Recording Stream Error]:', err);
+    res.status(500).send(err.message);
+  }
+});
+
+// Helper: Transcribe Plivo audio using Gemini 2.5 Flash
+async function transcribePlivoRecording(callId, recordingUrl) {
+  if (!recordingUrl || !process.env.GEMINI_API_KEY) return null;
+  try {
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
+
+    const audioRes = await fetch(recordingUrl, {
+      headers: recordingUrl.includes('plivo.com') ? { Authorization: authHeader } : {}
+    });
+    if (!audioRes.ok) throw new Error(`Could not download Plivo recording: ${audioRes.status}`);
+
+    const arrayBuf = await audioRes.arrayBuffer();
+    const base64Audio = Buffer.from(arrayBuf).toString('base64');
+
+    const prompt = `You are an expert clinical conversation transcriptionist and analyst for Dr. Aditya Shah's Aura Laser & Cosmetic Clinic.
+Listen carefully to this phone call recording.
+Analyze the speech between the clinic coordinator/agent and the patient/caller.
+Produce a valid JSON object with:
+1. "transcript": Array of conversation turns. Each turn MUST be:
+   {
+     "speaker": "AI Coordinator" | "Patient" | "Clinic Doctor",
+     "text": "Exact words spoken (preserve Hindi, Gujarati, or English phrases accurately)",
+     "time": "MM:SS"
+   }
+2. "transcript_summary": 2-3 sentences summarizing what was discussed, doctor requested, branch, treatments, and call outcome.
+3. "sentiment": "Positive" | "Neutral" | "Negative"
+4. "outcome": "booked" | "connected" | "inquiry" | "follow_up" | "rescheduled" | "not_interested"
+
+Return ONLY valid JSON.`;
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const geminiRes = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'audio/mp3', data: base64Audio } }
+          ]
+        }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.2 }
+      })
+    });
+
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      throw new Error(`Gemini API error: ${geminiRes.status} ${errText}`);
+    }
+
+    const geminiData = await geminiRes.json();
+    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const parsed = JSON.parse(rawText);
+
+    if (parsed.transcript && parsed.transcript.length > 0) {
+      await db.query(
+        `UPDATE ai_calls
+            SET transcript = $1,
+                transcript_summary = COALESCE($2, transcript_summary),
+                sentiment = COALESCE($3, sentiment),
+                outcome = COALESCE($4, outcome),
+                updated_at = NOW()
+          WHERE id = $5`,
+        [
+          JSON.stringify(parsed.transcript),
+          parsed.transcript_summary || null,
+          parsed.sentiment || 'Neutral',
+          parsed.outcome || 'connected',
+          callId
+        ]
+      );
+      return parsed;
+    }
+  } catch (err) {
+    console.error(`[Plivo Transcribe Error on call ${callId}]:`, err.message);
+  }
+  return null;
+}
 
 router.get('/dialer/settings', requireUser, async (req, res) => {
   try {
@@ -2214,8 +2360,23 @@ router.get('/call-review', requireUser, async (req, res) => {
       FROM ai_calls
     `);
 
+    const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
+    const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const baseUrl = `${rawProto}://${host}`;
+
+    const formattedCalls = r.rows.map(c => {
+      let rec = c.recording_url;
+      if (rec && rec.includes('plivo.com')) {
+        rec = `${baseUrl}/api/clinic/dialer/plivo/recording-stream/${c.id}`;
+      }
+      return {
+        ...c,
+        recording_url: rec
+      };
+    });
+
     res.json({ 
-      calls: r.rows,
+      calls: formattedCalls,
       stats: statsRes.rows[0] || { total: 0, inbound: 0, outbound: 0, plivo: 0, sarvam: 0, total_duration: 0 }
     });
   } catch (err) {
@@ -2241,6 +2402,15 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     const call = r.rows[0];
 
+    const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
+    const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const baseUrl = `${rawProto}://${host}`;
+
+    const rawRecordingUrl = call.recording_url;
+    if (call.recording_url && call.recording_url.includes('plivo.com')) {
+      call.recording_url = `${baseUrl}/api/clinic/dialer/plivo/recording-stream/${call.id}`;
+    }
+
     // Auto-fetch and cache Sarvam transcript if not already cached
     if (call.provider === 'sarvam' && (!call.transcript || call.transcript.length === 0) && call.conversation_id) {
       try {
@@ -2253,6 +2423,21 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
         }
       } catch (err) {
         console.warn('[Call Review] Could not fetch live Sarvam transcript:', err.message);
+      }
+    }
+
+    // Auto-transcribe Plivo calls if recording exists but transcript is missing
+    if (call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0)) {
+      try {
+        const trResult = await transcribePlivoRecording(call.id, rawRecordingUrl);
+        if (trResult && trResult.transcript) {
+          call.transcript = trResult.transcript;
+          call.transcript_summary = trResult.transcript_summary || call.transcript_summary;
+          call.sentiment = trResult.sentiment || call.sentiment;
+          call.outcome = trResult.outcome || call.outcome;
+        }
+      } catch (err) {
+        console.warn('[Call Review] Plivo auto-transcription warning:', err.message);
       }
     }
 
@@ -2278,6 +2463,23 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     }
 
     res.json({ call, related_calls: relatedCalls });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual re-transcribe endpoint
+router.post('/call-review/:id/transcribe', requireUser, async (req, res) => {
+  try {
+    const callRes = await db.query('SELECT * FROM ai_calls WHERE id = $1', [req.params.id]);
+    if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
+    const call = callRes.rows[0];
+    if (!call.recording_url) return res.status(400).json({ error: 'No audio recording found for this call' });
+
+    const result = await transcribePlivoRecording(call.id, call.recording_url);
+    if (!result) return res.status(500).json({ error: 'Failed to transcribe audio with AI' });
+
+    res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

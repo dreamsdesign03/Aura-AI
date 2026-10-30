@@ -95,6 +95,7 @@ export const clinicApi = {
     return request(`/call-review${qStr ? `?${qStr}` : ''}`);
   },
   callReview: (id) => request(`/call-review/${id}`),
+  transcribeCall: (id) => request(`/call-review/${id}/transcribe`, { method: 'POST' }),
 
   // Agents
   agents: () => request('/agents'),

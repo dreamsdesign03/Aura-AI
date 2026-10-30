@@ -294,6 +294,7 @@ export default function ClinicCallReview({ id }) {
 
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   const listQuery = useQuery({
     queryKey: ['clinic', 'call-reviews'],
@@ -307,6 +308,19 @@ export default function ClinicCallReview({ id }) {
     queryFn: () => clinicApi.callReview(activeId),
     enabled: !!activeId,
   });
+
+  const handleTranscribe = async () => {
+    if (!activeId) return;
+    setIsTranscribing(true);
+    try {
+      await clinicApi.transcribeCall(activeId);
+      detailQuery.refetch();
+    } catch (err) {
+      alert(err.message || 'Transcription failed');
+    } finally {
+      setIsTranscribing(false);
+    }
+  };
 
   if (!activeId) {
     const rawCalls = listQuery.data?.calls || [];
@@ -681,8 +695,8 @@ export default function ClinicCallReview({ id }) {
         </Link>
       </PageHead>
 
-      {/* Prominent banner if viewing a dialer test / simulation while a full Sarvam AI conversation exists */}
-      {sarvamAlt && (call.provider || '').toLowerCase() !== 'sarvam' && (
+      {/* Prominent banner if viewing a simulation while a full Sarvam AI conversation exists */}
+      {sarvamAlt && (call.provider || '').toLowerCase() === 'mock' && (
         <div
           style={{
             background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
@@ -813,7 +827,21 @@ export default function ClinicCallReview({ id }) {
 
           {/* Conversation Dialogue Transcript */}
           <Card>
-            <CardHead title="Full Conversation Transcript" hint={turns.length > 0 ? `${turns.length} message turn${turns.length === 1 ? '' : 's'}` : 'No turns'} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <CardHead title="Full Conversation Transcript" hint={turns.length > 0 ? `${turns.length} message turn${turns.length === 1 ? '' : 's'}` : 'No turns'} />
+              {call.recording_url && (
+                <button
+                  type="button"
+                  className="co-btn co-btn-sm"
+                  onClick={handleTranscribe}
+                  disabled={isTranscribing}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11 }}
+                >
+                  <Sparkles size={12} className={isTranscribing ? 'animate-spin' : ''} />
+                  {isTranscribing ? 'Transcribing with AI…' : 'AI Transcribe Audio'}
+                </button>
+              )}
+            </div>
             {turns.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
                 {turns.map((t) => {
