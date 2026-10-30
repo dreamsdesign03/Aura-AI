@@ -1,10 +1,10 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx-js-style";
 import { Link, useLocation } from "wouter";
 import { useListLeads, useCreateLead, useDeleteLead, useBulkUpdateLeads, useImportLeadsPaste, useImportLeadsCsv, useGetLead, useUpdateLead, useListSequences, useInitiateWhatsApp, useInitiateWhatsAppBulk, useListIcps, useListTeamMembers, useLeadAssigneeCounts, } from "@workspace/api-client-react";
 import { useAuthUser } from "@/contexts/AuthContext";
 import { getListLeadsQueryKey, getLeadAssigneeCountsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { useBatchPoller } from "@/hooks/useBatchPoller";
 import { StatusBadge } from "@/components/Badge";
