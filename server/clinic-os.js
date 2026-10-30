@@ -166,12 +166,79 @@ function ensureSchema() {
     ALTER TABLE clinic_notes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}'::jsonb;
     ALTER TABLE clinic_packages ADD COLUMN IF NOT EXISTS paid_amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS reply TEXT;
+
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'plivo';
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'outbound';
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS from_phone TEXT;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS recording_url TEXT;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS sentiment TEXT;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS outcome TEXT;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS call_rate NUMERIC;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS call_cost NUMERIC;
   `);
 
   // Auto-sync Cal.com consultation attendees into dedicated clinic patients
   syncCalPatients().catch(() => {});
+  syncBulkCallsToAiCalls().catch(() => {});
 
   return schemaReady;
+}
+
+async function syncBulkCallsToAiCalls() {
+  try {
+    const attempts = await db.query(`
+      SELECT ba.*, bc.name as contact_name, bc.company as contact_company, bc.phone_e164, bc.lead_id as bc_lead_id
+        FROM bulk_attempts ba
+        LEFT JOIN bulk_contacts bc ON bc.id = ba.contact_id
+    `);
+
+    for (const a of attempts.rows) {
+      const raw = a.raw_json || {};
+      const toPhone = a.phone_e164 || raw.user_contact || '';
+      const fromPhone = raw.bot_contact_identifier || '+917965852999';
+      const direction = raw.channel_direction || 'outbound';
+      const interactionId = a.interaction_id || raw.interaction_id || a.request_id;
+
+      const existing = await db.query(
+        'SELECT id FROM ai_calls WHERE conversation_id = $1 OR call_sid = $2',
+        [interactionId, a.request_id]
+      );
+
+      if (existing.rows.length === 0) {
+        await db.query(`
+          INSERT INTO ai_calls (
+            lead_id, conversation_id, call_sid, to_phone, from_phone,
+            lead_name, company_name, status, booking_type, duration_secs,
+            transcript_summary, recording_url, sentiment, outcome, provider,
+            direction, started_at, created_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5,
+            $6, $7, $8, 'bulk_campaign', $9,
+            $10, $11, $12, $13, 'sarvam',
+            $14, COALESCE($15, NOW()), NOW(), NOW()
+          )
+        `, [
+          a.bc_lead_id || null,
+          interactionId,
+          a.request_id,
+          toPhone,
+          fromPhone,
+          a.contact_name || 'Patient',
+          a.contact_company || 'Aura Clinic',
+          a.call_status || 'completed',
+          a.duration_sec || 0,
+          a.summary,
+          a.recording_url,
+          a.sentiment || 'Neutral',
+          a.outcome || 'booked',
+          direction,
+          a.started_at
+        ]);
+      }
+    }
+  } catch (err) {
+    console.warn('[SyncBulkCalls warning]:', err.message);
+  }
 }
 
 async function syncCalPatients() {
@@ -1775,10 +1842,10 @@ router.post('/dialer/call', requireUser, async (req, res) => {
       });
 
       const inserted = await db.query(
-        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status, booking_type, started_at)
-         VALUES ($1, $2, $2, $3, $4, $5, 'ringing', $6, NOW())
+        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, started_at)
+         VALUES ($1, $2, $2, $3, $4, $5, $6, 'ringing', $7, 'plivo', 'outbound', NOW())
          RETURNING *`,
-        [finalLeadId, plivoResult.callUuid, plivoResult.to, contactName, companyName, conversationType]
+        [finalLeadId, plivoResult.callUuid, plivoResult.from, plivoResult.to, contactName, companyName, conversationType]
       );
 
       if (finalLeadId) {
@@ -1825,8 +1892,8 @@ router.post('/dialer/call', requireUser, async (req, res) => {
     `, [requestId, lead.id]);
 
     const insCall = await db.query(
-      `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status, booking_type, started_at)
-       VALUES ($1, $2, $2, $3, $4, $5, 'queued', $6, NOW())
+      `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, started_at)
+       VALUES ($1, $2, $2, '+917965852999', $3, $4, $5, 'queued', $6, 'sarvam', 'outbound', NOW())
        RETURNING *`,
       [lead.id, requestId, check.e164, contactName, companyName, conversationType]
     );
@@ -1932,6 +1999,42 @@ router.post('/dialer/contact', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 router.post('/dialer/plivo/answer', async (req, res) => {
   const { type = 'patient_consultation', doctor = 'Dr. Aditya Shah', branch = 'Alkapuri Main Clinic' } = req.query;
+  const { CallUUID, Direction, From, To } = req.body || {};
+
+  // If inbound call from patient to clinic Plivo number
+  const isIncoming = Direction === 'inbound' || req.query.direction === 'inbound';
+  if (isIncoming && CallUUID) {
+    try {
+      const fromNumber = From || req.query.from || 'Unknown Patient';
+      const toNumber = To || req.query.to || '+917965852999';
+      const cleanPhone = fromNumber.replace(/\D/g, '').slice(-10);
+
+      const leadMatch = await db.query(
+        'SELECT id, first_name, last_name, company FROM leads WHERE phone LIKE $1 LIMIT 1',
+        [`%${cleanPhone}%`]
+      );
+      const callerName = leadMatch.rows[0]
+        ? [leadMatch.rows[0].first_name, leadMatch.rows[0].last_name].filter(Boolean).join(' ')
+        : `Patient (${fromNumber.slice(-4)})`;
+      const callerLeadId = leadMatch.rows[0]?.id || null;
+
+      await db.query(
+        `INSERT INTO ai_calls (
+          lead_id, conversation_id, call_sid, from_phone, to_phone,
+          lead_name, company_name, status, booking_type, duration_secs,
+          provider, direction, started_at
+        ) VALUES (
+          $1, $2, $2, $3, $4,
+          $5, $6, 'in-progress', 'patient_inbound', 0,
+          'plivo', 'inbound', NOW()
+        ) ON CONFLICT DO NOTHING`,
+        [callerLeadId, CallUUID, fromNumber, toNumber, callerName, leadMatch.rows[0]?.company || 'Inbound Patient']
+      );
+    } catch (inbErr) {
+      console.warn('[Plivo Inbound Log Error]:', inbErr.message);
+    }
+  }
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
   <Speak language="en-IN" voice="Polly.Aditi">Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Your consultation call is now connected.</Speak>
@@ -1941,17 +2044,68 @@ router.post('/dialer/plivo/answer', async (req, res) => {
   res.send(xml);
 });
 
+router.post('/dialer/plivo/inbound', async (req, res) => {
+  const { CallUUID, From, To } = req.body || {};
+  if (CallUUID) {
+    try {
+      const fromNumber = From || 'Inbound Caller';
+      const toNumber = To || '+917965852999';
+      const cleanPhone = fromNumber.replace(/\D/g, '').slice(-10);
+      const leadMatch = await db.query(
+        'SELECT id, first_name, last_name, company FROM leads WHERE phone LIKE $1 LIMIT 1',
+        [`%${cleanPhone}%`]
+      );
+      const callerName = leadMatch.rows[0]
+        ? [leadMatch.rows[0].first_name, leadMatch.rows[0].last_name].filter(Boolean).join(' ')
+        : `Patient (${fromNumber.slice(-4)})`;
+
+      await db.query(
+        `INSERT INTO ai_calls (
+          lead_id, conversation_id, call_sid, from_phone, to_phone,
+          lead_name, company_name, status, booking_type, duration_secs,
+          provider, direction, started_at
+        ) VALUES (
+          $1, $2, $2, $3, $4,
+          $5, $6, 'in-progress', 'patient_inbound', 0,
+          'plivo', 'inbound', NOW()
+        ) ON CONFLICT DO NOTHING`,
+        [leadMatch.rows[0]?.id || null, CallUUID, fromNumber, toNumber, callerName, leadMatch.rows[0]?.company || 'Inbound Consultation']
+      );
+    } catch (e) {
+      console.warn('[Plivo Inbound Webhook Error]:', e.message);
+    }
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Speak language="en-IN" voice="Polly.Aditi">Welcome to Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Please stay on the line while we connect you to our clinical coordinator.</Speak>
+  <Record startOnDialAnswer="true" maxLength="900" playBeep="false" />
+</Response>`;
+  res.set('Content-Type', 'text/xml');
+  res.send(xml);
+});
+
 router.post('/dialer/plivo/hangup', async (req, res) => {
   try {
-    const { CallUUID, Duration, CallStatus } = req.body || {};
+    const { CallUUID, Duration, CallStatus, RecordUrl, TotalCost, Rate } = req.body || {};
     if (CallUUID) {
       await db.query(
         `UPDATE ai_calls
             SET status = $1,
                 duration_secs = GREATEST(duration_secs, $2),
+                recording_url = COALESCE($3, recording_url),
+                call_cost = COALESCE($4, call_cost),
+                call_rate = COALESCE($5, call_rate),
                 updated_at = NOW()
-          WHERE call_sid = $3 OR conversation_id = $3`,
-        [CallStatus === 'completed' ? 'completed' : (CallStatus || 'completed'), Number(Duration) || 0, CallUUID]
+          WHERE call_sid = $6 OR conversation_id = $6`,
+        [
+          CallStatus === 'completed' ? 'completed' : (CallStatus || 'completed'),
+          Number(Duration) || 0,
+          RecordUrl || null,
+          TotalCost ? Number(TotalCost) : null,
+          Rate ? Number(Rate) : null,
+          CallUUID
+        ]
       );
     }
     res.json({ ok: true });
@@ -1990,26 +2144,84 @@ router.post('/dialer/settings', requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Call review: get transcript by call id or list recent calls
+// Call Review: Plivo & Sarvam Transactions (Inbound + Outbound)
 // ---------------------------------------------------------------------------
 router.get('/call-review', requireUser, async (req, res) => {
   try {
-    const r = await db.query(
-      `SELECT ac.*, l.first_name, l.last_name, l.phone, l.company
-         FROM ai_calls ac
-         LEFT JOIN leads l ON l.id = ac.lead_id
-        WHERE (l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)
-        ORDER BY ac.started_at DESC LIMIT 100`,
-      [req.user.id]
-    );
-    res.json({ calls: r.rows });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { provider, direction, search } = req.query;
+
+    let queryText = `
+      SELECT ac.*, 
+             COALESCE(ac.lead_name, CONCAT_WS(' ', l.first_name, l.last_name), 'Patient') AS display_name,
+             COALESCE(ac.to_phone, l.phone, '—') AS display_phone,
+             COALESCE(ac.company_name, l.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
+             COALESCE(ac.provider, 'plivo') AS provider,
+             COALESCE(ac.direction, 'outbound') AS direction
+        FROM ai_calls ac
+        LEFT JOIN leads l ON l.id = ac.lead_id
+       WHERE (l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)
+    `;
+    const params = [req.user.id];
+
+    if (provider && provider !== 'all') {
+      params.push(provider.toLowerCase());
+      queryText += ` AND LOWER(COALESCE(ac.provider, 'plivo')) = $${params.length}`;
+    }
+
+    if (direction && direction !== 'all') {
+      params.push(direction.toLowerCase());
+      queryText += ` AND LOWER(COALESCE(ac.direction, 'outbound')) = $${params.length}`;
+    }
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim().toLowerCase()}%`);
+      queryText += ` AND (
+        LOWER(COALESCE(ac.lead_name, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(l.first_name, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(l.last_name, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.to_phone, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.from_phone, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.call_sid, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.conversation_id, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.transcript_summary, '')) LIKE $${params.length}
+      )`;
+    }
+
+    queryText += ` ORDER BY ac.started_at DESC NULLS LAST LIMIT 150`;
+
+    const r = await db.query(queryText, params);
+
+    // Compute KPI stats across all calls
+    const statsRes = await db.query(`
+      SELECT 
+        COUNT(*)::int AS total,
+        COUNT(CASE WHEN LOWER(COALESCE(direction, 'outbound')) = 'inbound' THEN 1 END)::int AS inbound,
+        COUNT(CASE WHEN LOWER(COALESCE(direction, 'outbound')) = 'outbound' THEN 1 END)::int AS outbound,
+        COUNT(CASE WHEN LOWER(COALESCE(provider, 'plivo')) = 'plivo' THEN 1 END)::int AS plivo,
+        COUNT(CASE WHEN LOWER(COALESCE(provider, 'plivo')) = 'sarvam' THEN 1 END)::int AS sarvam,
+        COALESCE(SUM(duration_secs), 0)::int AS total_duration
+      FROM ai_calls
+    `);
+
+    res.json({ 
+      calls: r.rows,
+      stats: statsRes.rows[0] || { total: 0, inbound: 0, outbound: 0, plivo: 0, sarvam: 0, total_duration: 0 }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 router.get('/call-review/:id', requireUser, async (req, res) => {
   try {
     const r = await db.query(
-      `SELECT ac.*, l.first_name, l.last_name, l.phone, l.company
+      `SELECT ac.*, 
+              COALESCE(ac.lead_name, CONCAT_WS(' ', l.first_name, l.last_name), 'Patient') AS display_name,
+              COALESCE(ac.to_phone, l.phone, '—') AS display_phone,
+              COALESCE(ac.company_name, l.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
+              l.email,
+              COALESCE(ac.provider, 'plivo') AS provider,
+              COALESCE(ac.direction, 'outbound') AS direction
          FROM ai_calls ac
          LEFT JOIN leads l ON l.id = ac.lead_id
         WHERE ac.id = $1 AND (l.user_id = $2 OR ac.lead_id IS NULL OR l.user_id IS NULL)`,
@@ -2017,7 +2229,9 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     res.json({ call: r.rows[0] });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------------------------------------------------------------------------

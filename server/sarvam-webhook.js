@@ -119,6 +119,76 @@ async function handleCampaignWebhook(campaignId, payload) {
     }
   }
 
+  // Also sync to centralized ai_calls table for Call Review
+  try {
+    const toPhone = contact.phone_e164 || rawPhone;
+    const fromPhone = payload.bot_contact_identifier || '+917965852999';
+    const direction = payload.channel_direction || 'outbound';
+    const duration = payload.duration != null ? Math.round(payload.duration) : (payload.duration_in_seconds ? Math.round(payload.duration_in_seconds) : 0);
+
+    const existingAiCall = await db.query(
+      'SELECT id FROM ai_calls WHERE conversation_id = $1 OR call_sid = $2 LIMIT 1',
+      [interactionId, requestId]
+    );
+
+    if (existingAiCall.rows.length === 0) {
+      await db.query(`
+        INSERT INTO ai_calls (
+          lead_id, conversation_id, call_sid, to_phone, from_phone,
+          lead_name, company_name, status, booking_type, duration_secs,
+          transcript_summary, recording_url, sentiment, outcome, provider,
+          direction, transcript, started_at, created_at, updated_at
+        ) VALUES (
+          $1, $2, $3, $4, $5,
+          $6, $7, $8, 'bulk_campaign', $9,
+          $10, $11, $12, $13, 'sarvam',
+          $14, $15, COALESCE($16::timestamptz, NOW()), NOW(), NOW()
+        )
+      `, [
+        contact.lead_id || null,
+        interactionId,
+        requestId,
+        toPhone,
+        fromPhone,
+        contact.name || 'Patient',
+        contact.company || 'Aura Clinic',
+        callStatus || 'completed',
+        duration,
+        summary,
+        recUrl,
+        sentiment || 'Neutral',
+        outcome || 'booked',
+        direction,
+        payload.interaction_transcript ? JSON.stringify(payload.interaction_transcript) : null,
+        payload.start_datetime || null
+      ]);
+    } else {
+      await db.query(`
+        UPDATE ai_calls
+           SET status = $1,
+               duration_secs = GREATEST(duration_secs, $2),
+               transcript_summary = COALESCE($3, transcript_summary),
+               recording_url = COALESCE($4, recording_url),
+               sentiment = COALESCE($5, sentiment),
+               outcome = COALESCE($6, outcome),
+               transcript = COALESCE($7, transcript),
+               updated_at = NOW()
+         WHERE id = $8
+      `, [
+        callStatus || 'completed',
+        duration,
+        summary,
+        recUrl,
+        sentiment || 'Neutral',
+        outcome || 'booked',
+        payload.interaction_transcript ? JSON.stringify(payload.interaction_transcript) : null,
+        existingAiCall.rows[0].id
+      ]);
+    }
+  } catch (syncErr) {
+    console.warn('[Sarvam webhook] ai_calls sync warning:', syncErr.message);
+  }
+
   console.log(`[Sarvam webhook] ✅ Successfully saved dynamic call: Contact=${contact.name || contact.id} (${contact.phone10}) -> IID=${interactionId}`);
 }
 

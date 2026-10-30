@@ -86,7 +86,14 @@ export const clinicApi = {
   saveDialerSettings: (body) => request('/dialer/settings', { method: 'POST', body: JSON.stringify(body) }),
 
   // Call review
-  callReviews: () => request('/call-review'),
+  callReviews: (params = {}) => {
+    const qs = new URLSearchParams();
+    if (params.provider && params.provider !== 'all') qs.set('provider', params.provider);
+    if (params.direction && params.direction !== 'all') qs.set('direction', params.direction);
+    if (params.search) qs.set('search', params.search);
+    const qStr = qs.toString();
+    return request(`/call-review${qStr ? `?${qStr}` : ''}`);
+  },
   callReview: (id) => request(`/call-review/${id}`),
 
   // Agents
