@@ -1319,87 +1319,312 @@ router.get('/audit', requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Inbox (WhatsApp + AI calls + notes unified)
+// Unified Omni-Channel Inbox (WhatsApp + Emails + AI Calls + Clinic Notes)
 // ---------------------------------------------------------------------------
 router.get('/inbox', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
-    const limit = Number(req.query.limit) || 50;
+    const limit = Number(req.query.limit) || 100;
 
-    const [wa, calls, notes] = await Promise.all([
+    const [wa, emails, calls, notes] = await Promise.all([
+      // 1. WhatsApp Conversations
       db.query(
         `SELECT wc.id, wc.lead_id, wc.phone, wc.unread_count, wc.last_message_at,
-                l.first_name, l.last_name,
-                (SELECT COALESCE(wm.content, wm.body, '') FROM whatsapp_messages wm
-                 WHERE wm.conversation_id = wc.id OR wm.lead_id = l.id
-                 ORDER BY COALESCE(wm.sent_at, wm.timestamp, NOW()) DESC LIMIT 1) AS preview
+                l.first_name, l.last_name, l.email,
+                COALESCE(
+                  (SELECT content FROM whatsapp_messages wm
+                   WHERE wm.conversation_id = wc.id OR (wm.lead_id IS NOT NULL AND wm.lead_id = l.id)
+                   ORDER BY COALESCE(wm.sent_at, wm.timestamp, wm.created_at, NOW()) DESC LIMIT 1),
+                  wc.last_message,
+                  'WhatsApp conversation'
+                ) AS preview
            FROM whatsapp_conversations wc
            LEFT JOIN leads l ON l.id = wc.lead_id
-          WHERE wc.org_id = (SELECT org_id FROM users WHERE id = $1) OR l.user_id = $1
+          WHERE wc.org_id = (SELECT org_id FROM users WHERE id = $1) OR l.user_id = $1 OR wc.lead_id IS NOT NULL
           ORDER BY wc.last_message_at DESC NULLS LAST LIMIT $2`,
         [uid, limit]
       ),
+      // 2. Emails (Outreach and Inbound Replies)
       tryQuery(
-        `SELECT ac.id, ac.lead_id, ac.started_at, ac.status, ac.transcript_summary,
-                l.first_name, l.last_name
-           FROM ai_calls ac
-           LEFT JOIN leads l ON l.id = ac.lead_id
-          WHERE ac.lead_id IN (SELECT id FROM leads WHERE user_id = $1)
-          ORDER BY ac.started_at DESC LIMIT $2`,
+        `SELECT oe.id, oe.lead_id, COALESCE(oe.to_email, oe.recipient_email) AS email,
+                oe.subject, oe.status, oe.body, oe.created_at, oe.sent_at,
+                l.first_name, l.last_name, l.phone,
+                (SELECT er.body FROM email_replies er 
+                  WHERE (er.lead_id IS NOT NULL AND er.lead_id = oe.lead_id) 
+                     OR (er.outreach_email_id IS NOT NULL AND er.outreach_email_id = oe.id)
+                     OR (LOWER(er.from_email) = LOWER(COALESCE(oe.to_email, oe.recipient_email)))
+                  ORDER BY er.received_at DESC LIMIT 1) AS reply_body,
+                (SELECT er.received_at FROM email_replies er 
+                  WHERE (er.lead_id IS NOT NULL AND er.lead_id = oe.lead_id) 
+                     OR (er.outreach_email_id IS NOT NULL AND er.outreach_email_id = oe.id)
+                     OR (LOWER(er.from_email) = LOWER(COALESCE(oe.to_email, oe.recipient_email)))
+                  ORDER BY er.received_at DESC LIMIT 1) AS reply_at
+           FROM outreach_emails oe
+           LEFT JOIN leads l ON l.id = oe.lead_id
+          WHERE oe.user_id = $1 OR oe.lead_id IS NOT NULL OR oe.recipient_email IS NOT NULL OR oe.to_email IS NOT NULL
+          ORDER BY COALESCE(oe.sent_at, oe.created_at) DESC LIMIT $2`,
         [uid, limit]
       ),
-      db.query(
+      // 3. AI Telephony Calls
+      tryQuery(
+        `SELECT ac.id, ac.lead_id, ac.started_at, ac.status, ac.transcript_summary,
+                ac.duration_secs, ac.to_phone, ac.lead_name, ac.company_name,
+                l.first_name, l.last_name, l.email, COALESCE(ac.to_phone, l.phone) AS phone
+           FROM ai_calls ac
+           LEFT JOIN leads l ON l.id = ac.lead_id
+          ORDER BY ac.started_at DESC LIMIT $1`,
+        [limit]
+      ),
+      // 4. Clinical Notes & Consultations
+      tryQuery(
         `SELECT cn.id, cn.lead_id, cn.kind, cn.title, cn.body, cn.created_at,
-                l.first_name, l.last_name
+                l.first_name, l.last_name, l.phone, l.email
            FROM clinic_notes cn
            LEFT JOIN leads l ON l.id = cn.lead_id
-          WHERE cn.user_id = $1
-          ORDER BY cn.created_at DESC LIMIT $2`,
-        [uid, limit]
+          ORDER BY cn.created_at DESC LIMIT $1`,
+        [limit]
       ),
     ]);
 
     const threads = [];
+
+    // WhatsApp Threads
     for (const row of wa.rows) {
       threads.push({
         type: 'whatsapp',
         id: row.id,
         leadId: row.lead_id,
-        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.phone,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.phone || 'WhatsApp Patient',
         phone: row.phone,
+        email: row.email,
         unread: row.unread_count || 0,
+        status: 'active',
         lastAt: row.last_message_at,
-        preview: row.preview || 'Click to open',
+        preview: row.preview || 'Click to open WhatsApp dialogue',
       });
     }
-    for (const row of calls.rows) {
+
+    // Email Threads
+    for (const row of (emails?.rows || [])) {
+      const cleanBody = (row.reply_body || row.body || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const hasReply = !!row.reply_body;
+      threads.push({
+        type: 'email',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || 'Email Patient',
+        email: row.email,
+        phone: row.phone,
+        subject: row.subject || 'Consultation & Treatment',
+        unread: hasReply ? 1 : 0,
+        status: hasReply ? 'replied' : (row.status || 'sent'),
+        lastAt: row.reply_at || row.sent_at || row.created_at,
+        preview: hasReply ? `Reply: ${cleanBody.slice(0, 110)}` : (row.subject ? `${row.subject} — ${cleanBody.slice(0, 80)}` : cleanBody.slice(0, 100)),
+      });
+    }
+
+    // AI Call Threads
+    for (const row of (calls?.rows || [])) {
       threads.push({
         type: 'call',
         id: row.id,
         leadId: row.lead_id,
-        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || `Call #${row.id}`,
-        phone: null,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.lead_name || 'Patient Consultation Call',
+        phone: row.phone || row.to_phone,
+        email: row.email,
         unread: 0,
+        durationSecs: row.duration_secs || 0,
+        status: row.status || 'completed',
         lastAt: row.started_at,
-        preview: row.transcript_summary || `Call ${row.status}`,
+        preview: row.transcript_summary || `AI Call (${row.duration_secs || 0}s) — ${row.status || 'completed'}`,
       });
     }
+
+    // Clinic Notes
     for (const row of notes.rows) {
       threads.push({
         type: 'note',
         id: row.id,
         leadId: row.lead_id,
-        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || `Note #${row.id}`,
-        phone: null,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || 'Clinical Note',
+        phone: row.phone,
+        email: row.email,
         unread: 0,
+        status: row.kind || 'note',
         lastAt: row.created_at,
-        preview: `${row.kind}: ${row.title || row.body?.slice(0, 80) || ''}`,
+        preview: `${row.title || row.kind}: ${(row.body || '').slice(0, 90)}`,
       });
     }
 
-    threads.sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
+    // Sort newest first
+    threads.sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
     res.json({ threads: threads.slice(0, limit) });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Detailed conversation thread loader
+router.get('/inbox/thread', requireUser, async (req, res) => {
+  try {
+    const { type, id, leadId } = req.query;
+    if (!type || !id) return res.status(400).json({ error: 'type and id are required' });
+
+    if (type === 'whatsapp') {
+      const convRes = await db.query('SELECT * FROM whatsapp_conversations WHERE id = $1', [id]);
+      const conv = convRes.rows[0] || null;
+      const msgs = await db.query(
+        `SELECT id, conversation_id, direction, content, body, status, sent_at, timestamp, created_at
+           FROM whatsapp_messages
+          WHERE conversation_id = $1 OR (lead_id IS NOT NULL AND lead_id = $2)
+          ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
+        [id, conv?.lead_id || leadId || 0]
+      );
+      return res.json({
+        type: 'whatsapp',
+        conversation: conv,
+        messages: msgs.rows.map(m => ({
+          id: m.id,
+          direction: m.direction || 'outbound',
+          content: m.content || m.body || '',
+          status: m.status,
+          sentAt: m.sent_at || m.timestamp || m.created_at
+        }))
+      });
+    }
+
+    if (type === 'email') {
+      const emailRes = await db.query('SELECT * FROM outreach_emails WHERE id = $1', [id]);
+      const email = emailRes.rows[0];
+      if (!email) return res.status(404).json({ error: 'Email record not found' });
+
+      const targetLeadId = email.lead_id || leadId;
+      const targetEmail = email.to_email || email.recipient_email;
+
+      const [outbound, inbound] = await Promise.all([
+        db.query(
+          `SELECT id, 'outbound' as direction, subject, body, status, sent_at, created_at
+             FROM outreach_emails
+            WHERE id = $1 OR (lead_id IS NOT NULL AND lead_id = $2) OR (to_email = $3 OR recipient_email = $3)
+            ORDER BY COALESCE(sent_at, created_at) ASC`,
+          [id, targetLeadId || 0, targetEmail || '']
+        ),
+        tryQuery(
+          `SELECT id, 'inbound' as direction, subject, body, 'received' as status, received_at as sent_at, created_at
+             FROM email_replies
+            WHERE (lead_id IS NOT NULL AND lead_id = $1) OR (outreach_email_id IS NOT NULL AND outreach_email_id = $2) OR LOWER(from_email) = LOWER($3)
+            ORDER BY COALESCE(received_at, created_at) ASC`,
+          [targetLeadId || 0, id, targetEmail || '']
+        )
+      ]);
+
+      const thread = [...outbound.rows, ...(inbound?.rows || [])].sort((a, b) => new Date(a.sent_at || a.created_at) - new Date(b.sent_at || b.created_at));
+
+      return res.json({
+        type: 'email',
+        email,
+        messages: thread.map(m => ({
+          id: m.id,
+          direction: m.direction,
+          subject: m.subject,
+          content: m.body,
+          status: m.status,
+          sentAt: m.sent_at || m.created_at
+        }))
+      });
+    }
+
+    if (type === 'call') {
+      const callRes = await db.query('SELECT * FROM ai_calls WHERE id = $1', [id]);
+      if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call record not found' });
+      const call = callRes.rows[0];
+      return res.json({
+        type: 'call',
+        call,
+        transcript: call.transcript || call.transcript_summary || 'Dialogue completed.',
+        summary: call.transcript_summary
+      });
+    }
+
+    if (type === 'note') {
+      const noteRes = await db.query('SELECT * FROM clinic_notes WHERE id = $1', [id]);
+      if (noteRes.rows.length === 0) return res.status(404).json({ error: 'Note not found' });
+      const note = noteRes.rows[0];
+      const related = await db.query('SELECT * FROM clinic_notes WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 10', [note.lead_id || 0]);
+      return res.json({
+        type: 'note',
+        note,
+        relatedNotes: related.rows
+      });
+    }
+
+    res.status(400).json({ error: 'Unknown thread type' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reply or send message from Inbox
+router.post('/inbox/reply', requireUser, async (req, res) => {
+  try {
+    const { type, conversationId, leadId, phone, email, subject, body } = req.body || {};
+    if (!body || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
+
+    if (type === 'whatsapp') {
+      let convId = conversationId;
+      if (!convId && phone) {
+        const clean = phone.replace(/[^0-9]/g, '');
+        const ex = await db.query('SELECT id FROM whatsapp_conversations WHERE phone LIKE $1 LIMIT 1', [`%${clean.slice(-10)}%`]);
+        if (ex.rows.length > 0) convId = ex.rows[0].id;
+      }
+      if (!convId) {
+        const ins = await db.query(
+          `INSERT INTO whatsapp_conversations (lead_id, phone, status, last_message, last_message_at)
+           VALUES ($1, $2, 'Active', $3, NOW()) RETURNING id`,
+          [leadId || null, phone, body.trim()]
+        );
+        convId = ins.rows[0].id;
+      }
+
+      await db.query(
+        `INSERT INTO whatsapp_messages (conversation_id, lead_id, phone, direction, content, body, status, sent_at, created_at)
+         VALUES ($1, $2, $3, 'outbound', $4, $4, 'delivered', NOW(), NOW())`,
+        [convId, leadId || null, phone || null, body.trim()]
+      );
+
+      await db.query(
+        'UPDATE whatsapp_conversations SET last_message = $1, last_message_at = NOW() WHERE id = $2',
+        [body.trim(), convId]
+      );
+
+      return res.json({ success: true, message: 'WhatsApp message sent' });
+    }
+
+    if (type === 'email') {
+      const ins = await db.query(
+        `INSERT INTO outreach_emails (user_id, lead_id, to_email, recipient_email, subject, body, status, sent_at, created_at)
+         VALUES ($1, $2, $3, $3, $4, $5, 'sent', NOW(), NOW()) RETURNING *`,
+        [req.user.id, leadId || null, email, subject || 'Re: Patient Consultation', body.trim()]
+      );
+      return res.json({ success: true, message: 'Email sent', email: ins.rows[0] });
+    }
+
+    if (type === 'note') {
+      const ins = await db.query(
+        `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+         VALUES ($1, $2, 'note', $3, $4, NOW()) RETURNING *`,
+        [req.user.id, leadId || null, subject || 'Follow-up Note', body.trim()]
+      );
+      return res.json({ success: true, message: 'Note added', note: ins.rows[0] });
+    }
+
+    res.status(400).json({ error: 'Invalid reply type' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ---------------------------------------------------------------------------
