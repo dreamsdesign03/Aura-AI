@@ -293,6 +293,14 @@ export default function PatientJourneySection({
           <button type="button" className="co-btn co-btn-sm" onClick={openEditModal}>
             <Sliders size={13} /> Edit targets
           </button>
+          <button
+            type="button"
+            className="co-btn co-btn-sm"
+            onClick={onViewPatientList}
+            style={{ background: '#fff', borderColor: '#E2E8F0', color: '#1E293B', fontWeight: 600 }}
+          >
+            <Users size={13} style={{ color: '#A4285E' }} /> Patients List ({totalPatients}) →
+          </button>
           {selectedStage && (
             <button
               type="button"
