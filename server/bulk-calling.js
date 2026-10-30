@@ -257,9 +257,55 @@ router.post('/', async (req, res) => {
         }
       }
 
+      let targetLeadId = c.lead_id || null;
+      const phoneE164 = phoneObj ? phoneObj.e164 : (c.phone || null);
+      const phone10 = phoneObj ? phoneObj.local : null;
+
+      try {
+        if (!targetLeadId && (phoneE164 || phone10)) {
+          const existingLead = await db.query(
+            "SELECT id FROM leads WHERE (phone = $1 OR whatsapp = $1 OR phone = $2 OR whatsapp = $2) AND (pipeline_stage NOT IN ('Active Patient', 'Patient') OR pipeline_stage IS NULL) LIMIT 1",
+            [phoneE164, phone10]
+          );
+          if (existingLead.rows.length > 0) {
+            targetLeadId = existingLead.rows[0].id;
+            await db.query(
+              "UPDATE leads SET campaign_name = $1, campaign_id = $2, company = COALESCE(NULLIF(company, ''), $3), email = COALESCE(NULLIF(email, ''), $4), source = COALESCE(source, 'Bulk Calling') WHERE id = $5",
+              [name, campaignId, c.company || null, c.email || null, targetLeadId]
+            );
+          }
+        }
+
+        if (!targetLeadId) {
+          const rawName = (c.name || '').trim();
+          const spaceIdx = rawName.indexOf(' ');
+          const firstName = spaceIdx > 0 ? rawName.slice(0, spaceIdx) : (rawName || 'Lead');
+          const lastName = spaceIdx > 0 ? rawName.slice(spaceIdx + 1) : '';
+          const userId = req.user ? req.user.id : 1;
+
+          const newLead = await db.query(
+            `INSERT INTO leads (
+              first_name, last_name, phone, whatsapp, email, company,
+              source, campaign_name, campaign_id,
+              status, pipeline_stage, user_id, created_at, updated_at
+            ) VALUES ($1, $2, $3, $4, $5, $6, 'Bulk Calling', $7, $8, 'new', 'Lead', $9, NOW(), NOW())
+            RETURNING id`,
+            [firstName, lastName, phoneE164, phoneE164, c.email || null, c.company || null, name, campaignId, userId]
+          );
+          targetLeadId = newLead.rows[0].id;
+        } else if (c.lead_id) {
+          await db.query(
+            'UPDATE leads SET campaign_name = $1, campaign_id = $2 WHERE id = $3',
+            [name, campaignId, c.lead_id]
+          );
+        }
+      } catch (leadSyncErr) {
+        console.error('[BulkCalling] Error syncing contact to leads table:', leadSyncErr.message);
+      }
+
       await db.query(
         'INSERT INTO bulk_contacts (campaign_id, name, company, phone_e164, phone10, email, extra_json, lead_id, status, last_summary) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)',
-        [campaignId, c.name || '', c.company || '', phoneObj ? phoneObj.e164 : null, phoneObj ? phoneObj.local : null, c.email || '', c.extra_json || {}, c.lead_id || null, status, reason]
+        [campaignId, c.name || '', c.company || '', phoneObj ? phoneObj.e164 : null, phoneObj ? phoneObj.local : null, c.email || '', c.extra_json || {}, targetLeadId, status, reason]
       );
     }
 

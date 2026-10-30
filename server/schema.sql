@@ -87,6 +87,8 @@ BEGIN
     ALTER TABLE leads ADD COLUMN last_ai_call_status TEXT;
     ALTER TABLE leads ADD COLUMN last_ai_call_at TIMESTAMPTZ;
     ALTER TABLE leads ADD COLUMN last_ai_call_request_id TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_name TEXT;
+    ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_id INT;
   END IF;
 END $$;
 

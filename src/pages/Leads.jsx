@@ -69,6 +69,21 @@ export default function Leads() {
     const [filterIndustry, setFilterIndustry] = useState("");
     const [filterCountry, setFilterCountry] = useState("");
     const [filterSource, setFilterSource] = useState("");
+    const [filterCampaign, setFilterCampaign] = useState("");
+
+    const { data: bulkCampaigns = [] } = useQuery({
+        queryKey: ["bulk-campaigns-list"],
+        queryFn: async () => {
+            try {
+                const res = await fetch("/api/bulk-calling");
+                if (!res.ok) return [];
+                return await res.json();
+            } catch {
+                return [];
+            }
+        },
+        staleTime: 60000,
+    });
     const [filterIcp, setFilterIcp] = useState("");
     const [filterAssignedTo, setFilterAssignedTo] = useState(() => sessionStorage.getItem("leadsFilterAssignedTo") ?? "");
     const [enrichBatchResult, setEnrichBatchResult] = useState(null);
@@ -555,6 +570,16 @@ export default function Leads() {
                 return false;
             if (filterSource && !(l.source ?? "").toLowerCase().includes(filterSource.toLowerCase()))
                 return false;
+            if (filterCampaign) {
+                if (filterCampaign === "__all_bulk__") {
+                    const isBulk = Boolean(l.campaign_name || (l.source ?? "").toLowerCase().includes("bulk"));
+                    if (!isBulk) return false;
+                } else {
+                    const matchCamp = (l.campaign_name && l.campaign_name.toLowerCase() === filterCampaign.toLowerCase()) ||
+                                      ((l.source ?? "").toLowerCase() === filterCampaign.toLowerCase());
+                    if (!matchCamp) return false;
+                }
+            }
             if (filterIcp && String(l.icpId ?? "") !== filterIcp)
                 return false;
             return true;
@@ -573,6 +598,16 @@ export default function Leads() {
     const uniqueIndustries = [...new Set(allLeads.map((l) => l.industry).filter(Boolean))].sort();
     const uniqueCountries = [...new Set(allLeads.map((l) => l.country).filter(Boolean))].sort();
     const uniqueSources = [...new Set(allLeads.map((l) => l.source).filter(Boolean))].sort();
+    const uniqueCampaigns = useMemo(() => {
+        const set = new Set();
+        (bulkCampaigns || []).forEach((c) => {
+            if (c.name) set.add(c.name);
+        });
+        allLeads.forEach((l) => {
+            if (l.campaign_name) set.add(l.campaign_name);
+        });
+        return Array.from(set).sort();
+    }, [bulkCampaigns, allLeads]);
     function rowBgColor(s) {
         switch (s) {
             case "new_enquiry": return "#E8F1FF";
@@ -594,6 +629,16 @@ export default function Leads() {
                 return false;
             if (filterSource && !(l.source ?? "").toLowerCase().includes(filterSource.toLowerCase()))
                 return false;
+            if (filterCampaign) {
+                if (filterCampaign === "__all_bulk__") {
+                    const isBulk = Boolean(l.campaign_name || (l.source ?? "").toLowerCase().includes("bulk"));
+                    if (!isBulk) return false;
+                } else {
+                    const matchCamp = (l.campaign_name && l.campaign_name.toLowerCase() === filterCampaign.toLowerCase()) ||
+                                      ((l.source ?? "").toLowerCase() === filterCampaign.toLowerCase());
+                    if (!matchCamp) return false;
+                }
+            }
             if (filterIcp && String(l.icpId ?? "") !== filterIcp)
                 return false;
             return true;
@@ -608,12 +653,12 @@ export default function Leads() {
             return sortDir === "asc" ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
         });
         sessionStorage.setItem("leadsNavList", JSON.stringify(navSorted.map((l) => l.id)));
-    }, [navData, filterIndustry, filterCountry, filterSource, filterIcp, sortCol, sortDir]);
+    }, [navData, filterIndustry, filterCountry, filterSource, filterCampaign, filterIcp, sortCol, sortDir]);
     // Reset to page 1 when any client-side filter/sort changes
     useEffect(() => {
         setPage(1);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filterIndustry, filterCountry, filterSource, filterIcp, sortCol, sortDir]);
+    }, [filterIndustry, filterCountry, filterSource, filterCampaign, filterIcp, sortCol, sortDir]);
     const handleSort = (col) => {
         if (sortCol === col)
             setSortDir((d) => d === "asc" ? "desc" : "asc");
@@ -667,7 +712,7 @@ export default function Leads() {
     const EXPORT_HEADERS = [
         "ID", "First Name", "Last Name", "Email", "Phone", "WhatsApp",
         "LinkedIn URL", "Company", "Designation", "Industry", "City", "Country",
-        "Website", "Company Size", "Annual Revenue", "Source", "Status",
+        "Website", "Company Size", "Annual Revenue", "Source", "Campaign", "Status",
         "Keywords", "Notes", "Assigned To", "Created At",
     ];
     const buildExportRow = (l) => [
@@ -687,6 +732,7 @@ export default function Leads() {
         l.companySize ?? "",
         l.annualRevenue ?? "",
         l.source ?? "",
+        l.campaign_name ?? "",
         l.status ?? "",
         Array.isArray(l.keywords) ? l.keywords.join(", ") : (l.keywords ?? ""),
         l.notes ?? "",
@@ -1031,7 +1077,7 @@ export default function Leads() {
 
           {/* Filter chips — horizontally scrollable */}
           <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-            <button onClick={() => { setStatus("all"); setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); }} className={cn("flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-[12px] rounded-full border font-medium whitespace-nowrap", status === "all" && !filterIndustry && !filterCountry && !filterSource
+            <button onClick={() => { setStatus("all"); setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterCampaign(""); setFilterIcp(""); }} className={cn("flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-[12px] rounded-full border font-medium whitespace-nowrap", status === "all" && !filterIndustry && !filterCountry && !filterSource && !filterCampaign
                 ? "bg-violet-600 border-violet-600 text-white"
                 : "bg-white border-gray-200 text-gray-700")}>
               All Leads <ChevronDown className="w-3 h-3"/>
@@ -1068,16 +1114,25 @@ export default function Leads() {
               </select>
               <ChevronDown className={cn("absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none", filterSource ? "text-white" : "text-gray-500")}/>
             </div>
+
+            <div className="relative flex-shrink-0">
+              <select value={filterCampaign} onChange={(e) => { setFilterCampaign(e.target.value); setPage(1); }} className={cn("appearance-none pl-3 pr-7 py-1.5 text-[12px] rounded-full border font-medium cursor-pointer focus:outline-none", filterCampaign ? "bg-violet-600 border-violet-600 text-white" : "bg-white border-gray-200 text-gray-700")}>
+                <option value="">Campaign / Bulk Data</option>
+                <option value="__all_bulk__">⚡ All Bulk Calling Data</option>
+                {uniqueCampaigns.map((c) => <option key={c} value={c}>📢 {c}</option>)}
+              </select>
+              <ChevronDown className={cn("absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 pointer-events-none", filterCampaign ? "text-white" : "text-gray-500")}/>
+            </div>
           </div>
 
           {/* Count row */}
           <div className="flex items-center justify-between">
             <span className="text-[13px] font-semibold text-gray-900">{filteredLeads.length.toLocaleString()} Leads</span>
-            {[filterIndustry, filterCountry, filterSource, filterIcp, filterAssignedTo, status !== "all" ? status : ""].filter(Boolean).length > 0 && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); setStatus("all"); }} className="flex items-center gap-1.5 px-3 py-1 text-[11px] rounded-full bg-violet-600 text-white font-semibold">
+            {[filterIndustry, filterCountry, filterSource, filterCampaign, filterIcp, filterAssignedTo, status !== "all" ? status : ""].filter(Boolean).length > 0 && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterCampaign(""); setFilterIcp(""); setFilterAssignedTo(""); setStatus("all"); }} className="flex items-center gap-1.5 px-3 py-1 text-[11px] rounded-full bg-violet-600 text-white font-semibold">
                 <SlidersHorizontal className="w-3 h-3"/>
                 More Filters
                 <span className="bg-white/25 text-white rounded-full px-1.5 py-px text-[10px] font-bold">
-                  {[filterIndustry, filterCountry, filterSource, filterIcp, filterAssignedTo, status !== "all" ? status : ""].filter(Boolean).length}
+                  {[filterIndustry, filterCountry, filterSource, filterCampaign, filterIcp, filterAssignedTo, status !== "all" ? status : ""].filter(Boolean).length}
                 </span>
               </button>)}
           </div>
@@ -1109,6 +1164,11 @@ export default function Leads() {
               <option value="">Source ▾</option>
               {uniqueSources.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
+            <select value={filterCampaign} onChange={(e) => { setFilterCampaign(e.target.value); setPage(1); }} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterCampaign ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
+              <option value="">Bulk Calling: All Campaigns ▾</option>
+              <option value="__all_bulk__">⚡ All Bulk Calling Data</option>
+              {uniqueCampaigns.map((c) => <option key={c} value={c}>📢 {c}</option>)}
+            </select>
             {icpsData && icpsData.length > 0 && (<select value={filterIcp} onChange={(e) => setFilterIcp(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterIcp ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
                 <option value="">ICP ▾</option>
                 {icpsData.map((icp) => <option key={icp.id} value={String(icp.id)}>{icp.name}</option>)}
@@ -1122,7 +1182,7 @@ export default function Leads() {
             return <option key={m.id} value={String(m.id)}>{c != null ? `${name} (${c})` : name}</option>;
         })}
             </select>
-            {(filterIndustry || filterCountry || filterSource || filterIcp || filterAssignedTo) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="flex items-center gap-1 text-[11px] text-orange-600 hover:text-orange-700 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-md px-2.5 py-1.5 transition-colors font-medium whitespace-nowrap">
+            {(filterIndustry || filterCountry || filterSource || filterCampaign || filterIcp || filterAssignedTo) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterCampaign(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="flex items-center gap-1 text-[11px] text-orange-600 hover:text-orange-700 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-md px-2.5 py-1.5 transition-colors font-medium whitespace-nowrap">
                 <X className="w-3 h-3"/> Clear filters
               </button>)}
           </div>
@@ -1353,6 +1413,7 @@ export default function Leads() {
                     {/* Row 3: Badge chips */}
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       <StatusBadge status={lead.status}/>
+                      {lead.campaign_name && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-semibold border border-violet-200">📢 {lead.campaign_name}</span>)}
                       {lead.industry && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{lead.industry}</span>)}
                       {l.annualRevenue && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{l.annualRevenue}</span>)}
                     </div>
@@ -1516,7 +1577,17 @@ export default function Leads() {
                     : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-2"><StatusBadge status={lead.status}/></td>
-                    <td className="px-3 py-2 text-gray-400 capitalize truncate text-[11px]" style={{ maxWidth: "100px" }}>{lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}</td>
+                    <td className="px-3 py-2 text-[11px]" style={{ maxWidth: "150px" }}>
+                      {lead.campaign_name ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200 truncate max-w-[140px]" title={`Bulk Campaign: ${lead.campaign_name}`}>
+                          📢 {lead.campaign_name}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 capitalize truncate block">
+                          {lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       {l.websiteStatus === "live" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">✓ Live</span>) : l.websiteStatus === "down" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700"><WifiOff className="w-2.5 h-2.5"/> Dead</span>) : l.websiteStatus === "no_website" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">No URL</span>) : lead.website ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-500 border border-amber-200">? Check</span>) : (<span className="text-gray-300 text-[10px]">—</span>)}
                     </td>

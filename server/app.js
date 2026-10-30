@@ -348,6 +348,8 @@ async function seedAdminUser() {
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_status TEXT;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_at TIMESTAMPTZ;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_request_id TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_name TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_id INT;
       
       CREATE TABLE IF NOT EXISTS bulk_campaigns (
         id SERIAL PRIMARY KEY,
