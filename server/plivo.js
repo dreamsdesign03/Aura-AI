@@ -47,9 +47,23 @@ async function dispatchPlivoCall({ to, from, conversationType = 'patient_consult
     throw new Error(`Invalid destination phone number: ${to}`);
   }
 
-  const baseUrl = (hostUrl || process.env.APP_BASE_URL || process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:5000').replace(/\/$/, '');
-  const answerUrl = `${baseUrl}/api/clinic/dialer/plivo/answer?type=${encodeURIComponent(conversationType)}&doctor=${encodeURIComponent(doctor)}&branch=${encodeURIComponent(branch)}`;
-  const hangupUrl = `${baseUrl}/api/clinic/dialer/plivo/hangup`;
+  let cleanHost = (
+    process.env.APP_BASE_URL ||
+    (hostUrl && !hostUrl.includes('localhost') && !hostUrl.includes('127.0.0.1') ? hostUrl : null) ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    'https://aura-ai-six-beta.vercel.app'
+  ).replace(/\/$/, '');
+
+  if (!/^https?:\/\//i.test(cleanHost)) {
+    cleanHost = `https://${cleanHost}`;
+  }
+
+  if (cleanHost.startsWith('http://') && !cleanHost.includes('localhost') && !cleanHost.includes('127.0.0.1')) {
+    cleanHost = cleanHost.replace('http://', 'https://');
+  }
+
+  const answerUrl = `${cleanHost}/api/clinic/dialer/plivo/answer?type=${encodeURIComponent(conversationType)}&doctor=${encodeURIComponent(doctor)}&branch=${encodeURIComponent(branch)}`;
+  const hangupUrl = `${cleanHost}/api/clinic/dialer/plivo/hangup`;
 
   const authHeader = `Basic ${Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64')}`;
 

@@ -1837,7 +1837,9 @@ router.post('/dialer/call', requireUser, async (req, res) => {
         });
       }
 
-      const hostUrl = `${req.protocol}://${req.get('host')}`;
+      const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
+      const hostUrl = host.includes('localhost') ? 'https://aura-ai-six-beta.vercel.app' : `${rawProto}://${host}`;
       const plivoResult = await plivo.dispatchPlivoCall({
         to: destination,
         from: creds.callerId,
@@ -2043,8 +2045,9 @@ router.post('/dialer/plivo/answer', async (req, res) => {
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
+  <Record recordSession="true" fileFormat="mp3" />
   <Speak language="en-IN" voice="Polly.Aditi">Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Your consultation call is now connected.</Speak>
-  <Record startOnDialAnswer="true" maxLength="900" playBeep="false" />
+  <Wait length="300" />
 </Response>`;
   res.set('Content-Type', 'text/xml');
   res.send(xml);
@@ -2084,8 +2087,9 @@ router.post('/dialer/plivo/inbound', async (req, res) => {
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
+  <Record recordSession="true" fileFormat="mp3" />
   <Speak language="en-IN" voice="Polly.Aditi">Welcome to Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Please stay on the line while we connect you to our clinical coordinator.</Speak>
-  <Record startOnDialAnswer="true" maxLength="900" playBeep="false" />
+  <Wait length="300" />
 </Response>`;
   res.set('Content-Type', 'text/xml');
   res.send(xml);
