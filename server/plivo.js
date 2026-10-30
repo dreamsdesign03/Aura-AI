@@ -5,14 +5,15 @@
 const db = require('./db');
 
 function getPlivoCredentials() {
-  const authId = (process.env.PLIVO_AUTH_ID || '').trim();
-  const authToken = (process.env.PLIVO_AUTH_TOKEN || '').trim();
-  const callerId = (process.env.PLIVO_CALLER_ID || process.env.PLIVO_PHONE_NUMBER || '').trim();
+  const authId = (process.env.PLIVO_AUTH_ID || 'MANZJKNMVLY2YTYWJIYY').trim();
+  const authToken = (process.env.PLIVO_AUTH_TOKEN || 'YWQ0ZGZmZDktMjFjZi00Y2YzLTZmOWItOTg4MmNh').trim();
+  const callerId = (process.env.PLIVO_CALLER_ID || process.env.PLIVO_PHONE_NUMBER || '+918065587555').trim();
 
   return {
     authId,
     authToken,
     callerId,
+    fallbackNumber: (process.env.PLIVO_FALLBACK_NUMBER || '+918031731156').trim(),
     isConfigured: !!(authId && authToken && callerId),
   };
 }
