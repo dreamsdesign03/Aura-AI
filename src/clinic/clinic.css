@@ -281,6 +281,129 @@
   .co-week { grid-template-columns: 48px repeat(7, minmax(78px, 1fr)); overflow-x: auto; }
   .clinic-os h1 { font-size: 21px; }
 }
+
+/* ---------- patient journey ---------- */
+.pj-five {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 1160px) {
+  .pj-five {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+@media (max-width: 700px) {
+  .pj-five {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.pj-st {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border-radius: 14px;
+  background: #FFFFFF;
+  border: 1px solid #E3EAE9;
+  text-decoration: none;
+  color: #172326;
+  min-width: 0;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+  position: relative;
+}
+.pj-st:hover {
+  transform: translateY(-2px);
+  border-color: #8FD3C6;
+  box-shadow: 0 10px 24px -10px rgba(11, 122, 106, 0.18);
+  color: #172326;
+}
+.pj-st.pj-row-b {
+  background: #FAFDFE;
+  border-color: #CBE6EF;
+}
+.pj-st.pj-row-b:hover {
+  border-color: #8CC4D6;
+  box-shadow: 0 10px 24px -10px rgba(11, 93, 122, 0.18);
+}
+.pj-st.active {
+  border-color: var(--co-brand);
+  box-shadow: 0 0 0 2px var(--co-soft), 0 10px 24px -10px rgba(164, 40, 94, 0.25);
+}
+
+.pj-num {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #0B7A6A;
+  color: #FFFFFF;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font: 600 13px Poppins, Inter, sans-serif;
+  flex: none;
+}
+.pj-row-b .pj-num {
+  background: #0B5D7A;
+}
+
+.pj-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.pj-badge.on-target {
+  background: #E6F5E4;
+  color: #2E7D32;
+}
+.pj-badge.below-target {
+  background: #FDEBD3;
+  color: #8A4A06;
+}
+.pj-badge.neutral {
+  background: #E9EFEE;
+  color: #45504F;
+}
+.pj-badge.brand {
+  background: #DDF3EE;
+  color: #0A6F61;
+}
+
+.pj-foundation {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: #EAF2F0;
+  border: 1px solid #C8DEDA;
+  text-decoration: none;
+  color: #172326;
+  flex-wrap: wrap;
+  transition: border-color .18s, background .18s;
+}
+.pj-foundation:hover {
+  background: #E2ECE9;
+  border-color: #AECFC8;
+}
+
+.pj-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+@media (max-width: 960px) {
+  .pj-breakdown-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .clinic-os *, .clinic-os *::before, .clinic-os *::after {
     animation-duration: .01ms !important;

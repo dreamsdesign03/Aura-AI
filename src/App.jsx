@@ -334,6 +334,7 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/debug-logs" component={() => <DebugLogsPage />}/>
         <Route path="/bulk-calling" component={() => <Layout><BulkCalling /></Layout>}/>
         <Route path="/clinic" component={() => <Layout><ClinicOverview /></Layout>}/>
+        <Route path="/clinic/journey" component={() => <Layout><ClinicPatients /></Layout>}/>
         <Route path="/clinic/appointments" component={() => <Layout><ClinicAppointments /></Layout>}/>
         <Route path="/clinic/patients" component={() => <Layout><ClinicPatients /></Layout>}/>
         <Route path="/clinic/inbox" component={() => <Layout><ClinicInbox /></Layout>}/>
