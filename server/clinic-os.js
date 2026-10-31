@@ -8,6 +8,7 @@
  */
 const express = require('express');
 const db = require('./db');
+const { cleanEnglishName } = require('./call-utils');
 
 const router = express.Router();
 
@@ -350,7 +351,7 @@ function mapCalRowToClinic(row) {
     id: row.id,
     user_id: row.user_id,
     lead_id: null,
-    patient_name: row.invitee_name || 'Consultation Patient',
+    patient_name: cleanEnglishName(row.invitee_name, 'Consultation Patient'),
     phone: phone,
     email: row.invitee_email || '',
     treatment: treatment,
@@ -571,8 +572,74 @@ router.get('/appointments', requireUser, async (req, res) => {
     ]);
 
     const mappedCal = calRes.rows.map(mapCalRowToClinic);
-    const mappedClinic = clinicRes.rows.map(r => ({ ...r, source: 'clinic' }));
+    const mappedClinic = clinicRes.rows.map(r => ({ ...r, patient_name: cleanEnglishName(r.patient_name), source: 'clinic' }));
     const all = [...mappedCal, ...mappedClinic].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+
+    // Attach associated call recording and transcript to appointments
+    try {
+      const [callsRes, bulkRes] = await Promise.all([
+        db.query(
+          `SELECT id, to_phone, lead_name, status, outcome, duration_secs, recording_url, transcript, transcript_summary, provider
+             FROM ai_calls
+            WHERE recording_url IS NOT NULL OR transcript IS NOT NULL OR duration_secs > 0
+            ORDER BY duration_secs DESC, id DESC`
+        ),
+        db.query(
+          `SELECT id, phone10, status, recording_url, transcript, last_summary
+             FROM bulk_contacts
+            WHERE recording_url IS NOT NULL OR transcript IS NOT NULL OR status = 'booked'
+            ORDER BY id DESC`
+        )
+      ]);
+
+      const phoneToCall = new Map();
+      for (const c of callsRes.rows) {
+        const ph = (c.to_phone || '').replace(/\D/g, '');
+        const last10 = ph.length >= 10 ? ph.slice(-10) : ph;
+        if (last10 && !phoneToCall.has(last10)) {
+          phoneToCall.set(last10, {
+            call_review_id: c.id,
+            recording_url: c.recording_url,
+            transcript: c.transcript,
+            transcript_summary: c.transcript_summary,
+            call_status: c.status,
+            call_duration: c.duration_secs,
+            call_outcome: c.outcome,
+          });
+        }
+      }
+      for (const b of bulkRes.rows) {
+        const last10 = (b.phone10 || '').replace(/\D/g, '');
+        if (last10 && !phoneToCall.has(last10)) {
+          phoneToCall.set(last10, {
+            call_review_id: null,
+            recording_url: b.recording_url,
+            transcript: b.transcript,
+            transcript_summary: b.last_summary,
+            call_status: b.status,
+            call_duration: 0,
+            call_outcome: b.status,
+          });
+        }
+      }
+
+      for (const a of all) {
+        const ph = (a.phone || '').replace(/\D/g, '');
+        const last10 = ph.length >= 10 ? ph.slice(-10) : ph;
+        if (last10 && phoneToCall.has(last10)) {
+          const match = phoneToCall.get(last10);
+          a.call_review_id = match.call_review_id;
+          a.recording_url = match.recording_url;
+          a.transcript = match.transcript;
+          a.transcript_summary = match.transcript_summary;
+          a.call_status = match.call_status;
+          a.call_duration = match.call_duration;
+          a.call_outcome = match.call_outcome;
+        }
+      }
+    } catch (joinErr) {
+      console.warn('[clinic-os] appointments call join warning:', joinErr.message);
+    }
 
     if (isAll) {
       return res.json({ appointments: all, total: all.length, calCount: mappedCal.length });
@@ -2371,6 +2438,7 @@ router.get('/call-review', requireUser, async (req, res) => {
       }
       return {
         ...c,
+        display_name: cleanEnglishName(c.display_name || c.lead_name || 'Patient'),
         recording_url: rec
       };
     });
@@ -2401,6 +2469,7 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     const call = r.rows[0];
+    call.display_name = cleanEnglishName(call.display_name || call.lead_name || 'Patient');
 
     const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
     const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';

@@ -116,8 +116,11 @@ export const initials = (first, last) => {
   return (a + b).toUpperCase() || '?';
 };
 
+import { cleanEnglishName } from '@/lib/utils';
+export { cleanEnglishName };
+
 export const fullName = (p) =>
-  [p?.first_name, p?.last_name].filter(Boolean).join(' ').trim() || p?.patient_name || p?.name || 'Patient';
+  cleanEnglishName([p?.first_name, p?.last_name].filter(Boolean).join(' ').trim() || p?.patient_name || p?.name || 'Patient');
 
 export const timeLabel = (value) =>
   new Date(value).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });

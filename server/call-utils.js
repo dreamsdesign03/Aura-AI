@@ -49,4 +49,56 @@ function canCall(lead, isScheduled = false) {
   return { ok: true, reason: null, e164: phoneObj.e164 };
 }
 
-module.exports = { normalizePhone, isCallingHours, canCall };
+const KNOWN_NAME_MAPPINGS = {
+  'غوشیہ': 'Ghousia',
+  'غوثیہ': 'Ghousia',
+  'محمد': 'Mohammed',
+  'علی': 'Ali',
+  'احمد': 'Ahmed',
+  'فاطمہ': 'Fatima',
+  'عائشہ': 'Ayesha',
+  'زينب': 'Zainab',
+};
+
+function cleanEnglishName(raw, fallback = 'Patient') {
+  if (!raw) return fallback;
+  let str = String(raw).trim();
+  if (!str) return fallback;
+
+  if (/sweetubrahmbhatt/i.test(str)) {
+    return 'Sweetu Brahmbhatt';
+  }
+  if (/shivamsinha/i.test(str)) {
+    return 'Shivam Sinha';
+  }
+
+  for (const [k, v] of Object.entries(KNOWN_NAME_MAPPINGS)) {
+    if (str.includes(k)) {
+      str = str.replace(new RegExp(k, 'g'), v);
+    }
+  }
+
+  str = str.replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u200B\u2060]/gu, '');
+  str = str.replace(/[♡❤️🖤★☆✨🌸🌼🏵️🌻🦄🪬💣🕊️😇🎀😍🌿💫🍰~_#@!?*•|\\/]/g, ' ');
+  str = str.replace(/\bDr\.([a-zA-Z])/gi, 'Dr. $1');
+  str = str.replace(/([a-zA-Z])\d{3,}$/g, '$1');
+  str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
+  str = str.replace(/^[.\s\-–—,]+|[.\s\-–—,]+$/g, '').replace(/\s+/g, ' ').trim();
+
+  const hasLatin = /[a-zA-Z]/.test(str);
+  if (!hasLatin) {
+    return fallback;
+  }
+
+  str = str.replace(/[^\x20-\x7E]/g, '').trim();
+  str = str.replace(/^[.\s\-–—,]+|[.\s\-–—,]+$/g, '').trim();
+
+  if (!str || str.length < 2) return fallback;
+
+  return str.split(' ').map(w => {
+    if (!w) return '';
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  }).join(' ').trim();
+}
+
+module.exports = { normalizePhone, isCallingHours, canCall, cleanEnglishName };

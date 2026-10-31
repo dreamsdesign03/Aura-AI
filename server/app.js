@@ -37,6 +37,7 @@ const agentHubApi = require('./agent-hub');
 const { registerWhatsAppRoutes } = require('./whatsapp');
 const aiCallsApi = require('./ai-calls');
 const sarvamWebhookApi = require('./sarvam-webhook');
+const { cleanEnglishName } = require('./call-utils');
 
 const app = express();
 
@@ -632,7 +633,7 @@ function mapCalendlyToAppointment(row) {
 
   return {
     id: row.id,
-    name: row.invitee_name,
+    name: cleanEnglishName(row.invitee_name),
     email: cleanEmailValue,
     phone: phoneVal,
     scheduledDate: dateStr,
@@ -869,7 +870,73 @@ app.get('/api/appointments', async (req, res) => {
     const result = await db.query(
       `SELECT * FROM calendly_events WHERE COALESCE(is_deleted, false) = false ORDER BY start_time DESC`
     );
-    res.json(result.rows.map(mapCalendlyToAppointment));
+    const appts = result.rows.map(mapCalendlyToAppointment);
+
+    // Attach associated call recording and transcript if available
+    try {
+      const callsRes = await db.query(
+        `SELECT id, to_phone, lead_name, status, outcome, duration_secs, recording_url, transcript, transcript_summary, provider
+         FROM ai_calls
+         WHERE recording_url IS NOT NULL OR transcript IS NOT NULL OR duration_secs > 0
+         ORDER BY duration_secs DESC, id DESC`
+      );
+      const bulkRes = await db.query(
+        `SELECT id, phone10, status, recording_url, transcript, last_summary
+         FROM bulk_contacts
+         WHERE recording_url IS NOT NULL OR transcript IS NOT NULL OR status = 'booked'
+         ORDER BY id DESC`
+      );
+
+      const phoneToCall = new Map();
+      for (const c of callsRes.rows) {
+        const ph = (c.to_phone || '').replace(/\D/g, '');
+        const last10 = ph.length >= 10 ? ph.slice(-10) : ph;
+        if (last10 && !phoneToCall.has(last10)) {
+          phoneToCall.set(last10, {
+            call_review_id: c.id,
+            recording_url: c.recording_url,
+            transcript: c.transcript,
+            transcript_summary: c.transcript_summary,
+            call_status: c.status,
+            call_duration: c.duration_secs,
+            call_outcome: c.outcome,
+          });
+        }
+      }
+      for (const b of bulkRes.rows) {
+        const last10 = (b.phone10 || '').replace(/\D/g, '');
+        if (last10 && !phoneToCall.has(last10)) {
+          phoneToCall.set(last10, {
+            call_review_id: null,
+            recording_url: b.recording_url,
+            transcript: b.transcript,
+            transcript_summary: b.last_summary,
+            call_status: b.status,
+            call_duration: 0,
+            call_outcome: b.status,
+          });
+        }
+      }
+
+      for (const a of appts) {
+        const ph = (a.phone || '').replace(/\D/g, '');
+        const last10 = ph.length >= 10 ? ph.slice(-10) : ph;
+        if (last10 && phoneToCall.has(last10)) {
+          const match = phoneToCall.get(last10);
+          a.call_review_id = match.call_review_id;
+          a.recording_url = match.recording_url;
+          a.transcript = match.transcript;
+          a.transcript_summary = match.transcript_summary;
+          a.call_status = match.call_status;
+          a.call_duration = match.call_duration;
+          a.call_outcome = match.call_outcome;
+        }
+      }
+    } catch (joinErr) {
+      console.warn('[GET /api/appointments] call join warning:', joinErr.message);
+    }
+
+    res.json(appts);
   } catch (err) {
     console.error('[GET /api/appointments error]:', err.message);
     res.json([]);

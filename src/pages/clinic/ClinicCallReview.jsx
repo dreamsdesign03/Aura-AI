@@ -6,7 +6,7 @@ import {
   RefreshCw, CalendarDays, PhoneCall, Phone, PhoneIncoming, PhoneOutgoing,
   Sparkles, Filter, Search, X, CheckCircle2, User, FileText, CheckCheck, MessageSquare
 } from 'lucide-react';
-import { clinicApi, dateLabel, timeLabel, datetimeLabel, fullName } from '@/clinic/api';
+import { clinicApi, dateLabel, timeLabel, datetimeLabel, fullName, cleanEnglishName } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner } from '@/clinic/ui';
 
 function formatDuration(sec) {
@@ -251,37 +251,32 @@ function SentimentBadge({ sentiment }) {
 
 function normalizeTranscriptTurns(rawTranscript) {
   if (!rawTranscript) return [];
+  let parsed = rawTranscript;
   if (typeof rawTranscript === 'string') {
     try {
-      const parsed = JSON.parse(rawTranscript);
-      if (Array.isArray(parsed)) return normalizeTranscriptTurns(parsed);
+      parsed = JSON.parse(rawTranscript);
     } catch {
-      return [{ speaker: 'Agent', text: rawTranscript }];
+      return [{ id: 0, speaker: 'AI Coordinator', text: rawTranscript }];
     }
   }
 
-  if (Array.isArray(rawTranscript)) {
-    return rawTranscript.map((t, idx) => {
-      // Format 1: { speaker: "AI" | "Patient", text: "..." }
-      if (t.speaker || t.text) {
-        return {
-          id: idx,
-          speaker: t.speaker || (t.role === 'agent' ? 'AI Coordinator' : 'Patient'),
-          text: t.text || t.message || t.content || '',
-          time: t.time || t.timestamp,
-        };
-      }
-      // Format 2: ElevenLabs / Sarvam turn { role: "agent"|"user", message: "..." }
-      if (t.role || t.message || t.content) {
-        const isAgent = t.role === 'agent' || t.role === 'assistant';
-        return {
-          id: idx,
-          speaker: isAgent ? 'AI Coordinator' : 'Patient',
-          text: t.message || t.content || t.original_message || '',
-          time: t.time_in_call_secs != null ? `${t.time_in_call_secs}s` : null,
-        };
-      }
-      return { id: idx, speaker: 'Turn', text: JSON.stringify(t) };
+  if (Array.isArray(parsed)) {
+    return parsed.map((t, idx) => {
+      // Sarvam format: { role: 'agent'|'user', en_text: '...', indic_text: '...' }
+      // ElevenLabs / standard format: { speaker, text, message, content, role }
+      const isAgent = t.role === 'agent' || t.role === 'assistant' || (t.speaker && /ai|agent|coordinator/i.test(t.speaker));
+      const enText = (t.en_text || t.text || t.message || t.content || t.original_message || '').trim();
+      const indicText = (t.indic_text && t.indic_text.trim() !== enText) ? t.indic_text.trim() : '';
+      const displayText = enText || indicText || (typeof t === 'string' ? t.trim() : '');
+      const timeStr = t.time || t.timestamp || (t.time_in_call_secs != null ? `${t.time_in_call_secs}s` : null);
+
+      return {
+        id: idx,
+        speaker: isAgent ? 'Aura AI / Coordinator' : (t.speaker || 'Patient'),
+        text: displayText,
+        indicText: indicText,
+        time: timeStr,
+      };
     }).filter(turn => turn.text && turn.text.trim());
   }
 
@@ -345,14 +340,46 @@ export default function ClinicCallReview({ id }) {
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
-        const name = (c.display_name || c.lead_name || fullName(c) || '').toLowerCase();
+        const cleanQDigits = q.replace(/\D/g, '');
+
+        const rawName = (c.display_name || c.lead_name || fullName(c) || '').toLowerCase();
+        const cleanName = cleanEnglishName(c.display_name || c.lead_name || fullName(c) || '').toLowerCase();
+        const company = (c.company_name || c.lead_company || c.company || '').toLowerCase();
         const toPhone = (c.to_phone || c.phone || '').toLowerCase();
+        const cleanTo = toPhone.replace(/\D/g, '');
         const fromPhone = (c.from_phone || '').toLowerCase();
-        const sid = (c.call_sid || c.conversation_id || '').toLowerCase();
+        const cleanFrom = fromPhone.replace(/\D/g, '');
+        const sid = (c.call_sid || c.conversation_id || c.interaction_id || '').toLowerCase();
         const summary = (c.transcript_summary || '').toLowerCase();
-        if (!name.includes(q) && !toPhone.includes(q) && !fromPhone.includes(q) && !sid.includes(q) && !summary.includes(q)) {
-          return false;
-        }
+        const provider = (c.provider || '').toLowerCase();
+        const direction = (c.direction || '').toLowerCase();
+        const status = (c.status || '').toLowerCase();
+        const outcome = (c.outcome || '').toLowerCase();
+        const sentiment = (c.sentiment || '').toLowerCase();
+        const durationStr = formatDuration(c.duration_secs).toLowerCase();
+        const dateStr = c.started_at ? `${dateLabel(c.started_at)} ${timeLabel(c.started_at)}`.toLowerCase() : '';
+        const transcriptRaw = typeof c.transcript === 'string' ? c.transcript.toLowerCase() : JSON.stringify(c.transcript || '').toLowerCase();
+
+        const matchText = (
+          rawName.includes(q) ||
+          cleanName.includes(q) ||
+          company.includes(q) ||
+          toPhone.includes(q) ||
+          fromPhone.includes(q) ||
+          sid.includes(q) ||
+          summary.includes(q) ||
+          provider.includes(q) ||
+          direction.includes(q) ||
+          status.includes(q) ||
+          outcome.includes(q) ||
+          sentiment.includes(q) ||
+          durationStr.includes(q) ||
+          dateStr.includes(q) ||
+          transcriptRaw.includes(q) ||
+          (cleanQDigits.length >= 3 && (cleanTo.includes(cleanQDigits) || cleanFrom.includes(cleanQDigits)))
+        );
+
+        if (!matchText) return false;
       }
 
       return true;
@@ -551,7 +578,7 @@ export default function ClinicCallReview({ id }) {
                 </thead>
                 <tbody>
                   {filteredCalls.map((c) => {
-                    const patientName = c.display_name || c.lead_name || fullName(c) || 'Patient';
+                    const patientName = cleanEnglishName(c.display_name || c.lead_name || fullName(c) || 'Patient');
                     const sidShort = c.call_sid ? (c.call_sid.length > 18 ? `${c.call_sid.slice(0, 16)}…` : c.call_sid) : (c.conversation_id ? `${c.conversation_id.slice(0, 16)}…` : '—');
 
                     return (
@@ -677,7 +704,7 @@ export default function ClinicCallReview({ id }) {
   if (!call) return null;
 
   const turns = normalizeTranscriptTurns(call.transcript);
-  const patientDisplayName = call.display_name || call.lead_name || fullName(call) || 'Patient';
+  const patientDisplayName = cleanEnglishName(call.display_name || call.lead_name || fullName(call) || 'Patient');
 
   // Check if there is an alternative Sarvam AI call for this patient with real turns or recording
   const sarvamAlt = relatedCalls.find(
@@ -866,9 +893,14 @@ export default function ClinicCallReview({ id }) {
                         </span>
                         {t.time && <span style={{ fontSize: 10, color: '#9CA3AF' }}>{t.time}</span>}
                       </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
+                      <div style={{ fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', fontWeight: 500 }}>
                         {t.text}
                       </div>
+                      {t.indicText && (
+                        <div style={{ fontSize: 11.5, lineHeight: 1.4, color: isAgent ? '#9D174D' : '#6B7280', marginTop: 5, borderTop: '1px dashed rgba(0,0,0,0.08)', paddingTop: 4 }}>
+                          {t.indicText}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -876,12 +908,25 @@ export default function ClinicCallReview({ id }) {
             ) : (
               <div style={{ padding: '24px 16px', textAlign: 'center', background: '#F8FAFC', borderRadius: 8, border: '1px solid #E2E8F0', marginTop: 8 }}>
                 <MessageSquare size={24} style={{ color: '#94A3B8', margin: '0 auto 8px' }} />
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>No AI Transcript for this Call</div>
-                <p className="co-sm co-mut" style={{ maxWidth: 440, margin: '4px auto 0' }}>
-                  {(call.provider || '').toLowerCase() === 'plivo'
-                    ? 'This was a direct outbound dialer call between clinic staff and the patient. AI conversational transcription is active on Sarvam AI voice calls.'
-                    : 'No automated transcript stream was logged for this session.'}
-                </p>
+                {call.duration_secs === 0 || ['busy', 'failed', 'no_answer', 'cancelled'].includes((call.status || '').toLowerCase()) ? (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>
+                      Call Not Connected · Duration 0:00 ({call.status ? call.status.toUpperCase() : 'NO ANSWER'})
+                    </div>
+                    <p className="co-sm co-mut" style={{ maxWidth: 440, margin: '4px auto 0' }}>
+                      No conversation took place because the recipient line was busy or unanswered. AI conversational turns are recorded on connected calls.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>No AI Transcript for this Call</div>
+                    <p className="co-sm co-mut" style={{ maxWidth: 440, margin: '4px auto 0' }}>
+                      {(call.provider || '').toLowerCase() === 'plivo'
+                        ? 'This was a direct outbound dialer call between clinic staff and the patient. AI conversational transcription is active on Sarvam AI voice calls.'
+                        : 'No automated transcript stream was logged for this session.'}
+                    </p>
+                  </>
+                )}
               </div>
             )}
           </Card>

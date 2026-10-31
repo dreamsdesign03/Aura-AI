@@ -5,6 +5,7 @@ import BulkCallModal from "@/components/BulkCallModal";
 import EditCampaignModal from "@/components/EditCampaignModal";
 import { format } from "date-fns";
 import * as XLSX from "xlsx-js-style";
+import { cleanEnglishName } from "@/lib/utils";
 
 const STATUS_LABEL = {
   booked: "Appointment booked", not_booked: "Answered, not booked", no_answer: "Not picked up",
@@ -294,7 +295,7 @@ function BulkCallDetail({ id, onBack }) {
 
   const filteredContacts = contacts.filter(c => {
     if (filterStatus !== 'all' && c.status !== filterStatus) return false;
-    if (search && !(c.name?.toLowerCase().includes(search.toLowerCase()) || c.phone10?.includes(search) || c.company?.toLowerCase().includes(search.toLowerCase()))) return false;
+    if (search && !(c.name?.toLowerCase().includes(search.toLowerCase()) || cleanEnglishName(c.name).toLowerCase().includes(search.toLowerCase()) || c.phone10?.includes(search) || c.company?.toLowerCase().includes(search.toLowerCase()))) return false;
     return true;
   });
 
@@ -457,7 +458,7 @@ function BulkCallDetail({ id, onBack }) {
                 {filteredContacts.map((c, i) => (
                   <tr key={i} onClick={() => setDrawerContact(c)} className="hover:bg-blue-50/50 cursor-pointer transition-colors">
                     <td className="px-5 py-3">
-                      <div className="font-bold text-gray-900">{c.name || 'Unknown'}</div>
+                      <div className="font-bold text-gray-900">{cleanEnglishName(c.name)}</div>
                       {c.company && <div className="text-gray-500 text-[10px]">{c.company}</div>}
                     </td>
                     <td className="px-5 py-3 font-medium text-gray-600">{c.phone10}</td>
@@ -503,7 +504,7 @@ function BulkCallDetail({ id, onBack }) {
         <div className="absolute top-0 right-0 bottom-0 w-96 bg-white shadow-2xl border-l border-gray-200 z-40 flex flex-col animate-in slide-in-from-right duration-200">
           <div className="p-5 border-b border-gray-100 flex items-center justify-between bg-gray-50">
             <div>
-              <h3 className="font-bold text-gray-900">{drawerContact.name}</h3>
+              <h3 className="font-bold text-gray-900">{cleanEnglishName(drawerContact.name)}</h3>
               <p className="text-xs text-gray-500">{drawerContact.phone10}</p>
               <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${drawerContact.status === 'booked' ? 'bg-green-100 text-green-700' : drawerContact.status === 'no_answer' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-700'}`}>{statusLabel(drawerContact.status)}</span>
               {drawerContact.status === 'booked' && drawerContact.booked_datetime_text && drawerContact.booked_datetime_text !== 'none' && <div className="text-[11px] text-green-700 font-bold mt-1">Appointment: {drawerContact.booked_datetime_text}</div>}

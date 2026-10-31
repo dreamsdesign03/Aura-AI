@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useListAppointments, useUpdateAppointment, useDeleteAppointment, useListMeetings, useUpdateMeeting, useDeleteMeeting, useListLeads, getListAppointmentsQueryKey, getListMeetingsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, ExternalLink, RefreshCw, } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, ExternalLink, RefreshCw, Search, Play, Pause, Volume2, MessageSquare, Sparkles, } from "lucide-react";
+import { cn, cleanEnglishName } from "@/lib/utils";
 import { NewMeetingModal, downloadICS, MEETING_TYPES } from "@/components/NewMeetingModal";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
 import { cleanEmail } from "@/lib/emails";
@@ -29,6 +29,127 @@ function statusColor(s) {
     if (s === "cancelled")
         return { bg: "#fee2e2", text: "#dc2626" };
     return { bg: "#f3f4f6", text: "#6b7280" };
+}
+
+function parseMeetingTurns(raw) {
+  if (!raw) return [];
+  let parsed = raw;
+  if (typeof raw === "string") {
+    try { parsed = JSON.parse(raw); } catch { return [{ id: 0, isAgent: false, speaker: "Patient", text: raw }]; }
+  }
+  if (Array.isArray(parsed)) {
+    return parsed.map((t, idx) => {
+      const isAgent = t.role === "agent" || t.role === "assistant" || (t.speaker && /ai|agent|coordinator/i.test(t.speaker));
+      const en = (t.en_text || t.text || t.message || t.content || t.original_message || "").trim();
+      const indic = (t.indic_text && t.indic_text.trim() !== en) ? t.indic_text.trim() : "";
+      return {
+        id: idx,
+        isAgent,
+        speaker: isAgent ? "Aura AI / Coordinator" : (t.speaker || "Patient"),
+        text: en || indic || (typeof t === "string" ? t : ""),
+        indicText: indic,
+        time: t.time || (t.time_in_call_secs != null ? `${t.time_in_call_secs}s` : null),
+      };
+    }).filter(turn => turn.text && turn.text.trim());
+  }
+  return [];
+}
+
+function MeetingAudioPlayer({ src }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onTime = () => setCurrent(a.currentTime);
+    const onLoaded = () => setDuration(a.duration || 0);
+    const onEnded = () => setPlaying(false);
+    a.addEventListener("timeupdate", onTime);
+    a.addEventListener("loadedmetadata", onLoaded);
+    a.addEventListener("ended", onEnded);
+    return () => {
+      a.removeEventListener("timeupdate", onTime);
+      a.removeEventListener("loadedmetadata", onLoaded);
+      a.removeEventListener("ended", onEnded);
+    };
+  }, [src]);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {});
+      setPlaying(true);
+    }
+  };
+
+  const seek = (e) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = pos * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrent(newTime);
+  };
+
+  const formatSec = (sec) => {
+    if (!sec && sec !== 0) return "0:00";
+    const s = Math.round(Number(sec) || 0);
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return `${m}:${String(rem).padStart(2, "0")}`;
+  };
+
+  return (
+    <div className="flex flex-col gap-2 mt-2">
+      {src && <audio ref={audioRef} src={src} preload="metadata" />}
+      <div className="flex items-center gap-3 p-3 bg-pink-50/50 rounded-xl border border-pink-100">
+        <button
+          type="button"
+          onClick={toggle}
+          disabled={!src}
+          className="w-9 h-9 rounded-full flex items-center justify-center text-white transition-transform active:scale-95 disabled:opacity-50 flex-shrink-0"
+          style={{ background: "#A4285E" }}
+          aria-label={playing ? "Pause" : "Play"}
+        >
+          {playing ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 ml-0.5" />}
+        </button>
+        <div className="flex-1 flex items-center gap-2">
+          <div
+            onClick={seek}
+            className="flex-1 h-2 bg-pink-100 rounded-full cursor-pointer overflow-hidden"
+          >
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: duration > 0 ? `${(current / duration) * 100}%` : "0%",
+                background: "#A4285E",
+              }}
+            />
+          </div>
+          <span className="text-[11px] font-mono text-gray-500 whitespace-nowrap min-w-[70px] text-right">
+            {formatSec(current)} / {formatSec(duration)}
+          </span>
+        </div>
+        {src && (
+          <a
+            href={src}
+            download
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-pink-700 hover:text-pink-800 bg-white border border-pink-200 px-2.5 py-1.5 rounded-lg shadow-sm"
+          >
+            <Download className="w-3 h-3" /> Audio
+          </a>
+        )}
+      </div>
+    </div>
+  );
 }
 // ── HostPanel (left side, shared across all steps) ───────────────────────────
 function HostPanel({ selectedDate, selectedTimeLabel }) {
@@ -106,6 +227,7 @@ function AdminView() {
     });
     const [syncing, setSyncing] = useState(false);
     const [syncError, setSyncError] = useState("");
+    const [searchQuery, setSearchQuery] = useState("");
     const syncCalCom = useCallback(async () => {
         setSyncing(true);
         setSyncError("");
@@ -141,11 +263,38 @@ function AdminView() {
             qc.invalidateQueries({ queryKey: getListAppointmentsQueryKey() });
         }
     }
-    const upcoming = appointments.filter(a => {
+
+    const filteredAppts = useMemo(() => {
+        return appointments.filter(appt => {
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.toLowerCase().trim();
+            const cleanQDigits = q.replace(/\D/g, "");
+            const cleanPh = (appt.phone || "").replace(/\D/g, "");
+            const name = cleanEnglishName(appt.name || "").toLowerCase();
+            const rawName = (appt.name || "").toLowerCase();
+            const email = (appt.email || "").toLowerCase();
+            const notes = (appt.notes || appt.businessSummary || "").toLowerCase();
+            const branch = (appt.branch || "").toLowerCase();
+            const status = (appt.status || "").toLowerCase();
+            const date = (appt.scheduledDate || "").toLowerCase();
+            return (
+                name.includes(q) ||
+                rawName.includes(q) ||
+                email.includes(q) ||
+                notes.includes(q) ||
+                branch.includes(q) ||
+                status.includes(q) ||
+                date.includes(q) ||
+                (cleanQDigits.length >= 3 && cleanPh.includes(cleanQDigits))
+            );
+        });
+    }, [appointments, searchQuery]);
+
+    const upcoming = filteredAppts.filter(a => {
         const now = new Date().toISOString().split("T")[0];
         return a.scheduledDate >= now && a.status === "confirmed";
     });
-    const past = appointments.filter(a => !upcoming.includes(a));
+    const past = filteredAppts.filter(a => !upcoming.includes(a));
     const [hStr, mStr] = active ? active.scheduledTime.split(":") : ["0", "00"];
     const h = Number(hStr);
     const suffix = h >= 12 ? "PM" : "AM";
@@ -158,7 +307,7 @@ function AdminView() {
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-              Bookings ({appointments.length})
+              Bookings ({filteredAppts.length}{appointments.length !== filteredAppts.length ? ` / ${appointments.length}` : ""})
             </span>
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
               Synced
@@ -173,12 +322,35 @@ function AdminView() {
           </div>
         </div>
 
+        {/* Search Bar */}
+        <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search bookings by name, phone, email, notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs pl-8 pr-7 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-pink-500 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {isLoading ? (<div className="p-4 space-y-3">
             {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse"/>)}
-          </div>) : appointments.length === 0 ? (<div className="flex flex-col items-center justify-center flex-1 p-10 text-center">
+          </div>) : filteredAppts.length === 0 ? (<div className="flex flex-col items-center justify-center flex-1 p-10 text-center">
             <CalendarDays className="w-8 h-8 text-gray-200 mb-3"/>
-            <div className="text-sm text-gray-400">No bookings yet</div>
-            <div className="text-xs text-gray-300 mt-1">Only live confirmed bookings are shown here</div>
+            <div className="text-sm text-gray-400">{searchQuery ? `No bookings matched "${searchQuery}"` : "No bookings yet"}</div>
+            <div className="text-xs text-gray-300 mt-1">{searchQuery ? "Try searching a different name or number" : "Only live confirmed bookings are shown here"}</div>
           </div>) : (<div className="flex-1 overflow-y-auto divide-y divide-gray-50">
             {[{ label: "Upcoming", items: upcoming }, { label: "Past / Other", items: past }].map(({ label, items }) => items.length > 0 ? (<div key={label}>
                   <div className="px-4 py-2 text-[10px] font-bold text-gray-400 uppercase tracking-wider bg-gray-50">{label}</div>
@@ -190,16 +362,18 @@ function AdminView() {
                     const h12a = hnum > 12 ? hnum - 12 : hnum === 0 ? 12 : hnum;
                     const tl = `${h12a}:${mm} ${suf}`;
                     const displaySub = cleanEmail(appt.email) || appt.phone || "";
+                    const displayName = cleanEnglishName(appt.name);
                     return (<button key={appt.id} onClick={() => setActiveId(appt.id)} className={cn("w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors", activeId === appt.id && "bg-green-50 border-l-2 border-green-700")}>
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0">
-                            <div className="text-xs font-semibold text-gray-900 truncate">{appt.name}</div>
+                            <div className="text-xs font-semibold text-gray-900 truncate">{displayName}</div>
                             {displaySub && <div className="text-[11px] text-gray-500 truncate">{displaySub}</div>}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style={{ color: sc.text, background: sc.bg }}>
                                 {appt.status}
                               </span>
                               {appt.location === "meet" && <Video className="w-3 h-3 text-blue-400"/>}
+                              {appt.recording_url && <Volume2 className="w-3 h-3 text-pink-600" title="Call audio available" />}
                             </div>
                           </div>
                           <div className="text-right flex-shrink-0">
@@ -225,7 +399,7 @@ function AdminView() {
             <div className="rounded-xl border border-gray-200 bg-white p-5">
               <div className="flex items-start justify-between mb-4">
                 <div>
-                  <div className="text-base font-bold text-gray-900">{active.name}</div>
+                  <div className="text-base font-bold text-gray-900">{cleanEnglishName(active.name)}</div>
                   {cleanEmail(active.email) && (
                     <div className="text-sm text-gray-500">{cleanEmail(active.email)}</div>
                   )}
@@ -268,15 +442,103 @@ function AdminView() {
               </div>
             </div>
 
-            {/* Cal.com Details / Notes — Only shown if data exists */}
-            {(active.notes || active.businessSummary) && (
+            {/* Audio Recording Playback — When call recording exists */}
+            {active.recording_url && (
               <div className="rounded-xl border border-gray-200 bg-white p-5">
-                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2">Booking Notes &amp; Details</div>
-                <div className="text-xs text-gray-800 leading-relaxed whitespace-pre-line">
-                  {active.notes || active.businessSummary}
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Volume2 className="w-3.5 h-3.5 text-pink-600" />
+                    <span>Call Audio Recording</span>
+                  </span>
+                  {active.call_duration > 0 && (
+                    <span className="text-[10px] font-mono text-gray-400">
+                      Duration: {Math.floor(active.call_duration / 60)}:{String(active.call_duration % 60).padStart(2, "0")}
+                    </span>
+                  )}
                 </div>
+                <MeetingAudioPlayer src={active.recording_url} />
               </div>
             )}
+
+            {/* AI Clinical Summary & Booking Details */}
+            {(active.transcript_summary || active.notes || active.businessSummary) && (
+              <div className="rounded-xl border border-gray-200 bg-white p-5">
+                <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2 flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>AI Clinical Summary &amp; Booking Details</span>
+                  </span>
+                  {active.call_review_id && (
+                    <a
+                      href={`/clinic/call-review/${active.call_review_id}`}
+                      className="text-[11px] text-pink-700 hover:text-pink-800 font-semibold inline-flex items-center gap-1"
+                    >
+                      Call Review <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+                {active.transcript_summary && (
+                  <p className="text-xs text-gray-800 leading-relaxed mb-3 pb-3 border-b border-gray-100 whitespace-pre-line font-medium">
+                    {active.transcript_summary}
+                  </p>
+                )}
+                {(active.notes || active.businessSummary) && (
+                  <div className="text-xs text-gray-600 leading-relaxed whitespace-pre-line">
+                    {active.notes || active.businessSummary}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Full Conversation Dialogue Transcript */}
+            {(() => {
+              const turns = parseMeetingTurns(active.transcript);
+              if (turns.length === 0) return null;
+              return (
+                <div className="rounded-xl border border-gray-200 bg-white p-5">
+                  <div className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Full Conversation Transcript ({turns.length} turns)</span>
+                    </span>
+                    {active.call_review_id && (
+                      <a
+                        href={`/clinic/call-review/${active.call_review_id}`}
+                        className="text-[11px] text-pink-700 hover:text-pink-800 font-semibold inline-flex items-center gap-1"
+                      >
+                        Review Call <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-2.5 max-h-[420px] overflow-y-auto pr-1">
+                    {turns.map(t => (
+                      <div
+                        key={t.id}
+                        className={cn(
+                          "max-w-[85%] rounded-2xl p-3 text-xs leading-relaxed shadow-sm",
+                          t.isAgent
+                            ? "self-end bg-pink-50 text-pink-950 border border-pink-200 rounded-br-sm"
+                            : "self-start bg-gray-50 text-gray-900 border border-gray-200 rounded-bl-sm"
+                        )}
+                      >
+                        <div className="flex items-center justify-between gap-3 mb-1 text-[10px] font-bold">
+                          <span className={t.isAgent ? "text-pink-800" : "text-blue-700"}>
+                            {t.isAgent ? "Aura AI / Coordinator" : cleanEnglishName(active.name)}
+                          </span>
+                          {t.time && <span className="text-gray-400 font-normal">{t.time}</span>}
+                        </div>
+                        <div className="font-medium whitespace-pre-wrap">{t.text}</div>
+                        {t.indicText && (
+                          <div className="text-[10px] text-gray-500 mt-1 pt-1 border-t border-gray-200/50">
+                            {t.indicText}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>)}
       </div>
     </div>
@@ -304,7 +566,32 @@ function CrmMeetingsView() {
     const [editError, setEditError] = useState(null);
     const [confirmDeleteId, setConfirmDeleteId] = useState(null);
     const [deleteError, setDeleteError] = useState(null);
+    const [searchQuery, setSearchQuery] = useState("");
     const activeMeeting = meetings.find(m => m.id === activeId);
+
+    const filteredMeetings = useMemo(() => {
+        return meetings.filter(m => {
+            if (!searchQuery.trim()) return true;
+            const q = searchQuery.toLowerCase().trim();
+            const cleanQDigits = q.replace(/\D/g, "");
+            const rawLeadName = m.lead ? `${m.lead.firstName || ''} ${m.lead.lastName || ''}`.trim() : "";
+            const cleanName = cleanEnglishName(rawLeadName).toLowerCase();
+            const company = (m.lead?.company || "").toLowerCase();
+            const notes = (m.notes || "").toLowerCase();
+            const type = (m.type || "").toLowerCase();
+            const status = (m.status || "").toLowerCase();
+            const phone = ((m.lead?.phone || "")).replace(/\D/g, "");
+            return (
+                cleanName.includes(q) ||
+                rawLeadName.toLowerCase().includes(q) ||
+                company.includes(q) ||
+                notes.includes(q) ||
+                type.includes(q) ||
+                status.includes(q) ||
+                (cleanQDigits.length >= 3 && phone.includes(cleanQDigits))
+            );
+        });
+    }, [meetings, searchQuery]);
     function startEdit(m) {
         const safeStatus = MEETING_STATUSES.includes(m.status)
             ? m.status
@@ -402,27 +689,51 @@ function CrmMeetingsView() {
       <div className="md:col-span-2 rounded-xl border border-gray-200 bg-white flex flex-col overflow-hidden">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between">
           <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
-            CRM Meetings ({meetings.length})
+            CRM Meetings ({filteredMeetings.length}{meetings.length !== filteredMeetings.length ? ` / ${meetings.length}` : ""})
           </span>
           <button onClick={() => setShowModal(true)} className="flex items-center gap-1.5 text-xs font-semibold text-white px-2.5 py-1.5 rounded-lg transition-all" style={{ background: "#A4285E" }}>
             <Plus className="w-3.5 h-3.5"/> New
           </button>
         </div>
 
+        {/* Search Bar */}
+        <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search meetings by name, company, notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full text-xs pl-8 pr-7 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-1 focus:ring-pink-500 transition-colors"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
         {isLoading ? (<div className="p-4 space-y-3">
             {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-50 rounded-lg animate-pulse"/>)}
-          </div>) : meetings.length === 0 ? (<div className="flex flex-col items-center justify-center flex-1 p-10 text-center">
+          </div>) : filteredMeetings.length === 0 ? (<div className="flex flex-col items-center justify-center flex-1 p-10 text-center">
             <CalendarDays className="w-8 h-8 text-gray-200 mb-3"/>
-            <div className="text-sm text-gray-400">No CRM meetings yet</div>
-            <div className="text-xs text-gray-300 mt-1">Click &ldquo;New&rdquo; to schedule one</div>
+            <div className="text-sm text-gray-400">{searchQuery ? `No meetings matched "${searchQuery}"` : "No CRM meetings yet"}</div>
+            <div className="text-xs text-gray-300 mt-1">{searchQuery ? "Try searching a different name" : "Click 'New' to schedule one"}</div>
           </div>) : (<div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-            {meetings.map(m => {
+            {filteredMeetings.map(m => {
                 const sc = statusColor(m.status);
+                const leadName = m.lead ? cleanEnglishName(`${m.lead.firstName || ''} ${m.lead.lastName || ''}`.trim()) : `Meeting #${m.id}`;
                 return (<button key={m.id} onClick={() => { setActiveId(m.id); setIsEditing(false); }} className={cn("w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors", activeId === m.id && "bg-green-50 border-l-2 border-green-700")}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="text-xs font-semibold text-gray-900 truncate">
-                        {m.lead ? `${m.lead.firstName} ${m.lead.lastName}` : `Meeting #${m.id}`}
+                        {leadName}
                       </div>
                       <div className="text-[11px] text-gray-500 truncate">{m.lead?.company ?? ""}</div>
                       <div className="flex items-center gap-2 mt-1">
@@ -458,7 +769,7 @@ function CrmMeetingsView() {
               <div>
                 <div className="text-base font-bold text-gray-900">
                   {activeMeeting.lead
-                ? `${activeMeeting.lead.firstName} ${activeMeeting.lead.lastName}`
+                ? cleanEnglishName(`${activeMeeting.lead.firstName || ''} ${activeMeeting.lead.lastName || ''}`.trim())
                 : `Meeting #${activeMeeting.id}`}
                 </div>
                 {activeMeeting.lead?.company && (<div className="text-sm text-gray-500">{activeMeeting.lead.company}</div>)}
@@ -530,7 +841,7 @@ function CrmMeetingsView() {
               <div>
                 <div className="text-base font-bold text-gray-900">
                   {activeMeeting.lead
-                ? `${activeMeeting.lead.firstName} ${activeMeeting.lead.lastName}`
+                ? cleanEnglishName(`${activeMeeting.lead.firstName || ''} ${activeMeeting.lead.lastName || ''}`.trim())
                 : `Meeting #${activeMeeting.id}`}
                 </div>
                 {activeMeeting.lead?.company && (<div className="text-sm text-gray-500">{activeMeeting.lead.company}</div>)}

@@ -1,11 +1,12 @@
-import { Fragment, useMemo, useState, useEffect } from 'react';
+import { Fragment, useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Clock,
   Check, Trash2, MapPin, Phone, IndianRupee, List, ExternalLink,
   Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User,
+  Play, Pause, Volume2, Download, MessageSquare,
 } from 'lucide-react';
-import { clinicApi, fullName, money, timeLabel, dateLabel } from '@/clinic/api';
+import { clinicApi, fullName, money, timeLabel, dateLabel, cleanEnglishName } from '@/clinic/api';
 import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
 import { cleanEmail } from '@/lib/emails';
 
@@ -40,6 +41,128 @@ function toDateInput(d) {
 function toTimeInput(d) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function ApptAudioPlayer({ src }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [current, setCurrent] = useState(0);
+  const [duration, setDuration] = useState(0);
+
+  useEffect(() => {
+    const a = audioRef.current;
+    if (!a) return;
+    const onTime = () => setCurrent(a.currentTime);
+    const onLoaded = () => setDuration(a.duration || 0);
+    const onEnded = () => setPlaying(false);
+    a.addEventListener('timeupdate', onTime);
+    a.addEventListener('loadedmetadata', onLoaded);
+    a.addEventListener('ended', onEnded);
+    return () => {
+      a.removeEventListener('timeupdate', onTime);
+      a.removeEventListener('loadedmetadata', onLoaded);
+      a.removeEventListener('ended', onEnded);
+    };
+  }, [src]);
+
+  const toggle = () => {
+    if (!audioRef.current) return;
+    if (playing) {
+      audioRef.current.pause();
+      setPlaying(false);
+    } else {
+      audioRef.current.play().catch(() => {});
+      setPlaying(true);
+    }
+  };
+
+  const seek = (e) => {
+    if (!audioRef.current || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const newTime = pos * duration;
+    audioRef.current.currentTime = newTime;
+    setCurrent(newTime);
+  };
+
+  const formatSec = (sec) => {
+    if (!sec && sec !== 0) return '0:00';
+    const s = Math.round(Number(sec) || 0);
+    const m = Math.floor(s / 60);
+    const rem = s % 60;
+    return `${m}:${String(rem).padStart(2, '0')}`;
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#FBE9F1', borderRadius: 10, border: '1px solid #F3D9E5' }}>
+      {src && <audio ref={audioRef} src={src} preload="metadata" />}
+      <button
+        type="button"
+        className="co-btn co-btn-sm co-icon-btn"
+        style={{ background: '#A4285E', color: '#fff', width: 34, height: 34, borderRadius: 999, flexShrink: 0 }}
+        onClick={toggle}
+        disabled={!src}
+        aria-label={playing ? 'Pause' : 'Play'}
+      >
+        {playing ? <Pause size={14} /> : <Play size={14} style={{ marginLeft: 2 }} />}
+      </button>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div
+          onClick={seek}
+          style={{ flex: 1, height: 6, background: '#F3D9E5', borderRadius: 999, cursor: 'pointer', overflow: 'hidden' }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: duration > 0 ? `${(current / duration) * 100}%` : '0%',
+              background: '#A4285E',
+              borderRadius: 999,
+              transition: 'width 0.1s linear',
+            }}
+          />
+        </div>
+        <span style={{ fontSize: 11, fontVariantNumeric: 'tabular-nums', color: '#831843', whiteSpace: 'nowrap', minWidth: 65, textAlign: 'right' }}>
+          {formatSec(current)} / {formatSec(duration)}
+        </span>
+      </div>
+      {src && (
+        <a
+          href={src}
+          download
+          target="_blank"
+          rel="noopener noreferrer"
+          className="co-btn co-btn-sm"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, background: '#fff', color: '#A4285E', border: '1px solid #F3D9E5' }}
+        >
+          <Download size={11} /> Audio
+        </a>
+      )}
+    </div>
+  );
+}
+
+function parseApptTurns(raw) {
+  if (!raw) return [];
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try { parsed = JSON.parse(raw); } catch { return [{ id: 0, isAgent: false, speaker: 'Patient', text: raw }]; }
+  }
+  if (Array.isArray(parsed)) {
+    return parsed.map((t, idx) => {
+      const isAgent = t.role === 'agent' || t.role === 'assistant' || (t.speaker && /ai|agent|coordinator/i.test(t.speaker));
+      const en = (t.en_text || t.text || t.message || t.content || t.original_message || '').trim();
+      const indic = (t.indic_text && t.indic_text.trim() !== en) ? t.indic_text.trim() : '';
+      return {
+        id: idx,
+        isAgent,
+        speaker: isAgent ? 'Aura AI / Coordinator' : (t.speaker || 'Patient'),
+        text: en || indic || (typeof t === 'string' ? t : ''),
+        indicText: indic,
+        time: t.time || (t.time_in_call_secs != null ? `${t.time_in_call_secs}s` : null),
+      };
+    }).filter(turn => turn.text && turn.text.trim());
+  }
+  return [];
 }
 
 function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
@@ -153,13 +276,14 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
 
   const cleanPh = (appointment.phone || '').replace(/[^0-9]/g, '');
   const isMeet = appointment.meeting_link && appointment.meeting_link.startsWith('http');
+  const patientCleanName = cleanEnglishName(appointment.patient_name);
 
   return (
     <Modal
-      title={appointment.patient_name}
+      title={patientCleanName}
       subtitle={`${dateLabel(appointment.starts_at)} · ${timeLabel(appointment.starts_at)}${appointment.treatment ? ` · ${appointment.treatment}` : ''}`}
       onClose={onClose}
-      width={560}
+      width={580}
     >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
@@ -201,6 +325,105 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
             </a>
           </div>
         ) : null}
+
+        {/* Audio Recording Playback — If available from AI Call */}
+        {appointment.recording_url && (
+          <div style={{ background: '#FFF5F8', border: '1px solid #F3D9E5', borderRadius: 10, padding: '12px 14px' }}>
+            <div className="co-spread" style={{ marginBottom: 6 }}>
+              <div className="co-label" style={{ color: '#A4285E', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Volume2 size={13} /> Call Audio Recording
+              </div>
+              {appointment.call_review_id && (
+                <a
+                  href={`/clinic/call-review/${appointment.call_review_id}`}
+                  className="co-btn co-btn-sm"
+                  style={{ fontSize: 11, color: '#A4285E', padding: '2px 8px' }}
+                >
+                  Call Review <ExternalLink size={11} />
+                </a>
+              )}
+            </div>
+            <ApptAudioPlayer src={appointment.recording_url} />
+          </div>
+        )}
+
+        {/* AI Clinical Summary Notes */}
+        {appointment.transcript_summary && (
+          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px' }}>
+            <div className="co-spread" style={{ marginBottom: 6 }}>
+              <div className="co-label" style={{ color: '#334155', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Sparkles size={13} style={{ color: '#4F46E5' }} /> AI Call Summary &amp; Clinical Context
+              </div>
+              {appointment.call_review_id && (
+                <a
+                  href={`/clinic/call-review/${appointment.call_review_id}`}
+                  className="co-btn co-btn-sm"
+                  style={{ fontSize: 11, color: '#4F46E5', padding: '2px 8px' }}
+                >
+                  Review Session <ExternalLink size={11} />
+                </a>
+              )}
+            </div>
+            <p className="co-sm" style={{ color: '#1E293B', whiteSpace: 'pre-line', lineHeight: 1.5, fontWeight: 500 }}>
+              {appointment.transcript_summary}
+            </p>
+          </div>
+        )}
+
+        {/* Full Conversation Dialogue Transcript */}
+        {(() => {
+          const turns = parseApptTurns(appointment.transcript);
+          if (turns.length === 0) return null;
+          return (
+            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px' }}>
+              <div className="co-spread" style={{ marginBottom: 10 }}>
+                <div className="co-label" style={{ color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <MessageSquare size={13} style={{ color: '#2563EB' }} /> Full Conversation Transcript ({turns.length} turns)
+                </div>
+                {appointment.call_review_id && (
+                  <a
+                    href={`/clinic/call-review/${appointment.call_review_id}`}
+                    className="co-btn co-btn-sm"
+                    style={{ fontSize: 11, color: '#2563EB', padding: '2px 8px' }}
+                  >
+                    Open Session <ExternalLink size={11} />
+                  </a>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
+                {turns.map(t => (
+                  <div
+                    key={t.id}
+                    style={{
+                      alignSelf: t.isAgent ? 'flex-end' : 'flex-start',
+                      maxWidth: '85%',
+                      background: t.isAgent ? '#FBE9F1' : '#F8FAFC',
+                      color: t.isAgent ? '#831843' : '#1E293B',
+                      border: t.isAgent ? '1px solid #F3D9E5' : '1px solid #E2E8F0',
+                      borderRadius: t.isAgent ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                      padding: '8px 12px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2, gap: 10 }}>
+                      <span style={{ fontSize: 10.5, fontWeight: 700, color: t.isAgent ? '#A4285E' : '#2563EB' }}>
+                        {t.isAgent ? 'Aura AI / Coordinator' : patientCleanName}
+                      </span>
+                      {t.time && <span style={{ fontSize: 9.5, color: '#94A3B8' }}>{t.time}</span>}
+                    </div>
+                    <div style={{ fontSize: 12, lineHeight: 1.45, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
+                      {t.text}
+                    </div>
+                    {t.indicText && (
+                      <div style={{ fontSize: 10.5, color: '#64748B', marginTop: 4, borderTop: '1px dashed rgba(0,0,0,0.08)', paddingTop: 2 }}>
+                        {t.indicText}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {appointment.notes ? (
           <div style={{ background: '#FDF7FA', border: '1px solid #F3D9E5', borderRadius: 10, padding: '12px 14px' }}>
@@ -438,9 +661,13 @@ export default function ClinicAppointments() {
     return allRows.filter((a) => {
       if (statusFilter !== 'all' && a.status !== statusFilter) return false;
       if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const text = `${a.patient_name || ''} ${a.phone || ''} ${a.email || ''} ${a.treatment || ''} ${a.branch || ''} ${a.notes || ''}`.toLowerCase();
-        if (!text.includes(q)) return false;
+        const q = searchQuery.toLowerCase().trim();
+        const cleanQDigits = q.replace(/\D/g, '');
+        const cleanPh = (a.phone || '').replace(/\D/g, '');
+        const cleanName = cleanEnglishName(a.patient_name || '').toLowerCase();
+        const rawName = (a.patient_name || '').toLowerCase();
+        const text = `${cleanName} ${rawName} ${a.phone || ''} ${a.email || ''} ${a.treatment || ''} ${a.branch || ''} ${a.notes || ''} ${a.status || ''}`.toLowerCase();
+        if (!text.includes(q) && !(cleanQDigits.length >= 3 && cleanPh.includes(cleanQDigits))) return false;
       }
       return true;
     });
@@ -608,9 +835,9 @@ export default function ClinicAppointments() {
                               type="button"
                               className={`co-slot ${a.status}`}
                               onClick={(e) => { e.stopPropagation(); setSelected(a); }}
-                              title={`${a.patient_name} · ${a.treatment || 'Appointment'}`}
+                              title={`${cleanEnglishName(a.patient_name)} · ${a.treatment || 'Appointment'}`}
                             >
-                              {a.patient_name}
+                              {cleanEnglishName(a.patient_name)}
                               <small>{timeLabel(a.starts_at)}{a.treatment ? ` · ${a.treatment}` : ''}</small>
                             </button>
                           ))}
@@ -631,7 +858,7 @@ export default function ClinicAppointments() {
                   <div className="co-list-item" key={a.id}>
                     <span className="co-dot" />
                     <div style={{ flex: 1 }}>
-                      <div className="co-strong" style={{ fontSize: 13 }}>{a.patient_name}</div>
+                      <div className="co-strong" style={{ fontSize: 13 }}>{cleanEnglishName(a.patient_name)}</div>
                       <div className="co-xs co-mut">{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)} · {a.treatment || 'Appointment'}</div>
                     </div>
                     <button type="button" className="co-btn co-btn-sm" onClick={() => setSelected(a)}>Open</button>
@@ -731,9 +958,9 @@ export default function ClinicAppointments() {
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Avatar name={a.patient_name} size="sm" />
+                              <Avatar name={cleanEnglishName(a.patient_name)} size="sm" />
                               <div>
-                                <div style={{ fontWeight: 600, color: '#0F172A' }}>{a.patient_name}</div>
+                                <div style={{ fontWeight: 600, color: '#0F172A' }}>{cleanEnglishName(a.patient_name)}</div>
                                 {cleanEmail(a.email) ? (
                                   <div style={{ fontSize: 11, color: '#64748B' }}>{cleanEmail(a.email)}</div>
                                 ) : null}

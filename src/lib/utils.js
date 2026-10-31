@@ -52,6 +52,73 @@ export function cleanCompanyName(raw) {
     }
     return name.replace(/[,\s\-]+$/g, "").trim();
 }
+
+const KNOWN_NAME_MAPPINGS = {
+    'غوشیہ': 'Ghousia',
+    'غوثیہ': 'Ghousia',
+    'محمد': 'Mohammed',
+    'علی': 'Ali',
+    'احمد': 'Ahmed',
+    'فاطمہ': 'Fatima',
+    'عائشہ': 'Ayesha',
+    'زينب': 'Zainab',
+};
+
+export function cleanEnglishName(raw, fallback = 'Patient') {
+    if (!raw) return fallback;
+    let str = String(raw).trim();
+    if (!str) return fallback;
+
+    // Handle known glitched handles
+    if (/sweetubrahmbhatt/i.test(str)) {
+        return 'Sweetu Brahmbhatt';
+    }
+    if (/shivamsinha/i.test(str)) {
+        return 'Shivam Sinha';
+    }
+
+    // Known Arabic / Urdu / Regional mappings
+    for (const [k, v] of Object.entries(KNOWN_NAME_MAPPINGS)) {
+        if (str.includes(k)) {
+            str = str.replace(new RegExp(k, 'g'), v);
+        }
+    }
+
+    // Strip emojis and pictographs
+    str = str.replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u200B\u2060]/gu, '');
+    // Strip decorative symbols & punctuation noise
+    str = str.replace(/[♡❤️🖤★☆✨🌸🌼🏵️🌻🦄🪬💣🕊️😇🎀😍🌿💫🍰~_#@!?*•|\\/]/g, ' ');
+
+    // Format "Dr.Name" -> "Dr. Name"
+    str = str.replace(/\bDr\.([a-zA-Z])/gi, 'Dr. $1');
+
+    // Strip trailing numbers from usernames (e.g. shivamsinha4930 -> shivamsinha)
+    str = str.replace(/([a-zA-Z])\d{3,}$/g, '$1');
+
+    // Separate camelCase words
+    str = str.replace(/([a-z])([A-Z])/g, '$1 $2');
+
+    // Clean edge punctuation and excessive whitespace
+    str = str.replace(/^[.\s\-–—,]+|[.\s\-–—,]+$/g, '').replace(/\s+/g, ' ').trim();
+
+    // If no Latin letters exist
+    const hasLatin = /[a-zA-Z]/.test(str);
+    if (!hasLatin) {
+        return fallback;
+    }
+
+    // Remove any remaining non-ASCII characters if Latin is present
+    str = str.replace(/[^\x20-\x7E]/g, '').trim();
+    str = str.replace(/^[.\s\-–—,]+|[.\s\-–—,]+$/g, '').trim();
+
+    if (!str || str.length < 2) return fallback;
+
+    // Proper Title Case
+    return str.split(' ').map(w => {
+        if (!w) return '';
+        return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+    }).join(' ').trim();
+}
 export const LEAD_STATUS_LIST = [
     "new_enquiry", "enquiry_qualified", "discovery_call",
     "quote_sent", "follow_up", "project_won", "project_lost",
