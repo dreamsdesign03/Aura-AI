@@ -107,8 +107,10 @@ async function handleCampaignWebhook(campaignId, payload) {
     );
   }
 
-  if (confirmedSlot) {
+  if (outcome === 'booked' && confirmedSlot) {
     await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+  } else if (outcome !== 'booked') {
+    await db.query('UPDATE bulk_contacts SET booked_datetime_text = NULL WHERE id = $1', [contact.id]);
   }
 
   if (typeof resolveAttempt === 'function' && attempt) {
@@ -157,7 +159,7 @@ async function handleCampaignWebhook(campaignId, payload) {
         summary,
         recUrl,
         sentiment || 'Neutral',
-        outcome || 'booked',
+        outcome || 'not_booked',
         direction,
         payload.interaction_transcript ? JSON.stringify(payload.interaction_transcript) : null,
         payload.start_datetime || null

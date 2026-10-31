@@ -480,7 +480,7 @@ function BulkCallDetail({ id, onBack }) {
                     <td className="px-5 py-3 text-gray-500 font-semibold text-center">{c.attempts} / {campaign.max_attempts}</td>
                     <td className="px-5 py-3">
                       <div className="max-w-[200px] truncate text-gray-600" title={c.last_summary}>{c.last_summary || '-'}</div>
-                      {c.booked_datetime_text && <div className="text-green-600 font-bold mt-1 text-[10px]">Booked: {c.booked_datetime_text}</div>}
+                      {c.status === 'booked' && c.booked_datetime_text && c.booked_datetime_text !== 'none' && <div className="text-green-600 font-bold mt-1 text-[10px]">Booked: {c.booked_datetime_text}</div>}
                     </td>
                     <td className="px-5 py-3 text-right text-gray-400">
                       <ChevronRight className="w-4 h-4 ml-auto" />
@@ -506,7 +506,7 @@ function BulkCallDetail({ id, onBack }) {
               <h3 className="font-bold text-gray-900">{drawerContact.name}</h3>
               <p className="text-xs text-gray-500">{drawerContact.phone10}</p>
               <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${drawerContact.status === 'booked' ? 'bg-green-100 text-green-700' : drawerContact.status === 'no_answer' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-700'}`}>{statusLabel(drawerContact.status)}</span>
-              {drawerContact.booked_datetime_text && <div className="text-[11px] text-green-700 font-bold mt-1">Appointment: {drawerContact.booked_datetime_text}</div>}
+              {drawerContact.status === 'booked' && drawerContact.booked_datetime_text && drawerContact.booked_datetime_text !== 'none' && <div className="text-[11px] text-green-700 font-bold mt-1">Appointment: {drawerContact.booked_datetime_text}</div>}
             </div>
             <button onClick={() => setDrawerContact(null)} className="p-1.5 hover:bg-gray-200 rounded-lg text-gray-500"><XCircle className="w-5 h-5" /></button>
           </div>

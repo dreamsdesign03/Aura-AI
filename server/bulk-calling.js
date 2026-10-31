@@ -154,7 +154,7 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
   }
 
   await db.query(
-    'UPDATE bulk_contacts SET status = $1, next_attempt_at = $2, last_summary = $3, last_sentiment = $4, recording_url = $5, transcript = $6 WHERE id = $7',
+    "UPDATE bulk_contacts SET status = $1, next_attempt_at = $2, last_summary = $3, last_sentiment = $4, recording_url = $5, transcript = $6, booked_datetime_text = (CASE WHEN $1 = 'booked' THEN booked_datetime_text ELSE NULL END) WHERE id = $7",
     [nextStatus, nextAttemptAt, summary, sentiment, recordingUrl, JSON.stringify(transcript), contact.id]
   );
 
@@ -442,7 +442,8 @@ async function syncSarvamResults(camp) {
         await db.query('UPDATE bulk_attempts SET interaction_id = $1 WHERE id = $2', [a.interaction_id, old.id]);
       }
       if (old.outcome !== outcome || (!old.summary && summary)) {
-        if (confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+        if (outcome === 'booked' && confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+        else if (outcome !== 'booked') await db.query('UPDATE bulk_contacts SET booked_datetime_text = NULL WHERE id = $1', [contact.id]);
         await resolveAttempt(old, callStatus, outcome, summary, sentiment, recordingProxyUrl(a.interaction_id), null);
         created++;
       }
@@ -457,7 +458,8 @@ async function syncSarvamResults(camp) {
       a.duration_in_seconds != null ? Math.round(a.duration_in_seconds) : null, a.interaction_id || null, JSON.stringify(a)]
     );
     await db.query('UPDATE bulk_contacts SET attempts = GREATEST(attempts, $1), last_attempt_at = NOW(), last_request_id = $2 WHERE id = $3', [n, a.attempt_id, contact.id]);
-    if (confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+    if (outcome === 'booked' && confirmedSlot) await db.query('UPDATE bulk_contacts SET booked_datetime_text = $1 WHERE id = $2', [confirmedSlot, contact.id]);
+    else if (outcome !== 'booked') await db.query('UPDATE bulk_contacts SET booked_datetime_text = NULL WHERE id = $1', [contact.id]);
     await resolveAttempt(ins.rows[0], callStatus, outcome, summary, sentiment, recordingProxyUrl(a.interaction_id), null);
     created++;
   }

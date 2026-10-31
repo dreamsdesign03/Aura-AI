@@ -170,16 +170,32 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
   return data;
 }
 
+function extractValidSlot(fv) {
+  let raw = String(fv.confirmed_slot || fv.booking_slot || fv.appointment_slot || fv.confirmed_time || '').trim();
+  if (!raw) {
+    const key = Object.keys(fv).find(k => 
+      /(confirmed_slot|booking_slot|confirmed_time|appointment_time)/i.test(k) &&
+      !/(duration|reminder|channel|intent|reason|notes|preparation|modes|fee|existing|minutes|selected)/i.test(k) &&
+      String(fv[k] || '').trim()
+    );
+    if (key) raw = String(fv[key]).trim();
+  }
+
+  const lower = raw.toLowerCase();
+  if (!raw || lower === 'none' || lower === 'null' || lower === 'undefined' || lower === 'nil' || lower === 'n/a' || lower === 'na' || lower === 'no' || lower === 'false' || /^\d+$/.test(raw)) {
+    return '';
+  }
+  return raw;
+}
+
 // Pure mapping of a Sarvam webhook payload to the bulk engine's vocabulary.
 function mapSarvamOutcome(payload) {
   const status = String(payload?.status || '').toLowerCase();
   const fv = payload?.final_agent_variables || {};
-  // Variable names differ between agent versions: look for any "*dispos*" / "*slot*" key too.
-  const findKey = (re) => { const k = Object.keys(fv).find(x => re.test(x) && String(fv[x] || '').trim()); return k ? fv[k] : ''; };
-  const disposition = String(fv.call_disposition || findKey(/dispos/i) || '').toLowerCase().trim();
-  const slotValue = String(fv.confirmed_slot || fv.booking_slot || findKey(/slot|appointment/i) || '').trim();
+  const disposition = String(fv.call_disposition || '').toLowerCase().trim();
+  const slotValue = extractValidSlot(fv);
 
-  console.log('[mapSarvamOutcome] raw status=' + status + ' disposition=' + disposition + ' fv_keys=' + Object.keys(fv).join(','));
+  console.log('[mapSarvamOutcome] raw status=' + status + ' disposition=' + disposition + ' slotValue=' + slotValue + ' fv_keys=' + Object.keys(fv).join(','));
 
   let callStatus;
   let outcome;
@@ -192,13 +208,19 @@ function mapSarvamOutcome(payload) {
   } else {
     // Call was completed / answered
     callStatus = 'completed';
-    const negative = /(^|_)(not|no|never|declin|reject|cancel)/.test(disposition) || /not.?book|no.?book/.test(disposition);
-    if (String(fv.do_not_call || '').trim().toLowerCase() === 'yes' || disposition === 'do_not_call') outcome = 'do_not_call';
-    else if (/not.?interest/.test(disposition)) outcome = 'not_interested';
-    else if (!negative && /book|resched|confirm|appoint|schedul/.test(disposition)) outcome = 'booked';
-    else if (!negative && !disposition && slotValue) outcome = 'booked';
-    else if (!negative && slotValue && /book|confirm|appoint/.test(disposition)) outcome = 'booked';
-    else outcome = 'not_booked'; // answered, but no appointment
+    const negative = /(^|_)(not|no|never|declin|reject|cancel|wrong)/.test(disposition) || /not.?book|no.?book/.test(disposition);
+    
+    if (String(fv.do_not_call || '').trim().toLowerCase() === 'yes' || disposition === 'do_not_call') {
+      outcome = 'do_not_call';
+    } else if (/not.?interest/.test(disposition) || disposition === 'wrong_person') {
+      outcome = 'not_interested';
+    } else if (disposition === 'callback_requested') {
+      outcome = 'callback_requested';
+    } else if (!negative && (disposition === 'booked' || slotValue)) {
+      outcome = 'booked';
+    } else {
+      outcome = 'not_booked'; // answered, but no appointment
+    }
   }
 
   // Extract summary — prefer call_summary, fallback to last 2 transcript lines
