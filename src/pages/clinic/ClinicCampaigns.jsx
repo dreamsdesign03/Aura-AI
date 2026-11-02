@@ -20,7 +20,9 @@ export default function ClinicCampaigns() {
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['clinic', 'campaigns'],
     queryFn: clinicApi.campaigns,
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const campaigns = data?.campaigns || [];

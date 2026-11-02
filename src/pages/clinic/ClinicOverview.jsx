@@ -15,7 +15,9 @@ export default function ClinicOverview() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['clinic', 'overview'],
     queryFn: () => clinicApi.overview(),
-    refetchInterval: 30_000,
+    refetchInterval: 8_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const seed = useMutation({

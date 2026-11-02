@@ -35,7 +35,7 @@ export default function BulkCalling() {
 
   useEffect(() => {
     loadCampaigns();
-    const id = setInterval(loadCampaigns, 10000);
+    const id = setInterval(loadCampaigns, 6000);
     return () => clearInterval(id);
   }, []);
 
@@ -166,11 +166,11 @@ function BulkCallDetail({ id, onBack }) {
 
   useEffect(() => {
     loadDetail();
-    const i = setInterval(loadDetail, 5000);
+    const i = setInterval(loadDetail, 3500);
     return () => clearInterval(i);
   }, [id]);
 
-  // Pull results from Sarvam (works even if the webhook is delayed): once on open, then every 10s while ON.
+  // Pull results from Sarvam (works even if the webhook is delayed): once on open, then every 8s while ON.
   const [showEdit, setShowEdit] = useState(false);
   const syncFromSarvam = async () => {
     try {
@@ -186,21 +186,37 @@ function BulkCallDetail({ id, onBack }) {
     if (!campaign?.sarvam_campaign_id) return;
     syncFromSarvam();
     if (!campaign.enabled) return;
-    const i = setInterval(syncFromSarvam, 10000);
+    const i = setInterval(syncFromSarvam, 8000);
     return () => clearInterval(i);
   }, [campaign?.sarvam_campaign_id, campaign?.enabled]);
 
   useEffect(() => {
-    if (!drawerContact) { setAttempts([]); return; }
+    if (!drawerContact || !campaign?.id) { setAttempts([]); return; }
     let cancelled = false;
     // Clear immediately so the previous contact's attempts/conversation never flash
     // while this contact's history is loading.
     setAttempts([]);
-    fetch(`/api/bulk-calling/${campaign.id}/contacts/${drawerContact.id}/attempts`)
-      .then(r => r.json())
-      .then(data => { if (!cancelled) setAttempts(Array.isArray(data) ? data : []); })
-      .catch(console.error);
-    return () => { cancelled = true; };
+
+    const fetchAttempts = async () => {
+      try {
+        const r = await fetch(`/api/bulk-calling/${campaign.id}/contacts/${drawerContact.id}/attempts`);
+        if (r.ok) {
+          const data = await r.json();
+          if (!cancelled && Array.isArray(data)) {
+            setAttempts(data);
+          }
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchAttempts();
+    const timer = setInterval(fetchAttempts, 3500);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
   }, [drawerContact?.id, campaign?.id]);
 
   // Tick endpoint - fires every 8s while campaign is ON to dispatch next call

@@ -220,7 +220,9 @@ function BookingWidget() {
 // ── Admin Bookings View ───────────────────────────────────────────────────────
 function AdminView() {
     const qc = useQueryClient();
-    const { data: apptsData = [], isLoading } = useListAppointments();
+    const { data: apptsData = [], isLoading } = useListAppointments({
+        query: { refetchInterval: 8000, refetchOnWindowFocus: true, staleTime: 2000 }
+    });
     const appointments = Array.isArray(apptsData) ? apptsData : (Array.isArray(apptsData?.appointments) ? apptsData.appointments : []);
     const updateAppt = useUpdateAppointment();
     const deleteAppt = useDeleteAppointment({
@@ -249,7 +251,7 @@ function AdminView() {
     }, [qc]);
     useEffect(() => {
         syncCalCom();
-        const interval = setInterval(syncCalCom, 5 * 60 * 1000);
+        const interval = setInterval(syncCalCom, 30 * 1000);
         return () => clearInterval(interval);
     }, [syncCalCom]);
     const [activeId, setActiveId] = useState(null);
@@ -562,9 +564,13 @@ function toDatetimeLocal(isoStr) {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 function CrmMeetingsView() {
-    const { data: meetingsData = [], isLoading } = useListMeetings();
+    const { data: meetingsData = [], isLoading } = useListMeetings({
+        query: { refetchInterval: 8000, refetchOnWindowFocus: true, staleTime: 2000 }
+    });
     const meetings = Array.isArray(meetingsData) ? meetingsData : (Array.isArray(meetingsData?.meetings) ? meetingsData.meetings : []);
-    const { data: leadsResp } = useListLeads();
+    const { data: leadsResp } = useListLeads(undefined, {
+        query: { refetchInterval: 10000, refetchOnWindowFocus: true, staleTime: 2000 }
+    });
     const queryClient = useQueryClient();
     const { toast } = useToast();
     const updateMeeting = useUpdateMeeting();

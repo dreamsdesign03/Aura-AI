@@ -150,7 +150,9 @@ export default function ClinicDialer() {
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
     queryKey: ['clinic', 'call-reviews'],
     queryFn: clinicApi.callReviews,
-    refetchInterval: callPhase === 'connected' || callPhase === 'ringing' ? 4000 : false,
+    refetchInterval: callPhase === 'connected' || callPhase === 'ringing' ? 3000 : 15000,
+    staleTime: 2000,
+    refetchOnWindowFocus: true,
   });
   const recentCalls = historyData?.calls || [];
 

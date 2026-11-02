@@ -149,6 +149,9 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['clinic', 'patient', id],
     queryFn: () => clinicApi.patient(id),
+    refetchInterval: 6_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const useSession = useMutation({
@@ -415,7 +418,9 @@ export default function ClinicPatients() {
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['clinic', 'patients', term],
     queryFn: () => clinicApi.patients(term),
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const addPatientMutation = useMutation({

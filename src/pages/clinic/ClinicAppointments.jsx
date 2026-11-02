@@ -517,7 +517,13 @@ function TaskQueue() {
   const qc = useQueryClient();
   const [title, setTitle] = useState('');
   const [priority, setPriority] = useState('normal');
-  const { data, isLoading } = useQuery({ queryKey: ['clinic', 'tasks'], queryFn: clinicApi.tasks });
+  const { data, isLoading } = useQuery({
+    queryKey: ['clinic', 'tasks'],
+    queryFn: clinicApi.tasks,
+    refetchInterval: 8_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
+  });
   const invalidate = () => qc.invalidateQueries({ queryKey: ['clinic'] });
 
   const add = useMutation({
@@ -630,11 +636,33 @@ export default function ClinicAppointments() {
   const appts = useQuery({
     queryKey: ['clinic', 'appointments', from, to],
     queryFn: () => clinicApi.appointments(from, to),
-    refetchInterval: 30_000,
+    refetchInterval: 8_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
-  const patientsQ = useQuery({ queryKey: ['clinic', 'patients'], queryFn: () => clinicApi.patients('') });
+  const patientsQ = useQuery({
+    queryKey: ['clinic', 'patients'],
+    queryFn: () => clinicApi.patients(''),
+    refetchInterval: 15_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
+  });
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['clinic'] });
+
+  // Auto-sync Cal.com bookings quietly in the background every 35s
+  useEffect(() => {
+    const quietSync = async () => {
+      try {
+        await clinicApi.syncAppointments();
+        invalidate();
+      } catch (e) {
+        // quiet background failover
+      }
+    };
+    const t = setInterval(quietSync, 35 * 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const handleSyncCalCom = async () => {
     setIsSyncing(true);

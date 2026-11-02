@@ -1,9 +1,24 @@
 import { useQuery, useMutation } from "@tanstack/react-query";
 
 function createQueryHook(key) {
-  return function(params = {}, options = {}) {
+  return function(paramsOrOptions = {}, maybeOptions = {}) {
+    let params = paramsOrOptions;
+    let options = maybeOptions;
+    if (
+      paramsOrOptions &&
+      (paramsOrOptions.query ||
+       paramsOrOptions.refetchInterval !== undefined ||
+       paramsOrOptions.staleTime !== undefined ||
+       paramsOrOptions.enabled !== undefined ||
+       paramsOrOptions.refetchOnWindowFocus !== undefined) &&
+      Object.keys(maybeOptions).length === 0
+    ) {
+      options = paramsOrOptions;
+      params = {};
+    }
+    const extraOpts = options.query ? { ...options, ...options.query } : options;
     return useQuery({
-      queryKey: [key, params],
+      queryKey: extraOpts.queryKey || [key, params],
       queryFn: async () => {
         try {
           const routeMap = {
@@ -39,13 +54,14 @@ function createQueryHook(key) {
           return [];
         }
       },
-      ...options
+      ...extraOpts
     });
   };
 }
 
 function createMutationHook(key) {
   return function(options = {}) {
+    const extraOpts = options.mutation ? { ...options, ...options.mutation } : options;
     return useMutation({
       mutationFn: async (data) => {
         try {
@@ -84,7 +100,7 @@ function createMutationHook(key) {
           return { success: true };
         }
       },
-      ...options
+      ...extraOpts
     });
   };
 }

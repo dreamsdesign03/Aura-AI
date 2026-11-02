@@ -119,7 +119,9 @@ export default function ClinicAgents() {
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['clinic', 'agents'],
     queryFn: clinicApi.agents,
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const toggle = useMutation({

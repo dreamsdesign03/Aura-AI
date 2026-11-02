@@ -187,7 +187,9 @@ function ThreadDrawer({ thread, onClose }) {
   const { data: detail, isLoading, refetch } = useQuery({
     queryKey: ['clinic', 'inbox', 'thread', thread.type, thread.id, thread.leadId, thread.phone],
     queryFn: () => clinicApi.inboxThread(thread.type, thread.id, thread.leadId, thread.phone),
-    staleTime: 5_000,
+    refetchInterval: 4_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const replyMutation = useMutation({
@@ -681,7 +683,9 @@ export default function ClinicInbox() {
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['clinic', 'inbox'],
     queryFn: () => clinicApi.inbox(150),
-    refetchInterval: 30_000,
+    refetchInterval: 8_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const [activeChannel, setActiveChannel] = useState('all');

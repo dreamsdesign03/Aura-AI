@@ -295,13 +295,23 @@ export default function ClinicCallReview({ id }) {
     queryKey: ['clinic', 'call-reviews'],
     queryFn: () => clinicApi.callReviews(),
     enabled: !activeId,
-    refetchInterval: 20_000,
+    refetchInterval: 8_000,
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const detailQuery = useQuery({
     queryKey: ['clinic', 'call-review', activeId],
     queryFn: () => clinicApi.callReview(activeId),
     enabled: !!activeId,
+    refetchInterval: (query) => {
+      const call = query?.state?.data?.call;
+      // If transcript/recording isn't loaded yet or call was recent, poll every 4s, else 12s
+      if (!call || (!call.transcript && !call.recording_url)) return 4_000;
+      return 12_000;
+    },
+    staleTime: 2_000,
+    refetchOnWindowFocus: true,
   });
 
   const handleTranscribe = async () => {
