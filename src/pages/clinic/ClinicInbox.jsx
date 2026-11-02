@@ -7,6 +7,7 @@ import {
   User, ArrowUpRight, Sparkles, Filter, X
 } from 'lucide-react';
 import { clinicApi, datetimeLabel, dateLabel, timeLabel, cleanEnglishName } from '@/clinic/api';
+import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, Spinner, Drawer, EmptyState } from '@/clinic/ui';
 import { useBranch } from '@/contexts/BranchContext';
 
@@ -801,7 +802,7 @@ export default function ClinicInbox() {
             type: 'whatsapp',
             id: 'new-' + (last10 || 'chat'),
             leadId: qLeadId ? Number(qLeadId) : null,
-            name: qName ? cleanEnglishName(qName) : 'WhatsApp Patient',
+            name: qName ? getContactDisplayName({ name: qName }) : 'WhatsApp Patient',
             phone: qPhone,
             unread: 0,
             status: 'active',
@@ -814,7 +815,7 @@ export default function ClinicInbox() {
           type: 'whatsapp',
           id: 'new-' + (last10 || 'chat'),
           leadId: qLeadId ? Number(qLeadId) : null,
-          name: qName ? cleanEnglishName(qName) : 'WhatsApp Patient',
+          name: qName ? getContactDisplayName({ name: qName }) : 'WhatsApp Patient',
           phone: qPhone,
           unread: 0,
           status: 'active',

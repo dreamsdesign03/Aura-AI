@@ -7,6 +7,7 @@ import {
   Sparkles, Filter, Search, X, CheckCircle2, User, FileText, CheckCheck, MessageSquare
 } from 'lucide-react';
 import { clinicApi, dateLabel, timeLabel, datetimeLabel, fullName, cleanEnglishName } from '@/clinic/api';
+import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner } from '@/clinic/ui';
 
 function formatDuration(sec) {
@@ -353,7 +354,7 @@ export default function ClinicCallReview({ id }) {
         const cleanQDigits = q.replace(/\D/g, '');
 
         const rawName = (c.display_name || c.lead_name || fullName(c) || '').toLowerCase();
-        const cleanName = cleanEnglishName(c.display_name || c.lead_name || fullName(c) || '').toLowerCase();
+        const cleanName = getContactDisplayName(c).toLowerCase();
         const company = (c.company_name || c.lead_company || c.company || '').toLowerCase();
         const toPhone = (c.to_phone || c.phone || '').toLowerCase();
         const cleanTo = toPhone.replace(/\D/g, '');
@@ -588,7 +589,7 @@ export default function ClinicCallReview({ id }) {
                 </thead>
                 <tbody>
                   {filteredCalls.map((c) => {
-                    const patientName = cleanEnglishName(c.display_name || c.lead_name || fullName(c) || 'Patient');
+                    const patientName = getContactDisplayName(c);
                     const sidShort = c.call_sid ? (c.call_sid.length > 18 ? `${c.call_sid.slice(0, 16)}…` : c.call_sid) : (c.conversation_id ? `${c.conversation_id.slice(0, 16)}…` : '—');
 
                     return (
@@ -714,7 +715,7 @@ export default function ClinicCallReview({ id }) {
   if (!call) return null;
 
   const turns = normalizeTranscriptTurns(call.transcript);
-  const patientDisplayName = cleanEnglishName(call.display_name || call.lead_name || fullName(call) || 'Patient');
+  const patientDisplayName = getContactDisplayName(call);
 
   // Check if there is an alternative Sarvam AI call for this patient with real turns or recording
   const sarvamAlt = relatedCalls.find(

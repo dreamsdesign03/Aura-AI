@@ -294,6 +294,7 @@ async function seedAdminUser() {
 
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS lead_id INT;
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS phone TEXT;
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS wa_phone_number TEXT;
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Active';
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS state TEXT DEFAULT 'hook_sent';
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message TEXT;
@@ -301,11 +302,20 @@ async function seedAdminUser() {
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
       ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS unread_count INT DEFAULT 0;
+      -- Contact name fields for AI voice call integration
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS name_original TEXT;
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS name_english TEXT;
+      ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS name_source TEXT DEFAULT 'import';
 
       UPDATE whatsapp_messages 
       SET content = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.',
           body = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.'
       WHERE content LIKE '%Welcome and thank%' OR body LIKE '%Welcome and thank%';
+
+      -- Contact name fields for AI voice call integration
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS name_original TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS name_english TEXT;
+      ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS name_source TEXT DEFAULT 'import';
 
       CREATE TABLE IF NOT EXISTS lead_lists (
         id SERIAL PRIMARY KEY,
@@ -333,7 +343,11 @@ async function seedAdminUser() {
         conversation_id TEXT UNIQUE,
         call_sid TEXT,
         to_phone TEXT,
+        from_phone TEXT,
         lead_name TEXT,
+        lead_name_original TEXT,
+        lead_name_english TEXT,
+        lead_name_source TEXT DEFAULT 'call',
         company_name TEXT,
         status TEXT DEFAULT 'in-progress',
         booking_type TEXT DEFAULT 'proposal_call',
@@ -351,6 +365,12 @@ async function seedAdminUser() {
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_ai_call_request_id TEXT;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_name TEXT;
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS campaign_id INT;
+      
+      -- Contact name fields for AI voice call integration
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS name_original TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS name_english TEXT;
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS name_source TEXT DEFAULT 'import';
+      ALTER TABLE leads ADD COLUMN IF NOT EXISTS name_locked BOOLEAN DEFAULT FALSE;
       
       CREATE TABLE IF NOT EXISTS bulk_campaigns (
         id SERIAL PRIMARY KEY,
@@ -424,6 +444,26 @@ async function seedAdminUser() {
       ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS transcript JSONB;
       ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS booked_datetime_text TEXT;
       ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS last_request_id TEXT;
+      
+      -- Contact name fields for AI voice call integration
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS name_original TEXT;
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS name_english TEXT;
+      ALTER TABLE bulk_contacts ADD COLUMN IF NOT EXISTS name_source TEXT DEFAULT 'import';
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS lead_name TEXT;
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS lead_name_original TEXT;
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS lead_name_english TEXT;
+      ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS lead_name_source TEXT DEFAULT 'call';
+
+      -- Contact name fields for AI voice call integration (ai_calls)
+      ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS from_phone TEXT;
+      ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS lead_name_original TEXT;
+      ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS lead_name_english TEXT;
+      ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS lead_name_source TEXT DEFAULT 'call';
+
+      -- Contact name fields for AI voice call integration (clinic_appointments)
+      ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS patient_name_original TEXT;
+      ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS patient_name_english TEXT;
+      ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS patient_name_source TEXT DEFAULT 'import';
     `);
     console.log('[Startup Migration] ✅ All migrations complete including leads dead pool, lead_lists, ai_calls & bulk calling.');
 

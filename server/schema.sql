@@ -64,6 +64,11 @@ CREATE TABLE IF NOT EXISTS leads (
   pipeline_stage TEXT DEFAULT 'Lead In',
   deal_value NUMERIC DEFAULT 0,
   brand_audit_report TEXT,
+  -- Contact name fields for AI voice call integration
+  name_original TEXT,
+  name_english TEXT,
+  name_source TEXT DEFAULT 'import',
+  name_locked BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -224,6 +229,10 @@ CREATE TABLE IF NOT EXISTS whatsapp_conversations (
   id SERIAL PRIMARY KEY,
   lead_id INT REFERENCES leads(id) ON DELETE CASCADE,
   phone TEXT,
+  wa_phone_number TEXT,
+  name_original TEXT,
+  name_english TEXT,
+  name_source TEXT DEFAULT 'import',
   status TEXT DEFAULT 'Active',
   state TEXT DEFAULT 'all',
   last_message_at TIMESTAMPTZ DEFAULT NOW(),
@@ -252,7 +261,11 @@ CREATE TABLE IF NOT EXISTS whatsapp_messages (
   meta_message_id TEXT,
   status TEXT DEFAULT 'sent',
   sent_at TIMESTAMPTZ DEFAULT NOW(),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Contact name fields
+  name_original TEXT,
+  name_english TEXT,
+  name_source TEXT DEFAULT 'import'
 );
 
 -- 14. WhatsApp Settings Table
@@ -282,7 +295,11 @@ CREATE TABLE IF NOT EXISTS ai_calls (
   conversation_id TEXT UNIQUE,
   call_sid TEXT,
   to_phone TEXT,
+  from_phone TEXT,
   lead_name TEXT,
+  lead_name_original TEXT,
+  lead_name_english TEXT,
+  lead_name_source TEXT DEFAULT 'call',
   company_name TEXT,
   status TEXT DEFAULT 'in-progress',
   booking_type TEXT DEFAULT 'proposal_call',
@@ -316,6 +333,9 @@ CREATE TABLE IF NOT EXISTS bulk_contacts (
   id SERIAL PRIMARY KEY,
   campaign_id INT REFERENCES bulk_campaigns(id) ON DELETE CASCADE,
   name TEXT,
+  name_original TEXT,
+  name_english TEXT,
+  name_source TEXT DEFAULT 'import',
   company TEXT,
   phone_e164 TEXT,
   phone10 TEXT,
@@ -350,7 +370,12 @@ CREATE TABLE IF NOT EXISTS bulk_attempts (
   sentiment TEXT,
   recording_url TEXT,
   transcript JSONB,
-  raw_json JSONB
+  raw_json JSONB,
+  -- Contact name fields from call result
+  lead_name TEXT,
+  lead_name_original TEXT,
+  lead_name_english TEXT,
+  lead_name_source TEXT DEFAULT 'call'
 );
 
 -- 19. Sarvam campaign mode

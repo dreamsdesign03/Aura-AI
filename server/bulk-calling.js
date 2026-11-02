@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('./db');
 const { normalizePhone, isCallingHours } = require('./call-utils');
+const { updateContactName } = require('./contact-name');
 const {
   dispatchSarvamCall, buildAgentVars, buildOutboundGreeting,
   campaignEnabled, createSarvamCampaign, streamSarvamCohort, setSarvamCampaignStatus, getSarvamCampaign,
@@ -150,6 +151,37 @@ async function syncSarvamStatus(camp) {
   return camp;
 }
 
+/**
+ * Extract person name from AI call transcript
+ * Looks for patterns like "my name is X", "this is X", "I am X"
+ */
+function extractNameFromTranscript(transcript) {
+  if (!Array.isArray(transcript)) return null;
+  
+  for (const turn of transcript) {
+    const text = turn.text || turn.content || turn.message || '';
+    if (!text) continue;
+    
+    // Look for name introduction patterns
+    const patterns = [
+      /(?:my name is|this is|i am|i'm|name is)\s+([A-Za-z\s]+)/i,
+      /(?:i am|i'm)\s+([A-Za-z\s]{2,})/i,
+    ];
+    
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const name = match[1].trim();
+        // Filter out common false positives
+        if (name.length >= 2 && name.length <= 50 && !/^\d+$/.test(name)) {
+          return name;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingUrl, transcript) {
   await db.query(
     'UPDATE bulk_attempts SET ended_at = NOW(), call_status = $1, outcome = $2, summary = $3, sentiment = $4, recording_url = $5, transcript = $6 WHERE id = $7',
@@ -224,6 +256,36 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
         [lead.user_id, callStatus, [lead.first_name, lead.last_name].filter(Boolean).join(' '), lead.company, activityDetail]
       );
     }
+  }
+
+  // Update contact name from call result (spoken name from AI agent)
+  try {
+    // Try to extract name from transcript summary or outcome
+    // The transcript may contain the caller's name
+    let rawName = contact.name;
+    if (transcript && Array.isArray(transcript) && transcript.length > 0) {
+      // Try to extract name from transcript
+      const nameFromTranscript = extractNameFromTranscript(transcript);
+      if (nameFromTranscript) rawName = nameFromTranscript;
+    } else if (summary && summary.includes('name')) {
+      // Try to extract from summary
+      const nameMatch = summary.match(/(?:name is|my name is|this is|i am)\s+([A-Za-z\s]+)/i);
+      if (nameMatch) rawName = nameMatch[1].trim();
+    }
+    
+    if (rawName && rawName !== contact.name) {
+      const phoneForName = contact.phone_e164 || contact.phone10;
+      if (phoneForName) {
+        await updateContactName({
+          phone: phoneForName,
+          rawName: rawName,
+          nameSource: 'call'
+        });
+        console.log(`[resolveAttempt] ✅ Updated contact name for ${phoneForName}: ${rawName}`);
+      }
+    }
+  } catch (nameErr) {
+    console.warn('[resolveAttempt] updateContactName warning:', nameErr.message);
   }
 }
 

@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
+import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi, Modal } from '@/clinic/ui';
 import PatientJourneySection from './PatientJourneySection';
 import { useBranch } from '@/contexts/BranchContext';
@@ -176,7 +177,7 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
 
   return (
     <Drawer
-      title={p ? fullName(p) : 'Patient'}
+      title={p ? getContactDisplayName(p) : 'Patient'}
       subtitle={p ? [p.email, p.phone].filter(Boolean).join(' · ') : ''}
       onClose={onClose}
       actions={
@@ -203,7 +204,7 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
           <div className="co-row" style={{ gap: 12 }}>
             <Avatar first={p.first_name} last={p.last_name} size="lg" />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="co-strong" style={{ fontSize: 15 }}>{fullName(p)}</div>
+              <div className="co-strong" style={{ fontSize: 15 }}>{getContactDisplayName(p)}</div>
               <div className="co-xs co-mut">Aura Laser &amp; Cosmetic Clinic · Patient #{p.id}</div>
               <div className="co-row" style={{ gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
                 <span
@@ -683,7 +684,7 @@ export default function ClinicPatients() {
                         <div className="co-row">
                           <Avatar first={p.first_name} last={p.last_name} />
                           <div style={{ minWidth: 0 }}>
-                            <div className="co-strong">{fullName(p)}</div>
+                            <div className="co-strong">{getContactDisplayName(p)}</div>
                             <div className="co-xs co-mut">{p.email || 'No email'}</div>
                           </div>
                         </div>
@@ -758,12 +759,12 @@ export default function ClinicPatients() {
       {deleteConfirm && (
         <Modal
           title="Delete Patient"
-          subtitle={`Are you sure you want to delete ${fullName(deleteConfirm)}?`}
+          subtitle={`Are you sure you want to delete ${getContactDisplayName(deleteConfirm)}?`}
           onClose={() => setDeleteConfirm(null)}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p className="co-sm" style={{ color: '#4B5563', lineHeight: 1.5 }}>
-              This action will permanently delete <strong>{fullName(deleteConfirm)}</strong> and all their associated appointment bookings, clinical notes, and treatment packages from Aura AI database.
+              This action will permanently delete <strong>{getContactDisplayName(deleteConfirm)}</strong> and all their associated appointment bookings, clinical notes, and treatment packages from Aura AI database.
             </p>
             {deletePatientMutation.isError && (
               <p className="co-sm" style={{ color: '#B91C1C' }}>

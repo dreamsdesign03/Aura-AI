@@ -9,6 +9,7 @@ import {
   ShieldCheck, ArrowUpRight, Sliders, Sparkles, Play,
 } from 'lucide-react';
 import { clinicApi, dateLabel, timeLabel, fullName, money } from '@/clinic/api';
+import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi, Modal } from '@/clinic/ui';
 import { useBranch } from '@/contexts/BranchContext';
 
@@ -524,7 +525,7 @@ export default function ClinicDialer() {
                   <div>
                     <div className="co-row" style={{ gap: 8 }}>
                       <span className="co-strong" style={{ fontSize: 16 }}>
-                        {matchedContact ? fullName(matchedContact) : number || 'Active Call'}
+                        {matchedContact ? getContactDisplayName(matchedContact) : number || 'Active Call'}
                       </span>
                       <span
                         className="co-chip"
@@ -716,7 +717,7 @@ export default function ClinicDialer() {
                       title="Click to book appointment for this contact"
                     >
                       <User size={12} />
-                      <span>Contact: <b>{fullName(matchedContact)}</b></span>
+                      <span>Contact: <b>{getContactDisplayName(matchedContact)}</b></span>
                       {matchedContact.company && <span className="co-mut">({matchedContact.company})</span>}
                       <span style={{ textDecoration: 'underline', marginLeft: 4, fontSize: 11 }}>Book slot →</span>
                     </div>
@@ -1182,7 +1183,7 @@ export default function ClinicDialer() {
                     <div className="co-row" style={{ gap: 12 }}>
                       <Avatar first={lead.first_name} last={lead.last_name} size="md" />
                       <div>
-                        <div className="co-strong" style={{ fontSize: 14 }}>{fullName(lead)}</div>
+                        <div className="co-strong" style={{ fontSize: 14 }}>{getContactDisplayName(lead)}</div>
                         <div className="co-row" style={{ gap: 8, marginTop: 2 }}>
                           <span className="co-xs co-mut"><Phone size={10} /> {lead.phone}</span>
                           {lead.pipeline_stage && (
@@ -1516,14 +1517,14 @@ export default function ClinicDialer() {
       {/* Quick Book Appointment Modal */}
       {bookModalLead && (
         <Modal
-          title={`Book Appointment for ${fullName(bookModalLead)}`}
+          title={`Book Appointment for ${getContactDisplayName(bookModalLead)}`}
           subtitle={bookModalLead.phone}
           onClose={() => setBookModalLead(null)}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div className="co-field">
               <label className="co-label">Patient Name</label>
-              <input className="co-input" value={fullName(bookModalLead)} readOnly />
+              <input className="co-input" value={getContactDisplayName(bookModalLead)} readOnly />
             </div>
 
             <div className="co-field">
@@ -1578,7 +1579,7 @@ export default function ClinicDialer() {
 
                   await clinicApi.createAppointment({
                     lead_id: bookModalLead.id,
-                    patient_name: fullName(bookModalLead),
+                    patient_name: getContactDisplayName(bookModalLead),
                     phone: bookModalLead.phone,
                     treatment,
                     branch: 'Alkapuri Main Clinic',

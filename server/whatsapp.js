@@ -1,5 +1,6 @@
 const db = require('./db');
 const { WHATSAPP_TEMPLATES } = require('./whatsapp-templates');
+const { updateContactName } = require('./contact-name');
 
 // Numbers owned by the clinic. Messages/conversations from these numbers are
 // echoes of our own outbound template sends and must never appear as patients.
@@ -1488,6 +1489,20 @@ function registerWhatsAppRoutes(app, resolveUserId) {
     } catch (err) {
       console.error('[whatsapp/log] error:', err.message);
       res.status(500).json({ error: err.message });
+    }
+
+    // Also update contact name from the logged message (for n8n template sends)
+    try {
+      if (name) {
+        await updateContactName({
+          phone: cleanPhone,
+          rawName: name,
+          nameSource: source || 'n8n'
+        });
+        console.log(`[whatsapp/log] ✅ Updated contact name for ${cleanPhone}: ${name}`);
+      }
+    } catch (nameErr) {
+      console.warn('[whatsapp/log] updateContactName warning:', nameErr.message);
     }
   });
 }

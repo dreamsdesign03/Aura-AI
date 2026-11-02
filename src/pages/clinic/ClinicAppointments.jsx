@@ -8,6 +8,7 @@ import {
   Play, Pause, Volume2, Download, MessageSquare,
 } from 'lucide-react';
 import { clinicApi, fullName, money, timeLabel, dateLabel, cleanEnglishName, cleanEnglishTreatment } from '@/clinic/api';
+import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
 import { cleanEmail } from '@/lib/emails';
 import { useBranch } from '@/contexts/BranchContext';
@@ -286,7 +287,7 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
 
   const cleanPh = (appointment.phone || '').replace(/[^0-9]/g, '');
   const isMeet = appointment.meeting_link && appointment.meeting_link.startsWith('http');
-  const patientCleanName = cleanEnglishName(appointment.patient_name);
+  const patientCleanName = getContactDisplayName({ patient_name: appointment.patient_name, patient_name_english: appointment.patient_name_english, patient_name_original: appointment.patient_name_original });
   const cleanTreatment = cleanEnglishTreatment(appointment.treatment);
   const turns = parseApptTurns(appointment.transcript);
   const hasVoiceCall = !!(appointment.recording_url || turns.length > 0 || appointment.call_review_id);
@@ -717,7 +718,7 @@ export default function ClinicAppointments() {
         const q = searchQuery.toLowerCase().trim();
         const cleanQDigits = q.replace(/\D/g, '');
         const cleanPh = (a.phone || '').replace(/\D/g, '');
-        const cleanName = cleanEnglishName(a.patient_name || '').toLowerCase();
+        const cleanName = getContactDisplayName(a).toLowerCase();
         const rawName = (a.patient_name || '').toLowerCase();
         const text = `${cleanName} ${rawName} ${a.phone || ''} ${a.email || ''} ${a.treatment || ''} ${a.branch || ''} ${a.notes || ''} ${a.status || ''}`.toLowerCase();
         if (!text.includes(q) && !(cleanQDigits.length >= 3 && cleanPh.includes(cleanQDigits))) return false;
@@ -888,9 +889,9 @@ export default function ClinicAppointments() {
                               type="button"
                               className={`co-slot ${a.status}`}
                               onClick={(e) => { e.stopPropagation(); setSelected(a); }}
-                              title={`${cleanEnglishName(a.patient_name)} · ${cleanEnglishTreatment(a.treatment)}`}
+                              title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)}`}
                             >
-                              {cleanEnglishName(a.patient_name)}
+                              {getContactDisplayName(a)}
                               <small>{timeLabel(a.starts_at)}{a.treatment ? ` · ${cleanEnglishTreatment(a.treatment)}` : ''}</small>
                             </button>
                           ))}
@@ -911,7 +912,7 @@ export default function ClinicAppointments() {
                   <div className="co-list-item" key={a.id}>
                     <span className="co-dot" />
                     <div style={{ flex: 1 }}>
-                      <div className="co-strong" style={{ fontSize: 13 }}>{cleanEnglishName(a.patient_name)}</div>
+                      <div className="co-strong" style={{ fontSize: 13 }}>{getContactDisplayName(a)}</div>
                       <div className="co-xs co-mut">{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)} · {cleanEnglishTreatment(a.treatment)}</div>
                     </div>
                     <button type="button" className="co-btn co-btn-sm" onClick={() => setSelected(a)}>Open</button>
@@ -1011,9 +1012,9 @@ export default function ClinicAppointments() {
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Avatar name={cleanEnglishName(a.patient_name)} size="sm" />
+                              <Avatar name={getContactDisplayName(a)} size="sm" />
                               <div>
-                                <div style={{ fontWeight: 600, color: '#0F172A' }}>{cleanEnglishName(a.patient_name)}</div>
+                                <div style={{ fontWeight: 600, color: '#0F172A' }}>{getContactDisplayName(a)}</div>
                                 {cleanEmail(a.email) ? (
                                   <div style={{ fontSize: 11, color: '#64748B' }}>{cleanEmail(a.email)}</div>
                                 ) : null}
@@ -1035,7 +1036,7 @@ export default function ClinicAppointments() {
                               ) : <span className="co-mut">—</span>}
                               {cleanPh ? (
                                 <Link
-                                  href={`/clinic/inbox?phone=${cleanPh}&name=${encodeURIComponent(cleanEnglishName(a.patient_name))}`}
+                                  href={`/clinic/inbox?phone=${cleanPh}&name=${encodeURIComponent(getContactDisplayName(a))}`}
                                   onClick={(e) => e.stopPropagation()}
                                   className="co-chip co-c-g"
                                   style={{ padding: '3px 6px', display: 'inline-flex', alignItems: 'center' }}

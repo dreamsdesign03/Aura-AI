@@ -19,6 +19,7 @@ const {
   extractWhatsAppMessageText,
   phoneLast10,
 } = require('./whatsapp');
+const { updateContactName } = require('./contact-name');
 
 const router = express.Router();
 
@@ -66,6 +67,9 @@ function ensureSchema() {
       user_id INT REFERENCES users(id) ON DELETE CASCADE,
       lead_id INT,
       patient_name TEXT NOT NULL,
+      patient_name_original TEXT,
+      patient_name_english TEXT,
+      patient_name_source TEXT DEFAULT 'import',
       phone TEXT,
       treatment TEXT,
       branch TEXT,
@@ -796,9 +800,9 @@ router.post('/appointments', requireUser, async (req, res) => {
 
     const r = await db.query(
       `INSERT INTO clinic_appointments
-         (user_id, lead_id, patient_name, phone, treatment, branch, starts_at, duration_min, notes, amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-      [uid, leadId || null, patientName, phone || null, treatment || null, branch || null,
+         (user_id, lead_id, patient_name, patient_name_original, patient_name_english, patient_name_source, phone, treatment, branch, starts_at, duration_min, notes, amount)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
+      [uid, leadId || null, patientName, patientName, patientName, 'import', phone || null, treatment || null, branch || null,
         start.toISOString(), Number(durationMin) || 45, notes || null, Number(amount) || 0]
     );
     await db.query(
@@ -807,6 +811,20 @@ router.post('/appointments', requireUser, async (req, res) => {
       [uid, leadId || null, `${treatment || 'Consult'} for ${patientName}`, JSON.stringify({ startsAt: start.toISOString(), branch })]
     );
     await audit(uid, 'created', 'appointment', r.rows[0].id, `${patientName} · ${treatment || 'Consult'}`);
+
+    // Update contact name from appointment (patient provided name during booking)
+    if (phone) {
+      try {
+        await updateContactName({
+          phone: phone,
+          rawName: patientName,
+          nameSource: 'import'
+        });
+        console.log(`[clinic-os] ✅ Updated contact name for ${phone}: ${patientName}`);
+      } catch (nameErr) {
+        console.warn('[clinic-os] updateContactName warning:', nameErr.message);
+      }
+    }
 
     // Send WhatsApp booking confirmation if phone provided and sendConfirmation is true
     if (phone && sendConfirmation) {
@@ -1599,6 +1617,17 @@ router.get('/audit', requireUser, async (req, res) => {
   try {
     const r = await db.query('SELECT * FROM clinic_audit WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200', [req.user.id]);
     res.json({ audit: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Contact name backfill
+// ---------------------------------------------------------------------------
+router.post('/backfill-contact-names', requireUser, async (req, res) => {
+  try {
+    const { backfillContactNames } = require('./contact-name');
+    const result = await backfillContactNames();
+    res.json({ success: true, ...result });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

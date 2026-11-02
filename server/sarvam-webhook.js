@@ -3,6 +3,7 @@ const db = require('./db');
 const { mapSarvamOutcome, adaptCampaignPayload } = require('./sarvam');
 const { normalizePhone } = require('./call-utils');
 const { resolveAttempt } = require('./bulk-calling');
+const { updateContactName } = require('./contact-name');
 
 const router = express.Router();
 
@@ -119,6 +120,22 @@ async function handleCampaignWebhook(campaignId, payload) {
     } catch (e) {
       console.warn('[Sarvam webhook] resolveAttempt warning:', e.message);
     }
+  }
+
+  // Update contact name from call result (spoken name from AI agent)
+  try {
+    const rawName = payload.extracted_variables?.name || payload.lead_name || payload.name || contact.name;
+    if (rawName) {
+      const phoneForName = contact.phone_e164 || rawPhone;
+      await updateContactName({
+        phone: phoneForName,
+        rawName: rawName,
+        nameSource: 'call'
+      });
+      console.log(`[Sarvam webhook] ✅ Updated contact name for ${phoneForName}: ${rawName}`);
+    }
+  } catch (nameErr) {
+    console.warn('[Sarvam webhook] updateContactName warning:', nameErr.message);
   }
 
   // Also sync to centralized ai_calls table for Call Review
