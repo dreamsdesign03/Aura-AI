@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useIsAdmin, useAuthUser, useRefreshUser, getUserInitials } from "@/contexts/AuthContext";
+import { BranchSelectorWithRefresh } from "@/components/BranchSelector";
 function usePendingEmailCountdown(expiresAt) {
     const [now, setNow] = useState(() => new Date());
     useEffect(() => {
@@ -695,10 +696,11 @@ export default function Layout({ children }) {
 
           {/* Mobile top header */}
           <header className="flex md:hidden flex-shrink-0 items-center justify-between px-4" style={{ height: 56, background: "#ffffff", borderBottom: "1px solid hsl(220 13% 91%)" }}>
-            <div className="flex items-center">
+            <div className="flex items-center flex-1 min-w-0">
               <img src={auraLogo} alt="AuraAI — Laser & Cosmetic Clinic" style={{ height: 38, width: "auto", maxWidth: 160, objectFit: "contain", mixBlendMode: "multiply" }}/>
             </div>
             <div className="flex items-center gap-2">
+              <BranchSelectorWithRefresh />
               <GlobalSearch iconOnly/>
               {authUser?.pendingEmail && (<Link href="/settings" aria-label={pendingExpired
                 ? `Verification link for ${authUser.pendingEmail} has expired — click to resend`
@@ -752,7 +754,8 @@ export default function Layout({ children }) {
           {/* Desktop top header */}
           <header className="hidden md:flex flex-shrink-0 items-center justify-between px-6 py-3" style={{ background: "#ffffff", borderBottom: "1px solid hsl(220 13% 91%)" }}>
             <div className="text-[15px] font-semibold" style={{ color: "#111827" }}>{currentPage}</div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-4">
+              <BranchSelectorWithRefresh />
               <GlobalSearch />
               {authUser?.pendingEmail && (<Link href="/settings" aria-label={pendingExpired
                 ? `Verification link for ${authUser.pendingEmail} has expired — click to resend`

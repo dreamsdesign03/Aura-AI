@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { clinicApi, datetimeLabel, dateLabel, timeLabel, cleanEnglishName } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, Spinner, Drawer, EmptyState } from '@/clinic/ui';
+import { useBranch } from '@/contexts/BranchContext';
 
 const CHANNEL_CONFIG = {
   all: { label: 'All Messages', icon: Filter, chip: 'co-c-n' },
@@ -738,9 +739,10 @@ function ThreadDrawer({ thread, onClose }) {
 }
 
 export default function ClinicInbox() {
+  const { selectedBranch } = useBranch();
   const { data, isLoading, isFetching, refetch } = useQuery({
-    queryKey: ['clinic', 'inbox'],
-    queryFn: () => clinicApi.inbox(150),
+    queryKey: ['clinic', 'inbox', selectedBranch],
+    queryFn: () => clinicApi.inbox(150, selectedBranch || undefined),
     refetchInterval: 8_000,
     staleTime: 2_000,
     refetchOnWindowFocus: true,

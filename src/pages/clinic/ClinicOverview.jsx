@@ -7,14 +7,16 @@ import {
 } from 'lucide-react';
 import { clinicApi, money, timeLabel, dateLabel } from '@/clinic/api';
 import { PageHead, Card, CardHead, Kpi, StatusChip, BarRow, EmptyState, Spinner, Avatar } from '@/clinic/ui';
+import { useBranch } from '@/contexts/BranchContext';
 
 export default function ClinicOverview() {
   const qc = useQueryClient();
   const [seedError, setSeedError] = useState('');
+  const { selectedBranch } = useBranch();
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['clinic', 'overview'],
-    queryFn: () => clinicApi.overview(),
+    queryKey: ['clinic', 'overview', selectedBranch],
+    queryFn: () => clinicApi.overview(undefined, selectedBranch || undefined),
     refetchInterval: 8_000,
     staleTime: 2_000,
     refetchOnWindowFocus: true,

@@ -19,15 +19,15 @@ async function request(path, options = {}) {
 }
 
 export const clinicApi = {
-  overview: (date) => request(`/overview${date ? `?date=${encodeURIComponent(date)}` : ''}`),
-  journeyStats: () => request('/journey-stats'),
-  appointments: (from, to, all = false) => request(`/appointments?${all ? 'all=true' : `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}`),
+  overview: (date, branch) => request(`/overview${date || branch ? `?${[date ? `date=${encodeURIComponent(date)}` : '', branch ? `branch=${encodeURIComponent(branch)}` : ''].filter(Boolean).join('&')}` : ''}`),
+  journeyStats: (branch) => request(`/journey-stats${branch ? `?branch=${encodeURIComponent(branch)}` : ''}`),
+  appointments: (from, to, all = false, branch) => request(`/appointments?${all ? 'all=true' : `from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`}${branch ? `&branch=${encodeURIComponent(branch)}` : ''}`),
   syncAppointments: () => request('/appointments/sync', { method: 'POST' }),
   createAppointment: (body) => request('/appointments', { method: 'POST', body: JSON.stringify(body) }),
   updateAppointment: (id, body) => request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteAppointment: (id) => request(`/appointments/${id}`, { method: 'DELETE' }),
 
-  patients: (search) => request(`/patients${search ? `?search=${encodeURIComponent(search)}` : ''}`),
+  patients: (search, branch) => request(`/patients${search || branch ? `?${[search ? `search=${encodeURIComponent(search)}` : '', branch ? `branch=${encodeURIComponent(branch)}` : ''].filter(Boolean).join('&')}` : ''}`),
   patient: (id) => request(`/patients/${id}`),
   createPatient: (body) => request('/patients', { method: 'POST', body: JSON.stringify(body) }),
   deletePatient: (id) => request(`/patients/${id}`, { method: 'DELETE' }),

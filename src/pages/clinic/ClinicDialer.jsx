@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { clinicApi, dateLabel, timeLabel, fullName, money } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi, Modal } from '@/clinic/ui';
+import { useBranch } from '@/contexts/BranchContext';
 
 // 12 standard telephony dial keys with alpha sub-labels
 const KEYS = [
@@ -98,6 +99,7 @@ function formatDuration(sec) {
 
 export default function ClinicDialer() {
   const qc = useQueryClient();
+  const { selectedBranch } = useBranch();
 
   // Tab: 'keypad' | 'leads' | 'history' | 'settings'
   const [activeTab, setActiveTab] = useState('keypad');
@@ -141,8 +143,8 @@ export default function ClinicDialer() {
 
   // Fetch leads for contact matching and directory
   const { data: leadsData, isLoading: leadsLoading, isFetching: leadsFetching, refetch: refetchLeads } = useQuery({
-    queryKey: ['clinic', 'dialer', 'leads'],
-    queryFn: clinicApi.dialerLeads,
+    queryKey: ['clinic', 'dialer', 'leads', selectedBranch],
+    queryFn: () => clinicApi.dialerLeads(selectedBranch || undefined),
     refetchInterval: 20_000,
     refetchOnWindowFocus: true,
     staleTime: 3_000,
@@ -151,8 +153,8 @@ export default function ClinicDialer() {
 
   // Fetch call history
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
-    queryKey: ['clinic', 'call-reviews'],
-    queryFn: clinicApi.callReviews,
+    queryKey: ['clinic', 'call-reviews', selectedBranch],
+    queryFn: () => clinicApi.callReviews(selectedBranch || undefined),
     refetchInterval: callPhase === 'connected' || callPhase === 'ringing' ? 3000 : 15000,
     staleTime: 2000,
     refetchOnWindowFocus: true,

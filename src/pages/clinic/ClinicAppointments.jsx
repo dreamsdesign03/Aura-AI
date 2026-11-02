@@ -10,6 +10,7 @@ import {
 import { clinicApi, fullName, money, timeLabel, dateLabel, cleanEnglishName, cleanEnglishTreatment } from '@/clinic/api';
 import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
 import { cleanEmail } from '@/lib/emails';
+import { useBranch } from '@/contexts/BranchContext';
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 08:00 → 20:00
 const STATUS_ACTIONS = [
@@ -590,6 +591,7 @@ function TaskQueue() {
 
 export default function ClinicAppointments() {
   const qc = useQueryClient();
+  const { selectedBranch } = useBranch();
   const [anchor, setAnchor] = useState(() => new Date());
   
   // View toggle: 'calendar' or 'list'
@@ -634,15 +636,15 @@ export default function ClinicAppointments() {
 
   // Queries
   const appts = useQuery({
-    queryKey: ['clinic', 'appointments', from, to],
-    queryFn: () => clinicApi.appointments(from, to),
+    queryKey: ['clinic', 'appointments', from, to, selectedBranch],
+    queryFn: () => clinicApi.appointments(from, to, false, selectedBranch || undefined),
     refetchInterval: 8_000,
     staleTime: 2_000,
     refetchOnWindowFocus: true,
   });
   const patientsQ = useQuery({
-    queryKey: ['clinic', 'patients'],
-    queryFn: () => clinicApi.patients(''),
+    queryKey: ['clinic', 'patients', selectedBranch],
+    queryFn: () => clinicApi.patients('', selectedBranch || undefined),
     refetchInterval: 15_000,
     staleTime: 2_000,
     refetchOnWindowFocus: true,

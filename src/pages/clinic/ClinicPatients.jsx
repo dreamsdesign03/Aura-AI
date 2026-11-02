@@ -9,6 +9,7 @@ import { Link, useLocation } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi, Modal } from '@/clinic/ui';
 import PatientJourneySection from './PatientJourneySection';
+import { useBranch } from '@/contexts/BranchContext';
 
 export const PATIENT_CARE_STAGES = [
   { id: 1, key: 'discover', name: 'Stage 1: Discover', short: 'Enquiry', chipLabel: 'Stage 1 · Enquiry', color: '#6366F1', bg: '#EEF2FF', desc: 'New inquiry from ad, web, or social' },
@@ -358,6 +359,7 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
 
 export default function ClinicPatients() {
   const qc = useQueryClient();
+  const { selectedBranch } = useBranch();
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [openId, setOpenId] = useState(null);
@@ -416,8 +418,8 @@ export default function ClinicPatients() {
   });
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ['clinic', 'patients', term],
-    queryFn: () => clinicApi.patients(term),
+    queryKey: ['clinic', 'patients', term, selectedBranch],
+    queryFn: () => clinicApi.patients(term, selectedBranch || undefined),
     refetchInterval: 10_000,
     staleTime: 2_000,
     refetchOnWindowFocus: true,
