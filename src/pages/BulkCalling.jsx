@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { PhoneOutgoing, Plus, Loader2, RefreshCw, Play, Pause, XCircle, Search, Download, ChevronRight, AlertCircle, Clock, CheckCircle2 } from "lucide-react";
+import { PhoneOutgoing, Plus, Loader2, RefreshCw, Play, Pause, XCircle, Search, Download, ChevronRight, AlertCircle, Clock, CheckCircle2, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import BulkCallModal from "@/components/BulkCallModal";
 import EditCampaignModal from "@/components/EditCampaignModal";
@@ -83,6 +83,7 @@ export default function BulkCalling() {
               <thead className="bg-gray-50 border-b border-gray-100 text-xs text-gray-500 font-medium">
                 <tr>
                   <th className="px-5 py-3">Campaign Name</th>
+                  <th className="px-5 py-3">Branch</th>
                   <th className="px-5 py-3">Created</th>
                   <th className="px-5 py-3">Total Calls</th>
                   <th className="px-5 py-3">Booked</th>
@@ -94,6 +95,7 @@ export default function BulkCalling() {
                 {campaigns.map(c => (
                   <tr key={c.id} onClick={() => setSelectedId(c.id)} className="hover:bg-gray-50 cursor-pointer transition-colors group">
                     <td className="px-5 py-3 font-bold text-gray-900 group-hover:text-pink-700">{c.name}</td>
+                    <td className="px-5 py-3 text-gray-500 text-sm">{c.branch || 'Branch Not Available'}</td>
                     <td className="px-5 py-3 text-gray-500">
                       {format(new Date(c.created_at), "MMM d, yyyy h:mm a")}
                     </td>
@@ -331,6 +333,8 @@ function BulkCallDetail({ id, onBack }) {
               {format(new Date(campaign.created_at), "PP p")}
               <span>•</span>
               <span className="font-semibold text-pink-700">{campaign.enabled ? 'AI CALLING ON' : 'AI CALLING OFF'}</span>
+              {campaign.branch && <span>•</span>}
+              {campaign.branch && <span className="font-medium text-gray-600 flex items-center gap-1"><Building2 className="w-3.5 h-3.5 text-pink-600" /> {campaign.branch}</span>}
             </p>
           </div>
         </div>
@@ -464,6 +468,7 @@ function BulkCallDetail({ id, onBack }) {
                 <tr>
                   <th className="px-5 py-3">Contact</th>
                   <th className="px-5 py-3">Phone</th>
+                  <th className="px-5 py-3">Email</th>
                   <th className="px-5 py-3">Status</th>
                   <th className="px-5 py-3">Attempts</th>
                   <th className="px-5 py-3">Last Result</th>
@@ -478,6 +483,7 @@ function BulkCallDetail({ id, onBack }) {
                       {c.company && <div className="text-gray-500 text-[10px]">{c.company}</div>}
                     </td>
                     <td className="px-5 py-3 font-medium text-gray-600">{c.phone10}</td>
+                    <td className="px-5 py-3 text-gray-500 text-[11px]">{c.email ? c.email : 'Email Not Available'}</td>
                     <td className="px-5 py-3">
                       <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${c.status === 'booked' ? 'bg-green-100 text-green-700' :
                         c.status === 'calling' ? 'bg-amber-100 text-amber-700 animate-pulse' :
@@ -506,7 +512,7 @@ function BulkCallDetail({ id, onBack }) {
                 ))}
                 {filteredContacts.length === 0 && (
                   <tr>
-                    <td colSpan={6} className="px-5 py-12 text-center text-gray-400 font-medium">No contacts match your filters.</td>
+                    <td colSpan={7} className="px-5 py-12 text-center text-gray-400 font-medium">No contacts match your filters.</td>
                   </tr>
                 )}
               </tbody>
@@ -522,6 +528,7 @@ function BulkCallDetail({ id, onBack }) {
             <div>
               <h3 className="font-bold text-gray-900">{cleanEnglishName(drawerContact.name)}</h3>
               <p className="text-xs text-gray-500">{drawerContact.phone10}</p>
+              <p className="text-xs text-gray-500 mt-1">{drawerContact.email ? drawerContact.email : 'Email Not Available'}</p>
               <span className={`inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase ${drawerContact.status === 'booked' ? 'bg-green-100 text-green-700' : drawerContact.status === 'no_answer' ? 'bg-orange-100 text-orange-700' : 'bg-gray-200 text-gray-700'}`}>{statusLabel(drawerContact.status)}</span>
               {drawerContact.status === 'booked' && drawerContact.booked_datetime_text && drawerContact.booked_datetime_text !== 'none' && <div className="text-[11px] text-green-700 font-bold mt-1">Appointment: {drawerContact.booked_datetime_text}</div>}
             </div>

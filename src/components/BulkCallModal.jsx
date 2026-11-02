@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { X, PhoneOutgoing, Loader2, UploadCloud, Download, CheckCircle2, ChevronRight, AlertCircle } from "lucide-react";
+import { X, PhoneOutgoing, Loader2, UploadCloud, Download, CheckCircle2, ChevronRight, AlertCircle, Building2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { clinicApi } from "@/clinic/api";
 
 function ProgressItem({ label, active, done }) {
   return (
@@ -81,6 +82,24 @@ function validateSv(sv) {
 export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onComplete }) {
   const { toast } = useToast();
   const fileInputRef = useRef(null);
+  
+  // Branch state
+  const [branches, setBranches] = useState([]);
+  const [selectedBranch, setSelectedBranch] = useState("");
+  
+  // Fetch branches on open
+  useEffect(() => {
+    if (isOpen) {
+      clinicApi.getSettings().then(data => {
+        if (data?.branches?.length) {
+          setBranches(data.branches);
+          // Set default branch
+          const def = data.branches.find(b => b.isDefault);
+          setSelectedBranch(def?.name || data.branches[0]?.name || "");
+        }
+      }).catch(() => {});
+    }
+  }, [isOpen]);
   
   // Settings state
   const [name, setName] = useState(`Bulk Campaign - ${format(new Date(), "dd MMM")}`);
@@ -399,6 +418,7 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
     }
     const payload = {
       name,
+      branch: selectedBranch,
       max_attempts: sv.retryEnabled ? Number(sv.maxRetries) + 1 : 1,
       retry_delay_min: Number(sv.intervalMin),
       gap_seconds: gapSeconds,
@@ -620,6 +640,26 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
                   />
                 </div>
               )}
+              
+              {/* Branch Selection */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Clinic Branch</label>
+                {branches.length > 0 ? (
+                  <select 
+                    value={selectedBranch} 
+                    onChange={e => setSelectedBranch(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-pink-300 outline-none"
+                  >
+                    {branches.map((b, i) => (
+                      <option key={i} value={b.name}>{b.name}{b.isDefault ? ' (Default)' : ''}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="w-full px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-gray-400 text-sm">
+                    No branches configured. Add branches in Clinic Settings.
+                  </div>
+                )}
+              </div>
               
               {/* Campaign period */}
               <div>

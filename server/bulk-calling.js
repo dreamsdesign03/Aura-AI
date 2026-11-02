@@ -260,8 +260,8 @@ router.post('/', async (req, res) => {
     }
 
     const insertCamp = await db.query(
-      'INSERT INTO bulk_campaigns (name, max_attempts, retry_delay_min, gap_seconds, total, created_by, sarvam_settings) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
-      [name, maxAttempts, retryDelay, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1, settings ? JSON.stringify(settings) : null]
+      'INSERT INTO bulk_campaigns (name, branch, max_attempts, retry_delay_min, gap_seconds, total, created_by, sarvam_settings) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
+      [name, req.body.branch || null, maxAttempts, retryDelay, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1, settings ? JSON.stringify(settings) : null]
     );
     const campaignId = insertCamp.rows[0].id;
 

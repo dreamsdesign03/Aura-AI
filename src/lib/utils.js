@@ -138,7 +138,7 @@ const KNOWN_NAME_MAPPINGS = {
     'زينب': 'Zainab',
 };
 
-export function cleanEnglishName(raw, fallback = 'Patient') {
+export function cleanEnglishName(raw, fallback = 'Name Not Available') {
     if (!raw) return fallback;
     let str = String(raw).trim();
     if (!str) return fallback;

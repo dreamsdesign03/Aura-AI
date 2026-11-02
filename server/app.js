@@ -355,6 +355,7 @@ async function seedAdminUser() {
       CREATE TABLE IF NOT EXISTS bulk_campaigns (
         id SERIAL PRIMARY KEY,
         name TEXT,
+        branch TEXT,
         enabled BOOLEAN DEFAULT FALSE,
         status TEXT DEFAULT 'draft',
         max_attempts INT DEFAULT 2,
@@ -409,6 +410,7 @@ async function seedAdminUser() {
       );
 
       ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS sarvam_campaign_id TEXT;
+      ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS branch TEXT;
       ALTER TABLE bulk_attempts ADD COLUMN IF NOT EXISTS interaction_id TEXT;
       ALTER TABLE bulk_campaigns ADD COLUMN IF NOT EXISTS sarvam_settings JSONB;
 
