@@ -1615,7 +1615,7 @@ async function syncWhatsAppInbox({ force = false } = {}) {
           const parsedTs = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date(log.created_at);
           const sentAt = isNaN(parsedTs.getTime()) ? new Date(log.created_at || Date.now()) : parsedTs;
           const digits = phoneLast10(senderPhone);
-          const isBusinessEcho = digits.endsWith('8490033711') || digits.endsWith('8469522692');
+          const isBusinessEcho = digits.endsWith('8490033711') || digits.endsWith('8469522692') || digits.endsWith('9081090555');
           // Messages sent from our own business number are template echoes,
           // not patient threads. Never surface them in the inbox list.
           if (isBusinessEcho) continue;
@@ -1815,6 +1815,7 @@ router.get('/inbox', requireUser, async (req, res) => {
               )
                 AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8490033711%'
                 AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8469522692%'
+                AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%9081090555%'
         )
         SELECT id, lead_id, phone, unread_count, last_message_at, first_name, last_name, email, preview
           FROM ranked

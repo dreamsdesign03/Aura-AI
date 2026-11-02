@@ -3,7 +3,7 @@ const { WHATSAPP_TEMPLATES } = require('./whatsapp-templates');
 
 // Numbers owned by the clinic. Messages/conversations from these numbers are
 // echoes of our own outbound template sends and must never appear as patients.
-const OWN_WHATSAPP_DIGITS = ['8490033711', '8469522692'];
+const OWN_WHATSAPP_DIGITS = ['8490033711', '8469522692', '9081090555'];
 
 function isOwnWhatsAppNumber(phone) {
   const digits = String(phone || '').replace(/\D/g, '');
@@ -143,12 +143,14 @@ function ensureWhatsAppSchema() {
     // clinic's own WhatsApp number (outbound template echoes).
     try {
       const ownMatch = `REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%8490033711%'
-        OR REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%8469522692%'`;
+        OR REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%8469522692%'
+        OR REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%9081090555%'`;
       await db.query(`DELETE FROM whatsapp_messages WHERE conversation_id IN (SELECT id FROM whatsapp_conversations WHERE ${ownMatch})`);
       await db.query(
         `DELETE FROM whatsapp_messages
           WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE '%8490033711%'
-             OR REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE '%8469522692%'`
+             OR REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE '%8469522692%'
+             OR REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE '%9081090555%'`
       );
       await db.query(`DELETE FROM whatsapp_conversations WHERE ${ownMatch}`);
     } catch (purgeErr) {
@@ -665,6 +667,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         WHERE (l.user_id = $1 OR l.user_id IS NULL OR wc.lead_id IS NULL)
           AND REPLACE(REPLACE(REPLACE(COALESCE(wc.wa_phone_number, wc.phone, ''), '+', ''), '-', ''), ' ', '') NOT LIKE '%8490033711%'
           AND REPLACE(REPLACE(REPLACE(COALESCE(wc.wa_phone_number, wc.phone, ''), '+', ''), '-', ''), ' ', '') NOT LIKE '%8469522692%'
+          AND REPLACE(REPLACE(REPLACE(COALESCE(wc.wa_phone_number, wc.phone, ''), '+', ''), '-', ''), ' ', '') NOT LIKE '%9081090555%'
         ORDER BY COALESCE(wc.last_message_at, wc.updated_at, wc.created_at) DESC;
       `;
 

@@ -15,7 +15,7 @@ function normalisePhone(raw) {
   return /^\d{11,15}$/.test(d) ? d : "";
 }
 // The clinic's own WhatsApp line must never be treated as a patient recipient.
-const OWN_WHATSAPP_LAST10 = ["8490033711", "8469522692"];
+const OWN_WHATSAPP_LAST10 = ["8490033711", "8469522692", "9081090555"];
 function isOwnWhatsApp(raw) {
   const d = String(raw || "").replace(/\D/g, "");
   const last10 = d.length > 10 ? d.slice(-10) : d;

@@ -6542,7 +6542,7 @@ app.post('/api/whatsapp/send', async (req, res) => {
     // Blocking it here prevents self-echo threads from appearing in the inbox.
     const ownDigits = phone.replace(/\D/g, '');
     const ownLast10 = ownDigits.length > 10 ? ownDigits.slice(-10) : ownDigits;
-    if (['8490033711', '8469522692'].includes(ownLast10)) {
+    if (['8490033711', '8469522692', '9081090555'].includes(ownLast10)) {
       return res.status(400).json({
         success: false,
         status: 'skipped',
