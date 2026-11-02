@@ -6518,12 +6518,13 @@ app.get('/api/whatsapp/templates', (req, res) => {
 // POST /api/whatsapp/send — Send text or official Meta Template message
 app.post('/api/whatsapp/send', async (req, res) => {
   try {
-    const { leadId, phone: rawPhone, message, templateName, templateParams = [], languageCode } = req.body || {};
+    const { leadId: bodyLeadId, phone: rawPhone, message, templateName, templateParams = [], languageCode } = req.body || {};
 
     if (!message && !templateName) {
       return res.status(400).json({ error: 'Message content or templateName is required' });
     }
 
+    let leadId = bodyLeadId;
     let lead = {};
     if (leadId) {
       try {
@@ -6547,6 +6548,27 @@ app.post('/api/whatsapp/send', async (req, res) => {
         status: 'skipped',
         error: "Cannot send to the clinic's own WhatsApp number.",
       });
+    }
+
+    // Auto-find lead by phone if no leadId provided
+    if (!leadId) {
+      try {
+        const cleanPhone = phone.replace(/\D/g, '');
+        const last10 = cleanPhone.length > 10 ? cleanPhone.slice(-10) : cleanPhone;
+        const leadRes = await db.query(
+          `SELECT id FROM leads
+           WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+              OR REPLACE(REPLACE(REPLACE(COALESCE(whatsapp,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+           ORDER BY id DESC LIMIT 1`,
+          [last10]
+        );
+        if (leadRes.rows[0]) {
+          leadId = leadRes.rows[0].id;
+          lead = leadRes.rows[0];
+        }
+      } catch (e) {
+        console.warn('[app.js] auto-find lead by phone failed:', e.message);
+      }
     }
 
     const leadName = `${lead.first_name || lead.firstName || 'Contact'} ${lead.last_name || lead.lastName || ''}`.trim();
@@ -6746,11 +6768,11 @@ app.post('/api/whatsapp/send', async (req, res) => {
       let convRes = await db.query(`SELECT id FROM whatsapp_conversations WHERE lead_id = $1 OR wa_phone_number = $2`, [lead?.id || leadId || null, phone]);
       if (convRes.rows[0]) {
         convId = convRes.rows[0].id;
-        await db.query(`UPDATE whatsapp_conversations SET state = 'outbound_sent', updated_at = NOW() WHERE id = $1`, [convId]);
+        await db.query(`UPDATE whatsapp_conversations SET state = 'outbound_sent', lead_id = COALESCE(lead_id, $1), wa_phone_number = COALESCE(wa_phone_number, $2), updated_at = NOW() WHERE id = $3`, [lead?.id || leadId || null, phone, convId]);
       } else {
         let newConv = await db.query(
-          `INSERT INTO whatsapp_conversations (lead_id, phone, state, status, last_message_at, created_at, updated_at)
-           VALUES ($1, $2, 'outbound_sent', 'Active', NOW(), NOW(), NOW()) RETURNING id`,
+          `INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, state, status, last_message_at, created_at, updated_at)
+           VALUES ($1, $2, $2, 'outbound_sent', 'Active', NOW(), NOW(), NOW()) RETURNING id`,
           [lead?.id || leadId || null, phone]
         );
         convId = newConv.rows[0]?.id;

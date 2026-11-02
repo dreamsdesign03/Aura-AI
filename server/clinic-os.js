@@ -1784,30 +1784,42 @@ router.get('/inbox', requireUser, async (req, res) => {
     const limit = Number(req.query.limit) || 100;
 
     const [wa, emails, calls, notes] = await Promise.all([
-      // 1. WhatsApp Conversations
+      // 1. WhatsApp Conversations - deduplicate by wa_phone_number (prefer those with lead_id)
       db.query(
-        `SELECT wc.id, wc.lead_id, COALESCE(NULLIF(wc.phone, ''), NULLIF(wc.wa_phone_number, '')) AS phone,
-                wc.unread_count, wc.last_message_at,
-                l.first_name, l.last_name, l.email,
-                COALESCE(
-                  (SELECT content FROM whatsapp_messages wm
-                   WHERE wm.conversation_id = wc.id OR (wm.lead_id IS NOT NULL AND wm.lead_id = l.id)
-                   ORDER BY COALESCE(wm.sent_at, wm.timestamp, wm.created_at, NOW()) DESC LIMIT 1),
-                  wc.last_message,
-                  'WhatsApp conversation'
-                ) AS preview
-           FROM whatsapp_conversations wc
-           LEFT JOIN leads l ON l.id = wc.lead_id
-          WHERE (
-             (wc.org_id IS NULL OR wc.org_id = (SELECT org_id FROM users WHERE id = $1))
-             OR l.user_id = $1
-             OR wc.lead_id IS NOT NULL
-             OR wc.phone IS NOT NULL
-             OR wc.wa_phone_number IS NOT NULL
-          )
-            AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8490033711%'
-            AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8469522692%'
-          ORDER BY wc.last_message_at DESC NULLS LAST LIMIT $2`,
+        `WITH ranked AS (
+            SELECT wc.id, wc.lead_id, COALESCE(NULLIF(wc.phone, ''), NULLIF(wc.wa_phone_number, '')) AS phone,
+                    wc.unread_count, wc.last_message_at,
+                    l.first_name, l.last_name, l.email,
+                    COALESCE(
+                      (SELECT content FROM whatsapp_messages wm
+                       WHERE wm.conversation_id = wc.id OR (wm.lead_id IS NOT NULL AND wm.lead_id = l.id)
+                       ORDER BY COALESCE(wm.sent_at, wm.timestamp, wm.created_at, NOW()) DESC LIMIT 1),
+                      wc.last_message,
+                      'WhatsApp conversation'
+                    ) AS preview,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY COALESCE(wc.wa_phone_number, wc.phone, '')
+                      ORDER BY 
+                        CASE WHEN wc.lead_id IS NOT NULL THEN 0 ELSE 1 END,
+                        wc.last_message_at DESC NULLS LAST
+                    ) as rn
+               FROM whatsapp_conversations wc
+               LEFT JOIN leads l ON l.id = wc.lead_id
+              WHERE (
+                 (wc.org_id IS NULL AND (SELECT org_id FROM users WHERE id = $1) IS NULL)
+                 OR wc.org_id = (SELECT org_id FROM users WHERE id = $1)
+                 OR l.user_id = $1
+                 OR wc.lead_id IS NOT NULL
+                 OR wc.phone IS NOT NULL
+                 OR wc.wa_phone_number IS NOT NULL
+              )
+                AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8490033711%'
+                AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8469522692%'
+        )
+        SELECT id, lead_id, phone, unread_count, last_message_at, first_name, last_name, email, preview
+          FROM ranked
+         WHERE rn = 1
+         ORDER BY last_message_at DESC NULLS LAST LIMIT $2`,
         [uid, limit]
       ),
       // 2. Emails (Outreach and Inbound Replies)
