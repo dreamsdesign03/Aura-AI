@@ -73,8 +73,8 @@ export const clinicApi = {
 
   // Inbox
   inbox: (limit) => request(`/inbox${limit ? `?limit=${limit}` : ''}`),
-  inboxThread: (type, id, leadId) =>
-    request(`/inbox/thread?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${leadId ? `&leadId=${encodeURIComponent(leadId)}` : ''}`),
+  inboxThread: (type, id, leadId, phone) =>
+    request(`/inbox/thread?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${leadId ? `&leadId=${encodeURIComponent(leadId)}` : ''}${phone ? `&phone=${encodeURIComponent(phone)}` : ''}`),
   inboxReply: (body) => request('/inbox/reply', { method: 'POST', body: JSON.stringify(body) }),
 
   // Dialer
@@ -116,8 +116,8 @@ export const initials = (first, last) => {
   return (a + b).toUpperCase() || '?';
 };
 
-import { cleanEnglishName } from '@/lib/utils';
-export { cleanEnglishName };
+import { cleanEnglishName, cleanEnglishTreatment, transliterateIndic } from '@/lib/utils';
+export { cleanEnglishName, cleanEnglishTreatment, transliterateIndic };
 
 export const fullName = (p) =>
   cleanEnglishName([p?.first_name, p?.last_name].filter(Boolean).join(' ').trim() || p?.patient_name || p?.name || 'Patient');

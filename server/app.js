@@ -434,6 +434,30 @@ async function seedAdminUser() {
     } catch (err) {
       console.warn('[Startup] ⚠️ Could not clear stuck calls:', err.message);
     }
+
+    // Automatic reconciliation: sync bulk_attempts and bulk_contacts transcripts & recordings from ai_calls
+    try {
+      await db.query(`
+        UPDATE bulk_attempts ba
+           SET transcript = ac.transcript,
+               recording_url = COALESCE(ba.recording_url, ac.recording_url)
+          FROM ai_calls ac
+         WHERE (ac.conversation_id = ba.interaction_id OR ac.call_sid = ba.request_id)
+           AND (ba.transcript IS NULL OR jsonb_typeof(ba.transcript) = 'null')
+           AND ac.transcript IS NOT NULL AND jsonb_typeof(ac.transcript) != 'null';
+
+        UPDATE bulk_contacts bc
+           SET transcript = ba.transcript,
+               recording_url = COALESCE(bc.recording_url, ba.recording_url)
+          FROM bulk_attempts ba
+         WHERE ba.contact_id = bc.id
+           AND (bc.transcript IS NULL OR jsonb_typeof(bc.transcript) = 'null')
+           AND ba.transcript IS NOT NULL AND jsonb_typeof(ba.transcript) != 'null';
+      `);
+      console.log('[Startup] ✅ Synced bulk_attempts & bulk_contacts transcripts from ai_calls');
+    } catch (err) {
+      console.warn('[Startup] ⚠️ Bulk transcript sync warning:', err.message);
+    }
   } catch (err) {
     console.error('[Startup Migration] ❌ Error:', err.message);
   }

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
@@ -6,7 +6,7 @@ import {
   Mail, Phone, Clock, Send, ExternalLink, Check, CheckCheck,
   User, ArrowUpRight, Sparkles, Filter, X
 } from 'lucide-react';
-import { clinicApi, datetimeLabel, dateLabel, timeLabel } from '@/clinic/api';
+import { clinicApi, datetimeLabel, dateLabel, timeLabel, cleanEnglishName } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, Spinner, Drawer, EmptyState } from '@/clinic/ui';
 
 const CHANNEL_CONFIG = {
@@ -185,8 +185,8 @@ function ThreadDrawer({ thread, onClose }) {
   const [sendingStatus, setSendingStatus] = useState(null);
 
   const { data: detail, isLoading, refetch } = useQuery({
-    queryKey: ['clinic', 'inbox', 'thread', thread.type, thread.id, thread.leadId],
-    queryFn: () => clinicApi.inboxThread(thread.type, thread.id, thread.leadId),
+    queryKey: ['clinic', 'inbox', 'thread', thread.type, thread.id, thread.leadId, thread.phone],
+    queryFn: () => clinicApi.inboxThread(thread.type, thread.id, thread.leadId, thread.phone),
     staleTime: 5_000,
   });
 
@@ -309,6 +309,18 @@ function ThreadDrawer({ thread, onClose }) {
             {/* WHATSAPP VIEW */}
             {thread.type === 'whatsapp' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Official Clinic WhatsApp Channel Banner */}
+                <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: 8, padding: '8px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: 999, background: '#10B981', flexShrink: 0 }} />
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: '#065F46' }}>
+                      Official WhatsApp Business: <strong style={{ color: '#047857' }}>+91 84900 33711</strong>
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 10.5, color: '#047857', fontWeight: 500 }}>
+                    Aura Laser &amp; Cosmetic Clinic
+                  </span>
+                </div>
                 <div className="co-label" style={{ marginBottom: 4 }}>WhatsApp Messages</div>
                 <div
                   style={{
@@ -677,6 +689,66 @@ export default function ClinicInbox() {
   const [openThread, setOpenThread] = useState(null);
 
   const threads = data?.threads || [];
+
+  // Handle URL query parameters (?phone=..., ?name=..., ?channel=..., ?leadId=...)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const qPhone = params.get('phone');
+    const qName = params.get('name');
+    const qChannel = params.get('channel');
+    const qLeadId = params.get('leadId');
+
+    if (qChannel && CHANNEL_CONFIG[qChannel]) {
+      setActiveChannel(qChannel);
+    } else if (qPhone) {
+      setActiveChannel('whatsapp');
+    }
+
+    if (qPhone || qName) {
+      const cleanTargetPhone = (qPhone || '').replace(/\D/g, '');
+      const last10 = cleanTargetPhone.length >= 10 ? cleanTargetPhone.slice(-10) : cleanTargetPhone;
+
+      if (threads.length > 0) {
+        const match = threads.find((t) => {
+          if (qLeadId && t.leadId && String(t.leadId) === String(qLeadId)) return true;
+          const tPhone = (t.phone || '').replace(/\D/g, '');
+          const tLast10 = tPhone.length >= 10 ? tPhone.slice(-10) : tPhone;
+          if (last10 && tLast10 && last10 === tLast10) return true;
+          if (qName && t.name && t.name.toLowerCase().includes(qName.toLowerCase())) return true;
+          return false;
+        });
+
+        if (match) {
+          setOpenThread(match);
+        } else if (qPhone) {
+          setOpenThread({
+            type: 'whatsapp',
+            id: 'new-' + (last10 || 'chat'),
+            leadId: qLeadId ? Number(qLeadId) : null,
+            name: qName ? cleanEnglishName(qName) : 'WhatsApp Patient',
+            phone: qPhone,
+            unread: 0,
+            status: 'active',
+            lastAt: new Date().toISOString(),
+            preview: 'Appointment confirmed & reminders via +91 84900 33711',
+          });
+        }
+      } else if (qPhone) {
+        setOpenThread({
+          type: 'whatsapp',
+          id: 'new-' + (last10 || 'chat'),
+          leadId: qLeadId ? Number(qLeadId) : null,
+          name: qName ? cleanEnglishName(qName) : 'WhatsApp Patient',
+          phone: qPhone,
+          unread: 0,
+          status: 'active',
+          lastAt: new Date().toISOString(),
+          preview: 'Appointment confirmed & reminders via +91 84900 33711',
+        });
+      }
+    }
+  }, [threads]);
 
   // Metrics
   const counts = useMemo(() => {

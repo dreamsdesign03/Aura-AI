@@ -1,12 +1,13 @@
 import { Fragment, useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Clock,
   Check, Trash2, MapPin, Phone, IndianRupee, List, ExternalLink,
   Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User,
   Play, Pause, Volume2, Download, MessageSquare,
 } from 'lucide-react';
-import { clinicApi, fullName, money, timeLabel, dateLabel, cleanEnglishName } from '@/clinic/api';
+import { clinicApi, fullName, money, timeLabel, dateLabel, cleanEnglishName, cleanEnglishTreatment } from '@/clinic/api';
 import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
 import { cleanEmail } from '@/lib/emails';
 
@@ -277,11 +278,14 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
   const cleanPh = (appointment.phone || '').replace(/[^0-9]/g, '');
   const isMeet = appointment.meeting_link && appointment.meeting_link.startsWith('http');
   const patientCleanName = cleanEnglishName(appointment.patient_name);
+  const cleanTreatment = cleanEnglishTreatment(appointment.treatment);
+  const turns = parseApptTurns(appointment.transcript);
+  const hasVoiceCall = !!(appointment.recording_url || turns.length > 0 || appointment.call_review_id);
 
   return (
     <Modal
       title={patientCleanName}
-      subtitle={`${dateLabel(appointment.starts_at)} · ${timeLabel(appointment.starts_at)}${appointment.treatment ? ` · ${appointment.treatment}` : ''}`}
+      subtitle={`${dateLabel(appointment.starts_at)} · ${timeLabel(appointment.starts_at)}${cleanTreatment ? ` · ${cleanTreatment}` : ''}`}
       onClose={onClose}
       width={580}
     >
@@ -300,9 +304,14 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
             <a href={`tel:${appointment.phone}`} className="co-chip co-c-p"><Phone size={11} /> {appointment.phone}</a>
           ) : null}
           {cleanPh ? (
-            <a href={`https://wa.me/${cleanPh}`} target="_blank" rel="noopener noreferrer" className="co-chip co-c-g">
-              <MessageCircle size={11} /> WhatsApp
-            </a>
+            <Link
+              href={`/clinic/inbox?phone=${cleanPh}&name=${encodeURIComponent(patientCleanName)}`}
+              className="co-chip co-c-g"
+              style={{ textDecoration: 'none', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              title="Open WhatsApp conversation (+91 84900 33711)"
+            >
+              <MessageCircle size={11} /> WhatsApp (+91 84900 33711)
+            </Link>
           ) : null}
           {cleanEmail(appointment.email) ? (
             <a href={`mailto:${cleanEmail(appointment.email)}`} className="co-chip co-c-n">
@@ -371,59 +380,65 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
         )}
 
         {/* Full Conversation Dialogue Transcript */}
-        {(() => {
-          const turns = parseApptTurns(appointment.transcript);
-          if (turns.length === 0) return null;
-          return (
-            <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px' }}>
-              <div className="co-spread" style={{ marginBottom: 10 }}>
-                <div className="co-label" style={{ color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <MessageSquare size={13} style={{ color: '#2563EB' }} /> Full Conversation Transcript ({turns.length} turns)
-                </div>
-                {appointment.call_review_id && (
-                  <a
-                    href={`/clinic/call-review/${appointment.call_review_id}`}
-                    className="co-btn co-btn-sm"
-                    style={{ fontSize: 11, color: '#2563EB', padding: '2px 8px' }}
-                  >
-                    Open Session <ExternalLink size={11} />
-                  </a>
-                )}
+        {turns.length > 0 && (
+          <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px' }}>
+            <div className="co-spread" style={{ marginBottom: 10 }}>
+              <div className="co-label" style={{ color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <MessageSquare size={13} style={{ color: '#2563EB' }} /> Full Conversation Transcript ({turns.length} turns)
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
-                {turns.map(t => (
-                  <div
-                    key={t.id}
-                    style={{
-                      alignSelf: t.isAgent ? 'flex-end' : 'flex-start',
-                      maxWidth: '85%',
-                      background: t.isAgent ? '#FBE9F1' : '#F8FAFC',
-                      color: t.isAgent ? '#831843' : '#1E293B',
-                      border: t.isAgent ? '1px solid #F3D9E5' : '1px solid #E2E8F0',
-                      borderRadius: t.isAgent ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-                      padding: '8px 12px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2, gap: 10 }}>
-                      <span style={{ fontSize: 10.5, fontWeight: 700, color: t.isAgent ? '#A4285E' : '#2563EB' }}>
-                        {t.isAgent ? 'Aura AI / Coordinator' : patientCleanName}
-                      </span>
-                      {t.time && <span style={{ fontSize: 9.5, color: '#94A3B8' }}>{t.time}</span>}
-                    </div>
-                    <div style={{ fontSize: 12, lineHeight: 1.45, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
-                      {t.text}
-                    </div>
-                    {t.indicText && (
-                      <div style={{ fontSize: 10.5, color: '#64748B', marginTop: 4, borderTop: '1px dashed rgba(0,0,0,0.08)', paddingTop: 2 }}>
-                        {t.indicText}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {appointment.call_review_id && (
+                <a
+                  href={`/clinic/call-review/${appointment.call_review_id}`}
+                  className="co-btn co-btn-sm"
+                  style={{ fontSize: 11, color: '#2563EB', padding: '2px 8px' }}
+                >
+                  Open Session <ExternalLink size={11} />
+                </a>
+              )}
             </div>
-          );
-        })()}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
+              {turns.map(t => (
+                <div
+                  key={t.id}
+                  style={{
+                    alignSelf: t.isAgent ? 'flex-end' : 'flex-start',
+                    maxWidth: '85%',
+                    background: t.isAgent ? '#FBE9F1' : '#F8FAFC',
+                    color: t.isAgent ? '#831843' : '#1E293B',
+                    border: t.isAgent ? '1px solid #F3D9E5' : '1px solid #E2E8F0',
+                    borderRadius: t.isAgent ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                    padding: '8px 12px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2, gap: 10 }}>
+                    <span style={{ fontSize: 10.5, fontWeight: 700, color: t.isAgent ? '#A4285E' : '#2563EB' }}>
+                      {t.isAgent ? 'Aura AI / Coordinator' : patientCleanName}
+                    </span>
+                    {t.time && <span style={{ fontSize: 9.5, color: '#94A3B8' }}>{t.time}</span>}
+                  </div>
+                  <div style={{ fontSize: 12, lineHeight: 1.45, fontWeight: 500, whiteSpace: 'pre-wrap' }}>
+                    {t.text}
+                  </div>
+                  {t.indicText && (
+                    <div style={{ fontSize: 10.5, color: '#64748B', marginTop: 4, borderTop: '1px dashed rgba(0,0,0,0.08)', paddingTop: 2 }}>
+                      {t.indicText}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Reassuring notice if direct Cal.com booking without voice call */}
+        {!hasVoiceCall && (
+          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <CalendarDays size={18} style={{ color: '#64748B', flexShrink: 0 }} />
+            <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.45 }}>
+              <strong>Direct Calendar Reservation</strong> — Booked via Cal.com online scheduler or front desk walk-in. No automated AI voice call was placed for this booking.
+            </div>
+          </div>
+        )}
 
         {appointment.notes ? (
           <div style={{ background: '#FDF7FA', border: '1px solid #F3D9E5', borderRadius: 10, padding: '12px 14px' }}>
@@ -835,10 +850,10 @@ export default function ClinicAppointments() {
                               type="button"
                               className={`co-slot ${a.status}`}
                               onClick={(e) => { e.stopPropagation(); setSelected(a); }}
-                              title={`${cleanEnglishName(a.patient_name)} · ${a.treatment || 'Appointment'}`}
+                              title={`${cleanEnglishName(a.patient_name)} · ${cleanEnglishTreatment(a.treatment)}`}
                             >
                               {cleanEnglishName(a.patient_name)}
-                              <small>{timeLabel(a.starts_at)}{a.treatment ? ` · ${a.treatment}` : ''}</small>
+                              <small>{timeLabel(a.starts_at)}{a.treatment ? ` · ${cleanEnglishTreatment(a.treatment)}` : ''}</small>
                             </button>
                           ))}
                         </div>
@@ -859,7 +874,7 @@ export default function ClinicAppointments() {
                     <span className="co-dot" />
                     <div style={{ flex: 1 }}>
                       <div className="co-strong" style={{ fontSize: 13 }}>{cleanEnglishName(a.patient_name)}</div>
-                      <div className="co-xs co-mut">{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)} · {a.treatment || 'Appointment'}</div>
+                      <div className="co-xs co-mut">{dateLabel(a.starts_at)} · {timeLabel(a.starts_at)} · {cleanEnglishTreatment(a.treatment)}</div>
                     </div>
                     <button type="button" className="co-btn co-btn-sm" onClick={() => setSelected(a)}>Open</button>
                   </div>
@@ -981,22 +996,20 @@ export default function ClinicAppointments() {
                                 </a>
                               ) : <span className="co-mut">—</span>}
                               {cleanPh ? (
-                                <a
-                                  href={`https://wa.me/${cleanPh}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
+                                <Link
+                                  href={`/clinic/inbox?phone=${cleanPh}&name=${encodeURIComponent(cleanEnglishName(a.patient_name))}`}
                                   onClick={(e) => e.stopPropagation()}
                                   className="co-chip co-c-g"
-                                  style={{ padding: '3px 6px' }}
-                                  title="Open WhatsApp chat"
+                                  style={{ padding: '3px 6px', display: 'inline-flex', alignItems: 'center' }}
+                                  title="Open WhatsApp Inbox (+91 84900 33711)"
                                 >
                                   <MessageCircle size={10} />
-                                </a>
+                                </Link>
                               ) : null}
                             </div>
                           </td>
                           <td>
-                            <div style={{ fontWeight: 500 }}>{a.treatment || 'Consultation'}</div>
+                            <div style={{ fontWeight: 500 }}>{cleanEnglishTreatment(a.treatment)}</div>
                             {a.notes ? (
                               <div style={{ fontSize: 11, color: '#64748B', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {a.notes}

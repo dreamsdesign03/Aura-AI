@@ -538,19 +538,12 @@ function BulkCallDetail({ id, onBack }) {
                       )}
 
                       {/* AI Conversation Transcript */}
-                      <CallConversation key={a.interaction_id || a.id} interactionId={a.interaction_id} />
-                      {!a.interaction_id && transcript && transcript.length > 0 && (
-                        <div className="mb-3">
-                          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
-                          <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {transcript.map((msg, idx) => (
-                              <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${msg.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
-                                <span className="font-medium text-[10px] text-gray-500">{msg.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {msg.en_text || msg.content || msg.text}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      <CallConversation
+                        key={a.interaction_id || a.id}
+                        interactionId={a.interaction_id}
+                        fallbackTranscript={a.transcript}
+                        recordingUrl={a.recording_url}
+                      />
 
                       <div className="text-[11px] text-gray-600 italic border-l-2 border-gray-200 pl-2 my-2">{a.summary || 'No summary provided.'}</div>
                       {(a.recording_url || a.transcript?.length) && (
@@ -580,20 +573,32 @@ function BulkCallDetail({ id, onBack }) {
   );
 }
 
-// Full conversation (original language) + audio, loaded on demand from Sarvam.
-function CallConversation({ interactionId }) {
+// Full conversation (original language) + audio, loaded on demand from Sarvam with database fallback.
+function CallConversation({ interactionId, fallbackTranscript, recordingUrl }) {
   const [msgs, setMsgs] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
-  const iid = encodeURIComponent(interactionId);
+  const iid = interactionId ? encodeURIComponent(interactionId) : "";
+
+  // Parse fallback if available
+  const parsedFallback = useMemo(() => {
+    if (!fallbackTranscript) return null;
+    let t = fallbackTranscript;
+    if (typeof t === 'string') {
+      try { t = JSON.parse(t); } catch { return null; }
+    }
+    return Array.isArray(t) && t.length > 0 ? t : null;
+  }, [fallbackTranscript]);
 
   useEffect(() => {
-    // Reset before loading so a different interaction never shows the previous
-    // conversation while its transcript is in flight.
     setMsgs(null);
     setErr("");
-    if (interactionId) load();
-  }, [interactionId]);
+    if (interactionId) {
+      load();
+    } else if (parsedFallback) {
+      setMsgs(parsedFallback);
+    }
+  }, [interactionId, parsedFallback]);
 
   const load = async () => {
     setLoading(true);
@@ -601,37 +606,69 @@ function CallConversation({ interactionId }) {
     try {
       const r = await fetch(`/api/bulk-calling/calls/transcript?iid=${iid}`);
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) throw new Error(d.error || "Could not load conversation");
-      setMsgs(d.messages || []);
+      if (!r.ok) {
+        if (parsedFallback) {
+          setMsgs(parsedFallback);
+          return;
+        }
+        throw new Error(d.error || "Could not load conversation");
+      }
+      const turns = d.messages || [];
+      if (turns.length === 0 && parsedFallback) {
+        setMsgs(parsedFallback);
+      } else {
+        setMsgs(turns);
+      }
     } catch (e) {
-      setErr(e.message);
+      if (parsedFallback) {
+        setMsgs(parsedFallback);
+      } else {
+        setErr(e.message);
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  if (!interactionId) return null;
+  const effectiveMsgs = msgs || parsedFallback;
+  const audioSrc = interactionId ? `/api/bulk-calling/calls/recording?iid=${iid}` : recordingUrl;
+
+  if (!interactionId && !parsedFallback && !recordingUrl) return null;
+
   return (
     <div className="mb-3">
       <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">AI Conversation</div>
-      {msgs === null ? (
+      {effectiveMsgs === null ? (
         loading
           ? <div className="text-[11px] text-gray-400 flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Loading conversation...</div>
           : <button onClick={load} className="text-[11px] font-bold text-pink-600 hover:underline flex items-center gap-1"><ChevronRight className="w-3 h-3" /> Retry loading conversation</button>
       ) : (
         <>
-          {msgs.length === 0 && <div className="text-[11px] text-gray-400">No transcript available.</div>}
+          {effectiveMsgs.length === 0 && <div className="text-[11px] text-gray-400">No transcript available for this attempt.</div>}
           <div className="space-y-2 max-h-96 overflow-y-auto">
-            {msgs.map((m, idx) => (
-              <div key={idx} className={`text-[11px] leading-relaxed p-2 rounded ${m.role === 'user' ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
-                <span className="font-medium text-[10px] text-gray-500">{m.role === 'user' ? 'User' : 'Ketki (AI)'}:</span> {m.content}
-              </div>
-            ))}
+            {effectiveMsgs.map((m, idx) => {
+              const text = m.en_text || m.content || m.text || (typeof m === 'string' ? m : '');
+              const indic = (m.indic_text && m.indic_text.trim() !== text) ? m.indic_text.trim() : '';
+              const isUser = m.role === 'user' || m.speaker === 'user';
+              return (
+                <div key={idx} className={`text-[11px] leading-relaxed p-2.5 rounded-lg ${isUser ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
+                  <div className="font-semibold text-[10px] text-gray-500 mb-0.5">{isUser ? 'User / Patient' : 'Ketki (AI Coordinator)'}:</div>
+                  <div className="whitespace-pre-wrap">{text}</div>
+                  {indic && (
+                    <div className="text-[10px] text-gray-500 mt-1 pt-1 border-t border-black/5 italic">{indic}</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <audio controls preload="none" src={`/api/bulk-calling/calls/recording?iid=${iid}`} className="w-full mt-2" />
+          {audioSrc && (
+            <div className="mt-2.5">
+              <audio controls preload="none" src={audioSrc} className="w-full" />
+            </div>
+          )}
         </>
       )}
-      {err && <div className="text-[11px] text-red-500 mt-1">{err}</div>}
+      {err && !effectiveMsgs && <div className="text-[11px] text-red-500 mt-1">{err}</div>}
     </div>
   );
 }

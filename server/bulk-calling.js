@@ -25,12 +25,47 @@ async function requireUserCookie(req, res, next) {
   }
 }
 
-// Full conversation (original language) for one call, straight from Sarvam.
+// Full conversation (original language) for one call, with database cache and Sarvam upstream.
 router.get('/calls/transcript', requireUserCookie, async (req, res) => {
   try {
     const iid = String(req.query.iid || '');
     if (!validInteractionId(iid)) return res.status(400).json({ error: 'invalid iid' });
-    res.json({ messages: await fetchSarvamTranscript(iid) });
+
+    // 1. Check local cache in ai_calls and bulk_attempts first
+    try {
+      const cached = await db.query(
+        `SELECT transcript FROM ai_calls WHERE (conversation_id = $1 OR call_sid = $1) AND transcript IS NOT NULL AND jsonb_typeof(transcript) != 'null'
+         UNION ALL
+         SELECT transcript FROM bulk_attempts WHERE interaction_id = $1 AND transcript IS NOT NULL AND jsonb_typeof(transcript) != 'null'
+         LIMIT 1`,
+        [iid]
+      );
+      if (cached.rows.length > 0 && cached.rows[0].transcript) {
+        let t = cached.rows[0].transcript;
+        if (typeof t === 'string') {
+          try { t = JSON.parse(t); } catch {}
+        }
+        if (Array.isArray(t) && t.length > 0) {
+          return res.json({ messages: t });
+        }
+      }
+    } catch (cacheErr) {
+      console.warn('[bulk-calling] local transcript cache check warning:', cacheErr.message);
+    }
+
+    // 2. Fetch live from Sarvam
+    const msgs = await fetchSarvamTranscript(iid);
+
+    // 3. Cache back into database
+    if (msgs && Array.isArray(msgs) && msgs.length > 0) {
+      db.query(
+        `UPDATE bulk_attempts SET transcript = $1 WHERE interaction_id = $2;
+         UPDATE ai_calls SET transcript = $1 WHERE conversation_id = $2;`,
+        [JSON.stringify(msgs), iid]
+      ).catch(() => {});
+    }
+
+    res.json({ messages: msgs });
   } catch (err) {
     res.status(err.status === 429 ? 429 : 502).json({ error: err.message });
   }
@@ -351,6 +386,24 @@ router.get('/:id/contacts/:contactId/attempts', async (req, res) => {
       'SELECT * FROM bulk_attempts WHERE contact_id = $1 AND campaign_id = $2 ORDER BY attempt_no ASC, id ASC',
       [req.params.contactId, req.params.id]
     );
+
+    // Backfill any attempt whose transcript was missing
+    for (const a of attempts.rows) {
+      if (!a.transcript || a.transcript === 'null' || (Array.isArray(a.transcript) && a.transcript.length === 0)) {
+        try {
+          const callMatch = await db.query(
+            `SELECT transcript, recording_url FROM ai_calls WHERE (conversation_id = $1 OR call_sid = $2 OR conversation_id = $2) AND transcript IS NOT NULL AND jsonb_typeof(transcript) != 'null' LIMIT 1`,
+            [a.interaction_id, a.request_id]
+          );
+          if (callMatch.rows.length > 0 && callMatch.rows[0].transcript) {
+            a.transcript = callMatch.rows[0].transcript;
+            a.recording_url = a.recording_url || callMatch.rows[0].recording_url;
+            db.query('UPDATE bulk_attempts SET transcript = $1, recording_url = COALESCE(recording_url, $2) WHERE id = $3', [JSON.stringify(a.transcript), a.recording_url, a.id]).catch(() => {});
+          }
+        } catch {}
+      }
+    }
+
     res.json(attempts.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { useListAppointments, useUpdateAppointment, useDeleteAppointment, useListMeetings, useUpdateMeeting, useDeleteMeeting, useListLeads, getListAppointmentsQueryKey, getListMeetingsQueryKey, } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, ExternalLink, RefreshCw, Search, Play, Pause, Volume2, MessageSquare, Sparkles, } from "lucide-react";
+import { Clock, ChevronLeft, ChevronRight, Video, MapPin, Calendar, CheckCircle2, Loader2, Trash2, CalendarDays, Users, User, Download, Plus, Pencil, X, AlertCircle, ExternalLink, RefreshCw, Search, Play, Pause, Volume2, MessageSquare, Sparkles, MessageCircle, } from "lucide-react";
 import { cn, cleanEnglishName } from "@/lib/utils";
 import { NewMeetingModal, downloadICS, MEETING_TYPES } from "@/components/NewMeetingModal";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
@@ -418,6 +419,15 @@ function AdminView() {
                 : null}
                   </div>
                   <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    {active.phone && (
+                      <Link
+                        href={`/clinic/inbox?phone=${active.phone.replace(/\D/g, '')}&name=${encodeURIComponent(cleanEnglishName(active.name))}`}
+                        className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full hover:bg-emerald-100 transition-colors"
+                        title="Open WhatsApp Inbox (+91 84900 33711)"
+                      >
+                        <MessageCircle className="w-2.5 h-2.5" /> WhatsApp (+91 84900 33711)
+                      </Link>
+                    )}
                     {active.location === "meet" && active.meetingLink && active.meetingLink.startsWith("http") && (<a href={active.meetingLink} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full hover:bg-blue-100 transition-colors">
                         <Video className="w-2.5 h-2.5"/> Join Meeting <ExternalLink className="w-2.5 h-2.5"/>
                       </a>)}
