@@ -13,6 +13,7 @@ const CHANNEL_CONFIG = {
   all: { label: 'All Messages', icon: Filter, chip: 'co-c-n' },
   whatsapp: { label: 'WhatsApp', icon: MessageSquare, chip: 'co-c-g', color: '#10B981', bg: '#ECFDF5' },
   email: { label: 'Emails', icon: Mail, chip: 'co-c-m', color: '#2563EB', bg: '#EFF6FF' },
+  drafts: { label: 'Drafts', icon: Mail, chip: 'co-c-n', color: '#475569', bg: '#F8FAFC' },
   call: { label: 'AI Calls', icon: PhoneCall, chip: 'co-c-p', color: '#A4285E', bg: '#FBE9F1' },
   note: { label: 'Notes', icon: StickyNote, chip: 'co-c-o', color: '#D97706', bg: '#FFFBEB' },
 };
@@ -135,6 +136,23 @@ function ThreadRow({ thread, isSelected, onClick }) {
               <CheckCheck size={10} /> Client Replied
             </span>
           ) : null}
+          {thread.isDraft ? (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#92400E',
+                background: '#FEF3C7',
+                padding: '1px 6px',
+                borderRadius: 4,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+              }}
+            >
+              <Mail size={10} /> Draft
+            </span>
+          ) : null}
           {thread.phone ? (
             <span className="co-xs co-mut" style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
               <Phone size={10} /> {thread.phone}
@@ -206,6 +224,18 @@ function ThreadDrawer({ thread, onClose }) {
     },
   });
 
+  const sendDraft = (message) => {
+    setSendingStatus('Sending draft...');
+    replyMutation.mutate({
+      type: 'email',
+      leadId: thread.leadId,
+      email: thread.email,
+      subject: message.subject || emailSubject,
+      body: message.content || '',
+      emailId: message.id,
+    });
+  };
+
   const handleSendReply = (e) => {
     e.preventDefault();
     if (!replyText.trim()) return;
@@ -225,6 +255,7 @@ function ThreadDrawer({ thread, onClose }) {
         email: thread.email,
         subject: emailSubject.trim() || 'Re: Patient Consultation',
         body: replyText.trim(),
+        emailId: thread.isDraft ? thread.id : undefined,
       });
     } else {
       replyMutation.mutate({
@@ -375,8 +406,22 @@ function ThreadDrawer({ thread, onClose }) {
                             }}
                           >
                             <span>{m.sentAt ? timeLabel(m.sentAt) : ''}</span>
-                            {isOut && <CheckCheck size={11} />}
+                            {isOut && (m.status === 'failed' || m.status === 'not_whatsapp') ? (
+                              <span style={{ color: '#DC2626', fontWeight: 700 }}>
+                                {m.status === 'not_whatsapp' ? 'Not on WhatsApp' : 'Failed'}
+                              </span>
+                            ) : isOut ? (
+                              <>
+                                <span style={{ textTransform: 'capitalize' }}>{m.status || 'sent'}</span>
+                                <CheckCheck size={11} />
+                              </>
+                            ) : null}
                           </div>
+                          {m.errorMessage ? (
+                            <div style={{ fontSize: 10, color: '#B91C1C', marginTop: 3, lineHeight: 1.35 }}>
+                              {m.errorMessage}
+                            </div>
+                          ) : null}
                         </div>
                       );
                     })
@@ -433,12 +478,25 @@ function ThreadDrawer({ thread, onClose }) {
                                   fontWeight: 600,
                                   padding: '2px 6px',
                                   borderRadius: 4,
-                                  background: isInbound ? '#DCFCE7' : '#F1F5F9',
-                                  color: isInbound ? '#166534' : '#475569',
+                                  background: isInbound ? '#DCFCE7' : m.isDraft ? '#FEF3C7' : '#F1F5F9',
+                                  color: isInbound ? '#166534' : m.isDraft ? '#92400E' : '#475569',
                                 }}
                               >
-                                {isInbound ? 'Client Reply' : (m.status || 'Sent')}
+                                {isInbound ? 'Client Reply' : m.isDraft ? 'Draft — not sent' : (m.status || 'Sent')}
                               </span>
+                              {m.isDraft && (
+                                <div style={{ marginTop: 6 }}>
+                                  <button
+                                    type="button"
+                                    className="co-btn co-btn-p co-btn-sm"
+                                    disabled={replyMutation.isPending}
+                                    onClick={() => sendDraft(m)}
+                                    style={{ fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                                  >
+                                    <Send size={10} /> Send Draft
+                                  </button>
+                                </div>
+                              )}
                               <div style={{ fontSize: 10, color: '#94A3B8', marginTop: 4 }}>
                                 {m.sentAt ? datetimeLabel(m.sentAt) : ''}
                               </div>
@@ -686,11 +744,22 @@ export default function ClinicInbox() {
     refetchInterval: 8_000,
     staleTime: 2_000,
     refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true,
+  });
+
+  const syncMutation = useMutation({
+    mutationFn: () => clinicApi.inboxSync(),
+    onSuccess: () => refetch(),
   });
 
   const [activeChannel, setActiveChannel] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [openThread, setOpenThread] = useState(null);
+  const [lastSyncedAt, setLastSyncedAt] = useState(() => new Date());
+
+  useEffect(() => {
+    if (!isFetching) setLastSyncedAt(new Date());
+  }, [isFetching, data]);
 
   const threads = data?.threads || [];
 
@@ -758,6 +827,7 @@ export default function ClinicInbox() {
   const counts = useMemo(() => {
     const wa = threads.filter((t) => t.type === 'whatsapp');
     const em = threads.filter((t) => t.type === 'email');
+    const dr = threads.filter((t) => t.isDraft);
     const ca = threads.filter((t) => t.type === 'call');
     const no = threads.filter((t) => t.type === 'note');
     const unread = threads.filter((t) => (t.unread || 0) > 0);
@@ -765,6 +835,7 @@ export default function ClinicInbox() {
       all: threads.length,
       whatsapp: wa.length,
       email: em.length,
+      drafts: dr.length,
       call: ca.length,
       note: no.length,
       unread: unread.length,
@@ -777,6 +848,8 @@ export default function ClinicInbox() {
 
     if (activeChannel === 'unread') {
       list = list.filter((t) => (t.unread || 0) > 0);
+    } else if (activeChannel === 'drafts') {
+      list = list.filter((t) => t.isDraft);
     } else if (activeChannel !== 'all') {
       list = list.filter((t) => t.type === activeChannel);
     }
@@ -805,12 +878,12 @@ export default function ClinicInbox() {
         <button
           type="button"
           className="co-btn co-btn-sm"
-          onClick={() => refetch()}
-          disabled={isFetching}
+          onClick={() => { syncMutation.mutate(); refetch(); }}
+          disabled={isFetching || syncMutation.isPending}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
-          <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
-          <span>Refresh</span>
+          <RefreshCw size={13} className={(isFetching || syncMutation.isPending) ? 'animate-spin' : ''} />
+          <span>Sync & Refresh</span>
         </button>
       </PageHead>
 
@@ -835,7 +908,7 @@ export default function ClinicInbox() {
             <Mail size={13} style={{ color: '#2563EB' }} /> Emails
           </div>
           <div className="co-kpi-value">{counts.email}</div>
-          <div className="co-kpi-foot">Outreach & Replies</div>
+          <div className="co-kpi-foot">{counts.drafts} draft{counts.drafts === 1 ? '' : 's'} pending</div>
         </Card>
         <Card>
           <div className="co-kpi-label">
@@ -872,6 +945,7 @@ export default function ClinicInbox() {
               { id: 'all', label: 'All Channels', count: counts.all },
               { id: 'whatsapp', label: 'WhatsApp', count: counts.whatsapp },
               { id: 'email', label: 'Emails', count: counts.email },
+              { id: 'drafts', label: 'Drafts', count: counts.drafts },
               { id: 'call', label: 'AI Calls', count: counts.call },
               { id: 'note', label: 'Notes', count: counts.note },
               { id: 'unread', label: 'Unread', count: counts.unread },
@@ -915,52 +989,58 @@ export default function ClinicInbox() {
             })}
           </div>
 
-          {/* Search Box */}
-          <div style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
-            <Search
-              size={14}
-              style={{
-                position: 'absolute',
-                left: 10,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                color: '#94A3B8',
-                pointerEvents: 'none',
-              }}
-            />
-            <input
-              type="text"
-              className="co-input"
-              placeholder="Search conversations..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              style={{
-                paddingLeft: 32,
-                paddingRight: searchQuery ? 28 : 12,
-                fontSize: 12,
-                height: 34,
-                borderRadius: 999,
-              }}
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery('')}
+          {/* Search Box + auto-sync status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748B' }}>
+              <span style={{ width: 7, height: 7, borderRadius: 999, background: '#10B981', display: 'inline-block' }} />
+              Auto-sync · {timeLabel(lastSyncedAt)}
+            </div>
+            <div style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
+              <Search
+                size={14}
                 style={{
                   position: 'absolute',
-                  right: 8,
+                  left: 10,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
                   color: '#94A3B8',
-                  cursor: 'pointer',
-                  padding: 2,
+                  pointerEvents: 'none',
                 }}
-              >
-                <X size={12} />
-              </button>
-            )}
+              />
+              <input
+                type="text"
+                className="co-input"
+                placeholder="Search conversations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  paddingLeft: 32,
+                  paddingRight: searchQuery ? 28 : 12,
+                  fontSize: 12,
+                  height: 34,
+                  borderRadius: 999,
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: 2,
+                  }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -974,6 +1054,8 @@ export default function ClinicInbox() {
             <p className="co-sm co-mut" style={{ maxWidth: 360, margin: '6px auto 0' }}>
               {searchQuery
                 ? `No conversations matched "${searchQuery}". Try a different keyword.`
+                : activeChannel === 'drafts'
+                ? 'No email drafts waiting. AI-drafted outreach emails will appear here for one-click sending.'
                 : activeChannel !== 'all'
                 ? `No ${CHANNEL_CONFIG[activeChannel]?.label || activeChannel} messages found yet.`
                 : 'WhatsApp chats, emails, AI call recordings, and clinic notes will show up here.'}

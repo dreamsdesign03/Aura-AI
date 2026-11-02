@@ -5,7 +5,7 @@ const DEFAULT_CAL_URL = "https://cal.com/aura-laser-cosmetic-clinic/30min";
 export default function CalEmbed({ url = DEFAULT_CAL_URL, height = 700 }) {
   const [loading, setLoading] = useState(true);
 
-  // Format clean embed URL for Cal.com in light mode
+  // Format clean embed URL for the online scheduler in light mode
   let embedUrl = url;
   if (!embedUrl.includes("embed=true")) {
     embedUrl += embedUrl.includes("?") ? "&embed=true" : "?embed=true";

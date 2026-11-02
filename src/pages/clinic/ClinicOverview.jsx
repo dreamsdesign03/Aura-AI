@@ -85,7 +85,7 @@ export default function ClinicOverview() {
                 {data.today.length === 0 ? (
                   <EmptyState title="No appointments scheduled for today">
                     <p className="co-sm co-mut" style={{ marginTop: 4 }}>
-                      Dr. Aditya Shah's clinic schedule is clear for today. View upcoming Cal.com consultations or schedule a new patient appointment.
+                      Dr. Aditya Shah's clinic schedule is clear for today. View upcoming online consultations or schedule a new patient appointment.
                     </p>
                     <div className="co-row" style={{ marginTop: 12, gap: 8 }}>
                       <Link href="/clinic/appointments" className="co-btn co-btn-primary co-btn-sm">
@@ -123,10 +123,10 @@ export default function ClinicOverview() {
                 )}
               </Card>
 
-              {/* Upcoming Consultations from Cal.com */}
+              {/* Upcoming online consultations */}
               {upcomingList.length > 0 && (
                 <Card>
-                  <CardHead title="Upcoming consultations" hint={`${upcomingList.length} scheduled in Cal.com`}>
+                  <CardHead title="Upcoming consultations" hint={`${upcomingList.length} scheduled online`}>
                     <Link href="/clinic/appointments" className="co-btn co-btn-sm">View all</Link>
                   </CardHead>
                   <div className="co-table-wrap">
@@ -146,7 +146,7 @@ export default function ClinicOverview() {
                             </td>
                             <td>{a.treatment}</td>
                             <td>
-                              <span className="co-chip co-c-p">Cal.com Live</span>
+                              <span className="co-chip co-c-p">Online Booking</span>
                             </td>
                           </tr>
                         ))}

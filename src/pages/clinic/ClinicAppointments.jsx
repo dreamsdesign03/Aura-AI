@@ -294,7 +294,7 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
           <StatusChip status={appointment.status} />
           {appointment.source === 'cal.com' ? (
             <span className="co-chip co-c-p" style={{ fontWeight: 600 }}>
-              <CalendarDays size={11} /> Cal.com Booking
+              <CalendarDays size={11} /> Online Booking
             </span>
           ) : null}
           {appointment.branch ? (
@@ -430,12 +430,12 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
           </div>
         )}
 
-        {/* Reassuring notice if direct Cal.com booking without voice call */}
+        {/* Reassuring notice if direct online booking without voice call */}
         {!hasVoiceCall && (
           <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
             <CalendarDays size={18} style={{ color: '#64748B', flexShrink: 0 }} />
             <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.45 }}>
-              <strong>Direct Calendar Reservation</strong> — Booked via Cal.com online scheduler or front desk walk-in. No automated AI voice call was placed for this booking.
+              <strong>Direct Calendar Reservation</strong> — Booked via the online scheduler or front desk walk-in. No automated AI voice call was placed for this booking.
             </div>
           </div>
         )}
@@ -650,7 +650,7 @@ export default function ClinicAppointments() {
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['clinic'] });
 
-  // Auto-sync Cal.com bookings quietly in the background every 35s
+  // Auto-sync online bookings quietly in the background every 35s
   useEffect(() => {
     const quietSync = async () => {
       try {
@@ -670,7 +670,7 @@ export default function ClinicAppointments() {
     try {
       const res = await clinicApi.syncAppointments();
       invalidate();
-      setSyncFeedback(`Synced ${res.total || 0} live bookings from Cal.com!`);
+      setSyncFeedback(`Synced ${res.total || 0} live bookings from online booking!`);
       setTimeout(() => setSyncFeedback(''), 4000);
     } catch (err) {
       setSyncFeedback('Sync error: ' + err.message);
@@ -750,7 +750,7 @@ export default function ClinicAppointments() {
     <div className="clinic-os">
       <PageHead
         title="Appointments & Meetings"
-        subtitle="Live Cal.com bookings, clinical consultations & schedule without demo data."
+        subtitle="Live online bookings, clinical consultations & schedule without demo data."
       >
         {/* View Toggle */}
         <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: 3, borderRadius: 10, border: '1px solid #E2E8F0' }}>
@@ -772,17 +772,17 @@ export default function ClinicAppointments() {
           </button>
         </div>
 
-        {/* Sync Cal.com Button */}
+        {/* Sync online bookings button */}
         <button
           type="button"
           className="co-btn co-btn-sm"
           onClick={handleSyncCalCom}
           disabled={isSyncing}
-          title="Sync live Cal.com bookings"
+          title="Sync live online bookings"
           style={{ borderColor: '#F3D9E5', color: '#A4285E' }}
         >
           <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
-          {isSyncing ? 'Syncing Cal.com…' : 'Sync Cal.com'}
+          {isSyncing ? 'Syncing…' : 'Sync bookings'}
         </button>
 
         {/* Public Booking Page link */}
@@ -845,7 +845,7 @@ export default function ClinicAppointments() {
           {appts.isError ? (
             <Card><EmptyState title="Could not load appointments"><p className="co-sm co-mut">{appts.error?.message}</p></EmptyState></Card>
           ) : appts.isLoading ? (
-            <Card><Spinner label="Loading Cal.com bookings…" /></Card>
+            <Card><Spinner label="Loading online bookings…" /></Card>
           ) : (
             <Card flush rise="co-rise-1">
               <div className="co-week">
@@ -972,7 +972,7 @@ export default function ClinicAppointments() {
                           <CalendarDays size={28} style={{ color: '#CBD5E1', marginBottom: 8 }} />
                           <div style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>No bookings found</div>
                           <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 4 }}>
-                            {searchQuery ? 'Try clearing your search query' : 'Sync Cal.com to pull your live bookings'}
+                            {searchQuery ? 'Try clearing your search query' : 'Sync bookings to pull your live schedule'}
                           </div>
                           <button
                             type="button"
@@ -982,7 +982,7 @@ export default function ClinicAppointments() {
                             disabled={isSyncing}
                           >
                             <RefreshCw size={13} className={isSyncing ? 'animate-spin' : ''} />
-                            Sync Cal.com Now
+                            Sync bookings now
                           </button>
                         </div>
                       </td>
@@ -1063,7 +1063,7 @@ export default function ClinicAppointments() {
                           </td>
                           <td>
                             <span className="co-chip co-c-p" style={{ fontSize: 10, fontWeight: 600 }}>
-                              Cal.com
+                              Online
                             </span>
                           </td>
                           <td><StatusChip status={a.status} /></td>
@@ -1091,12 +1091,12 @@ export default function ClinicAppointments() {
       <div className="co-split">
         <TaskQueue />
         <Card>
-          <CardHead title="Live Cal.com Integration" hint="cal.com/aura-laser-cosmetic-clinic" />
+          <CardHead title="Online Booking Integration" hint="Live scheduler sync" />
           <div className="co-list">
             <div className="co-list-item">
               <span className="co-dot ok" />
               <div className="co-sm">
-                Bookings booked on your <a href="https://cal.com/aura-laser-cosmetic-clinic/30min" target="_blank" rel="noopener noreferrer" style={{ color: '#A4285E', fontWeight: 600, textDecoration: 'underline' }}>Cal.com page</a> sync automatically.
+                Bookings made on your <a href="https://cal.com/aura-laser-cosmetic-clinic/30min" target="_blank" rel="noopener noreferrer" style={{ color: '#A4285E', fontWeight: 600, textDecoration: 'underline' }}>online booking page</a> sync automatically.
               </div>
             </div>
             <div className="co-list-item">

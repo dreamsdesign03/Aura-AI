@@ -40,19 +40,133 @@ function classifyTemplateError(err) {
 }
 
 
+// ---------------------------------------------------------------------------
+// Schema safety net.
+//
+// The production whatsapp_* tables were created with stricter constraints than
+// the application expects (lead_id / wa_phone_number NOT NULL). Meta delivers
+// inbound webhooks from numbers that are not yet in `leads`, so without relaxing
+// those constraints every first message from a new patient is silently dropped.
+// This is idempotent and runs once per process.
+// ---------------------------------------------------------------------------
+let whatsappSchemaReady = null;
+function ensureWhatsAppSchema() {
+  if (whatsappSchemaReady) return whatsappSchemaReady;
+  whatsappSchemaReady = (async () => {
+    const statements = [
+      `CREATE TABLE IF NOT EXISTS whatsapp_conversations (
+        id SERIAL PRIMARY KEY,
+        lead_id INT,
+        phone TEXT,
+        status TEXT DEFAULT 'Active',
+        state TEXT DEFAULT 'all',
+        last_message TEXT,
+        last_message_at TIMESTAMPTZ DEFAULT NOW(),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `CREATE TABLE IF NOT EXISTS whatsapp_messages (
+        id SERIAL PRIMARY KEY,
+        conversation_id INT,
+        lead_id INT,
+        phone TEXT,
+        body TEXT,
+        direction TEXT DEFAULT 'outbound',
+        status TEXT DEFAULT 'sent',
+        timestamp TIMESTAMPTZ DEFAULT NOW(),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS wa_phone_number TEXT`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS phone TEXT`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS org_id INT`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message TEXT`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ DEFAULT NOW()`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS unread_count INT DEFAULT 0`,
+      `ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS language TEXT DEFAULT 'english'`,
+      `ALTER TABLE whatsapp_conversations ALTER COLUMN lead_id DROP NOT NULL`,
+      `ALTER TABLE whatsapp_conversations ALTER COLUMN wa_phone_number DROP NOT NULL`,
+      `ALTER TABLE whatsapp_conversations ALTER COLUMN state SET DEFAULT 'all'`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS conversation_id INT`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS wa_message_id TEXT`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS meta_message_id TEXT`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ DEFAULT NOW()`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS body TEXT`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS template_name TEXT`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS error_code TEXT`,
+      `ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS error_message TEXT`,
+      `ALTER TABLE whatsapp_messages ALTER COLUMN conversation_id DROP NOT NULL`,
+      `CREATE INDEX IF NOT EXISTS whatsapp_messages_wa_id_idx ON whatsapp_messages (wa_message_id)`,
+      `CREATE INDEX IF NOT EXISTS whatsapp_messages_conversation_idx ON whatsapp_messages (conversation_id, sent_at)`,
+      `CREATE INDEX IF NOT EXISTS whatsapp_conversations_phone_idx ON whatsapp_conversations (phone)`,
+      `CREATE TABLE IF NOT EXISTS whatsapp_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INT,
+        phone_number_id TEXT,
+        access_token TEXT,
+        app_secret TEXT,
+        webhook_verify_token TEXT,
+        booking_url TEXT,
+        consultant_name TEXT,
+        portfolio_url TEXT,
+        case_study_url TEXT,
+        company_profile_url TEXT,
+        hook_template_name TEXT,
+        hook_template_lang TEXT DEFAULT 'en_US',
+        n8n_webhook_url TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`,
+      `ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS org_id INT`,
+      `ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS user_id INT`,
+    ];
+    for (const sql of statements) {
+      try {
+        await db.query(sql);
+      } catch (err) {
+        console.warn('[whatsapp] schema statement skipped:', err.message);
+      }
+    }
+  })();
+  return whatsappSchemaReady;
+}
+
+// Fetch the WhatsApp settings row. Production stores this per-organisation
+// (`org_id`) and has no `user_id` column, so support both shapes plus a
+// single-tenant fallback to the first row.
+async function getWhatsAppSettingsRow(userId) {
+  if (!userId) return null;
+
+  try {
+    const res = await db.query(
+      `SELECT ws.*
+         FROM whatsapp_settings ws
+         LEFT JOIN users u ON u.id = $1
+        WHERE (u.org_id IS NOT NULL AND ws.org_id = u.org_id)
+           OR (u.org_id IS NULL AND ws.org_id IS NULL)
+        ORDER BY ws.id ASC
+        LIMIT 1`,
+      [userId]
+    );
+    if (res.rows.length > 0) return res.rows[0];
+  } catch (err) {
+    // Column shapes differ between deployments — ignore and fall through.
+  }
+
+  try {
+    const res = await db.query('SELECT * FROM whatsapp_settings ORDER BY id ASC LIMIT 1');
+    if (res.rows.length > 0) return res.rows[0];
+  } catch (err) {
+    console.warn('[whatsapp] DB fetch settings warning:', err.message);
+  }
+
+  return null;
+}
+
 // Fetch WhatsApp credentials for a given user, falling back to process.env
 async function getWhatsAppCredentials(userId) {
-  let settings = null;
-  if (userId) {
-    try {
-      const res = await db.query('SELECT * FROM whatsapp_settings WHERE user_id = $1', [userId]);
-      if (res.rows.length > 0) {
-        settings = res.rows[0];
-      }
-    } catch (err) {
-      console.warn('[whatsapp] DB fetch settings warning:', err.message);
-    }
-  }
+  const settings = await getWhatsAppSettingsRow(userId);
 
   const phoneNumberId = settings?.phone_number_id || process.env.WHATSAPP_PHONE_NUMBER_ID || '1293553613852388';
   const accessToken = settings?.access_token || process.env.WHATSAPP_ACCESS_TOKEN || 'EAAajLrxVRe0BQuaj5Dsh4mLaUpV5prCHZCUCgHaVGEA5MzjrQ2cromOtG8YT2ziklYZBYF2ZC0NsuAyNUENXZADQgQ2ocR36t0ZB1ra4QiUotZB6f2YZAmFgO3HvpTOZC0poDKoxeZAcKpEJ44LmTRXZB15SifuRuIZAoH2iROi1JboQULQ4HryMEl8Gj81GXaE5wl0fgZDZD';
@@ -70,7 +184,304 @@ async function getWhatsAppCredentials(userId) {
   };
 }
 
+function extractWhatsAppMessageText(msg) {
+  if (!msg) return '';
+  if (msg.text?.body) return String(msg.text.body);
+  if (typeof msg.text === 'string') return msg.text;
+  if (msg.interactive) {
+    return msg.interactive?.button_reply?.title || msg.interactive?.list_reply?.title || '[Interactive reply]';
+  }
+  if (msg.button) return msg.button?.text || '[Button reply]';
+  if (typeof msg.body === 'string') return msg.body;
+  if (msg.message?.conversation) return msg.message.conversation;
+  return `[${msg.type || 'media'} message]`;
+}
+
+function phoneLast10(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+async function findLeadIdByPhone(phone) {
+  const last10 = phoneLast10(phone);
+  if (!last10 || last10.length < 7) return null;
+  try {
+    const res = await db.query(
+      `SELECT id FROM leads
+        WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+           OR REPLACE(REPLACE(REPLACE(COALESCE(whatsapp,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+        ORDER BY id DESC LIMIT 1`,
+      [last10]
+    );
+    return res.rows[0]?.id || null;
+  } catch {
+    return null;
+  }
+}
+
+// Find or create the conversation a message belongs to. Works for numbers that
+// are not in `leads` (lead_id stays NULL) and never throws on constraint gaps.
+async function findOrCreateWhatsAppConversation({ leadId = null, phone, content = '', direction = 'outbound' }) {
+  const digits = phoneLast10(phone);
+  const match = await db.query(
+    `SELECT id FROM whatsapp_conversations
+      WHERE (lead_id IS NOT NULL AND lead_id = $1)
+         OR phone = $2
+         OR wa_phone_number = $2
+         OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%' || $3)
+      ORDER BY id DESC LIMIT 1`,
+    [leadId || 0, phone, digits]
+  );
+
+  const unreadDelta = direction === 'inbound' ? 1 : 0;
+  const state = direction === 'inbound' ? 'inbound_received' : 'ai_replied';
+
+  if (match.rows.length > 0) {
+    const id = match.rows[0].id;
+    await db.query(
+      `UPDATE whatsapp_conversations
+          SET last_message = $1,
+              last_message_at = NOW(),
+              updated_at = NOW(),
+              state = $2,
+              lead_id = COALESCE(lead_id, $3),
+              phone = COALESCE(phone, $4),
+              wa_phone_number = COALESCE(wa_phone_number, $4),
+              unread_count = COALESCE(unread_count, 0) + $5
+        WHERE id = $6`,
+      [content, state, leadId || null, phone, unreadDelta, id]
+    );
+    return id;
+  }
+
+  const inserted = await db.query(
+    `INSERT INTO whatsapp_conversations
+       (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at, unread_count)
+     VALUES ($1, $2, $2, 'Active', $3, $4, NOW(), NOW(), $5)
+     RETURNING id`,
+    [leadId || null, phone, state, content, unreadDelta]
+  );
+  return inserted.rows[0].id;
+}
+
+async function persistWhatsAppMessage({
+  conversationId,
+  leadId = null,
+  phone,
+  direction,
+  content,
+  metaMessageId = null,
+  status = 'sent',
+  sentAt = null,
+  templateName = null,
+}) {
+  const parsed = sentAt ? new Date(sentAt) : new Date();
+  const when = isNaN(parsed.getTime()) ? new Date() : parsed;
+  const res = await db.query(
+    `INSERT INTO whatsapp_messages (
+       conversation_id, lead_id, phone, direction, content, body, template_name,
+       meta_message_id, wa_message_id, status, sent_at, timestamp, created_at
+     ) VALUES ($1, $2, $3, $4, $5, $5, $6, $7, $7, $8, $9, $9, NOW())
+     RETURNING *`,
+    [conversationId, leadId || null, phone, direction, content, templateName, metaMessageId, status, when]
+  );
+  return res.rows[0];
+}
+
+/**
+ * Deliver a WhatsApp message through Meta Graph API and persist it so the
+ * Unified Inbox shows exactly what the patient receives.
+ *
+ * Returns { ok, status, error, details, metaMessageId, message }.
+ */
+async function sendWhatsAppMessage({ userId, leadId = null, phone, message, templateName, templateParams, templateLang }) {
+  if (!phone) return { ok: false, status: 400, error: 'Phone number is required.' };
+
+  const targetPhone = cleanPhoneNumber(phone);
+  if (!targetPhone) return { ok: false, status: 400, error: 'Invalid destination phone number.' };
+
+  await ensureWhatsAppSchema();
+
+  const { phoneNumberId, accessToken } = await getWhatsAppCredentials(userId);
+  if (!accessToken) {
+    return { ok: false, status: 400, error: 'WhatsApp is not configured. Add a Meta access token in Settings → WhatsApp.' };
+  }
+
+  const isTemplate = Boolean(templateName);
+  let msgContent = String(message || '');
+  if (isTemplate && !msgContent) {
+    if (templateName === 'hello_world') {
+      msgContent = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.';
+    } else if (templateName === 'audit_followup') {
+      msgContent = 'Hi Mansi 👋 Wanted to check in on your audit.';
+    } else {
+      msgContent = `[Template: ${templateName}]`;
+    }
+  }
+  if (!msgContent.trim()) return { ok: false, status: 400, error: 'Message body is required.' };
+
+  let metaPayload;
+  if (isTemplate) {
+    const isAuraTemplate = templateName === 'auraai_lead_send_template';
+    const codeLang = isAuraTemplate ? 'en' : (templateLang || 'en');
+    metaPayload = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: targetPhone,
+      type: 'template',
+      template: { name: templateName, language: { code: codeLang } },
+    };
+    if (Array.isArray(templateParams) && templateParams.length > 0 && templateName !== 'hello_world') {
+      if (isAuraTemplate) {
+        const firstNameVal = String(templateParams[0] || '').trim().split(/\s+/)[0] || 'there';
+        const companyVal = String(templateParams[1] || '').trim() || 'your store';
+        metaPayload.template.components = [
+          { type: 'header', parameters: [{ type: 'text', parameter_name: 'first_name', text: firstNameVal }] },
+          { type: 'body', parameters: [{ type: 'text', parameter_name: 'company', text: companyVal }] },
+        ];
+      } else if (templateName === 'aura_lead_appointment_booking' || templateName.includes('appointment')) {
+        const firstNameVal = String(templateParams[0] || '').trim().split(/\s+/)[0] || 'there';
+        metaPayload.template.components = [
+          { type: 'body', parameters: [{ type: 'text', text: firstNameVal }] },
+        ];
+      } else {
+        metaPayload.template.components = [
+          { type: 'body', parameters: templateParams.map(param => ({ type: 'text', text: String(param) })) },
+        ];
+      }
+    }
+  } else {
+    metaPayload = {
+      messaging_product: 'whatsapp',
+      recipient_type: 'individual',
+      to: targetPhone,
+      type: 'text',
+      text: { body: msgContent },
+    };
+  }
+
+  const targetUrl = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
+  console.log('\n===== WHATSAPP SEND ATTEMPT =====');
+  console.log('Full URL:', targetUrl);
+  console.log('To:', targetPhone, '| Template:', templateName || '(free text)');
+
+  let metaRes;
+  try {
+    metaRes = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(metaPayload),
+    });
+  } catch (netErr) {
+    console.error('===== WHATSAPP NETWORK EXCEPTION =====', netErr.message);
+    return { ok: false, status: 502, error: `Network-level error sending WhatsApp message: ${netErr.message}` };
+  }
+
+  let metaData = {};
+  try {
+    metaData = await metaRes.json();
+  } catch (parseErr) {
+    return { ok: false, status: 502, error: 'Failed to parse Meta API response JSON' };
+  }
+
+  console.log('--- META API RESPONSE ---', metaRes.status, JSON.stringify(metaData).slice(0, 600));
+
+  let metaMessageId = null;
+
+  if (!metaRes.ok && isTemplate && metaData?.error?.message?.includes('localizable_params')
+      && metaPayload.template?.components?.[0]?.parameters?.length > 1) {
+    // Auto-retry a template with one parameter when Meta expects a single value.
+    metaPayload.template.components[0].parameters = [metaPayload.template.components[0].parameters[0]];
+    const retryRes = await fetch(targetUrl, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(metaPayload),
+    });
+    const retryData = await retryRes.json().catch(() => ({}));
+    if (retryRes.ok && retryData?.messages?.[0]?.id) {
+      metaMessageId = retryData.messages[0].id;
+      metaData = retryData;
+      metaRes = retryRes;
+    }
+  }
+
+  if (!metaRes.ok) {
+    const code = metaData?.error?.code;
+    let errorMsg = metaData?.error?.message || metaData?.error?.error_user_msg || 'Meta WhatsApp delivery failed.';
+    if (code === 131047) {
+      errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
+    } else if (code === 131049) {
+      errorMsg = 'Meta Ecosystem Protection (Error 131049): Meta blocked delivery because this recipient reached Meta’s daily marketing template limit, opted out of marketing, or is the registered sender phone number.';
+    } else if (code === 131030) {
+      errorMsg = 'Recipient phone number is not added to your Meta Test Number allowed list in Meta Developer Portal.';
+    } else if (code === 190) {
+      errorMsg = 'Meta Access Token has expired or is invalid. Please update your token in Settings → WhatsApp.';
+    } else if (code === 21212) {
+      errorMsg = 'Invalid phone number format. Please ensure country code is included.';
+    }
+    return { ok: false, status: 400, error: errorMsg, details: metaData };
+  }
+
+  if (metaData.messages && metaData.messages.length > 0) {
+    metaMessageId = metaData.messages[0].id;
+  }
+
+  let finalLeadId = leadId || null;
+  if (!finalLeadId) {
+    finalLeadId = await findLeadIdByPhone(targetPhone);
+  }
+
+  let messageRow = null;
+  try {
+    const convId = await findOrCreateWhatsAppConversation({
+      leadId: finalLeadId,
+      phone: targetPhone,
+      content: msgContent,
+      direction: 'outbound',
+    });
+    messageRow = await persistWhatsAppMessage({
+      conversationId: convId,
+      leadId: finalLeadId,
+      phone: targetPhone,
+      direction: 'outbound',
+      content: msgContent,
+      metaMessageId,
+      status: 'sent',
+      templateName: templateName || null,
+    });
+
+    if (finalLeadId) {
+      try {
+        await db.query(
+          `INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+           VALUES ($1, 'WhatsApp', $2, $3, 'Sent', NOW())`,
+          [finalLeadId, isTemplate ? `Template: ${templateName}` : 'WhatsApp Message', msgContent]
+        );
+      } catch (tpErr) {}
+      try {
+        await db.query('UPDATE leads SET updated_at = NOW() WHERE id = $1', [finalLeadId]);
+      } catch (lErr) {}
+    }
+  } catch (dbErr) {
+    console.error('[whatsapp] message delivered but DB persist failed:', dbErr.message);
+    return {
+      ok: true,
+      metaMessageId,
+      message: null,
+      warning: `Delivered via WhatsApp but could not be saved to the inbox: ${dbErr.message}`,
+    };
+  }
+
+  return { ok: true, metaMessageId, message: messageRow };
+}
+
 function registerWhatsAppRoutes(app, resolveUserId) {
+  // Warm up the schema (relaxes stale NOT NULL constraints) in the background.
+  ensureWhatsAppSchema().catch(() => {});
+
   // ── 1. GET /api/settings/whatsapp ──────────────────────────────────────────
   app.get('/api/settings/whatsapp', async (req, res) => {
     try {
@@ -116,15 +527,22 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         n8nWebhookUrl,
       } = req.body;
 
-      // Upsert settings row
-      const existing = await db.query('SELECT id, access_token, app_secret FROM whatsapp_settings WHERE user_id = $1', [userId]);
+      await ensureWhatsAppSchema();
+
+      // Upsert settings row (org-scoped in production, user-scoped in older installs)
+      const existing = await getWhatsAppSettingsRow(userId);
+      let orgId = null;
+      try {
+        const orgRes = await db.query('SELECT org_id FROM users WHERE id = $1', [userId]);
+        orgId = orgRes.rows[0]?.org_id || null;
+      } catch (e) {}
 
       let finalToken = accessToken;
       let finalSecret = appSecret;
 
-      if (existing.rows.length > 0) {
-        if (!finalToken) finalToken = existing.rows[0].access_token;
-        if (!finalSecret) finalSecret = existing.rows[0].app_secret;
+      if (existing) {
+        if (!finalToken) finalToken = existing.access_token;
+        if (!finalSecret) finalSecret = existing.app_secret;
 
         await db.query(`
           UPDATE whatsapp_settings
@@ -141,22 +559,22 @@ function registerWhatsAppRoutes(app, resolveUserId) {
               hook_template_lang = $11,
               n8n_webhook_url = $12,
               updated_at = NOW()
-          WHERE user_id = $13
+          WHERE id = $13
         `, [
           phoneNumberId, finalToken, finalSecret, webhookVerifyToken,
           bookingUrl, consultantName, portfolioUrl, caseStudyUrl,
           companyProfileUrl, hookTemplateName, hookTemplateLang || 'en_US',
-          n8nWebhookUrl || null, userId
+          n8nWebhookUrl || null, existing.id
         ]);
       } else {
         await db.query(`
           INSERT INTO whatsapp_settings (
-            user_id, phone_number_id, access_token, app_secret, webhook_verify_token,
+            org_id, user_id, phone_number_id, access_token, app_secret, webhook_verify_token,
             booking_url, consultant_name, portfolio_url, case_study_url,
             company_profile_url, hook_template_name, hook_template_lang, n8n_webhook_url
-          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
         `, [
-          userId, phoneNumberId, finalToken, finalSecret, webhookVerifyToken,
+          orgId, userId, phoneNumberId, finalToken, finalSecret, webhookVerifyToken,
           bookingUrl, consultantName, portfolioUrl, caseStudyUrl,
           companyProfileUrl, hookTemplateName, hookTemplateLang || 'en_US',
           n8nWebhookUrl || null
@@ -307,250 +725,27 @@ function registerWhatsAppRoutes(app, resolveUserId) {
   app.post('/api/whatsapp/send', async (req, res) => {
     try {
       const userId = await resolveUserId(req.body.email, req.headers.cookie);
-      const { leadId, phone, message, templateName, templateParams, templateLang } = req.body;
+      const { leadId, phone, message, templateName, templateParams, templateLang } = req.body || {};
 
-      if (!phone) {
-        return res.status(400).json({ error: 'Phone number is required.' });
-      }
+      const result = await sendWhatsAppMessage({
+        userId,
+        leadId: leadId ? Number(leadId) : null,
+        phone,
+        message,
+        templateName,
+        templateParams,
+        templateLang,
+      });
 
-      const targetPhone = cleanPhoneNumber(phone);
-      if (!targetPhone) {
-        return res.status(400).json({ error: 'Invalid destination phone number.' });
-      }
-
-      const { phoneNumberId, accessToken } = await getWhatsAppCredentials(userId);
-
-      let metaMessageId = null;
-
-      const isTemplate = Boolean(templateName);
-      let msgContent = String(message || '');
-      if (isTemplate && !msgContent) {
-        if (templateName === 'hello_world') {
-          msgContent = 'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.';
-        } else if (templateName === 'audit_followup') {
-          msgContent = 'Hi Mansi 👋 Wanted to check in on your audit.';
-        } else {
-          msgContent = `[Template: ${templateName}]`;
-        }
-      }
-
-      let metaPayload = {};
-
-      if (isTemplate) {
-        const isAuraTemplate = templateName === 'auraai_lead_send_template';
-        const codeLang = isAuraTemplate ? 'en' : (templateLang || 'en');
-        metaPayload = {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: targetPhone,
-          type: 'template',
-          template: {
-            name: templateName,
-            language: { code: codeLang },
-          },
-        };
-        if (Array.isArray(templateParams) && templateParams.length > 0 && templateName !== 'hello_world') {
-          if (isAuraTemplate) {
-            const firstNameVal = String(templateParams[0] || '').trim().split(/\s+/)[0] || 'there';
-            const companyVal = String(templateParams[1] || '').trim() || 'your store';
-            metaPayload.template.components = [
-              {
-                type: 'header',
-                parameters: [
-                  { type: 'text', parameter_name: 'first_name', text: firstNameVal }
-                ]
-              },
-              {
-                type: 'body',
-                parameters: [
-                  { type: 'text', parameter_name: 'company', text: companyVal }
-                ]
-              }
-            ];
-          } else if (templateName === 'aura_lead_appointment_booking' || templateName.includes('appointment')) {
-            const firstNameVal = String(templateParams[0] || '').trim().split(/\s+/)[0] || 'there';
-            metaPayload.template.components = [
-              {
-                type: 'body',
-                parameters: [
-                  { type: 'text', text: firstNameVal }
-                ]
-              }
-            ];
-          } else {
-            metaPayload.template.components = [
-              {
-                type: 'body',
-                parameters: templateParams.map(param => ({
-                  type: 'text',
-                  text: String(param),
-                })),
-              },
-            ];
-          }
-        }
-      } else {
-        metaPayload = {
-          messaging_product: 'whatsapp',
-          recipient_type: 'individual',
-          to: targetPhone,
-          type: 'text',
-          text: { body: msgContent },
-        };
-      }
-
-      const targetUrl = `https://graph.facebook.com/v25.0/${phoneNumberId}/messages`;
-      const maskedToken = accessToken ? `Bearer ****${accessToken.slice(-4)}` : '(NONE)';
-      const headersToLog = {
-        Authorization: maskedToken,
-        'Content-Type': 'application/json',
-      };
-
-      console.log('\n===== WHATSAPP SEND ATTEMPT =====');
-      console.log('Full URL:', targetUrl);
-      console.log('Headers:', JSON.stringify(headersToLog, null, 2));
-      console.log('Full Request Body:', JSON.stringify(metaPayload, null, 2));
-
-      let metaRes;
-      try {
-        metaRes = await fetch(targetUrl, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(metaPayload),
-        });
-      } catch (netErr) {
-        console.error('===== WHATSAPP NETWORK EXCEPTION =====');
-        console.error('Request failed to send (Network-level exception):', netErr.message);
-        console.error('Error Stack:', netErr.stack);
-        console.error('======================================\n');
-        return res.status(500).json({ error: `Network-level error sending WhatsApp message: ${netErr.message}` });
-      }
-
-      let metaData = {};
-      try {
-        metaData = await metaRes.json();
-      } catch (parseErr) {
-        console.error('===== WHATSAPP RESPONSE PARSE ERROR =====');
-        console.error('HTTP Status Code:', metaRes.status, metaRes.statusText);
-        console.error('Failed to parse Meta response JSON:', parseErr.message);
-        console.error('==========================================\n');
-        return res.status(500).json({ error: 'Failed to parse Meta API response JSON' });
-      }
-
-      console.log('--- META API RAW RESPONSE ---');
-      console.log('HTTP Status Code:', metaRes.status);
-      console.log('Full Response Body (JSON):');
-      console.log(JSON.stringify(metaData, null, 2));
-
-      if (metaData && metaData.error) {
-        console.log('--- META ERROR OBJECT DETAILS ---');
-        console.log('error.code:', metaData.error.code);
-        console.log('error.type:', metaData.error.type);
-        console.log('error.message:', metaData.error.message);
-        console.log('error.error_data:', metaData.error.error_data !== undefined ? JSON.stringify(metaData.error.error_data, null, 2) : undefined);
-      }
-      console.log('=================================\n');
-
-      if (!metaRes.ok) {
-        console.error('[whatsapp] Meta API call failed:', JSON.stringify(metaData));
-        let errorMsg = metaData?.error?.message || metaData?.error?.error_user_msg || 'Meta WhatsApp delivery failed.';
-
-        // Auto-retry if parameter count mismatch (e.g. 2 params sent when Meta expects 1)
-        if (isTemplate && errorMsg.includes('localizable_params') && metaPayload.template?.components?.[0]?.parameters?.length > 1) {
-          console.log('[whatsapp] Retrying template send with 1 parameter...');
-          metaPayload.template.components[0].parameters = [metaPayload.template.components[0].parameters[0]];
-          const retryRes = await fetch(targetUrl, {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(metaPayload),
-          });
-          const retryData = await retryRes.json().catch(() => ({}));
-          if (retryRes.ok && retryData?.messages?.[0]?.id) {
-            metaMessageId = retryData.messages[0].id;
-            metaData = retryData;
-            metaRes = retryRes;
-          }
-        }
-
-        if (!metaRes.ok) {
-          const code = metaData?.error?.code;
-
-          if (code === 131047) {
-            errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
-          } else if (code === 131049) {
-            errorMsg = 'Meta Ecosystem Protection (Error 131049): Meta blocked delivery because this recipient reached Meta’s daily marketing template limit, opted out of marketing, or is the registered sender phone number.';
-          } else if (code === 131030) {
-            errorMsg = 'Recipient phone number is not added to your Meta Test Number allowed list in Meta Developer Portal.';
-          } else if (code === 190) {
-            errorMsg = 'Meta Access Token has expired or is invalid. Please update your token in Settings -> WhatsApp.';
-          } else if (code === 21212) {
-            errorMsg = 'Invalid phone number format. Please ensure country code is included.';
-          }
-
-          return res.status(400).json({ error: errorMsg, details: metaData });
-        }
-      }
-
-      if (metaData.messages && metaData.messages.length > 0) {
-        metaMessageId = metaData.messages[0].id;
-      }
-
-      // Upsert conversation record in DB
-      let convId = null;
-      let existingConv = null;
-      if (leadId) {
-        existingConv = await db.query('SELECT id FROM whatsapp_conversations WHERE lead_id = $1', [leadId]);
-      }
-      if (!existingConv || existingConv.rows.length === 0) {
-        existingConv = await db.query('SELECT id FROM whatsapp_conversations WHERE phone = $1', [phone]);
-      }
-
-      if (existingConv && existingConv.rows.length > 0) {
-        convId = existingConv.rows[0].id;
-        await db.query(`
-          UPDATE whatsapp_conversations 
-          SET last_message = $1, last_message_at = NOW(), updated_at = NOW(), phone = COALESCE($2, phone), wa_phone_number = COALESCE(wa_phone_number, $2)
-          WHERE id = $3
-        `, [msgContent, phone, convId]);
-      } else {
-        const newConv = await db.query(`
-          INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at)
-          VALUES ($1, $2, $2, 'Active', 'all', $3, NOW(), NOW())
-          RETURNING id
-        `, [leadId || null, phone, msgContent]);
-        convId = newConv.rows[0].id;
-      }
-
-      // Record outbound message in whatsapp_messages table
-      const insertedMsg = await db.query(`
-        INSERT INTO whatsapp_messages (
-          conversation_id, lead_id, phone, direction, content, body, template_name, meta_message_id, wa_message_id, status, sent_at, timestamp, created_at
-        ) VALUES ($1, $2, $3, 'outbound', $4, $4, $5, $6, $6, 'sent', NOW(), NOW(), NOW())
-        RETURNING *
-      `, [convId, leadId || null, phone, msgContent, templateName || null, metaMessageId]);
-
-      // Record activity in touchpoints if leadId exists
-      if (leadId) {
-        try {
-          await db.query(`
-            INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
-            VALUES ($1, 'WhatsApp', $2, $3, 'Sent', NOW())
-          `, [leadId, isTemplate ? `Template: ${templateName}` : 'WhatsApp Message', msgContent]);
-        } catch (tpErr) {
-          console.warn('[whatsapp] Touchpoint insert error:', tpErr.message);
-        }
+      if (!result.ok) {
+        return res.status(result.status || 400).json({ error: result.error, details: result.details });
       }
 
       res.json({
         success: true,
-        metaMessageId,
-        message: insertedMsg.rows[0],
+        metaMessageId: result.metaMessageId,
+        message: result.message,
+        warning: result.warning,
       });
     } catch (err) {
       console.error('[whatsapp] POST /api/whatsapp/send error:', err.message);
@@ -813,6 +1008,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         try { rawBody = JSON.parse(rawBody); } catch (pErr) {}
       }
 
+      // Make sure the relaxed conversation constraints exist before writing.
+      await ensureWhatsAppSchema();
+
       // ── Outbound Agent Reply Handling (from n8n / AI Agent Aria) ──
       if (rawBody && rawBody.direction === 'outbound') {
         const content = rawBody.content ? String(rawBody.content).trim() : '';
@@ -1022,32 +1220,26 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           console.log("===== [PARSED INBOUND MESSAGE] =====");
           console.log({ senderPhone, messageText, waMessageId, senderName });
 
-          let cleanDigits = senderPhone.replace(/\D/g, '');
-          if (cleanDigits.length > 10) cleanDigits = cleanDigits.slice(-10);
-
-          let leadId = null;
-          if (cleanDigits && cleanDigits.length >= 7) {
-            try {
-              const leadMatch = await db.query(
-                `SELECT id FROM leads 
-                 WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
-                    OR REPLACE(REPLACE(REPLACE(COALESCE(whatsapp,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
-                 ORDER BY id DESC LIMIT 1`,
-                [cleanDigits]
-              );
-              if (leadMatch.rows[0]?.id) leadId = leadMatch.rows[0].id;
-            } catch (lErr) {
-              console.error("[WHATSAPP WEBHOOK] Lead lookup error:", lErr.message);
+          // Idempotency: Meta retries webhooks; never double-store a message.
+          try {
+            const existing = await db.query(
+              'SELECT id FROM whatsapp_messages WHERE wa_message_id = $1 OR meta_message_id = $1 LIMIT 1',
+              [waMessageId]
+            );
+            if (existing.rows.length > 0) {
+              console.log('[WHATSAPP WEBHOOK] Duplicate inbound message ignored:', waMessageId);
+              continue;
             }
-          }
+          } catch (e) {}
 
+          let leadId = await findLeadIdByPhone(senderPhone);
           if (!leadId && senderName) {
             try {
               const nameMatch = await db.query(
-                `SELECT id FROM leads 
-                 WHERE LOWER(TRIM(first_name || ' ' || COALESCE(last_name, ''))) LIKE '%' || LOWER($1) || '%'
-                    OR LOWER(TRIM(first_name)) LIKE '%' || LOWER($1) || '%'
-                 ORDER BY id DESC LIMIT 1`,
+                `SELECT id FROM leads
+                  WHERE LOWER(TRIM(first_name || ' ' || COALESCE(last_name, ''))) LIKE '%' || LOWER($1) || '%'
+                     OR LOWER(TRIM(first_name)) LIKE '%' || LOWER($1) || '%'
+                  ORDER BY id DESC LIMIT 1`,
                 [senderName.trim()]
               );
               if (nameMatch.rows[0]?.id) leadId = nameMatch.rows[0].id;
@@ -1056,52 +1248,39 @@ function registerWhatsAppRoutes(app, resolveUserId) {
 
           console.log("[WHATSAPP WEBHOOK] Matched lead ID:", leadId ? leadId : "NO MATCH FOUND");
 
+          const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
+          const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
+
           let convId = null;
           try {
-            const convMatch = await db.query(
-              `SELECT id FROM whatsapp_conversations 
-               WHERE phone = $1 
-                  OR wa_phone_number = $1
-                  OR (lead_id IS NOT NULL AND lead_id = $2)
-                  OR (length($3) >= 7 AND REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%' || $3)
-               ORDER BY id DESC LIMIT 1`,
-              [senderPhone, leadId, cleanDigits]
-            );
-
-            if (convMatch.rows.length > 0) {
-              convId = convMatch.rows[0].id;
-              await db.query(
-                `UPDATE whatsapp_conversations 
-                 SET last_message = $1, last_message_at = NOW(), updated_at = NOW(), state = 'inbound_received', unread_count = COALESCE(unread_count, 0) + 1, lead_id = COALESCE(lead_id, $2), phone = COALESCE(phone, $3), wa_phone_number = COALESCE(wa_phone_number, $3) 
-                 WHERE id = $4`,
-                [messageText, leadId, senderPhone, convId]
-              );
-              console.log("[WHATSAPP WEBHOOK] Updated conversation ID:", convId);
-            } else {
-              const newConv = await db.query(
-                `INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at, unread_count) 
-                 VALUES ($1, $2, $2, 'Active', 'inbound_received', $3, NOW(), NOW(), 1) 
-                 RETURNING id`,
-                [leadId, senderPhone, messageText]
-              );
-              convId = newConv.rows[0].id;
-              console.log("[WHATSAPP WEBHOOK] Created conversation ID:", convId);
-            }
+            convId = await findOrCreateWhatsAppConversation({
+              leadId,
+              phone: senderPhone,
+              content: messageText,
+              direction: 'inbound',
+            });
+            console.log("[WHATSAPP WEBHOOK] Conversation ID:", convId);
           } catch (cErr) {
             console.error('[WHATSAPP WEBHOOK] Error upserting conversation:', cErr.stack || cErr.message);
           }
 
-          const parsedTs = rawTimestamp ? new Date(typeof rawTimestamp === 'number' ? rawTimestamp * 1000 : parseInt(rawTimestamp, 10) * 1000) : new Date();
-          const validTime = isNaN(parsedTs.getTime()) ? new Date() : parsedTs;
+          if (!convId) {
+            console.error('[WHATSAPP WEBHOOK] No conversation available; message not stored:', waMessageId);
+            continue;
+          }
 
           try {
-            const savedMsg = await db.query(
-              `INSERT INTO whatsapp_messages (
-                 conversation_id, lead_id, phone, direction, content, body, meta_message_id, wa_message_id, status, sent_at, timestamp, created_at
-               ) VALUES ($1, $2, $3, 'inbound', $4, $4, $5, $5, 'delivered', $6, $6, NOW()) RETURNING *`,
-              [convId, leadId, senderPhone, messageText, waMessageId, validTime]
-            );
-            console.log("===== [INBOUND MESSAGE SAVED SUCCESSFULLY IN DB] =====", savedMsg.rows[0]);
+            const savedMsg = await persistWhatsAppMessage({
+              conversationId: convId,
+              leadId,
+              phone: senderPhone,
+              direction: 'inbound',
+              content: messageText,
+              metaMessageId: waMessageId,
+              status: 'delivered',
+              sentAt: validTime,
+            });
+            console.log("===== [INBOUND MESSAGE SAVED SUCCESSFULLY IN DB] =====", savedMsg?.id);
           } catch (mErr) {
             console.error("===== [INBOUND MESSAGE SAVE FAILED] =====", mErr.stack || mErr.message);
           }
@@ -1129,4 +1308,11 @@ function registerWhatsAppRoutes(app, resolveUserId) {
 module.exports = {
   registerWhatsAppRoutes,
   getWhatsAppCredentials,
+  ensureWhatsAppSchema,
+  sendWhatsAppMessage,
+  findOrCreateWhatsAppConversation,
+  persistWhatsAppMessage,
+  findLeadIdByPhone,
+  extractWhatsAppMessageText,
+  phoneLast10,
 };

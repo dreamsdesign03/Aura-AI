@@ -259,6 +259,9 @@ export default function ClinicSettings() {
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['clinic', 'settings'],
     queryFn: clinicApi.getSettings,
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    staleTime: 3_000,
   });
 
   const settings = data?.settings || { branches: [], treatments: [], hours: {}, ai_notes: '', consent: {} };

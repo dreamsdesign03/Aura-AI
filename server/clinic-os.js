@@ -7,8 +7,18 @@
  * patient directory.
  */
 const express = require('express');
+const nodemailer = require('nodemailer');
 const db = require('./db');
 const { cleanEnglishName, cleanEnglishTreatment, transliterateIndic } = require('./call-utils');
+const {
+  sendWhatsAppMessage,
+  ensureWhatsAppSchema,
+  findOrCreateWhatsAppConversation,
+  persistWhatsAppMessage,
+  findLeadIdByPhone,
+  extractWhatsAppMessageText,
+  phoneLast10,
+} = require('./whatsapp');
 
 const router = express.Router();
 
@@ -176,7 +186,29 @@ function ensureSchema() {
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS outcome TEXT;
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS call_rate NUMERIC;
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS call_cost NUMERIC;
+
+    -- WhatsApp inbox safety: inbound webhooks arrive from numbers that are not
+    -- in leads, so these constraints must be relaxed or messages are dropped.
+    ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS wa_phone_number TEXT;
+    ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS phone TEXT;
+    ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message TEXT;
+    ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS last_message_at TIMESTAMPTZ DEFAULT NOW();
+    ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+    ALTER TABLE whatsapp_conversations ADD COLUMN IF NOT EXISTS unread_count INT DEFAULT 0;
+    ALTER TABLE whatsapp_conversations ALTER COLUMN lead_id DROP NOT NULL;
+    ALTER TABLE whatsapp_conversations ALTER COLUMN wa_phone_number DROP NOT NULL;
+    ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS wa_message_id TEXT;
+    ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS meta_message_id TEXT;
+    ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ;
+    ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS sent_at TIMESTAMPTZ DEFAULT NOW();
+    ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS body TEXT;
+    ALTER TABLE whatsapp_messages ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'sent';
+    CREATE INDEX IF NOT EXISTS whatsapp_messages_wa_id_idx ON whatsapp_messages (wa_message_id);
+    CREATE INDEX IF NOT EXISTS whatsapp_messages_conversation_idx ON whatsapp_messages (conversation_id, sent_at);
   `);
+
+  // Also run the shared WhatsApp guard (credentials table shape, indexes, etc.)
+  ensureWhatsAppSchema().catch(() => {});
 
   // Auto-sync Cal.com consultation attendees into dedicated clinic patients
   syncCalPatients().catch(() => {});
@@ -1487,17 +1519,272 @@ router.get('/audit', requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// WhatsApp inbox sync
+//
+// Meta delivers webhooks continuously, but historically inbound rows were
+// dropped because `whatsapp_conversations.lead_id` was NOT NULL. The webhook
+// logger still captured every payload in `debug_logs`, so this routine
+// backfills missing messages (idempotent, deduped by Meta message id) and keeps
+// delivery statuses current. It runs at most once every 8 seconds per process.
+// ---------------------------------------------------------------------------
+let inboxSyncPromise = null;
+let lastInboxSyncAt = 0;
+
+async function syncWhatsAppInbox({ force = false } = {}) {
+  if (!force && Date.now() - lastInboxSyncAt < 8000) {
+    return { skipped: true, inserted: 0, updatedStatuses: 0 };
+  }
+  if (inboxSyncPromise) return inboxSyncPromise;
+
+  inboxSyncPromise = (async () => {
+    let inserted = 0;
+    let updatedStatuses = 0;
+    let logsScanned = 0;
+
+    try {
+      await ensureWhatsAppSchema().catch(() => {});
+
+      // 1) Apply the newest delivery / read / failure status reported by Meta.
+      try {
+        const statusRes = await db.query(`
+          UPDATE whatsapp_messages m
+             SET status = s.status
+            FROM (
+              SELECT DISTINCT ON (st->>'id')
+                     st->>'id' AS message_id,
+                     st->>'status' AS status
+                FROM debug_logs dl
+                CROSS JOIN LATERAL jsonb_array_elements(dl.data->'statuses') st
+               WHERE dl.event_type = 'webhook_received'
+                 AND jsonb_typeof(dl.data->'statuses') = 'array'
+               ORDER BY st->>'id', dl.id DESC
+            ) s
+           WHERE s.message_id IS NOT NULL
+             AND (m.meta_message_id = s.message_id OR m.wa_message_id = s.message_id)
+             AND m.status IS DISTINCT FROM s.status
+        `);
+        updatedStatuses = statusRes.rowCount || 0;
+      } catch (statusErr) {
+        // debug_logs is optional in some deployments.
+      }
+
+      // 2) Recover inbound patient messages captured by the webhook logger.
+      const logs = await db.query(`
+        SELECT id, data, created_at
+          FROM debug_logs
+         WHERE event_type = 'webhook_received'
+           AND jsonb_typeof(data->'messages') = 'array'
+         ORDER BY id ASC
+      `);
+      logsScanned = logs.rows.length;
+
+      for (const log of logs.rows) {
+        const data = log.data || {};
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+        const contactName = data.contacts?.[0]?.profile?.name || '';
+
+        for (const msg of messages) {
+          const waId = String(msg.id || msg.wamid || '').trim();
+          if (!waId) continue;
+
+          const existing = await db.query(
+            'SELECT id FROM whatsapp_messages WHERE wa_message_id = $1 OR meta_message_id = $1 LIMIT 1',
+            [waId]
+          );
+          if (existing.rows.length > 0) continue;
+
+          const senderPhone = String(msg.from || '').trim();
+          if (!senderPhone) continue;
+
+          const content = extractWhatsAppMessageText(msg);
+          if (!content) continue;
+
+          let leadId = await findLeadIdByPhone(senderPhone);
+          if (!leadId && contactName) {
+            try {
+              const nameMatch = await db.query(
+                `SELECT id FROM leads
+                  WHERE LOWER(TRIM(first_name || ' ' || COALESCE(last_name, ''))) LIKE '%' || LOWER($1) || '%'
+                  ORDER BY id DESC LIMIT 1`,
+                [contactName.trim()]
+              );
+              leadId = nameMatch.rows[0]?.id || null;
+            } catch {}
+          }
+
+          const parsedTs = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date(log.created_at);
+          const sentAt = isNaN(parsedTs.getTime()) ? new Date(log.created_at || Date.now()) : parsedTs;
+          const digits = phoneLast10(senderPhone);
+          const isBusinessEcho = digits.endsWith('8490033711');
+          const direction = isBusinessEcho ? 'outbound' : 'inbound';
+
+          let convId = null;
+          try {
+            convId = await findOrCreateWhatsAppConversation({
+              leadId,
+              phone: senderPhone,
+              content,
+              direction,
+            });
+          } catch (convErr) {
+            console.warn('[clinic-os] inbox sync conversation warning:', convErr.message);
+          }
+          if (!convId) continue;
+
+          try {
+            await persistWhatsAppMessage({
+              conversationId: convId,
+              leadId,
+              phone: senderPhone,
+              direction,
+              content,
+              metaMessageId: waId,
+              status: direction === 'outbound' ? 'sent' : 'delivered',
+              sentAt,
+            });
+            inserted++;
+          } catch (msgErr) {
+            console.warn('[clinic-os] inbox sync message warning:', msgErr.message);
+          }
+        }
+      }
+
+      lastInboxSyncAt = Date.now();
+    } catch (err) {
+      console.warn('[clinic-os] whatsapp inbox sync warning:', err.message);
+    } finally {
+      inboxSyncPromise = null;
+    }
+
+    return {
+      skipped: false,
+      inserted,
+      updatedStatuses,
+      logsScanned,
+      syncedAt: new Date().toISOString(),
+    };
+  })();
+
+  return inboxSyncPromise;
+}
+
+// ---------------------------------------------------------------------------
+// Transactional email delivery for the Inbox (drafts and replies).
+// ---------------------------------------------------------------------------
+let clinicTransporter = null;
+let clinicTransportConfig = null;
+
+function getClinicTransporter() {
+  const user = process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
+  const pass = process.env.SMTP_PASS;
+  const host = process.env.SMTP_HOST
+    || (user.includes('auralaserclinic') || user.includes('office365') ? 'smtp.office365.com' : 'smtp.gmail.com');
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const fromEmail = process.env.SMTP_FROM || user;
+  const fromName = process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic';
+
+  if (!pass) {
+    throw new Error('Email is not configured (SMTP_PASS is missing).');
+  }
+
+  const cacheKey = `${host}:${port}:${user}`;
+  if (clinicTransporter && clinicTransportConfig === cacheKey) {
+    return { transporter: clinicTransporter, fromEmail, fromName };
+  }
+
+  clinicTransportConfig = cacheKey;
+  clinicTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    requireTLS: port === 587 || host.includes('office365') || host.includes('outlook'),
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false, minVersion: 'TLSv1.2' },
+    connectionTimeout: 30000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
+  });
+
+  return { transporter: clinicTransporter, fromEmail, fromName };
+}
+
+function htmlToText(html) {
+  return String(html || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+async function deliverClinicEmail({ to, subject, html, leadId = null }) {
+  if (!to) throw new Error('Recipient email is required.');
+  const { transporter, fromEmail, fromName } = getClinicTransporter();
+  const body = html || subject || '';
+  const info = await transporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: subject || 'Aura Laser & Cosmetic Clinic',
+    html: body,
+    text: htmlToText(body),
+  });
+
+  // Keep the lead timeline warm.
+  if (leadId) {
+    try {
+      await db.query(
+        `INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+         VALUES ($1, 'Email', $2, $3, 'Sent', NOW())`,
+        [leadId, subject || 'Email', htmlToText(body)]
+      );
+      await db.query('UPDATE leads SET updated_at = NOW() WHERE id = $1', [leadId]);
+    } catch {}
+  }
+
+  return info;
+}
+
+// ---------------------------------------------------------------------------
 // Unified Omni-Channel Inbox (WhatsApp + Emails + AI Calls + Clinic Notes)
 // ---------------------------------------------------------------------------
+router.get('/inbox/sync', requireUser, async (req, res) => {
+  try {
+    const result = await syncWhatsAppInbox({ force: true });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/inbox/sync', requireUser, async (req, res) => {
+  try {
+    const result = await syncWhatsAppInbox({ force: true });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/inbox', requireUser, async (req, res) => {
   try {
+    // Fire-and-forget recovery: pull anything the webhook dropped into the
+    // live inbox without forcing the client to hit an extra button.
+    syncWhatsAppInbox().catch(() => {});
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;
 
     const [wa, emails, calls, notes] = await Promise.all([
       // 1. WhatsApp Conversations
       db.query(
-        `SELECT wc.id, wc.lead_id, wc.phone, wc.unread_count, wc.last_message_at,
+        `SELECT wc.id, wc.lead_id, COALESCE(NULLIF(wc.phone, ''), NULLIF(wc.wa_phone_number, '')) AS phone,
+                wc.unread_count, wc.last_message_at,
                 l.first_name, l.last_name, l.email,
                 COALESCE(
                   (SELECT content FROM whatsapp_messages wm
@@ -1508,7 +1795,11 @@ router.get('/inbox', requireUser, async (req, res) => {
                 ) AS preview
            FROM whatsapp_conversations wc
            LEFT JOIN leads l ON l.id = wc.lead_id
-          WHERE wc.org_id = (SELECT org_id FROM users WHERE id = $1) OR l.user_id = $1 OR wc.lead_id IS NOT NULL
+          WHERE (wc.org_id IS NULL OR wc.org_id = (SELECT org_id FROM users WHERE id = $1))
+             OR l.user_id = $1
+             OR wc.lead_id IS NOT NULL
+             OR wc.phone IS NOT NULL
+             OR wc.wa_phone_number IS NOT NULL
           ORDER BY wc.last_message_at DESC NULLS LAST LIMIT $2`,
         [uid, limit]
       ),
@@ -1579,6 +1870,8 @@ router.get('/inbox', requireUser, async (req, res) => {
         .replace(/\s+/g, ' ')
         .trim();
       const hasReply = !!row.reply_body;
+      const status = String(row.status || '').toLowerCase();
+      const isDraft = !hasReply && status === 'draft';
       threads.push({
         type: 'email',
         id: row.id,
@@ -1589,8 +1882,13 @@ router.get('/inbox', requireUser, async (req, res) => {
         subject: row.subject || 'Consultation & Treatment',
         unread: hasReply ? 1 : 0,
         status: hasReply ? 'replied' : (row.status || 'sent'),
+        isDraft,
         lastAt: row.reply_at || row.sent_at || row.created_at,
-        preview: hasReply ? `Reply: ${cleanBody.slice(0, 110)}` : (row.subject ? `${row.subject} — ${cleanBody.slice(0, 80)}` : cleanBody.slice(0, 100)),
+        preview: hasReply
+          ? `Reply: ${cleanBody.slice(0, 110)}`
+          : isDraft
+          ? `Draft · ${row.subject ? `${row.subject} — ` : ''}${cleanBody.slice(0, 90)}`
+          : (row.subject ? `${row.subject} — ${cleanBody.slice(0, 80)}` : cleanBody.slice(0, 100)),
       });
     }
 
@@ -1642,77 +1940,89 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
     if (!type || !id) return res.status(400).json({ error: 'type and id are required' });
 
     if (type === 'whatsapp') {
+      // Recover any messages that Meta delivered but the DB previously rejected.
+      syncWhatsAppInbox().catch(() => {});
+
       const isNumericId = typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id));
-      const targetPhone = phone || (typeof id === 'string' && id.startsWith('new-') ? id.replace('new-', '') : '');
-      const last10 = targetPhone ? targetPhone.replace(/\D/g, '').slice(-10) : '';
+      let targetPhone = phone || (typeof id === 'string' && id.startsWith('new-') ? id.replace('new-', '') : '');
+      let last10 = phoneLast10(targetPhone);
 
       let conv = null;
       if (isNumericId) {
         const convRes = await db.query('SELECT * FROM whatsapp_conversations WHERE id = $1', [parseInt(id)]);
         conv = convRes.rows[0] || null;
-      } else if (last10) {
-        const convRes = await db.query('SELECT * FROM whatsapp_conversations WHERE phone LIKE $1 ORDER BY id DESC LIMIT 1', [`%${last10}%`]);
+      }
+      if (!conv && last10) {
+        const convRes = await db.query(
+          `SELECT * FROM whatsapp_conversations
+            WHERE phone LIKE $1 OR wa_phone_number LIKE $1
+            ORDER BY id DESC LIMIT 1`,
+          [`%${last10}%`]
+        );
         conv = convRes.rows[0] || null;
+      }
+      if (!targetPhone && conv) {
+        targetPhone = conv.wa_phone_number || conv.phone || '';
+      }
+      if (!last10 && targetPhone) last10 = phoneLast10(targetPhone);
+
+      let resolvedLeadId = leadId ? Number(leadId) : (conv?.lead_id || null);
+      if (!resolvedLeadId && targetPhone) {
+        resolvedLeadId = await findLeadIdByPhone(targetPhone);
       }
 
       let msgs = { rows: [] };
       if (conv?.id) {
+        const params = [conv.id, resolvedLeadId || 0];
+        let phoneClause = '';
+        if (last10) {
+          params.push(`%${last10}%`);
+          phoneClause = ` OR phone LIKE $${params.length}`;
+        }
         msgs = await db.query(
-          `SELECT id, conversation_id, direction, content, body, status, sent_at, timestamp, created_at
+          `SELECT id, conversation_id, direction, content, body, status, wa_message_id,
+                  meta_message_id, error_message, sent_at, timestamp, created_at
              FROM whatsapp_messages
-            WHERE conversation_id = $1 OR (lead_id IS NOT NULL AND lead_id = $2) ${last10 ? `OR phone LIKE '%${last10}%'` : ''}
+            WHERE conversation_id = $1
+               OR (lead_id IS NOT NULL AND lead_id = $2)${phoneClause}
             ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
-          [conv.id, conv.lead_id || leadId || 0]
+          params
         );
       } else if (last10) {
         msgs = await db.query(
-          `SELECT id, conversation_id, direction, content, body, status, sent_at, timestamp, created_at
+          `SELECT id, conversation_id, direction, content, body, status, wa_message_id,
+                  meta_message_id, error_message, sent_at, timestamp, created_at
              FROM whatsapp_messages
             WHERE phone LIKE $1
             ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
           [`%${last10}%`]
         );
+      } else if (resolvedLeadId) {
+        msgs = await db.query(
+          `SELECT id, conversation_id, direction, content, body, status, wa_message_id,
+                  meta_message_id, error_message, sent_at, timestamp, created_at
+             FROM whatsapp_messages
+            WHERE lead_id = $1
+            ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
+          [resolvedLeadId]
+        );
       }
 
-      // If no messages logged yet, synthesize the official booking confirmation from clinic +91 84900 33711
-      let messageList = msgs.rows.map(m => ({
+      const messageList = msgs.rows.map(m => ({
         id: m.id,
         direction: m.direction || 'outbound',
         content: m.content || m.body || '',
         status: m.status || 'delivered',
+        waMessageId: m.wa_message_id || m.meta_message_id || null,
+        errorMessage: m.error_message || null,
         sentAt: m.sent_at || m.timestamp || m.created_at
       }));
-
-      if (messageList.length === 0 && last10) {
-        // Look up appointment for this patient
-        const apptRes = await db.query(
-          `SELECT id, invitee_name, event_name, start_time, meeting_link, questions FROM calendly_events WHERE questions->>'phone' LIKE $1 OR questions->>'Phone / WhatsApp' LIKE $1 ORDER BY id DESC LIMIT 1`,
-          [`%${last10}%`]
-        );
-        const appt = apptRes.rows[0];
-        const pName = appt ? cleanEnglishName(appt.invitee_name) : 'Patient';
-        const startStr = appt ? new Date(appt.start_time).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : 'Upcoming';
-        messageList = [
-          {
-            id: 'auto-1',
-            direction: 'outbound',
-            content: `Hello ${pName}, your consultation at Aura Laser & Cosmetic Clinic has been confirmed for ${startStr} with Dr. Aditya Shah (Alkapuri Main Clinic).\n\nFor questions, preparation guidelines, or slot adjustments, please reply to our official WhatsApp care desk here on +91 84900 33711.`,
-            status: 'delivered',
-            sentAt: appt?.created_at || new Date().toISOString()
-          },
-          {
-            id: 'auto-2',
-            direction: 'outbound',
-            content: `Reminder: Please arrive 10 minutes prior to your scheduled consultation time. If you need navigation assistance or location directions to the clinic, feel free to text us here.`,
-            status: 'delivered',
-            sentAt: new Date(Date.now() - 3600000).toISOString()
-          }
-        ];
-      }
 
       return res.json({
         type: 'whatsapp',
         conversation: conv,
+        phone: targetPhone || conv?.phone || null,
+        leadId: resolvedLeadId,
         clinic_whatsapp_number: '+91 84900 33711',
         messages: messageList
       });
@@ -1754,6 +2064,7 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
           subject: m.subject,
           content: m.body,
           status: m.status,
+          isDraft: String(m.status || '').toLowerCase() === 'draft',
           sentAt: m.sent_at || m.created_at
         }))
       });
@@ -1792,44 +2103,100 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
 // Reply or send message from Inbox
 router.post('/inbox/reply', requireUser, async (req, res) => {
   try {
-    const { type, conversationId, leadId, phone, email, subject, body } = req.body || {};
+    const { type, conversationId, leadId, phone, email, subject, body, emailId } = req.body || {};
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
 
     if (type === 'whatsapp') {
-      let convId = (typeof conversationId === 'number' || (typeof conversationId === 'string' && /^\d+$/.test(conversationId))) ? parseInt(conversationId) : null;
-      if (!convId && phone) {
-        const clean = phone.replace(/[^0-9]/g, '');
-        const ex = await db.query('SELECT id FROM whatsapp_conversations WHERE phone LIKE $1 LIMIT 1', [`%${clean.slice(-10)}%`]);
-        if (ex.rows.length > 0) convId = ex.rows[0].id;
+      const targetPhone = phone || '';
+      if (!targetPhone) return res.status(400).json({ error: 'WhatsApp number is required to send a message' });
+
+      const sendResult = await sendWhatsAppMessage({
+        userId: req.user.id,
+        leadId: leadId ? Number(leadId) : null,
+        phone: targetPhone,
+        message: body.trim(),
+      });
+
+      if (!sendResult.ok) {
+        return res.status(sendResult.status || 400).json({ error: sendResult.error, details: sendResult.details });
       }
-      if (!convId) {
-        const ins = await db.query(
-          `INSERT INTO whatsapp_conversations (lead_id, phone, status, last_message, last_message_at)
-           VALUES ($1, $2, 'Active', $3, NOW()) RETURNING id`,
-          [leadId || null, phone, body.trim()]
-        );
-        convId = ins.rows[0].id;
-      }
 
-      await db.query(
-        `INSERT INTO whatsapp_messages (conversation_id, lead_id, phone, direction, content, body, status, sent_at, created_at)
-         VALUES ($1, $2, $3, 'outbound', $4, $4, 'delivered', NOW(), NOW())`,
-        [convId, leadId || null, phone || null, body.trim()]
-      );
-
-      await db.query(
-        'UPDATE whatsapp_conversations SET last_message = $1, last_message_at = NOW() WHERE id = $2',
-        [body.trim(), convId]
-      );
-
-      return res.json({ success: true, message: 'WhatsApp message sent' });
+      return res.json({ success: true, message: 'WhatsApp message sent', metaMessageId: sendResult.metaMessageId, warning: sendResult.warning });
     }
 
     if (type === 'email') {
+      const toEmail = email || '';
+      if (!toEmail) return res.status(400).json({ error: 'Recipient email is required' });
+
+      // If replying to an existing draft, send it via the canonical sender and
+      // update the outreach_emails row so it leaves the "Drafts" queue.
+      if (emailId) {
+        let draft = null;
+        try {
+          const draftRes = await db.query(
+            `SELECT oe.id, oe.lead_id, COALESCE(oe.to_email, oe.recipient_email) AS to_email,
+                    oe.subject, oe.body, oe.status
+               FROM outreach_emails oe
+              WHERE oe.id = $1
+                AND (oe.user_id = $2 OR oe.user_id IS NULL)
+              LIMIT 1`,
+            [emailId, req.user.id]
+          );
+          draft = draftRes.rows[0] || null;
+        } catch (lookupErr) {
+          console.warn('[clinic-os] draft lookup warning:', lookupErr.message);
+        }
+
+        if (draft) {
+          const sendTo = toEmail || draft.to_email;
+          if (!sendTo) return res.status(400).json({ error: 'This draft has no recipient email.' });
+
+          try {
+            await deliverClinicEmail({
+              to: sendTo,
+              subject: subject || draft.subject || 'Re: Patient Consultation',
+              html: body.trim(),
+              leadId: leadId || draft.lead_id || null,
+            });
+          } catch (deliverErr) {
+            return res.status(400).json({ error: `Email delivery failed: ${deliverErr.message}` });
+          }
+
+          try {
+            await db.query(
+              `UPDATE outreach_emails
+                  SET status = 'sent',
+                      sent_at = COALESCE(sent_at, NOW()),
+                      to_email = COALESCE($1, to_email),
+                      recipient_email = COALESCE($1, recipient_email),
+                      subject = COALESCE($2, subject),
+                      body = $3
+                WHERE id = $4`,
+              [sendTo, subject || draft.subject || null, body.trim(), emailId]
+            );
+          } catch (updateErr) {
+            console.warn('[clinic-os] draft status update warning:', updateErr.message);
+          }
+
+          return res.json({ success: true, message: 'Draft sent successfully', emailId });
+        }
+      }
+
+      try {
+        await deliverClinicEmail({
+          to: toEmail,
+          subject: subject || 'Re: Patient Consultation',
+          html: body.trim(),
+          leadId: leadId ? Number(leadId) : null,
+        });
+      } catch (deliverErr) {
+        return res.status(400).json({ error: deliverErr.message });
+      }
+
       const ins = await db.query(
         `INSERT INTO outreach_emails (user_id, lead_id, to_email, recipient_email, subject, body, status, sent_at, created_at)
          VALUES ($1, $2, $3, $3, $4, $5, 'sent', NOW(), NOW()) RETURNING *`,
-        [req.user.id, leadId || null, email, subject || 'Re: Patient Consultation', body.trim()]
+        [req.user.id, leadId ? Number(leadId) : null, toEmail, subject || 'Re: Patient Consultation', body.trim()]
       );
       return res.json({ success: true, message: 'Email sent', email: ins.rows[0] });
     }

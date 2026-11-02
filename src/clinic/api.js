@@ -76,6 +76,7 @@ export const clinicApi = {
   inboxThread: (type, id, leadId, phone) =>
     request(`/inbox/thread?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${leadId ? `&leadId=${encodeURIComponent(leadId)}` : ''}${phone ? `&phone=${encodeURIComponent(phone)}` : ''}`),
   inboxReply: (body) => request('/inbox/reply', { method: 'POST', body: JSON.stringify(body) }),
+  inboxSync: () => request('/inbox/sync', { method: 'POST' }),
 
   // Dialer
   dialerLeads: () => request('/dialer/leads'),

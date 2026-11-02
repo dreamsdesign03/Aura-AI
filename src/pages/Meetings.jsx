@@ -193,7 +193,7 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
       </div>
     </div>);
 }
-// ── Booking Widget (Cal.com embed) ───────────────────────────────────────────
+// ── Booking Widget (online scheduler embed) ───────────────────────────────────
 function BookingWidget() {
     return (<div className="max-w-6xl mx-auto py-6 px-4">
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl p-6 md:p-8">

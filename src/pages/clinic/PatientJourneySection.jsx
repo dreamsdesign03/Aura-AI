@@ -63,7 +63,7 @@ export const INITIAL_STAGES_ROW_A = [
   {
     n: 5,
     name: 'Book',
-    does: 'Live Cal.com bookings, doctor consultation slots, 24h reminders',
+    does: 'Live online bookings, doctor consultation slots, 24h reminders',
     measure: 'Booked Consultations',
     value: '62',
     target: '10+',

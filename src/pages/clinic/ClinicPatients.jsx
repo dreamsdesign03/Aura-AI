@@ -15,7 +15,7 @@ export const PATIENT_CARE_STAGES = [
   { id: 2, key: 'engage', name: 'Stage 2: Engage', short: 'Engaged', chipLabel: 'Stage 2 · Engaged', color: '#0EA5E9', bg: '#F0F9FF', desc: 'Engaged on WhatsApp, web chat or skin scan' },
   { id: 3, key: 'capture', name: 'Stage 3: Capture and route', short: 'Captured', chipLabel: 'Stage 3 · Captured', color: '#F59E0B', bg: '#FFFBEB', desc: 'Contact details verified & branch assigned' },
   { id: 4, key: 'qualify', name: 'Stage 4: Qualify', short: 'Qualified', chipLabel: 'Stage 4 · Qualified', color: '#D97706', bg: '#FEF3C7', desc: 'Screened by AI / clinic coordinator' },
-  { id: 5, key: 'book', name: 'Stage 5: Book', short: 'Booked', chipLabel: 'Stage 5 · Booked Consult', color: '#10B981', bg: '#ECFDF5', desc: 'Consultation booked via Cal.com or clinic' },
+  { id: 5, key: 'book', name: 'Stage 5: Book', short: 'Booked', chipLabel: 'Stage 5 · Booked Consult', color: '#10B981', bg: '#ECFDF5', desc: 'Consultation booked online or at the clinic' },
   { id: 6, key: 'consult', name: 'Stage 6: Consult and convert', short: 'Consulted', chipLabel: 'Stage 6 · Consulted', color: '#8B5CF6', bg: '#F5F3FF', desc: 'Doctor consultation completed & quote sent' },
   { id: 7, key: 'treat', name: 'Stage 7: Treat and complete', short: 'In Treatment', chipLabel: 'Stage 7 · In Treatment', color: '#EC4899', bg: '#FDF2F8', desc: 'Active treatment sessions under Dr. Aditya' },
   { id: 8, key: 'delight', name: 'Stage 8: Delight and review', short: 'Delight', chipLabel: 'Stage 8 · Delight & Review', color: '#14B8A6', bg: '#F0FDFA', desc: 'Treatment completed & review collected' },
@@ -610,7 +610,7 @@ export default function ClinicPatients() {
           {/* KPIs Summary */}
           <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
             <Kpi label="Patients" value={selectedStage ? displayPatients.length : totals.count} foot={selectedStage ? `Filtered to Stage ${selectedStage.n}` : 'Registered clinic patients'} icon={Users} />
-            <Kpi label="Consultations & visits" value={totals.visits} foot="Cal.com & clinic bookings" icon={CalendarDays} />
+            <Kpi label="Consultations & visits" value={totals.visits} foot="Online & clinic bookings" icon={CalendarDays} />
             <Kpi label="Treatment packages" value={money(totals.value)} foot="Active patient care plans" icon={IndianRupee} />
           </div>
 
@@ -646,7 +646,7 @@ export default function ClinicPatients() {
                   ? 'Try a different name, phone or email.'
                   : selectedStage
                   ? `Clear the filter to view all ${totals.count} registered clinic patients.`
-                  : 'No clinic patients registered yet. Add a patient or sync from Cal.com bookings.'}
+                  : 'No clinic patients registered yet. Add a patient or sync online bookings.'}
               </p>
               <div style={{ display: 'flex', gap: 8, justifyContent: 'center', marginTop: 12 }}>
                 {selectedStage ? (

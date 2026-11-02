@@ -143,6 +143,9 @@ export default function ClinicDialer() {
   const { data: leadsData, isLoading: leadsLoading, isFetching: leadsFetching, refetch: refetchLeads } = useQuery({
     queryKey: ['clinic', 'dialer', 'leads'],
     queryFn: clinicApi.dialerLeads,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+    staleTime: 3_000,
   });
   const leads = leadsData?.leads || [];
 
@@ -160,6 +163,9 @@ export default function ClinicDialer() {
   const { data: settingsData, refetch: refetchSettings } = useQuery({
     queryKey: ['clinic', 'dialer', 'settings'],
     queryFn: clinicApi.dialerSettings,
+    refetchInterval: 30_000,
+    refetchOnWindowFocus: true,
+    staleTime: 5_000,
   });
 
   const saveSettingsMutation = useMutation({
