@@ -180,6 +180,7 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
     durationMin: 45,
     amount: 0,
     notes: '',
+    sendConfirmation: true,
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
@@ -207,6 +208,7 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
       durationMin: Number(form.durationMin) || 45,
       amount: Number(form.amount) || 0,
       notes: form.notes || null,
+      sendConfirmation: form.sendConfirmation,
     });
   }
 
@@ -257,6 +259,12 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
         <div className="co-field co-span-2">
           <label className="co-label" htmlFor="co-notes">Notes</label>
           <textarea id="co-notes" rows="2" value={form.notes} onChange={set('notes')} placeholder="Anything the front desk should know" />
+        </div>
+        <div className="co-field co-span-2">
+          <label className="co-label flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={form.sendConfirmation} onChange={e => setForm(f => ({ ...f, sendConfirmation: e.target.checked }))} className="w-4 h-4 accent-pink-600 rounded border-gray-300" />
+            <span>Send WhatsApp booking confirmation to patient</span>
+          </label>
         </div>
       </div>
       {error ? <p className="co-sm" style={{ color: '#B91C1C' }}>{error}</p> : null}

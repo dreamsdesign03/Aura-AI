@@ -74,6 +74,7 @@ function ensureSchema() {
       status TEXT DEFAULT 'booked',
       notes TEXT,
       amount NUMERIC DEFAULT 0,
+      reminder_sent_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
@@ -174,6 +175,7 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS clinic_audit_user_idx ON clinic_audit (user_id, created_at DESC);
 
     ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
     ALTER TABLE clinic_notes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}'::jsonb;
     ALTER TABLE clinic_packages ADD COLUMN IF NOT EXISTS paid_amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS reply TEXT;
@@ -788,7 +790,7 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
 router.post('/appointments', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
-    const { leadId, patientName, phone, treatment, branch, startsAt, durationMin, notes, amount } = req.body || {};
+    const { leadId, patientName, phone, treatment, branch, startsAt, durationMin, notes, amount, sendConfirmation } = req.body || {};
     const start = safeDate(startsAt);
     if (!patientName || !start) return res.status(400).json({ error: 'patientName and startsAt are required' });
 
@@ -805,6 +807,34 @@ router.post('/appointments', requireUser, async (req, res) => {
       [uid, leadId || null, `${treatment || 'Consult'} for ${patientName}`, JSON.stringify({ startsAt: start.toISOString(), branch })]
     );
     await audit(uid, 'created', 'appointment', r.rows[0].id, `${patientName} · ${treatment || 'Consult'}`);
+
+    // Send WhatsApp booking confirmation if phone provided and sendConfirmation is true
+    if (phone && sendConfirmation) {
+      try {
+        const firstName = String(patientName || '').trim().split(/\s+/)[0] || 'there';
+        const appointmentTime = start.toLocaleString('en-IN', { 
+          timeZone: 'Asia/Kolkata', 
+          weekday: 'short', 
+          day: 'numeric', 
+          month: 'short', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        
+        await sendWhatsAppMessage({
+          userId: uid,
+          leadId: leadId ? Number(leadId) : null,
+          phone: phone,
+          templateName: 'aura_lead_appointment_booking',
+          templateParams: [firstName, appointmentTime, treatment || 'Consultation', branch || 'Clinic'],
+          templateLang: 'en',
+        });
+      } catch (waErr) {
+        console.warn('[clinic-os] WhatsApp confirmation send failed:', waErr.message);
+        // Don't fail the appointment creation if WhatsApp fails
+      }
+    }
+
     res.json({ appointment: r.rows[0] });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -872,6 +902,60 @@ router.delete('/appointments/:id', requireUser, async (req, res) => {
     await db.query('DELETE FROM clinic_appointments WHERE id = $1', [req.params.id]);
     await audit(req.user.id, 'deleted', 'appointment', req.params.id);
     res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /appointments/reminders - Send WhatsApp reminders for upcoming appointments
+// Called by cron (e.g., every 30 min) to send 1-hour and 1-day reminders
+router.post('/appointments/reminders', async (req, res) => {
+  try {
+    const secret = req.query.secret || req.headers['authorization'];
+    if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { windowMinutes = 90, reminderType = 'all' } = req.body || {};
+    // Find appointments in the next windowMinutes that haven't had reminders sent
+    const apptRes = await db.query(
+      `SELECT a.*, l.phone, l.whatsapp, l.first_name, l.last_name
+         FROM clinic_appointments a
+         LEFT JOIN leads l ON l.id = a.lead_id
+        WHERE a.status IN ('confirmed', 'arrived')
+          AND a.starts_at BETWEEN NOW() AND NOW() + INTERVAL '${windowMinutes} minutes'
+          AND a.reminder_sent_at IS NULL
+        ORDER BY a.starts_at ASC`
+    );
+
+    let sent = 0;
+    for (const appt of apptRes.rows) {
+      const phone = appt.whatsapp || appt.phone;
+      if (!phone) continue;
+
+      const firstName = String(appt.first_name || appt.patient_name || '').trim().split(/\s+/)[0] || 'there';
+      const appointmentTime = new Date(appt.starts_at).toLocaleString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short',
+        day: 'numeric',
+        month: 'short',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+
+      try {
+        await sendWhatsAppMessage({
+          userId: appt.user_id,
+          leadId: appt.lead_id,
+          phone: phone,
+          templateName: 'aura_lead_appointment_booking',
+          templateParams: [firstName, appointmentTime, appt.treatment || 'Consultation', appt.branch || 'Clinic'],
+          templateLang: 'en',
+        });
+        await db.query('UPDATE clinic_appointments SET reminder_sent_at = NOW() WHERE id = $1', [appt.id]);
+        sent++;
+      } catch (waErr) {
+        console.warn('[clinic-os] Reminder send failed for appt', appt.id, waErr.message);
+      }
+    }
+
+    res.json({ ok: true, sent, checked: apptRes.rows.length });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
