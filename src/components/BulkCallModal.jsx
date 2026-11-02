@@ -169,7 +169,7 @@ export default function BulkCallModal({ isOpen, onClose, selectedLeads = [], onC
   if (!isOpen) return null;
 
   const downloadSample = () => {
-    const csvContent = "name,phone,email,company\nFake User 1,9999999999,fake1@example.com,Fake Corp\nFake User 2,9999999998,fake2@example.com,Fake LLC\n";
+    const csvContent = "name,phone,email,company\nJohn Smith,9999999999,john.smith@example.com,Acme Corp\nJane Doe,9999999998,jane.doe@example.com,Globex LLC\n";
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
