@@ -1353,6 +1353,143 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       return res.status(200).json({ success: true, message: 'EVENT_RECEIVED' });
     }
   });
+
+  // ── 8. POST /api/whatsapp/log ────────────────────────────────────────────────
+  // Protected endpoint for n8n to log outbound WhatsApp messages so they appear
+  // in the Clinic Inbox > WhatsApp tab. Uses the EXISTING whatsapp tables.
+  app.post('/api/whatsapp/log', async (req, res) => {
+    try {
+      // Auth: header "x-api-key" must equal process.env.N8N_LOG_KEY
+      const apiKey = req.headers['x-api-key'];
+      if (!apiKey || apiKey !== process.env.N8N_LOG_KEY) {
+        return res.status(401).json({ error: 'Invalid API key' });
+      }
+
+      const {
+        direction = 'outbound',
+        source = 'n8n',
+        phone,
+        name,
+        template_name,
+        body,
+        params = [],
+        wa_message_id,
+        status = 'sent',
+        kind,
+        booking_uid,
+        sent_at,
+      } = req.body || {};
+
+      if (!phone) {
+        return res.status(400).json({ error: 'Phone number is required' });
+      }
+
+      // Clean phone to digits with 91 prefix
+      const cleanPhone = cleanPhoneNumber(phone);
+      if (!cleanPhone || !/^91\d{10}$/.test(cleanPhone)) {
+        return res.status(400).json({ error: 'Invalid phone number format (expected 91 + 10 digits)' });
+      }
+
+      // Idempotency: upsert by wa_message_id
+      if (wa_message_id) {
+        try {
+          const existing = await db.query(
+            'SELECT id FROM whatsapp_messages WHERE wa_message_id = $1 OR meta_message_id = $1 LIMIT 1',
+            [wa_message_id]
+          );
+          if (existing.rows.length > 0) {
+            return res.json({ ok: true, id: existing.rows[0].id, duplicate: true });
+          }
+        } catch (e) {}
+      }
+
+      // Match lead/patient by last 10 digits of phone
+      const last10 = cleanPhone.slice(-10);
+      let leadId = null;
+      try {
+        const leadRes = await db.query(
+          `SELECT id FROM leads
+            WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+               OR REPLACE(REPLACE(REPLACE(COALESCE(whatsapp,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+            ORDER BY id DESC LIMIT 1`,
+          [last10]
+        );
+        if (leadRes.rows[0]?.id) leadId = leadRes.rows[0].id;
+      } catch (e) {}
+
+      // Find or create conversation
+      let convId = null;
+      try {
+        const convMatch = await db.query(
+          `SELECT id FROM whatsapp_conversations
+            WHERE (lead_id IS NOT NULL AND lead_id = $1)
+               OR phone = $2
+               OR wa_phone_number = $2
+               OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%' || $3)
+            ORDER BY id DESC LIMIT 1`,
+          [leadId || 0, cleanPhone, last10]
+        );
+
+        if (convMatch.rows.length > 0) {
+          convId = convMatch.rows[0].id;
+          await db.query(
+            `UPDATE whatsapp_conversations
+              SET last_message = $1,
+                  last_message_at = NOW(),
+                  updated_at = NOW(),
+                  state = $2,
+                  lead_id = COALESCE(lead_id, $3),
+                  phone = COALESCE(phone, $4),
+                  wa_phone_number = COALESCE(wa_phone_number, $4),
+                  unread_count = COALESCE(unread_count, 0) + $5
+            WHERE id = $6`,
+            [body || content || 'WhatsApp message', 'ai_replied', leadId || null, cleanPhone, direction === 'inbound' ? 1 : 0, convId]
+          );
+        } else {
+          const inserted = await db.query(
+            `INSERT INTO whatsapp_conversations
+              (lead_id, phone, wa_phone_number, status, state, last_message, last_message_at, updated_at, unread_count)
+            VALUES ($1, $2, $2, 'Active', $3, $4, NOW(), NOW(), $5)
+            RETURNING id`,
+            [leadId || null, cleanPhone, 'ai_replied', body || 'WhatsApp message', direction === 'inbound' ? 1 : 0]
+          );
+          convId = inserted.rows[0].id;
+        }
+      } catch (convErr) {
+        console.error('[whatsapp/log] conversation error:', convErr.message);
+      }
+
+      // Insert message row
+      const parsedSentAt = sent_at ? new Date(sent_at) : new Date();
+      const sentAt = isNaN(parsedSentAt.getTime()) ? new Date() : parsedSentAt;
+      const messageId = await persistWhatsAppMessage({
+        conversationId: convId,
+        leadId: leadId || null,
+        phone: cleanPhone,
+        direction,
+        content: body,
+        metaMessageId: wa_message_id,
+        status,
+        sentAt,
+        templateName: template_name || null,
+      });
+
+      // Update conversation last_message_at to sort to top
+      if (convId) {
+        try {
+          await db.query(
+            `UPDATE whatsapp_conversations SET last_message = $1, last_message_at = $2, updated_at = NOW() WHERE id = $3`,
+            [body || 'WhatsApp message', sentAt, convId]
+          );
+        } catch (e) {}
+      }
+
+      return res.json({ ok: true, id: messageId?.id || convId });
+    } catch (err) {
+      console.error('[whatsapp/log] error:', err.message);
+      res.status(500).json({ error: err.message });
+    }
+  });
 }
 
 module.exports = {
