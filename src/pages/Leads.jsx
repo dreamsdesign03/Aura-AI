@@ -46,6 +46,20 @@ const STATUS_DOT = {
     discovery_call: "#0D9488", quote_sent: "#DE377C", follow_up: "#DE377C",
     project_won: "#16A34A", project_lost: "#EF4444",
 };
+
+// The clinic's own WhatsApp line must never be treated as a patient recipient.
+const OWN_WHATSAPP_LAST10 = ["8490033711", "8469522692"];
+function isOwnWhatsApp(raw) {
+  const d = String(raw || "").replace(/\D/g, "");
+  const last10 = d.length > 10 ? d.slice(-10) : d;
+  return OWN_WHATSAPP_LAST10.includes(last10);
+}
+function hasOwnWhatsAppNumber(lead) {
+  return isOwnWhatsApp(lead.whatsapp) || isOwnWhatsApp(lead.phone);
+}
+function filterOwnWhatsAppLeads(leads) {
+  return (leads || []).filter((l) => !hasOwnWhatsAppNumber(l));
+}
 const MOBILE_AVATAR_COLORS = [
     "#6C63FF", "#3B82F6", "#0D9488", "#CB3273",
     "#DC2626", "#0891B2", "#DE377C", "#A4285E",
@@ -1304,7 +1318,7 @@ export default function Leads() {
             {waInitiating ? "Sending…" : "WA Hook"}
           </button>
           {waMsg && <span className="text-[11px] text-green-700 font-medium">{waMsg}</span>}
-          <button onClick={() => setTplLeads(filteredLeads.filter((l) => selected.includes(l.id)))} className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 underline">
+          <button onClick={() => setTplLeads(filterOwnWhatsAppLeads(filteredLeads.filter((l) => selected.includes(l.id))))} className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 underline">
             <Send className="w-3 h-3"/> Send Template
           </button>
           <button onClick={() => setShowListModal(true)} className="flex items-center gap-1 text-[11px] text-indigo-700 hover:text-indigo-800 underline">
@@ -1559,7 +1573,7 @@ export default function Leads() {
                           <button type="button" disabled={lead.do_not_call} onClick={e => { e.stopPropagation(); setConfirmCallLead(lead); }} className={cn("flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-[11px] transition-colors", lead.do_not_call ? "opacity-30 cursor-not-allowed" : "")} title={`AI Proposal Call to ${lead.firstName || lead.name || 'Lead'}`}>📞</button>
                           <button title={lead.whatsapp || lead.phone ? "Send WhatsApp template" : "No phone"} onClick={(e) => {
                             e.stopPropagation();
-                            setTplLeads([lead]);
+                            if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
                           }}>
                             <Send className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
                           </button>

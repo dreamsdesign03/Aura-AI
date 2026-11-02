@@ -1615,8 +1615,11 @@ async function syncWhatsAppInbox({ force = false } = {}) {
           const parsedTs = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date(log.created_at);
           const sentAt = isNaN(parsedTs.getTime()) ? new Date(log.created_at || Date.now()) : parsedTs;
           const digits = phoneLast10(senderPhone);
-          const isBusinessEcho = digits.endsWith('8490033711');
-          const direction = isBusinessEcho ? 'outbound' : 'inbound';
+          const isBusinessEcho = digits.endsWith('8490033711') || digits.endsWith('8469522692');
+          // Messages sent from our own business number are template echoes,
+          // not patient threads. Never surface them in the inbox list.
+          if (isBusinessEcho) continue;
+          const direction = 'inbound';
 
           let convId = null;
           try {
@@ -1795,11 +1798,15 @@ router.get('/inbox', requireUser, async (req, res) => {
                 ) AS preview
            FROM whatsapp_conversations wc
            LEFT JOIN leads l ON l.id = wc.lead_id
-          WHERE (wc.org_id IS NULL OR wc.org_id = (SELECT org_id FROM users WHERE id = $1))
+          WHERE (
+             (wc.org_id IS NULL OR wc.org_id = (SELECT org_id FROM users WHERE id = $1))
              OR l.user_id = $1
              OR wc.lead_id IS NOT NULL
              OR wc.phone IS NOT NULL
              OR wc.wa_phone_number IS NOT NULL
+          )
+            AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8490033711%'
+            AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8469522692%'
           ORDER BY wc.last_message_at DESC NULLS LAST LIMIT $2`,
         [uid, limit]
       ),

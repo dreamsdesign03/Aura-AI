@@ -1,6 +1,16 @@
 const db = require('./db');
 const { WHATSAPP_TEMPLATES } = require('./whatsapp-templates');
 
+// Numbers owned by the clinic. Messages/conversations from these numbers are
+// echoes of our own outbound template sends and must never appear as patients.
+const OWN_WHATSAPP_DIGITS = ['8490033711', '8469522692'];
+
+function isOwnWhatsAppNumber(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  const last10 = digits.length > 10 ? digits.slice(-10) : digits;
+  return OWN_WHATSAPP_DIGITS.includes(last10);
+}
+
 // Helper to sanitize phone numbers into E.164 format (numeric only)
 function cleanPhoneNumber(phone) {
   if (!phone) return '';
@@ -128,6 +138,22 @@ function ensureWhatsAppSchema() {
         console.warn('[whatsapp] schema statement skipped:', err.message);
       }
     }
+
+    // Purge any conversation/message that was accidentally created for the
+    // clinic's own WhatsApp number (outbound template echoes).
+    try {
+      const ownMatch = `REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%8490033711%'
+        OR REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%8469522692%'`;
+      await db.query(`DELETE FROM whatsapp_messages WHERE conversation_id IN (SELECT id FROM whatsapp_conversations WHERE ${ownMatch})`);
+      await db.query(
+        `DELETE FROM whatsapp_messages
+          WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE '%8490033711%'
+             OR REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE '%8469522692%'`
+      );
+      await db.query(`DELETE FROM whatsapp_conversations WHERE ${ownMatch}`);
+    } catch (purgeErr) {
+      console.warn('[whatsapp] own-number purge skipped:', purgeErr.message);
+    }
   })();
   return whatsappSchemaReady;
 }
@@ -222,6 +248,9 @@ async function findLeadIdByPhone(phone) {
 // Find or create the conversation a message belongs to. Works for numbers that
 // are not in `leads` (lead_id stays NULL) and never throws on constraint gaps.
 async function findOrCreateWhatsAppConversation({ leadId = null, phone, content = '', direction = 'outbound' }) {
+  // Never create a patient conversation for the clinic's own WhatsApp number.
+  if (isOwnWhatsAppNumber(phone)) return null;
+
   const digits = phoneLast10(phone);
   const match = await db.query(
     `SELECT id FROM whatsapp_conversations
@@ -299,6 +328,9 @@ async function sendWhatsAppMessage({ userId, leadId = null, phone, message, temp
 
   const targetPhone = cleanPhoneNumber(phone);
   if (!targetPhone) return { ok: false, status: 400, error: 'Invalid destination phone number.' };
+  if (isOwnWhatsAppNumber(targetPhone)) {
+    return { ok: false, status: 400, error: "Cannot send to the clinic's own WhatsApp number." };
+  }
 
   await ensureWhatsAppSchema();
 
@@ -427,6 +459,16 @@ async function sendWhatsAppMessage({ userId, leadId = null, phone, message, temp
 
   if (metaData.messages && metaData.messages.length > 0) {
     metaMessageId = metaData.messages[0].id;
+  }
+
+  // Self-sends / echoes from our own business number are not patient threads.
+  if (isOwnWhatsAppNumber(targetPhone)) {
+    return {
+      ok: true,
+      metaMessageId,
+      message: null,
+      warning: 'Sent to the clinic’s own WhatsApp number; hidden from the patient inbox.',
+    };
   }
 
   let finalLeadId = leadId || null;
@@ -620,7 +662,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           ), '') as "lastMessage"
         FROM whatsapp_conversations wc
         LEFT JOIN leads l ON wc.lead_id = l.id
-        WHERE l.user_id = $1 OR l.user_id IS NULL OR wc.lead_id IS NULL
+        WHERE (l.user_id = $1 OR l.user_id IS NULL OR wc.lead_id IS NULL)
+          AND REPLACE(REPLACE(REPLACE(COALESCE(wc.wa_phone_number, wc.phone, ''), '+', ''), '-', ''), ' ', '') NOT LIKE '%8490033711%'
+          AND REPLACE(REPLACE(REPLACE(COALESCE(wc.wa_phone_number, wc.phone, ''), '+', ''), '-', ''), ' ', '') NOT LIKE '%8469522692%'
         ORDER BY COALESCE(wc.last_message_at, wc.updated_at, wc.created_at) DESC;
       `;
 
@@ -771,6 +815,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
       const targetPhone = cleanPhoneNumber(phone);
       if (!/^\d{11,15}$/.test(targetPhone)) {
         return res.status(400).json({ success: false, status: 'skipped', error: 'No valid phone number.' });
+      }
+      if (isOwnWhatsAppNumber(targetPhone)) {
+        return res.status(400).json({ success: false, status: 'skipped', error: "Cannot send to the clinic's own WhatsApp number." });
       }
 
       const values = {

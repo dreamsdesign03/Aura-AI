@@ -14,6 +14,13 @@ function normalisePhone(raw) {
   if (d.length === 10 && /^[6-9]/.test(d)) d = "91" + d;
   return /^\d{11,15}$/.test(d) ? d : "";
 }
+// The clinic's own WhatsApp line must never be treated as a patient recipient.
+const OWN_WHATSAPP_LAST10 = ["8490033711", "8469522692"];
+function isOwnWhatsApp(raw) {
+  const d = String(raw || "").replace(/\D/g, "");
+  const last10 = d.length > 10 ? d.slice(-10) : d;
+  return OWN_WHATSAPP_LAST10.includes(last10);
+}
 function leadFullName(l) {
   return `${l.firstName || l.first_name || ""} ${l.lastName || l.last_name || ""}`.trim();
 }
@@ -100,8 +107,8 @@ export default function SendTemplateModal({ leads, isOpen, onClose }) {
       const l = leads[i];
       const rawPhone = l.whatsapp || l.phone || "";
       const base = { leadId: l.id, name: leadFullName(l) || l.company || "Contact", phone: rawPhone };
-      if (!normalisePhone(rawPhone)) {
-        out.push({ ...base, status: "skipped", error: "No valid phone number" });
+      if (!normalisePhone(rawPhone) || isOwnWhatsApp(rawPhone)) {
+        out.push({ ...base, status: "skipped", error: isOwnWhatsApp(rawPhone) ? "Clinic's own WhatsApp number" : "No valid phone number" });
         setResults([...out]);
         continue;
       }

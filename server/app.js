@@ -6537,6 +6537,18 @@ app.post('/api/whatsapp/send', async (req, res) => {
       return res.status(400).json({ error: 'A valid phone number is required to send WhatsApp messages' });
     }
 
+    // The clinic's own WhatsApp line is the sender, never a patient recipient.
+    // Blocking it here prevents self-echo threads from appearing in the inbox.
+    const ownDigits = phone.replace(/\D/g, '');
+    const ownLast10 = ownDigits.length > 10 ? ownDigits.slice(-10) : ownDigits;
+    if (['8490033711', '8469522692'].includes(ownLast10)) {
+      return res.status(400).json({
+        success: false,
+        status: 'skipped',
+        error: "Cannot send to the clinic's own WhatsApp number.",
+      });
+    }
+
     const leadName = `${lead.first_name || lead.firstName || 'Contact'} ${lead.last_name || lead.lastName || ''}`.trim();
     const companyName = lead.company || '';
     let finalParams = Array.isArray(templateParams) ? templateParams : [];
