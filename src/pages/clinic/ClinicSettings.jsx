@@ -42,7 +42,10 @@ function BranchForm({ branches, onChange }) {
                 <div className="co-row" style={{ gap: 10 }}>
                   <Building2 size={20} style={{ color: b.isDefault ? '#A4285E' : '#9CA3AF' }} />
                   <div>
-                    <div className="co-strong">{b.name}{b.isDefault ? ' <span className="co-xs co-mut">(default)</span>' : ''}</div>
+                    <div className="co-strong" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+  {b.name}
+  {b.isDefault && <span className="co-xs co-mut">(default)</span>}
+</div>
                     <div className="co-xs co-mut">{b.address}{b.phone ? ` · ${b.phone}` : ''}</div>
                   </div>
                 </div>
