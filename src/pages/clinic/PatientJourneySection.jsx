@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import {
   Sparkles, CheckCircle2, AlertCircle, ArrowUpRight, Sliders,
   X, Check, RotateCcw, CalendarDays,
-  Target, Shield, ExternalLink, Activity, Users, Filter
+  Target, Shield, ExternalLink, Activity, Users, Filter, Info
 } from 'lucide-react';
 import { Modal } from '@/clinic/ui';
 import { clinicApi } from '@/clinic/api';
@@ -257,27 +257,9 @@ export default function PatientJourneySection({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      {/* ── Journey Head ────────────────────────────────────────── */}
+      {/* Journey Head - No duplicate heading, ClinicPatients.jsx renders the title */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h1 style={{ margin: 0, font: '600 24px/1.2 Poppins, Inter, sans-serif', color: '#172326' }}>
-              Patient Journey
-            </h1>
-            <span
-              style={{
-                background: 'linear-gradient(135deg, #FBE9F1 0%, #FDF3F8 100%)',
-                color: '#A4285E',
-                border: '1px solid #F3D9E5',
-                fontSize: 12,
-                fontWeight: 700,
-                padding: '3px 10px',
-                borderRadius: 999,
-              }}
-            >
-              10 Stages Live · Real Database Metrics
-            </span>
-          </div>
           <p style={{ margin: '6px 0 0', fontSize: 13.5, color: '#5F6B6D' }}>
             Live clinical lifecycle based on actual patient appointments, bookings and consultations. Click any stage to filter records below.
           </p>
@@ -381,11 +363,35 @@ export default function PatientJourneySection({
                       {s.value}
                     </p>
                   </div>
-                  <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
-                    Target
-                    <br />
-                    <b style={{ color: '#2E3B3E' }}>{s.target}</b>
-                  </span>
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
+                      Target
+                      <br />
+                      <b style={{ color: '#2E3B3E' }}>{s.target}</b>
+                    </span>
+                    {s.source && (
+                      <div style={{ position: 'relative', display: 'inline-block', marginLeft: 6 }}>
+                        <Info size={12} style={{ color: '#5F6B6D', cursor: 'help', verticalAlign: 'middle' }} />
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '100%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          marginBottom: 6,
+                          padding: '6px 10px',
+                          background: '#1E293B',
+                          color: '#fff',
+                          fontSize: 11,
+                          borderRadius: 4,
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        }}>
+                          Source: {s.source}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="pj-st-action">
@@ -465,11 +471,35 @@ export default function PatientJourneySection({
                       {s.value}
                     </p>
                   </div>
-                  <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
-                    Target
-                    <br />
-                    <b style={{ color: '#2E3B3E' }}>{s.target}</b>
-                  </span>
+                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
+                      Target
+                      <br />
+                      <b style={{ color: '#2E3B3E' }}>{s.target}</b>
+                    </span>
+                    {s.source && (
+                      <div style={{ position: 'relative', display: 'inline-block', marginLeft: 6 }}>
+                        <Info size={12} style={{ color: '#5F6B6D', cursor: 'help', verticalAlign: 'middle' }} />
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '100%',
+                          left: '50%',
+                          transform: 'translateX(-50%)',
+                          marginBottom: 6,
+                          padding: '6px 10px',
+                          background: '#1E293B',
+                          color: '#fff',
+                          fontSize: 11,
+                          borderRadius: 4,
+                          whiteSpace: 'nowrap',
+                          zIndex: 10,
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
+                        }}>
+                          Source: {s.source}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 <div className="pj-st-action">

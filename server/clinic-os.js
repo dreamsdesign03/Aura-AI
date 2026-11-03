@@ -1225,44 +1225,196 @@ router.post('/appointments/reminders', async (req, res) => {
 router.get('/journey-stats', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
-    const [leadsRes, engageRes, callsRes, bookRes, apptsRes, visitsRes, treatRes, revRes, repeatRes] = await Promise.all([
-      db.query("SELECT COUNT(*)::int as c FROM leads WHERE (user_id = $1 OR user_id IS NULL)", [uid]),
-      db.query("SELECT (SELECT COUNT(*)::int FROM whatsapp_conversations) + (SELECT COUNT(*)::int FROM clinic_notes) as c"),
-      db.query("SELECT COUNT(*)::int as c FROM ai_calls"),
-      db.query("SELECT (SELECT COUNT(*)::int FROM calendly_events WHERE is_deleted IS NOT TRUE) + (SELECT COUNT(*)::int FROM clinic_appointments) as c"),
-      db.query("SELECT COUNT(DISTINCT LOWER(COALESCE(NULLIF(invitee_email,''), invitee_name)))::int as c FROM calendly_events WHERE is_deleted IS NOT TRUE"),
-      db.query("SELECT COUNT(*)::int as c FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND status = 'completed'", [uid]),
-      db.query("SELECT COUNT(*)::int as c FROM clinic_reviews"),
-      db.query(`
-        SELECT COUNT(*)::int as c FROM (
-          SELECT COALESCE(NULLIF(invitee_email,''), invitee_name), count(*) FROM calendly_events 
-          WHERE is_deleted IS NOT TRUE
-          GROUP BY 1 HAVING count(*) > 1
-        ) t
-      `),
-    ]);
+    const branch = req.query.branch ? String(req.query.branch).trim() : null;
 
-    const leadsCount = leadsRes.rows[0]?.c || 0;
-    const engageCount = engageRes.rows[0]?.c || 0;
-    const qualifyCount = callsRes.rows[0]?.c || 0;
-    const bookCount = bookRes.rows[0]?.c || 0;
-    const consultCount = visitsRes.rows[0]?.c || 0;
-    const treatCount = treatRes.rows[0]?.c || 0;
-    const revCount = revRes.rows[0]?.c || 0;
-    const repeatCount = repeatRes.rows[0]?.c || 0;
+    // Helper to add branch filter to queries
+    const branchFilter = branch && isValidBranch(branch)
+      ? `AND (l.branch ILIKE $${branch ? 2 : 1} OR a.branch ILIKE $${branch ? 2 : 1} OR v.branch ILIKE $${branch ? 2 : 1})`
+      : '';
+    const branchParam = branch && isValidBranch(branch) ? normalizeBranch(branch) : null;
+
+    // Build base WHERE clause matching patients list logic
+    const patientWhere = `
+      WHERE (l.user_id = $1 OR l.user_id IS NULL)
+        AND (
+          l.pipeline_stage IN ('New Patient', 'Patient', 'Active Patient', 'Consultation', 'Follow-up')
+          OR l.pipeline_stage ILIKE 'Stage%'
+          OR l.designation ILIKE '%patient%'
+          OR l.source IN ('Clinic OS', 'Cal.com Booking')
+          OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id)
+          OR EXISTS (SELECT 1 FROM clinic_notes n WHERE n.lead_id = l.id)
+          OR EXISTS (SELECT 1 FROM clinic_packages p WHERE p.lead_id = l.id)
+          OR EXISTS (SELECT 1 FROM calendly_events ce WHERE
+            (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
+            OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+            OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
+                 LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name)))
+                 OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
+               ))
+          )
+        )
+    `;
+
+    const params = branchParam ? [uid, branchParam] : [uid];
+
+    // Count patients per pipeline stage (source of truth = patients list)
+    const stageCounts = await db.query(
+      `SELECT
+         l.pipeline_stage,
+         COUNT(*)::int as c
+       FROM leads l
+       ${patientWhere}
+       ${branchFilter}
+       GROUP BY l.pipeline_stage`,
+      params
+    );
+
+    // Map pipeline stages to journey stage keys
+    const stageMap = {
+      'New Patient': 'discover',
+      'Enquiry': 'discover',
+      'Enquiry Qualified': 'discover',
+      'Enquiry Qualified': 'discover',
+      'Engage': 'engage',
+      'Engaged': 'engage',
+      'Discovery Call': 'capture',
+      'Capture and route': 'capture',
+      'Captured': 'capture',
+      'Qualify': 'qualify',
+      'Qualified': 'qualify',
+      'Quote / Estimation Sent': 'book',
+      'Booked': 'book',
+      'Follow Up / Negotiation': 'book',
+      'Follow Up': 'book',
+      'Negotiation': 'book',
+      'Consultation': 'consult',
+      'Consult and convert': 'consult',
+      'Consulted': 'consult',
+      'Quote Sent': 'book',
+      'Active Patient': 'treat',
+      'In Treatment': 'treat',
+      'Treatment': 'treat',
+      'Delight': 'review',
+      'Retain': 'retain',
+      'Retained': 'retain',
+      'Refer': 'refer',
+      'Advocate': 'refer',
+    };
+
+    const stageCountsMap = {};
+    for (const row of stageCounts.rows) {
+      const key = stageMap[row.pipeline_stage] || 'other';
+      stageCountsMap[key] = (stageCountsMap[key] || 0) + parseInt(row.c);
+    }
+
+    // 1. Discover: Leads in early stages (Enquiry, New Patient)
+    const discover = stageCountsMap.discover || 0;
+
+    // 2. Engage: WhatsApp conversations + clinic notes for these patients
+    const engageRes = await db.query(
+      `SELECT COUNT(*)::int as c
+       FROM whatsapp_conversations wc
+       JOIN leads l ON l.id = wc.lead_id
+       WHERE (l.user_id = $1 OR l.user_id IS NULL)
+         AND wc.status = 'Active'`,
+      [uid]
+    );
+
+    const engage = engageRes.rows[0]?.c || 0;
+
+    // 3. Capture: Patients in Capture/Route stage
+    const capture = stageCountsMap.capture || 0;
+
+    // 4. Qualify: Completed AI calls (screened)
+    const qualifyRes = await db.query(
+      `SELECT COUNT(*)::int as c
+       FROM ai_calls ac
+       JOIN leads l ON l.id = ac.lead_id
+       WHERE (l.user_id = $1 OR l.user_id IS NULL)
+         AND ac.status = 'completed'`,
+      [uid]
+    );
+
+    const qualify = qualifyRes.rows[0]?.c || 0;
+
+    // 5. Book: Confirmed appointments (clinic + Cal.com)
+    const bookRes = await db.query(
+      `SELECT COUNT(*)::int as c
+       FROM clinic_appointments a
+       JOIN leads l ON l.id = a.lead_id
+       WHERE (l.user_id = $1 OR l.user_id IS NULL)
+         AND a.status IN ('confirmed', 'arrived', 'in_consult', 'completed')`,
+      [uid]
+    );
+
+    const book = bookRes.rows[0]?.c || 0;
+
+    // 6. Consult: Completed visits only
+    const consultRes = await db.query(
+      `SELECT COUNT(*)::int as c
+       FROM clinic_visits v
+       JOIN leads l ON l.id = v.lead_id
+       WHERE (v.user_id = $1 OR v.user_id IS NULL)
+         AND v.outcome = 'completed'`,
+      [uid]
+    );
+
+    const consult = consultRes.rows[0]?.c || 0;
+
+    // 7. Treat: Active patients with packages/treatment
+    const treatRes = await db.query(
+      `SELECT COUNT(DISTINCT l.id)::int as c
+       FROM leads l
+       LEFT JOIN clinic_packages p ON p.lead_id = l.id
+       LEFT JOIN clinic_visits v ON v.lead_id = l.id AND v.outcome = 'completed'
+       WHERE (l.user_id = $1 OR l.user_id IS NULL)
+         AND (p.id IS NOT NULL OR v.id IS NOT NULL)`,
+      [uid]
+    );
+
+    const treat = treatRes.rows[0]?.c || 0;
+
+    // 8. Reviews: Google reviews
+    const reviewRes = await db.query(
+      `SELECT COUNT(*)::int as c FROM clinic_reviews WHERE user_id = $1`,
+      [uid]
+    );
+
+    const review = reviewRes.rows[0]?.c || 0;
+
+    // 9. Retain: Patients with repeat visits
+    const retainRes = await db.query(
+      `SELECT COUNT(DISTINCT v.lead_id)::int as c
+       FROM clinic_visits v
+       WHERE (v.user_id = $1 OR v.user_id IS NULL)
+         AND v.outcome = 'completed'
+         AND v.lead_id IN (
+           SELECT lead_id FROM clinic_visits
+           WHERE (user_id = $1 OR user_id IS NULL) AND outcome = 'completed'
+           GROUP BY lead_id HAVING COUNT(*) > 1
+         )`,
+      [uid]
+    );
+
+    const retain = retainRes.rows[0]?.c || 0;
+
+    // 10. Referral: Placeholder (needs referral tracking system)
+    const referCount = 0;
+
+    const refer = referCount;
 
     res.json({
       stats: {
-        discover: { value: `${leadsCount}`, measure: 'Acquired Enquiries', target: '100+', ok: leadsCount >= 100 },
-        engage: { value: `${engageCount}`, measure: 'Active Conversations', target: '5+', ok: engageCount >= 5 },
-        capture: { value: `${leadsCount}`, measure: 'Captured Contacts', target: '100%', ok: true },
-        qualify: { value: `${qualifyCount}`, measure: 'AI Screened Calls', target: '15+', ok: qualifyCount >= 15 },
-        book: { value: `${bookCount}`, measure: 'Booked Consultations', target: '10+', ok: bookCount >= 10 },
-        consult: { value: `${consultCount}`, measure: 'Consultation Pipeline', target: '5+', ok: consultCount >= 5 },
-        treat: { value: `${treatCount}`, measure: 'Active Care Patients', target: '10+', ok: treatCount >= 10 },
-        review: { value: `${revCount}`, measure: 'Google Reviews', target: '5+', ok: revCount >= 5 },
-        retain: { value: `${repeatCount}`, measure: 'Repeat Consultations', target: '2+', ok: repeatCount >= 2 },
-        refer: { value: '0', measure: 'Referral Rewards', target: '2+', ok: false },
+        discover: { value: `${discover}`, measure: 'Acquired Enquiries (Leads)', target: '100+', ok: discover >= 100, source: 'leads table (Enquiry/New Patient stages)' },
+        engage: { value: `${engage}`, measure: 'Active Conversations (WhatsApp)', target: '5+', ok: engage >= 5, source: 'whatsapp_conversations (Active)' },
+        capture: { value: `${capture}`, measure: 'Captured Contacts (Leads)', target: '100%', ok: true, source: 'leads table (Capture/Route stages)' },
+        qualify: { value: `${qualify}`, measure: 'AI Screened Calls', target: '15+', ok: qualify >= 15, source: 'ai_calls (completed)' },
+        book: { value: `${book}`, measure: 'Booked Consultations', target: '10+', ok: book >= 10, source: 'clinic_appointments + calendly_events (confirmed/arrived)' },
+        consult: { value: `${consult}`, measure: 'Completed Consultations', target: '5+', ok: consult >= 5, source: 'clinic_visits (completed)' },
+        treat: { value: `${treat}`, measure: 'Active Care Patients', target: '10+', ok: treat >= 10, source: 'leads with packages/visits' },
+        review: { value: `${review}`, measure: 'Google Reviews', target: '5+', ok: review >= 5, source: 'clinic_reviews' },
+        retain: { value: `${retain}`, measure: 'Repeat Consultations', target: '2+', ok: retain >= 2, source: 'clinic_visits (lead_id with >1 completed)' },
+        refer: { value: `${refer}`, measure: 'Referral Rewards', target: '2+', ok: false, source: 'Not implemented' },
       }
     });
   } catch (err) {
