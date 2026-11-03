@@ -2648,15 +2648,15 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
 
       if (conv?.id) {
         params.push(conv.id);
-        conds.push(`conversation_id = ${params.length}`);
+        conds.push(`conversation_id = $${params.length}`);
       }
       if (resolvedLeadId) {
         params.push(resolvedLeadId);
-        conds.push(`(lead_id IS NOT NULL AND lead_id = ${params.length})`);
+        conds.push(`(lead_id IS NOT NULL AND lead_id = $${params.length})`);
       }
       if (last10) {
         params.push(`%${last10}%`);
-        conds.push(`REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE ${params.length}`);
+        conds.push(`REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE $${params.length}`);
       }
 
       if (conds.length > 0) {
