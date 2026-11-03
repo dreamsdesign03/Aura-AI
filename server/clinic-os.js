@@ -1338,16 +1338,27 @@ router.get('/journey-stats', requireUser, async (req, res) => {
     const qualify = qualifyRes.rows[0]?.c || 0;
 
     // 5. Book: Confirmed appointments (clinic + Cal.com)
-    const bookRes = await db.query(
-      `SELECT COUNT(*)::int as c
-       FROM clinic_appointments a
-       JOIN leads l ON l.id = a.lead_id
-       WHERE (l.user_id = $1 OR l.user_id IS NULL)
-         AND a.status IN ('confirmed', 'arrived', 'in_consult', 'completed')`,
-      [uid]
-    );
+    const [bookClinicRes, bookCalRes] = await Promise.all([
+      db.query(
+        `SELECT COUNT(*)::int as c
+         FROM clinic_appointments a
+         JOIN leads l ON l.id = a.lead_id
+         WHERE (l.user_id = $1 OR l.user_id IS NULL)
+           AND a.status IN ('confirmed', 'arrived', 'in_consult', 'completed')
+           ${branchFilter}`,
+        [uid, branchParam].filter(Boolean)
+      ),
+      db.query(
+        `SELECT COUNT(*)::int as c
+         FROM calendly_events c
+         WHERE c.is_deleted = FALSE
+           AND c.status IN ('confirmed', 'arrived', 'in_consult', 'completed')
+           ${branchFilter}`,
+        [branchParam].filter(Boolean)
+      )
+    ]);
 
-    const book = bookRes.rows[0]?.c || 0;
+    const book = (bookClinicRes.rows[0]?.c || 0) + (bookCalRes.rows[0]?.c || 0);
 
     // 6. Consult: Completed visits only
     const consultRes = await db.query(

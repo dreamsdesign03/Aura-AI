@@ -752,6 +752,12 @@ async function syncCalComBookings(userId) {
       continue;
     }
 
+    // Also skip if the booking was previously marked as deleted
+    const existingCheck = await db.query('SELECT is_deleted FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
+    if (existingCheck.rows[0]?.is_deleted) {
+      continue;
+    }
+
     const attendee = (b.attendees && b.attendees[0]) || {};
     const bfr = b.bookingFieldsResponses || {};
     
