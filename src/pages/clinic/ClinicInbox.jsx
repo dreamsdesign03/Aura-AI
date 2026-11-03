@@ -751,7 +751,10 @@ export default function ClinicInbox() {
   });
 
   const syncMutation = useMutation({
-    mutationFn: () => clinicApi.inboxSync(),
+    mutationFn: async () => {
+      await clinicApi.inboxSync();
+      await clinicApi.aiCallsSync();
+    },
     onSuccess: () => refetch(),
   });
 

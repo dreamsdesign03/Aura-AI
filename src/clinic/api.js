@@ -1,6 +1,9 @@
 /** Thin fetch wrapper for the additive Clinic OS endpoints. */
 const BASE = '/api/clinic';
 
+/** Wrapper for /api/ai-calls endpoints (not under /api/clinic) */
+const AI_CALLS_BASE = '/api/ai-calls';
+
 async function request(path, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
@@ -79,6 +82,18 @@ export const clinicApi = {
     request(`/inbox/thread?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${leadId ? `&leadId=${encodeURIComponent(leadId)}` : ''}${phone ? `&phone=${encodeURIComponent(phone)}` : ''}`),
   inboxReply: (body) => request('/inbox/reply', { method: 'POST', body: JSON.stringify(body) }),
   inboxSync: () => request('/inbox/sync', { method: 'POST' }),
+
+  // AI Calls Sync (reliability fallback for Sarvam calls)
+  aiCallsSync: () => fetch(`${AI_CALLS_BASE}/sync`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+  }).then(async res => {
+    let payload = null;
+    try { payload = await res.json(); } catch { /* empty */ }
+    if (!res.ok) throw new Error(payload?.error || `Request failed (${res.status})`);
+    return payload;
+  }),
 
   // Dialer
   dialerLeads: () => request('/dialer/leads'),

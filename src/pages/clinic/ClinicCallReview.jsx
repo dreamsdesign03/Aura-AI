@@ -405,11 +405,14 @@ export default function ClinicCallReview({ id }) {
           <button
             type="button"
             className="co-btn co-btn-sm"
-            onClick={() => listQuery.refetch()}
+            onClick={async () => {
+              await clinicApi.aiCallsSync();
+              listQuery.refetch();
+            }}
             disabled={listQuery.isFetching}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            <RefreshCw size={13} className={listQuery.isFetching ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={13} className={listQuery.isFetching ? 'animate-spin' : ''} /> Refresh & Sync
           </button>
           <Link href="/clinic/dialer" className="co-btn co-btn-primary co-btn-sm">
             <PhoneCall size={14} /> Open Dialer

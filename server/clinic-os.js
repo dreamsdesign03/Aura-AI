@@ -1668,8 +1668,12 @@ router.get('/patients/:id', requireUser, async (req, res) => {
       })(),
       db.query('SELECT * FROM clinic_packages WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC', [uid, leadId]),
       tryQuery(
-        `SELECT id, status, started_at, duration_secs, transcript_summary, transcript, call_sid
-           FROM clinic_calls WHERE lead_id = $1 OR phone = $2 ORDER BY started_at DESC LIMIT 20`,
+        `SELECT id, status, started_at, duration_secs, transcript_summary, transcript, call_sid, booking_type
+           FROM clinic_calls WHERE lead_id = $1 OR phone = $2
+           UNION ALL
+           SELECT id, status, started_at, duration_secs, transcript_summary, transcript, call_sid, booking_type
+           FROM ai_calls WHERE lead_id = $1 OR to_phone = $2 OR from_phone = $2
+           ORDER BY started_at DESC LIMIT 20`,
         [leadId, patientRow.phone || '']
       ),
       db.query('SELECT * FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY visit_date DESC LIMIT 20', [uid, leadId]),

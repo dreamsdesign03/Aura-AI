@@ -3179,6 +3179,19 @@ function AiCallHistoryView({ leadId }) {
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
 
+  const getBookingTypeBadge = (bookingType) => {
+    switch (bookingType) {
+      case 'bulk_campaign':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Bulk</span>;
+      case 'single_call':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">Single</span>;
+      case 'inbound_call':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">Inbound</span>;
+      default:
+        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-50 text-gray-700 border border-gray-200">{bookingType || '—'}</span>;
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-8 text-gray-400 text-xs gap-2">
@@ -3193,7 +3206,7 @@ function AiCallHistoryView({ leadId }) {
       <div className="text-center py-8 px-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/50">
         <Phone className="w-8 h-8 mx-auto text-gray-300 mb-2" />
         <h4 className="text-xs font-bold text-gray-700">No AI Calls Placed Yet</h4>
-        <p className="text-[11px] text-gray-400 mt-1">Click the phone 📞 icon next to this lead to trigger an ElevenLabs AI proposal call.</p>
+        <p className="text-[11px] text-gray-400 mt-1">Click the phone 📞 icon next to this lead to trigger an AI call.</p>
       </div>
     );
   }
@@ -3205,6 +3218,7 @@ function AiCallHistoryView({ leadId }) {
         const isInProgress = call.status === "in-progress" || call.status === "processing";
         const isFailed = call.status === "failed";
         const isExpanded = expandedTranscriptId === call.id;
+        const bookingType = call.bookingType || call.booking_type || 'proposal_call';
 
         return (
           <div key={call.id} className="bg-white border border-gray-200/80 rounded-xl p-4 space-y-3 shadow-sm">
@@ -3212,7 +3226,7 @@ function AiCallHistoryView({ leadId }) {
               <div className="flex items-center gap-2">
                 <span className="w-6 h-6 rounded-lg bg-pink-100 text-pink-700 flex items-center justify-center text-xs">📞</span>
                 <span className="font-bold text-gray-900 text-xs">Proposal Call</span>
-                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-50 text-pink-700 border border-pink-200">consultation_call</span>
+                {getBookingTypeBadge(bookingType)}
               </div>
               <div className="flex items-center gap-2">
                 {isInProgress && (
@@ -3239,6 +3253,12 @@ function AiCallHistoryView({ leadId }) {
               <div>Duration: <span className="text-gray-900 font-semibold">{formatDuration(call.duration)}</span></div>
             </div>
 
+            {call.outcome && (
+              <div className="inline-flex items-center gap-1 px-2 py-1 rounded text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+                Outcome: {call.outcome}
+              </div>
+            )}
+
             {call.transcriptSummary && (
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-gray-700 space-y-1">
                 <div className="text-[10px] font-bold text-pink-600 uppercase tracking-wider">Call Summary</div>
@@ -3246,10 +3266,10 @@ function AiCallHistoryView({ leadId }) {
               </div>
             )}
 
-            {isCompleted && call.conversation_id && (
+            {isCompleted && call.recording_url && (
               <div className="pt-1">
                 <div className="text-[10px] font-semibold text-gray-500 mb-1">Audio Recording</div>
-                <audio controls src={`/api/ai-rec/${call.conversation_id}`} className="w-full h-8 rounded bg-gray-50 border border-gray-200" />
+                <audio controls src={call.recording_url} className="w-full h-8 rounded bg-gray-50 border border-gray-200" />
               </div>
             )}
 

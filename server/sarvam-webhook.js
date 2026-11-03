@@ -1,16 +1,195 @@
 const express = require('express');
 const db = require('./db');
-const { mapSarvamOutcome, adaptCampaignPayload } = require('./sarvam');
+const { mapSarvamOutcome, adaptCampaignPayload, recordingProxyUrl, listSarvamAnalytics } = require('./sarvam');
 const { normalizePhone } = require('./call-utils');
 const { resolveAttempt } = require('./bulk-calling');
 const { updateContactName } = require('./contact-name');
 
 const router = express.Router();
 
-function recordingProxyUrl(interactionId) {
-  if (!interactionId) return null;
-  const base = String(process.env.PUBLIC_APP_URL || '').replace(/\/$/, '');
-  return `${base}/api/bulk-calling/calls/recording?iid=${encodeURIComponent(interactionId)}`;
+// In-memory rate limiter for /sync endpoint
+let lastDirectSyncAt = 0;
+const DIRECT_SYNC_MIN_INTERVAL_MS = 10000;
+
+/**
+ * Handle Sarvam webhook for calls NOT matched to a bulk campaign/contact.
+ * Covers: single outbound (Leads/Dialer), inbound, and unknown calls.
+ */
+async function handleDirectCallWebhook(payload) {
+  const interactionId = payload.interaction_id || null;
+  const requestId = payload.attempt_id || interactionId || `att-${Date.now()}`;
+  const startedAt = payload.start_datetime || payload.executed_at || new Date().toISOString();
+
+  // Extract direction and phones
+  const direction = (payload.channel_direction || 'outbound').toLowerCase();
+  const isInbound = direction === 'inbound';
+  
+  // Customer phone: user_phone_number for outbound, caller number for inbound
+  const customerPhoneRaw = isInbound 
+    ? (payload.caller_number || payload.user_phone_number || payload.from_number || '')
+    : (payload.user_phone_number || payload.user_config?.user_phone_number || payload.phone_number || '');
+  const botPhone = payload.bot_contact_identifier || process.env.SARVAM_AGENT_NUMBER || '+917965852999';
+  
+  const toPhone = isInbound ? botPhone : customerPhoneRaw;
+  const fromPhone = isInbound ? customerPhoneRaw : botPhone;
+  const customerPhoneForLeadMatch = customerPhoneRaw;
+
+  // Normalize phone for matching
+  const cleanCustomerPhone = normalizePhone(customerPhoneForLeadMatch);
+  const customerPhone10 = cleanCustomerPhone ? cleanCustomerPhone.local.replace(/\D/g, '').slice(-10) : '';
+
+  // Resolve lead: 1) metadata.lead_id, 2) match by phone10 on leads.phone or leads.whatsapp
+  let lead = null;
+  let leadId = null;
+
+  // 1) Try metadata.lead_id (from webhook_config metadata echoed in payload)
+  const metaLeadId = payload.metadata?.lead_id || payload.webhook_config?.metadata?.lead_id;
+  if (metaLeadId) {
+    const r = await db.query('SELECT * FROM leads WHERE id = $1', [metaLeadId]);
+    if (r.rows.length > 0) {
+      lead = r.rows[0];
+      leadId = lead.id;
+    }
+  }
+
+  // 2) Match by last 10 digits of phone or whatsapp
+  if (!lead && customerPhone10.length === 10) {
+    const r = await db.query(
+      `SELECT * FROM leads 
+       WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+          OR REPLACE(REPLACE(REPLACE(COALESCE(whatsapp,''), '+', ''), '-', ''), ' ', '') LIKE '%' || $1
+       ORDER BY id DESC LIMIT 1`,
+      [customerPhone10]
+    );
+    if (r.rows.length > 0) {
+      lead = r.rows[0];
+      leadId = lead.id;
+    }
+  }
+
+  // 3) Create lead if none exists (so call is never orphaned)
+  if (!lead) {
+    const ins = await db.query(
+      `INSERT INTO leads (phone, name_original, name_english, name_source, status, pipeline_stage, source, created_at, updated_at)
+       VALUES ($1, $2, $3, 'call', 'New', 'Lead', 'AI Call', NOW(), NOW())
+       RETURNING *`,
+      [customerPhoneForLeadMatch, 'AI Caller', 'AI Caller']
+    );
+    lead = ins.rows[0];
+    leadId = lead.id;
+  }
+
+  // Map outcome using existing helper
+  const { callStatus, outcome, summary, confirmedSlot, sentiment, spokenName } = mapSarvamOutcome(adaptCampaignPayload(payload));
+  
+  const duration = payload.duration != null ? Math.round(payload.duration) : (payload.duration_in_seconds ? Math.round(payload.duration_in_seconds) : 0);
+  const recUrl = recordingProxyUrl(interactionId);
+  const transcript = payload.interaction_transcript ? JSON.stringify(payload.interaction_transcript) : null;
+  const bookingType = isInbound ? 'inbound_call' : 'single_call';
+
+  // Upsert ai_calls keyed by conversation_id (interaction_id) / call_sid (attempt_id)
+  const existingAiCall = await db.query(
+    'SELECT id FROM ai_calls WHERE conversation_id = $1 OR call_sid = $2 LIMIT 1',
+    [interactionId, requestId]
+  );
+
+  if (existingAiCall.rows.length === 0) {
+    await db.query(`
+      INSERT INTO ai_calls (
+        lead_id, conversation_id, call_sid, to_phone, from_phone,
+        lead_name, company_name, status, booking_type, duration_secs,
+        transcript_summary, recording_url, sentiment, outcome, provider,
+        direction, transcript, started_at, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5,
+        $6, $7, $8, $9, $10,
+        $11, $12, $13, $14, 'sarvam',
+        $15, $16, COALESCE($17::timestamptz, NOW()), NOW(), NOW()
+      )
+    `, [
+      leadId,
+      interactionId,
+      requestId,
+      toPhone,
+      fromPhone,
+      [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'AI Caller',
+      lead.company || 'Aura Clinic',
+      callStatus || 'completed',
+      bookingType,
+      duration,
+      summary,
+      recUrl,
+      sentiment || 'Neutral',
+      outcome || 'not_booked',
+      direction,
+      transcript,
+      startedAt
+    ]);
+  } else {
+    // Idempotent update
+    await db.query(`
+      UPDATE ai_calls
+         SET status = $1,
+             duration_secs = GREATEST(duration_secs, $2),
+             transcript_summary = COALESCE($3, transcript_summary),
+             recording_url = COALESCE($4, recording_url),
+             sentiment = COALESCE($5, sentiment),
+             outcome = COALESCE($6, outcome),
+             transcript = COALESCE($7, transcript),
+             updated_at = NOW()
+       WHERE id = $8
+    `, [
+      callStatus || 'completed',
+      duration,
+      summary,
+      recUrl,
+      sentiment || 'Neutral',
+      outcome || 'not_booked',
+      transcript,
+      existingAiCall.rows[0].id
+    ]);
+  }
+
+  // Update leads: last_ai_call_status, last_ai_call_at
+  let updateLeadSql = 'UPDATE leads SET last_ai_call_status = $1, last_ai_call_at = NOW()';
+  let updateLeadParams = [callStatus || 'completed', leadId];
+  
+  if (outcome === 'do_not_call') {
+    updateLeadSql += ', do_not_call = TRUE';
+  }
+  
+  if (outcome === 'booked') {
+    const lr = await db.query('SELECT status FROM leads WHERE id = $1', [leadId]);
+    if (lr.rows.length > 0 && lr.rows[0].status !== 'project_won' && lr.rows[0].status !== 'quote_sent') {
+      updateLeadSql += ', status = $' + (updateLeadParams.length + 1);
+      updateLeadParams.push('discovery_call');
+    }
+  }
+  
+  updateLeadSql += ' WHERE id = $' + (updateLeadParams.length + 1);
+  updateLeadParams.push(leadId);
+  await db.query(updateLeadSql, updateLeadParams);
+
+  // Insert agent_activity 'call_completed' for the lead's user
+  if (lead.user_id != null) {
+    const activityDetail = `Status: ${callStatus} | Sentiment: ${sentiment} \nSummary: ${summary}` + (recUrl ? `\nRecording: ${recUrl}` : '');
+    await db.query(
+      'INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail) VALUES ($1, \'Ketki (AI)\', \'call_completed\', $2, $3, $4, $5)',
+      [lead.user_id, callStatus || 'completed', [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'AI Caller', lead.company, activityDetail]
+    );
+  }
+
+  // Update contact name with spoken name from final_agent_variables
+  if (spokenName && spokenName.trim()) {
+    try {
+      await updateContactName({ phone: customerPhoneForLeadMatch, rawName: spokenName, nameSource: 'call' });
+      console.log(`[Sarvam webhook] ✅ Updated contact name for ${customerPhoneForLeadMatch}: ${spokenName}`);
+    } catch (nameErr) {
+      console.warn('[Sarvam webhook] updateContactName warning:', nameErr.message);
+    }
+  }
+
+  console.log(`[Sarvam webhook] ✅ Direct call saved: lead=${leadId}, type=${bookingType}, iid=${interactionId}, outcome=${outcome}`);
 }
 
 async function handleCampaignWebhook(campaignId, payload) {
@@ -252,7 +431,13 @@ router.post('/', async (req, res) => {
       }
     }
 
-    return res.status(200).json({ success: true, message: 'Received' });
+    // No bulk campaign/contact matched — handle as direct call (single outbound, inbound, or unknown)
+    try {
+      await handleDirectCallWebhook(payload);
+    } catch (directErr) {
+      console.error('[Sarvam webhook] handleDirectCallWebhook error:', directErr);
+    }
+    return res.status(200).json({ success: true });
   } catch (err) {
     console.error('[Sarvam Webhook Error]:', err);
     return res.status(200).json({ success: false, error: err.message });
