@@ -214,6 +214,20 @@ function ThreadDrawer({ thread, onClose }) {
     refetchOnWindowFocus: true,
   });
 
+  // Automatically mark WhatsApp conversation as read when opened
+  useEffect(() => {
+    if (thread?.type === 'whatsapp') {
+      thread.unread = 0;
+      fetch('/api/whatsapp/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: thread.id, phone: thread.phone, leadId: thread.leadId })
+      })
+      .then(() => queryClient.invalidateQueries({ queryKey: ['clinic', 'inbox'] }))
+      .catch(() => {});
+    }
+  }, [thread?.id, thread?.type]);
+
   const replyMutation = useMutation({
     mutationFn: (body) => clinicApi.inboxReply(body),
     onSuccess: () => {
@@ -401,22 +415,55 @@ function ThreadDrawer({ thread, onClose }) {
                   ) : (
                     detail.messages.map((m) => {
                       const isOut = m.direction === 'outbound';
+                      const rawContent = m.content || '';
+                      let displayContent = rawContent;
+                      if (rawContent.includes("[Template: hello_world]") || rawContent.includes("Welcome and congratulations")) {
+                        displayContent = "Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.";
+                      } else if (rawContent.includes("[Template: auraai_leads]")) {
+                        displayContent = "Hello from Dr. Aditya Shah, founder of Skinnonest and Aura Laser & Cosmetic Clinic. We are following up regarding your appointment & inquiry.";
+                      } else if (rawContent.includes("[Template: aura_booking_confirmation]")) {
+                        displayContent = "Hi! Your appointment has been confirmed at Aura Laser & Cosmetic Clinic.";
+                      } else if (rawContent.startsWith("[Template: ") && rawContent.endsWith("]")) {
+                        const tName = rawContent.slice(11, -1).replace(/_/g, ' ');
+                        displayContent = `[${tName}]`;
+                      }
+
                       return (
                         <div
                           key={m.id}
                           style={{
                             alignSelf: isOut ? 'flex-end' : 'flex-start',
                             maxWidth: '82%',
-                            background: isOut ? '#FBE9F1' : '#FFFFFF',
+                            background: isOut ? (m.isAi ? '#FDF2F8' : '#FBE9F1') : '#FFFFFF',
                             color: isOut ? '#831843' : '#1F2937',
-                            border: isOut ? '1px solid #F3D9E5' : '1px solid #E5E7EB',
+                            border: isOut ? (m.isAi ? '1px solid #FBCFE8' : '1px solid #F3D9E5') : '1px solid #E5E7EB',
                             borderRadius: isOut ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
                             padding: '8px 12px',
                             boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                           }}
                         >
+                          {/* Sender badge (Aura AI vs Clinic Team) */}
+                          {isOut && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                              <span style={{
+                                fontSize: 9.5,
+                                fontWeight: 700,
+                                color: m.isAi ? '#9D174D' : '#4B5563',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                background: m.isAi ? '#FCE7F3' : '#F3F4F6',
+                                border: m.isAi ? '1px solid #FBCFE8' : '1px solid #E5E7EB',
+                                padding: '1px 6px',
+                                borderRadius: 8
+                              }}>
+                                {m.isAi ? <Sparkles size={9} /> : <User size={9} />}
+                                {m.isAi ? 'Aura AI' : 'Clinic Team'}
+                              </span>
+                            </div>
+                          )}
                           <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
-                            {m.content}
+                            {displayContent}
                           </div>
                           <div
                             style={{
@@ -1174,7 +1221,7 @@ export default function ClinicInbox() {
                 key={`${t.type}-${t.id}`}
                 thread={t}
                 isSelected={openThread?.id === t.id && openThread?.type === t.type}
-                onClick={() => setOpenThread(t)}
+                onClick={() => { t.unread = 0; setOpenThread(t); }}
               />
             ))}
           </div>

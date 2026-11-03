@@ -2602,7 +2602,7 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
       if (!conv && last10) {
         const convRes = await db.query(
           `SELECT * FROM whatsapp_conversations
-            WHERE phone LIKE $1 OR wa_phone_number LIKE $1
+            WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE $1
             ORDER BY id DESC LIMIT 1`,
           [`%${last10}%`]
         );
@@ -2618,52 +2618,85 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
         resolvedLeadId = await findLeadIdByPhone(targetPhone);
       }
 
-      let msgs = { rows: [] };
-      if (conv?.id) {
-        const params = [conv.id, resolvedLeadId || 0];
-        let phoneClause = '';
-        if (last10) {
-          params.push(`%${last10}%`);
-          phoneClause = ` OR phone LIKE $${params.length}`;
+      // Mark conversation as read both on conversation and incoming messages
+      try {
+        if (conv?.id) {
+          await db.query('UPDATE whatsapp_conversations SET unread_count = 0 WHERE id = $1', [conv.id]);
+          await db.query(
+            `UPDATE whatsapp_messages SET status = 'read' WHERE conversation_id = $1 AND direction = 'inbound' AND (status IS NULL OR status != 'read')`,
+            [conv.id]
+          );
         }
+        if (last10) {
+          await db.query(
+            `UPDATE whatsapp_conversations SET unread_count = 0 WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE $1`,
+            [`%${last10}%`]
+          );
+          await db.query(
+            `UPDATE whatsapp_messages SET status = 'read' WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE $1 AND direction = 'inbound' AND (status IS NULL OR status != 'read')`,
+            [`%${last10}%`]
+          );
+        }
+      } catch (readErr) {
+        console.warn('[clinic-os] error marking whatsapp read:', readErr.message);
+      }
+
+      // Fetch all messages (including AI messages, automated confirmations, and staff replies)
+      let msgs = { rows: [] };
+      const params = [];
+      const conds = [];
+
+      if (conv?.id) {
+        params.push(conv.id);
+        conds.push(`conversation_id = ${params.length}`);
+      }
+      if (resolvedLeadId) {
+        params.push(resolvedLeadId);
+        conds.push(`(lead_id IS NOT NULL AND lead_id = ${params.length})`);
+      }
+      if (last10) {
+        params.push(`%${last10}%`);
+        conds.push(`REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE ${params.length}`);
+      }
+
+      if (conds.length > 0) {
         msgs = await db.query(
-          `SELECT id, conversation_id, direction, content, body, status, wa_message_id,
-                  meta_message_id, error_message, sent_at, timestamp, created_at
+          `SELECT id, conversation_id, lead_id, direction, content, body, status, wa_message_id,
+                  meta_message_id, template_name, error_message, sent_at, timestamp, created_at
              FROM whatsapp_messages
-            WHERE conversation_id = $1
-               OR (lead_id IS NOT NULL AND lead_id = $2)${phoneClause}
+            WHERE ${conds.join(' OR ')}
             ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
           params
         );
-      } else if (last10) {
-        msgs = await db.query(
-          `SELECT id, conversation_id, direction, content, body, status, wa_message_id,
-                  meta_message_id, error_message, sent_at, timestamp, created_at
-             FROM whatsapp_messages
-            WHERE phone LIKE $1
-            ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
-          [`%${last10}%`]
-        );
-      } else if (resolvedLeadId) {
-        msgs = await db.query(
-          `SELECT id, conversation_id, direction, content, body, status, wa_message_id,
-                  meta_message_id, error_message, sent_at, timestamp, created_at
-             FROM whatsapp_messages
-            WHERE lead_id = $1
-            ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
-          [resolvedLeadId]
-        );
       }
 
-      const messageList = msgs.rows.map(m => ({
-        id: m.id,
-        direction: m.direction || 'outbound',
-        content: m.content || m.body || '',
-        status: m.status || 'delivered',
-        waMessageId: m.wa_message_id || m.meta_message_id || null,
-        errorMessage: m.error_message || null,
-        sentAt: m.sent_at || m.timestamp || m.created_at
-      }));
+      const messageList = msgs.rows.map(m => {
+        const raw = m.content || m.body || '';
+        const isAi = Boolean(
+          m.template_name || 
+          (m.direction === 'outbound' && (
+            raw.includes('appointment is confirmed') ||
+            raw.includes('Aura Consultation') ||
+            raw.includes('Aura Clinic') ||
+            raw.includes('Aura Laser') ||
+            raw.includes('Skinnonest') ||
+            raw.includes('Dr. Aditya Shah') ||
+            raw.includes('Dr. Pruthvi Patel') ||
+            raw.includes('[Template:')
+          ))
+        );
+        return {
+          id: m.id,
+          direction: m.direction || 'outbound',
+          content: raw,
+          status: m.status || 'delivered',
+          waMessageId: m.wa_message_id || m.meta_message_id || null,
+          templateName: m.template_name || null,
+          isAi: isAi,
+          errorMessage: m.error_message || null,
+          sentAt: m.sent_at || m.timestamp || m.created_at
+        };
+      });
 
       return res.json({
         type: 'whatsapp',
