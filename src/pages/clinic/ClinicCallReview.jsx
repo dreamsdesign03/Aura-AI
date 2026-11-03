@@ -292,6 +292,24 @@ export default function ClinicCallReview({ id }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isTranscribing, setIsTranscribing] = useState(false);
 
+  // Helper: determine if a call counts as "booked"
+  const isBookedCall = useCallback((call) => {
+    const outcome = (call.outcome || '').toLowerCase().trim();
+    const bookingType = (call.booking_type || '').toLowerCase().trim();
+    
+    // Check outcome values
+    if (outcome === 'booked' || outcome === 'appointment_booked' || outcome === 'confirmed') {
+      return true;
+    }
+    
+    // Check booking_type for appointment-related types
+    if (bookingType === 'appointment' || bookingType === 'consultation' || bookingType === 'booked') {
+      return true;
+    }
+    
+    return false;
+  }, []);
+
   const listQuery = useQuery({
     queryKey: ['clinic', 'call-reviews'],
     queryFn: () => clinicApi.callReviews(),
@@ -336,6 +354,8 @@ export default function ClinicCallReview({ id }) {
       outbound: rawCalls.filter(c => (c.direction || 'outbound').toLowerCase() === 'outbound').length,
       plivo: rawCalls.filter(c => (c.provider || 'plivo').toLowerCase() === 'plivo').length,
       sarvam: rawCalls.filter(c => (c.provider || '').toLowerCase() === 'sarvam').length,
+      recordings: rawCalls.filter(c => !!c.recording_url).length,
+      booked: rawCalls.filter(isBookedCall).length,
       total_duration: rawCalls.reduce((s, c) => s + (c.duration_secs || 0), 0),
     };
 
@@ -348,6 +368,7 @@ export default function ClinicCallReview({ id }) {
       if (activeFilter === 'plivo' && p !== 'plivo') return false;
       if (activeFilter === 'sarvam' && p !== 'sarvam') return false;
       if (activeFilter === 'recording' && !c.recording_url) return false;
+      if (activeFilter === 'booked' && !isBookedCall(c)) return false;
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -473,7 +494,8 @@ export default function ClinicCallReview({ id }) {
                 { id: 'outbound', label: 'Outbound', count: stats.outbound },
                 { id: 'plivo', label: 'Plivo Calls', count: stats.plivo },
                 { id: 'sarvam', label: 'Sarvam AI', count: stats.sarvam },
-                { id: 'recording', label: 'Recordings', count: rawCalls.filter(c => !!c.recording_url).length },
+                { id: 'booked', label: 'Booked', count: stats.booked },
+                { id: 'recording', label: 'Recordings', count: stats.recordings },
               ].map(f => {
                 const active = activeFilter === f.id;
                 return (
@@ -569,6 +591,8 @@ export default function ClinicCallReview({ id }) {
               <p className="co-sm co-mut" style={{ marginTop: 6 }}>
                 {searchQuery
                   ? `No calls matched "${searchQuery}". Try a different keyword.`
+                  : activeFilter === 'booked'
+                  ? 'No booked calls yet.'
                   : 'Outbound & inbound voice calls across Plivo and Sarvam AI will show up here.'}
               </p>
               <Link href="/clinic/dialer" className="co-btn co-btn-primary" style={{ marginTop: 14 }}>
