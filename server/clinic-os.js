@@ -2750,8 +2750,8 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
 // Reply or send message from Inbox
 router.post('/inbox/reply', requireUser, async (req, res) => {
   try {
-    const { type, conversationId, leadId, phone, email, subject, body, emailId } = req.body || {};
-    if (!body || !body.trim()) return res.status(400).json({ error: 'Message body is required' });
+    const { type, conversationId, leadId, phone, email, subject, body, emailId, templateName, templateParams, templateLang } = req.body || {};
+    if (!body && !templateName) return res.status(400).json({ error: 'Message body or template is required' });
 
     if (type === 'whatsapp') {
       const targetPhone = phone || '';
@@ -2761,7 +2761,11 @@ router.post('/inbox/reply', requireUser, async (req, res) => {
         userId: req.user.id,
         leadId: leadId ? Number(leadId) : null,
         phone: targetPhone,
-        message: body.trim(),
+        message: body ? body.trim() : '',
+        templateName: templateName || null,
+        templateParams: Array.isArray(templateParams) ? templateParams : null,
+        templateLang: templateLang || 'en',
+        autoFallback: true,
       });
 
       if (!sendResult.ok) {

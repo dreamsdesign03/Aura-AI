@@ -201,6 +201,8 @@ function ThreadRow({ thread, isSelected, onClick }) {
 function ThreadDrawer({ thread, onClose }) {
   const queryClient = useQueryClient();
   const [replyText, setReplyText] = useState('');
+  const [useMetaTemplate, setUseMetaTemplate] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState('auraai_leads');
   const [emailSubject, setEmailSubject] = useState(thread.subject ? `Re: ${thread.subject.replace(/^Re:\s*/i, '')}` : 'Re: Consultation & Treatment');
   const [sendingStatus, setSendingStatus] = useState(null);
 
@@ -216,6 +218,7 @@ function ThreadDrawer({ thread, onClose }) {
     mutationFn: (body) => clinicApi.inboxReply(body),
     onSuccess: () => {
       setReplyText('');
+      setUseMetaTemplate(false);
       setSendingStatus('Sent successfully!');
       setTimeout(() => setSendingStatus(null), 3000);
       refetch();
@@ -238,18 +241,38 @@ function ThreadDrawer({ thread, onClose }) {
     });
   };
 
+  const handleSendOfficialTemplate = (tplName = 'auraai_leads') => {
+    setSendingStatus('Sending official Meta template...');
+    replyMutation.mutate({
+      type: 'whatsapp',
+      conversationId: thread.id,
+      leadId: thread.leadId,
+      phone: thread.phone,
+      body: `[Template: ${tplName}]`,
+      templateName: tplName,
+      templateParams: tplName === 'auraai_leads' ? ['Aura Laser & Cosmetic Clinic'] : [],
+      templateLang: tplName === 'hello_world' ? 'en_US' : 'en',
+    });
+  };
+
   const handleSendReply = (e) => {
     e.preventDefault();
-    if (!replyText.trim()) return;
+    if (!replyText.trim() && !useMetaTemplate) return;
 
     if (thread.type === 'whatsapp') {
-      replyMutation.mutate({
+      const payload = {
         type: 'whatsapp',
         conversationId: thread.id,
         leadId: thread.leadId,
         phone: thread.phone,
-        body: replyText.trim(),
-      });
+        body: replyText.trim() || `[Template: ${selectedTemplate}]`,
+      };
+      if (useMetaTemplate) {
+        payload.templateName = selectedTemplate;
+        payload.templateParams = selectedTemplate === 'auraai_leads' ? ['Aura Laser & Cosmetic Clinic'] : [];
+        payload.templateLang = selectedTemplate === 'hello_world' ? 'en_US' : 'en';
+      }
+      replyMutation.mutate(payload);
     } else if (thread.type === 'email') {
       replyMutation.mutate({
         type: 'email',
@@ -678,6 +701,83 @@ function ThreadDrawer({ thread, onClose }) {
             )}
           </div>
 
+          {/* WhatsApp Quick Chips & 24h Template Bypass */}
+          {thread.type === 'whatsapp' && (
+            <div style={{ marginBottom: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 2 }}>
+                {[
+                  "Hi {{name}} 👋 Wanted to check in regarding your appointment at Aura Clinic.",
+                  "Hi {{name}}, your consultation details are ready. Let us know if you have any questions!",
+                  "Following up on your visit. Do you have 2 minutes for a quick chat today?"
+                ].map(tmpl => {
+                  const patientName = (thread.name || 'there').split(' ')[0];
+                  const txt = tmpl.replace("{{name}}", patientName);
+                  return (
+                    <button
+                      key={tmpl}
+                      type="button"
+                      onClick={() => { setReplyText(txt); setUseMetaTemplate(false); }}
+                      style={{
+                        fontSize: 10.5,
+                        padding: '3px 8px',
+                        borderRadius: 12,
+                        border: '1px solid #BBF7D0',
+                        background: '#F0FDF4',
+                        color: '#15803D',
+                        whiteSpace: 'nowrap',
+                        cursor: 'pointer',
+                        fontWeight: 500,
+                        flexShrink: 0
+                      }}
+                    >
+                      {txt.slice(0, 32)}...
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11 }}>
+                <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, cursor: 'pointer', color: useMetaTemplate ? '#A4285E' : '#64748B', fontWeight: 600 }}>
+                  <input
+                    type="checkbox"
+                    checked={useMetaTemplate}
+                    onChange={(e) => setUseMetaTemplate(e.target.checked)}
+                    style={{ accentColor: '#A4285E' }}
+                  />
+                  <span>⚡ Official Meta Template (24h Window Bypass)</span>
+                </label>
+
+                {useMetaTemplate && (
+                  <select
+                    value={selectedTemplate}
+                    onChange={(e) => setSelectedTemplate(e.target.value)}
+                    className="co-input"
+                    style={{ fontSize: 11, padding: '2px 8px', height: 26, width: 'auto' }}
+                  >
+                    <option value="auraai_leads">auraai_leads (Official Template)</option>
+                    <option value="hello_world">hello_world (Test Template)</option>
+                  </select>
+                )}
+              </div>
+
+              {sendingStatus && (sendingStatus.includes('24') || sendingStatus.includes('expired')) && (
+                <div style={{ marginTop: 2, display: 'flex', alignItems: 'center', gap: 8, background: '#FEF2F2', padding: '6px 10px', borderRadius: 6, border: '1px solid #FECACA' }}>
+                  <span style={{ fontSize: 11, color: '#991B1B', flex: 1 }}>
+                    24-hour window expired. Click to dispatch approved Meta Template:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleSendOfficialTemplate('auraai_leads')}
+                    className="co-btn co-btn-p co-btn-sm"
+                    style={{ fontSize: 11, padding: '3px 8px', whiteSpace: 'nowrap' }}
+                  >
+                    Send Meta Template
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           <form onSubmit={handleSendReply} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {thread.type === 'email' && (
               <input
@@ -709,7 +809,7 @@ function ThreadDrawer({ thread, onClose }) {
               <button
                 type="submit"
                 className="co-btn co-btn-p co-btn-sm"
-                disabled={replyMutation.isPending || !replyText.trim()}
+                disabled={replyMutation.isPending || (!replyText.trim() && !useMetaTemplate)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
                 {replyMutation.isPending ? (

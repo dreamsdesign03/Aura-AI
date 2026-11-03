@@ -326,7 +326,7 @@ async function persistWhatsAppMessage({
  *
  * Returns { ok, status, error, details, metaMessageId, message }.
  */
-async function sendWhatsAppMessage({ userId, leadId = null, phone, message, templateName, templateParams, templateLang }) {
+async function sendWhatsAppMessage({ userId, leadId = null, phone, message, templateName, templateParams, templateLang, autoFallback = true }) {
   if (!phone) return { ok: false, status: 400, error: 'Phone number is required.' };
 
   const targetPhone = cleanPhoneNumber(phone);
@@ -358,7 +358,7 @@ async function sendWhatsAppMessage({ userId, leadId = null, phone, message, temp
   let metaPayload;
   if (isTemplate) {
     const isAuraTemplate = templateName === 'auraai_lead_send_template';
-    const codeLang = isAuraTemplate ? 'en' : (templateLang || 'en');
+    const codeLang = templateName === 'hello_world' ? 'en_US' : (isAuraTemplate ? 'en' : (templateLang || 'en'));
     metaPayload = {
       messaging_product: 'whatsapp',
       recipient_type: 'individual',
@@ -446,6 +446,30 @@ async function sendWhatsAppMessage({ userId, leadId = null, phone, message, temp
   if (!metaRes.ok) {
     const code = metaData?.error?.code;
     let errorMsg = metaData?.error?.message || metaData?.error?.error_user_msg || 'Meta WhatsApp delivery failed.';
+
+    // Auto-fallback to official Meta approved template if 24h customer window is closed
+    if (code === 131047 && !isTemplate && autoFallback !== false) {
+      console.log('[whatsapp] 24-hour customer window expired. Auto-falling back to approved Meta template for', targetPhone);
+      const fallbackResult = await sendWhatsAppMessage({
+        userId,
+        leadId,
+        phone: targetPhone,
+        message: msgContent,
+        templateName: 'auraai_leads',
+        templateParams: ['Aura Laser & Cosmetic Clinic'],
+        templateLang: 'en',
+        autoFallback: false,
+      });
+      if (fallbackResult.ok) {
+        return {
+          ok: true,
+          metaMessageId: fallbackResult.metaMessageId,
+          message: fallbackResult.message,
+          warning: 'Delivered via official Meta template (patient 24-hour customer window was expired).',
+        };
+      }
+    }
+
     if (code === 131047) {
       errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
     } else if (code === 131049) {
