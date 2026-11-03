@@ -5,7 +5,7 @@ import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Clock,
   Check, Trash2, MapPin, Phone, IndianRupee, List, ExternalLink,
   Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User,
-  Play, Pause, Volume2, Download, MessageSquare,
+  Play, Pause, Volume2, Download, MessageSquare, PhoneOff, Link2,
 } from 'lucide-react';
 import { clinicApi, fullName, money, timeLabel, dateLabel, cleanEnglishName, cleanEnglishTreatment } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
@@ -279,11 +279,12 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
   );
 }
 
-function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDelete, busy }) {
+function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDelete, onLinkedCall, busy }) {
   const [reschedule, setReschedule] = useState(false);
   const [date, setDate] = useState(toDateInput(new Date(appointment.starts_at)));
   const [time, setTime] = useState(toTimeInput(new Date(appointment.starts_at)));
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [linkOpen, setLinkOpen] = useState(false);
 
   const cleanPh = (appointment.phone || '').replace(/[^0-9]/g, '');
   const isMeet = appointment.meeting_link && appointment.meeting_link.startsWith('http');
@@ -302,13 +303,18 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
           <StatusChip status={appointment.status} />
-          {appointment.source === 'cal.com' ? (
+          {appointment.source ? (
             <span className="co-chip co-c-p" style={{ fontWeight: 600 }}>
-              <CalendarDays size={11} /> Online Booking
+              <CalendarDays size={11} /> {appointment.source}
             </span>
           ) : null}
           {appointment.branch ? (
             <span className="co-chip co-c-n"><MapPin size={11} /> {appointment.branch}</span>
+          ) : (
+            <span className="co-chip co-c-n" style={{ color: '#64748B' }}><MapPin size={11} /> Unassigned branch</span>
+          )}
+          {appointment.provider ? (
+            <span className="co-chip co-c-n"><User size={11} /> {appointment.provider}</span>
           ) : null}
           {appointment.phone ? (
             <a href={`tel:${appointment.phone}`} className="co-chip co-c-p"><Phone size={11} /> {appointment.phone}</a>
@@ -440,13 +446,16 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
           </div>
         )}
 
-        {/* Reassuring notice if direct online booking without voice call */}
+        {/* No reliable call match — never show a wrong call, offer manual linking */}
         {!hasVoiceCall && (
-          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
-            <CalendarDays size={18} style={{ color: '#64748B', flexShrink: 0 }} />
-            <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.45 }}>
-              <strong>Direct Calendar Reservation</strong> — Booked via the online scheduler or front desk walk-in. No automated AI voice call was placed for this booking.
+          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <PhoneOff size={18} style={{ color: '#64748B', flexShrink: 0 }} />
+            <div style={{ fontSize: 11.5, color: '#475569', lineHeight: 1.45, flex: 1, minWidth: 180 }}>
+              <strong>No call linked</strong> — no AI call reliably matches this booking. Link the correct call manually if needed.
             </div>
+            <button type="button" className="co-btn co-btn-sm" onClick={() => setLinkOpen(true)}>
+              <Link2 size={12} /> Link call
+            </button>
           </div>
         )}
 
@@ -517,6 +526,111 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
             </button>
           )}
           <button type="button" className="co-btn co-btn-sm" onClick={onClose}>Close</button>
+        </div>
+      </div>
+
+      {linkOpen ? (
+        <LinkCallModal
+          appointment={appointment}
+          onClose={() => setLinkOpen(false)}
+          onLinked={() => {
+            setLinkOpen(false);
+            if (onLinkedCall) onLinkedCall();
+          }}
+        />
+      ) : null}
+    </Modal>
+  );
+}
+
+function LinkCallModal({ appointment, onClose, onLinked }) {
+  const qc = useQueryClient();
+  const type = appointment.calendly_uri ? 'cal' : 'clinic';
+  const { data, isLoading } = useQuery({
+    queryKey: ['clinic', 'appointment-calls', appointment.id, type, appointment.phone],
+    queryFn: () => clinicApi.appointmentCalls(appointment.id, type, appointment.phone),
+  });
+  const link = useMutation({
+    mutationFn: (callId) => clinicApi.linkAppointmentCall(appointment.id, callId, type),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      onLinked();
+    },
+  });
+
+  const calls = data?.calls || [];
+
+  return (
+    <Modal
+      title="Link AI call"
+      subtitle={`${getContactDisplayName(appointment)} · ${dateLabel(appointment.starts_at)} ${timeLabel(appointment.starts_at)}`}
+      onClose={onClose}
+      width={620}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <p className="co-sm co-mut" style={{ margin: 0 }}>
+          Automatic matching found no reliable call for this booking. Pick the call that booked it — checksum, date and summary are shown so you can verify.
+        </p>
+
+        {isLoading ? (
+          <Spinner label="Loading calls…" />
+        ) : calls.length === 0 ? (
+          <div className="co-empty" style={{ padding: '24px 12px' }}>
+            <PhoneOff size={24} style={{ color: '#CBD5E1', marginBottom: 6 }} />
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>No calls found for this phone number</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 380, overflowY: 'auto' }}>
+            {calls.map((c) => (
+              <div
+                key={c.id}
+                style={{
+                  border: c.suggested ? '1px solid #F3D9E5' : '1px solid #E2E8F0',
+                  background: c.suggested ? '#FFF5F8' : '#FFFFFF',
+                  borderRadius: 10,
+                  padding: '10px 12px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: '#0F172A' }}>
+                      {c.started_at ? `${dateLabel(c.started_at)} · ${timeLabel(c.started_at)}` : 'Time not available'}
+                    </span>
+                    {c.suggested ? <span className="co-chip co-c-p" style={{ fontSize: 9.5 }}>Suggested</span> : null}
+                    {c.outcome ? <span className="co-chip co-c-n" style={{ fontSize: 9.5 }}>{c.outcome}</span> : null}
+                  </div>
+                  <div className="co-xs co-mut" style={{ marginTop: 2 }}>
+                    {c.lead_name || 'Name not available'} · {c.to_phone || 'Number not available'}
+                    {c.duration_secs ? ` · ${Math.round(c.duration_secs / 60)} min` : ''}
+                  </div>
+                  {c.transcript_summary ? (
+                    <div className="co-sm" style={{ marginTop: 4, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                      {c.transcript_summary}
+                    </div>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  className={`co-btn co-btn-sm ${c.suggested ? 'co-btn-primary' : ''}`}
+                  style={{ flexShrink: 0 }}
+                  onClick={() => link.mutate(c.id)}
+                  disabled={link.isPending}
+                >
+                  <Link2 size={12} /> Link
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {link.isError ? <p className="co-sm" style={{ color: '#B91C1C', margin: 0 }}>{link.error?.message}</p> : null}
+
+        <div className="co-row" style={{ justifyContent: 'flex-end' }}>
+          <button type="button" className="co-btn" onClick={onClose}>Cancel</button>
         </div>
       </div>
     </Modal>
@@ -892,7 +1006,10 @@ export default function ClinicAppointments() {
                               title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)}`}
                             >
                               {getContactDisplayName(a)}
-                              <small>{timeLabel(a.starts_at)}{a.treatment ? ` · ${cleanEnglishTreatment(a.treatment)}` : ''}</small>
+                              <small>
+                                {timeLabel(a.starts_at)}{a.treatment ? ` · ${cleanEnglishTreatment(a.treatment)}` : ''}
+                                {a.branch ? ` · ${a.branch}` : ''}
+                              </small>
                             </button>
                           ))}
                         </div>
@@ -1068,13 +1185,13 @@ export default function ClinicAppointments() {
                               </a>
                             ) : (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                                <MapPin size={12} style={{ color: '#CB3273' }} /> {a.branch || 'Clinic'}
+                                <MapPin size={12} style={{ color: '#CB3273' }} /> {a.branch || 'Unassigned'}
                               </span>
                             )}
                           </td>
                           <td>
                             <span className="co-chip co-c-p" style={{ fontSize: 10, fontWeight: 600 }}>
-                              Online
+                              {a.source || 'Online Booking'}
                             </span>
                           </td>
                           <td><StatusChip status={a.status} /></td>
@@ -1149,6 +1266,7 @@ export default function ClinicAppointments() {
           onStatus={(status) => update.mutate({ id: selected.id, body: { status } })}
           onReschedule={(startsAt) => update.mutate({ id: selected.id, body: { startsAt } })}
           onDelete={() => remove.mutate(selected.id)}
+          onLinkedCall={() => { setSelected(null); invalidate(); }}
         />
       ) : null}
 

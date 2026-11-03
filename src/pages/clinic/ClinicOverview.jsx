@@ -128,7 +128,7 @@ export default function ClinicOverview() {
               {/* Upcoming online consultations */}
               {upcomingList.length > 0 && (
                 <Card>
-                  <CardHead title="Upcoming consultations" hint={`${upcomingList.length} scheduled online`}>
+                  <CardHead title="Upcoming consultations" hint={`${upcomingList.length} scheduled`}>
                     <Link href="/clinic/appointments" className="co-btn co-btn-sm">View all</Link>
                   </CardHead>
                   <div className="co-table-wrap">
@@ -148,7 +148,7 @@ export default function ClinicOverview() {
                             </td>
                             <td>{a.treatment}</td>
                             <td>
-                              <span className="co-chip co-c-p">Online Booking</span>
+                              <span className="co-chip co-c-p">{a.source || 'Online Booking'}</span>
                             </td>
                           </tr>
                         ))}

@@ -20,6 +20,23 @@ const {
   phoneLast10,
 } = require('./whatsapp');
 const { updateContactName } = require('./contact-name');
+const {
+  normalizeBranch,
+  isValidBranch,
+  parseBranchFromNotes,
+  parseProviderFromNotes,
+  parseServiceFromNotes,
+  resolveBranch,
+  resolveProvider,
+  resolveConcern,
+  resolveSource,
+  resolveBookingFields,
+  bookingMetadata,
+} = require('./booking-metadata');
+const {
+  phoneLast10: callPhoneLast10,
+  pickCallForAppointment,
+} = require('./appointment-call-match');
 
 const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
@@ -36,92 +53,6 @@ function normalizePatientName(raw) {
   // Clean up
   str = cleanEnglishName(str);
   return str || 'Unnamed patient';
-}
-
-function parseBranchFromNotes(notes) {
-  if (!notes) return '';
-  const m = /Branch:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
-  if (m) return m[1].trim();
-  return '';
-}
-
-function parseProviderFromNotes(notes) {
-  if (!notes) return '';
-  const m = /With:\s*([A-Za-z .]+?)(?:\s*\||$)/i.exec(String(notes || ''));
-  if (m) return m[1].trim();
-  return '';
-}
-
-function parseServiceFromNotes(notes) {
-  if (!notes) return '';
-  const m = /Service:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
-  if (m) return m[1].trim();
-  return '';
-}
-
-function isValidBranch(branch) {
-  const valid = ['alkapuri', 'waghodia', 'manjalpur', 'vasna'];
-  return valid.includes(String(branch || '').toLowerCase().trim());
-}
-
-function normalizeBranch(branch) {
-  if (!branch) return '';
-  const b = String(branch).toLowerCase().trim();
-  if (b.includes('alkapuri')) return 'Alkapuri';
-  if (b.includes('waghodia')) return 'Waghodia';
-  if (b.includes('manjalpur')) return 'Manjalpur';
-  if (b.includes('vasna')) return 'Vasna';
-  return '';
-}
-
-function normalizePatientName(raw) {
-  if (!raw) return 'Unnamed patient';
-  let str = String(raw).trim();
-  if (!str) return 'Unnamed patient';
-  // Remove common prefixes
-  str = str.replace(/^(my name is|mera naam|mera nam|name is|this is|i am|main)\s+/i, '');
-  str = str.replace(/^(mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?)\s+/i, '');
-  // Remove " Patient" suffix (case insensitive)
-  str = str.replace(/\s+patient$/i, '');
-  // Clean up
-  str = cleanEnglishName(str);
-  return str || 'Unnamed patient';
-}
-
-function parseBranchFromNotes(notes) {
-  if (!notes) return '';
-  const m = /Branch:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
-  if (m) return m[1].trim();
-  return '';
-}
-
-function parseProviderFromNotes(notes) {
-  if (!notes) return '';
-  const m = /With:\s*([A-Za-z .]+?)(?:\s*\||$)/i.exec(String(notes || ''));
-  if (m) return m[1].trim();
-  return '';
-}
-
-function parseServiceFromNotes(notes) {
-  if (!notes) return '';
-  const m = /Service:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
-  if (m) return m[1].trim();
-  return '';
-}
-
-function isValidBranch(branch) {
-  const valid = ['alkapuri', 'waghodia', 'manjalpur', 'vasna'];
-  return valid.includes(String(branch || '').toLowerCase().trim());
-}
-
-function normalizeBranch(branch) {
-  if (!branch) return '';
-  const b = String(branch).toLowerCase().trim();
-  if (b.includes('alkapuri')) return 'Alkapuri';
-  if (b.includes('waghodia')) return 'Waghodia';
-  if (b.includes('manjalpur')) return 'Manjalpur';
-  if (b.includes('vasna')) return 'Vasna';
-  return '';
 }
 
 const router = express.Router();
@@ -176,6 +107,13 @@ function ensureSchema() {
       phone TEXT,
       treatment TEXT,
       branch TEXT,
+      provider TEXT,
+      concern TEXT,
+      source TEXT,
+      call_id INT,
+      booking_metadata JSONB,
+      external_uri TEXT,
+      booking_created_at TIMESTAMPTZ,
       starts_at TIMESTAMPTZ NOT NULL,
       duration_min INT DEFAULT 45,
       status TEXT DEFAULT 'booked',
@@ -283,7 +221,26 @@ function ensureSchema() {
 
     ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS provider TEXT;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS concern TEXT;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS source TEXT;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS call_id INT;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS booking_metadata JSONB;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS external_uri TEXT;
+    ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS booking_created_at TIMESTAMPTZ;
+    CREATE INDEX IF NOT EXISTS clinic_appointments_external_uri_idx ON clinic_appointments (external_uri);
     ALTER TABLE clinic_notes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}'::jsonb;
+
+    -- Resolved booking fields are stored on the synced booking row so branch /
+    -- provider / source do not have to be re-derived (or guessed) on read.
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS metadata JSONB;
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_branch TEXT;
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_provider TEXT;
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_concern TEXT;
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_source TEXT;
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS interaction_id TEXT;
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS call_id INT;
+    ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS booking_created_at TIMESTAMPTZ;
 
     -- Visits table (actual completed visits, distinct from appointments/bookings)
     CREATE TABLE IF NOT EXISTS clinic_visits (
@@ -490,28 +447,21 @@ function mapCalRowToClinic(row) {
     if (match) phone = match[1];
   }
   const rawNotes = q['notes'] || q['Please provide a brief summary of your business & what it is that you do?'] || '';
-  
-  let treatment = cleanEnglishTreatment(row.event_name || 'Clinic Consultation');
-  const serviceMatch = rawNotes.match(/Service:\s*([^|]+)/i);
-  if (serviceMatch) {
-    treatment = cleanEnglishTreatment(serviceMatch[1].trim());
-  }
+  const bookingLike = {
+    metadata: row.metadata || q.metadata || {},
+    bookingFieldsResponses: q,
+    description: rawNotes,
+    event_name: row.event_name,
+    source: 'cal.com',
+  };
 
-  // Parse branch from notes (priority over Cal.com location)
-  let branch = '';
-  const branchMatch = rawNotes.match(/Branch:\s*([^|]+)/i);
-  if (branchMatch) {
-    branch = normalizeBranch(branchMatch[1].trim());
-  } else if (row.meeting_link && !row.meeting_link.startsWith('http')) {
-    branch = normalizeBranch(row.meeting_link);
-  }
-  // Also try to parse from questions object
-  if (!branch) {
-    const branchKey = Object.keys(q).find(k => /branch/i.test(k));
-    if (branchKey && q[branchKey]) {
-      branch = normalizeBranch(q[branchKey]);
-    }
-  }
+  // Stored resolved values win; otherwise derive from metadata/notes only.
+  const branch = normalizeBranch(row.resolved_branch) || resolveBranch(bookingLike);
+  const provider = row.resolved_provider || resolveProvider(bookingLike);
+  const concern = row.resolved_concern || resolveConcern(bookingLike);
+  const source = row.resolved_source || resolveSource(bookingLike);
+
+  let treatment = concern || cleanEnglishTreatment(row.event_name || 'Clinic Consultation');
 
   const start = new Date(row.start_time);
   const end = row.end_time ? new Date(row.end_time) : new Date(start.getTime() + 30 * 60000);
@@ -528,7 +478,10 @@ function mapCalRowToClinic(row) {
     phone: phone,
     email: email,
     treatment: treatment,
-    branch: branch,
+    branch: branch || null,
+    provider: provider || null,
+    concern: concern || null,
+    source: source,
     starts_at: row.start_time,
     ends_at: row.end_time,
     duration_min: durationMin,
@@ -537,11 +490,78 @@ function mapCalRowToClinic(row) {
     notes: rawNotes,
     meeting_link: row.meeting_link || '',
     location: row.location || 'inperson',
-    source: 'cal.com',
     calendly_uri: row.calendly_uri,
-    created_at: row.created_at,
+    call_id: row.call_id || null,
+    booking_metadata: row.metadata || q.metadata || null,
+    interaction_id: row.interaction_id || resolveBookingFields(bookingLike).interactionId,
+    _table: 'calendly_events',
+    _row_id: row.id,
+    booking_created_at: row.booking_created_at || null,
+    created_at: row.booking_created_at || row.created_at,
     updated_at: row.created_at,
   };
+}
+
+async function loadCallIndex() {
+  const callsRes = await db.query(
+    `SELECT id, conversation_id, to_phone, lead_name, status, outcome, duration_secs,
+            recording_url, transcript, transcript_summary, provider, started_at
+       FROM ai_calls
+      ORDER BY started_at DESC NULLS LAST, id DESC`
+  );
+  const byId = new Map();
+  const byPhone = new Map();
+  for (const c of callsRes.rows) {
+    byId.set(Number(c.id), c);
+    const last10 = callPhoneLast10(c.to_phone);
+    if (!last10) continue;
+    if (!byPhone.has(last10)) byPhone.set(last10, []);
+    byPhone.get(last10).push(c);
+  }
+  return { byId, byPhone };
+}
+
+function callsForAppointment(appointment, callIndex) {
+  const last10 = callPhoneLast10(appointment.phone);
+  return callIndex.byPhone.get(last10) || [];
+}
+
+/**
+ * Persist the call that actually booked each appointment. Only fills rows with
+ * no call_id, so a manually linked call is never overwritten.
+ */
+async function linkBookingCalls(userId) {
+  const [callIndex, calRes, clinicRes] = await Promise.all([
+    loadCallIndex(),
+    db.query(
+      `SELECT * FROM calendly_events
+        WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false AND call_id IS NULL`,
+      [userId]
+    ),
+    db.query(
+      `SELECT * FROM clinic_appointments
+        WHERE (user_id = $1 OR user_id IS NULL) AND call_id IS NULL`,
+      [userId]
+    )
+  ]);
+
+  const updates = [];
+  for (const row of calRes.rows) {
+    const appt = mapCalRowToClinic(row);
+    const call = pickCallForAppointment(appt, callsForAppointment(appt, callIndex));
+    if (call) {
+      updates.push(db.query('UPDATE calendly_events SET call_id = $1 WHERE id = $2 AND call_id IS NULL', [call.id, row.id]).catch(() => {}));
+    }
+  }
+  for (const row of clinicRes.rows) {
+    const appt = { ...row, _table: 'clinic_appointments' };
+    const call = pickCallForAppointment(appt, callsForAppointment(appt, callIndex));
+    if (call) {
+      updates.push(db.query('UPDATE clinic_appointments SET call_id = $1 WHERE id = $2 AND call_id IS NULL', [call.id, row.id]).catch(() => {}));
+    }
+  }
+  await Promise.all(updates);
+  return updates.length;
 }
 
 async function tryQuery(sql, params) {
@@ -726,6 +746,7 @@ router.get('/appointments', requireUser, async (req, res) => {
     const isAll = req.query.all === 'true' || req.query.view === 'list';
     const from = safeDate(req.query.from) || (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })();
     const to = safeDate(req.query.to) || (() => { const d = new Date(); d.setDate(d.getDate() + 60); return d; })();
+    const branchFilter = normalizeBranch(req.query.branch);
 
     const [calRes, clinicRes] = await Promise.all([
       db.query(
@@ -745,99 +766,101 @@ router.get('/appointments', requireUser, async (req, res) => {
     ]);
 
     const mappedCal = calRes.rows.map(mapCalRowToClinic);
-    const mappedClinic = clinicRes.rows.map(r => ({ ...r, patient_name: cleanEnglishName(r.patient_name), source: 'clinic' }));
-    const all = [...mappedCal, ...mappedClinic].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+    const mappedClinic = clinicRes.rows.map(r => ({
+      ...r,
+      patient_name: cleanEnglishName(r.patient_name),
+      source: r.source || 'Manual',
+      _table: 'clinic_appointments',
+      _row_id: r.id,
+    }));
+    let all = [...mappedCal, ...mappedClinic].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+    if (branchFilter) {
+      all = all.filter(a => normalizeBranch(a.branch) === branchFilter);
+    }
 
-    // Attach associated call recording and transcript to appointments, and ensure clean English names
+    // Attach only the call that actually booked this appointment. The old
+    // behaviour (latest call for the phone number) attached unrelated calls.
     try {
-      const [callsRes, bulkRes, leadsRes] = await Promise.all([
+      const [callsRes, leadsRes] = await Promise.all([
         db.query(
-          `SELECT id, to_phone, lead_name, status, outcome, duration_secs, recording_url, transcript, transcript_summary, provider
+          `SELECT id, conversation_id, to_phone, lead_name, status, outcome, duration_secs,
+                  recording_url, transcript, transcript_summary, provider, started_at
              FROM ai_calls
-            WHERE recording_url IS NOT NULL OR transcript IS NOT NULL OR duration_secs > 0
-            ORDER BY duration_secs DESC, id DESC`
-        ),
-        db.query(
-          `SELECT id, name, phone10, status, recording_url, transcript, last_summary
-             FROM bulk_contacts
-            ORDER BY id DESC`
+            ORDER BY started_at DESC NULLS LAST, id DESC`
         ),
         db.query(
           `SELECT id, first_name, last_name, phone, whatsapp FROM leads WHERE phone IS NOT NULL OR whatsapp IS NOT NULL`
         )
       ]);
 
-      const phoneToCall = new Map();
+      const callsById = new Map();
+      const callsByPhone = new Map();
       for (const c of callsRes.rows) {
-        const ph = (c.to_phone || '').replace(/\D/g, '');
-        const last10 = ph.length >= 10 ? ph.slice(-10) : ph;
-        if (last10 && !phoneToCall.has(last10)) {
-          phoneToCall.set(last10, {
-            call_review_id: c.id,
-            lead_name: c.lead_name,
-            recording_url: c.recording_url,
-            transcript: c.transcript,
-            transcript_summary: c.transcript_summary,
-            call_status: c.status,
-            call_duration: c.duration_secs,
-            call_outcome: c.outcome,
-          });
-        }
-      }
-      for (const b of bulkRes.rows) {
-        const last10 = (b.phone10 || '').replace(/\D/g, '');
-        if (last10) {
-          if (!phoneToCall.has(last10)) {
-            phoneToCall.set(last10, {
-              call_review_id: null,
-              lead_name: b.name,
-              recording_url: b.recording_url,
-              transcript: b.transcript,
-              transcript_summary: b.last_summary,
-              call_status: b.status,
-              call_duration: 0,
-              call_outcome: b.status,
-            });
-          } else if (b.name && !phoneToCall.get(last10).lead_name) {
-            phoneToCall.get(last10).lead_name = b.name;
-          }
-        }
+        callsById.set(Number(c.id), c);
+        const last10 = callPhoneLast10(c.to_phone);
+        if (!last10) continue;
+        if (!callsByPhone.has(last10)) callsByPhone.set(last10, []);
+        callsByPhone.get(last10).push(c);
       }
 
       const phoneToLeadName = new Map();
       for (const l of (leadsRes?.rows || [])) {
         const lName = [l.first_name, l.last_name].filter(Boolean).join(' ').trim();
         if (!lName) continue;
-        const ph = (l.phone || l.whatsapp || '').replace(/\D/g, '');
-        const last10 = ph.length >= 10 ? ph.slice(-10) : ph;
+        const last10 = callPhoneLast10(l.phone || l.whatsapp);
         if (last10 && !phoneToLeadName.has(last10)) {
           phoneToLeadName.set(last10, lName);
         }
       }
 
+      const persist = [];
       for (const a of all) {
-        const ph = (a.phone || '').replace(/\D/g, '');
-        const last10 = ph.length >= 10 ? ph.slice(-10) : ph;
-        if (last10 && phoneToCall.has(last10)) {
-          const match = phoneToCall.get(last10);
-          a.call_review_id = match.call_review_id;
-          a.recording_url = match.recording_url;
-          a.transcript = match.transcript;
-          a.transcript_summary = match.transcript_summary;
-          a.call_status = match.call_status;
-          a.call_duration = match.call_duration;
-          a.call_outcome = match.call_outcome;
-          if (match.lead_name && (!a.patient_name || a.patient_name === 'Consultation Patient' || a.patient_name === 'Patient')) {
-            a.patient_name = cleanEnglishName(match.lead_name);
-          }
+        const last10 = callPhoneLast10(a.phone);
+        let linked = a.call_id ? callsById.get(Number(a.call_id)) || null : null;
+        if (!linked) {
+          linked = pickCallForAppointment(a, callsByPhone.get(last10) || []);
         }
+
+        if (linked) {
+          a.call_id = linked.id;
+          a.call_review_id = linked.id;
+          a.recording_url = linked.recording_url || null;
+          a.transcript = linked.transcript || null;
+          a.transcript_summary = linked.transcript_summary || null;
+          a.call_status = linked.status || null;
+          a.call_duration = linked.duration_secs || 0;
+          a.call_outcome = linked.outcome || null;
+          if (linked.lead_name && (!a.patient_name || a.patient_name === 'Consultation Patient' || a.patient_name === 'Patient')) {
+            a.patient_name = cleanEnglishName(linked.lead_name);
+          }
+          if (a._table && a._row_id && !a.__stored_call) {
+            persist.push(
+              db.query(`UPDATE ${a._table} SET call_id = $1 WHERE id = $2 AND (call_id IS NULL OR call_id <> $1)`, [linked.id, a._row_id])
+                .catch(() => {})
+            );
+          }
+        } else {
+          // Never show a wrong call. The UI offers an explicit "Link call" action.
+          a.call_id = null;
+          a.call_review_id = null;
+          a.recording_url = null;
+          a.transcript = null;
+          a.transcript_summary = null;
+          a.call_status = null;
+          a.call_duration = 0;
+          a.call_outcome = null;
+        }
+
         if (last10 && phoneToLeadName.has(last10) && (!a.patient_name || a.patient_name === 'Consultation Patient' || a.patient_name === 'Patient')) {
           a.patient_name = cleanEnglishName(phoneToLeadName.get(last10));
         }
         // Ensure clean treatment & strictly English title-case patient name
         a.treatment = cleanEnglishTreatment(a.treatment);
         a.patient_name = cleanEnglishName(a.patient_name, 'Consultation Patient');
+        delete a._table;
+        delete a._row_id;
       }
+      await Promise.all(persist);
     } catch (joinErr) {
       console.warn('[clinic-os] appointments call join warning:', joinErr.message);
     }
@@ -883,18 +906,32 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
       const bookingUri = `cal_${b.id || b.uid}`;
       const attendee = (b.attendees && b.attendees[0]) || {};
       const bfr = b.bookingFieldsResponses || {};
+      const resolved = resolveBookingFields(b);
       const inviteeName = attendee.name || bfr.name || b.title?.split(' and ').pop()?.trim() || 'Patient';
       const inviteeEmail = attendee.email || bfr.email || '';
       let phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
+      if (!phone && inviteeEmail.includes('@sms.cal.com')) {
+        const match = inviteeEmail.match(/^(\d+)/);
+        if (match) phone = match[1];
+      }
       const notes = b.description || bfr.notes || '';
       const startIso = b.start ? new Date(b.start).toISOString() : null;
       const endIso = b.end ? new Date(b.end).toISOString() : null;
       const rawStatus = (b.status || '').toLowerCase();
-      let status = 'confirmed';
-      if (/cancelled|canceled|rejected/.test(rawStatus)) status = 'cancelled';
-      else if (startIso && new Date(startIso).getTime() < Date.now()) status = 'completed';
 
-      const existing = await db.query('SELECT id FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
+      // Cancelled / rejected test bookings must be ignored, and must not be
+      // resurrected by a later sync.
+      if (/cancelled|canceled|rejected/.test(rawStatus)) {
+        await db.query('UPDATE calendly_events SET status = $1, is_deleted = TRUE WHERE calendly_uri = $2', ['cancelled', bookingUri]);
+        continue;
+      }
+
+      let status = 'confirmed';
+      if (startIso && new Date(startIso).getTime() < Date.now()) status = 'completed';
+
+      const meetingLink = b.meetingUrl || (typeof b.location === 'string' && b.location.startsWith('http') ? b.location : '');
+      const existing = await db.query('SELECT id, is_deleted FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
+      if (existing.rows[0]?.is_deleted) continue;
       const questionsObj = {
         "Phone / WhatsApp": phone,
         "phone": phone,
@@ -902,28 +939,94 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
         "Please provide a brief summary of your business & what it is that you do?": notes
       };
       if (existing.rows.length > 0) {
+        // Re-sync updates every derived field on existing rows, not just new ones.
         await db.query(
           `UPDATE calendly_events
               SET invitee_name = $1, invitee_email = $2, start_time = $3, end_time = $4,
-                  status = $5, questions = $6::jsonb, meeting_link = $7, is_deleted = $8
-            WHERE calendly_uri = $9`,
-          [inviteeName, inviteeEmail, startIso, endIso, status, JSON.stringify(questionsObj), b.meetingUrl || b.location || '', status === 'cancelled', bookingUri]
+                  status = $5, questions = $6::jsonb, meeting_link = $7, is_deleted = $8,
+                  metadata = $9::jsonb, resolved_branch = $10, resolved_provider = $11,
+                  resolved_concern = $12, resolved_source = $13, interaction_id = $14,
+                  booking_created_at = $15
+            WHERE calendly_uri = $16`,
+          [inviteeName, inviteeEmail, startIso, endIso, status, JSON.stringify(questionsObj), meetingLink, false,
+            JSON.stringify(resolved.metadata || {}), resolved.branch || null, resolved.provider || null,
+            resolved.concern || null, resolved.source || null, resolved.interactionId || null,
+            resolved.bookingCreatedAt ? resolved.bookingCreatedAt.toISOString() : null, bookingUri]
         );
         updated++;
       } else {
         await db.query(
           `INSERT INTO calendly_events
-             (user_id, calendly_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, meeting_link, questions, source, is_deleted)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, 'cal.com', $11)`,
-          [userId, bookingUri, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, b.meetingUrl || b.location || '', JSON.stringify(questionsObj), status === 'cancelled']
+             (user_id, calendly_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, meeting_link, questions, source, is_deleted,
+              metadata, resolved_branch, resolved_provider, resolved_concern, resolved_source, interaction_id, booking_created_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, 'cal.com', $11,
+                   $12::jsonb, $13, $14, $15, $16, $17, $18)`,
+          [userId, bookingUri, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, meetingLink, JSON.stringify(questionsObj), false,
+            JSON.stringify(resolved.metadata || {}), resolved.branch || null, resolved.provider || null,
+            resolved.concern || null, resolved.source || null, resolved.interactionId || null,
+            resolved.bookingCreatedAt ? resolved.bookingCreatedAt.toISOString() : null]
         );
         added++;
       }
     }
+    await linkBookingCalls(userId).catch((err) => console.warn('[clinic-os] call link warning:', err.message));
     res.json({ success: true, added, updated, total: bookings.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// Manual "Link call" fallback: list calls for the appointment phone so staff
+// can attach the right one when automatic matching finds nothing.
+router.get('/appointments/:id/calls', requireUser, async (req, res) => {
+  try {
+    const type = req.query.type === 'cal' ? 'calendly_events' : 'clinic_appointments';
+    const row = type === 'calendly_events'
+      ? await db.query('SELECT * FROM calendly_events WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [req.params.id, req.user.id])
+      : await db.query('SELECT * FROM clinic_appointments WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [req.params.id, req.user.id]);
+    if (row.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
+
+    const appt = type === 'calendly_events' ? mapCalRowToClinic(row.rows[0]) : { ...row.rows[0], _table: type };
+    const phone = callPhoneLast10(req.query.phone || appt.phone);
+    if (!phone) return res.json({ calls: [] });
+
+    const callsRes = await db.query(
+      `SELECT id, conversation_id, to_phone, lead_name, status, outcome, duration_secs,
+              transcript_summary, started_at
+         FROM ai_calls
+        WHERE RIGHT(REGEXP_REPLACE(COALESCE(to_phone, ''), '\\D', '', 'g'), 10) = $1
+        ORDER BY started_at DESC NULLS LAST, id DESC
+        LIMIT 50`,
+      [phone]
+    );
+    const suggested = pickCallForAppointment(appt, callsRes.rows);
+    res.json({
+      calls: callsRes.rows.map(c => ({
+        ...c,
+        suggested: suggested ? Number(suggested.id) === Number(c.id) : false,
+      })),
+      phone,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/appointments/:id/link-call', requireUser, async (req, res) => {
+  try {
+    const type = req.body?.type === 'cal' ? 'calendly_events' : 'clinic_appointments';
+    const table = type;
+    const callId = req.body?.callId == null ? null : Number(req.body.callId);
+
+    const row = await db.query(`SELECT id FROM ${table} WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)`, [req.params.id, req.user.id]);
+    if (row.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
+
+    if (callId != null) {
+      const call = await db.query('SELECT id FROM ai_calls WHERE id = $1', [callId]);
+      if (call.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
+    }
+
+    await db.query(`UPDATE ${table} SET call_id = $1 WHERE id = $2`, [callId, req.params.id]);
+    res.json({ success: true, callId });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/appointments', requireUser, async (req, res) => {
@@ -935,10 +1038,10 @@ router.post('/appointments', requireUser, async (req, res) => {
 
     const r = await db.query(
       `INSERT INTO clinic_appointments
-         (user_id, lead_id, patient_name, patient_name_original, patient_name_english, patient_name_source, phone, treatment, branch, starts_at, duration_min, notes, amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
-      [uid, leadId || null, patientName, patientName, patientName, 'import', phone || null, treatment || null, branch || null,
-        start.toISOString(), Number(durationMin) || 45, notes || null, Number(amount) || 0]
+         (user_id, lead_id, patient_name, patient_name_original, patient_name_english, patient_name_source, phone, treatment, branch, concern, source, starts_at, duration_min, notes, amount)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Manual',$11,$12,$13,$14) RETURNING *`,
+      [uid, leadId || null, patientName, patientName, patientName, 'import', phone || null, treatment || null, branch ? normalizeBranch(branch) || branch : null,
+        treatment || null, start.toISOString(), Number(durationMin) || 45, notes || null, Number(amount) || 0]
     );
     await db.query(
       `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, meta)

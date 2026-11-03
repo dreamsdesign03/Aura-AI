@@ -38,6 +38,7 @@ const { registerWhatsAppRoutes } = require('./whatsapp');
 const aiCallsApi = require('./ai-calls');
 const sarvamWebhookApi = require('./sarvam-webhook');
 const { cleanEnglishName } = require('./call-utils');
+const { resolveBookingFields } = require('./booking-metadata');
 
 const app = express();
 
@@ -209,6 +210,14 @@ async function seedAdminUser() {
     `);
     await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE;`);
     await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS source TEXT;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS metadata JSONB;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_branch TEXT;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_provider TEXT;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_concern TEXT;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS resolved_source TEXT;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS interaction_id TEXT;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS call_id INT;`);
+    await db.query(`ALTER TABLE calendly_events ADD COLUMN IF NOT EXISTS booking_created_at TIMESTAMPTZ;`);
     // Ensure whatsapp_conversations & whatsapp_messages tables exist
     await db.query(`
       CREATE TABLE IF NOT EXISTS whatsapp_conversations (
@@ -770,6 +779,7 @@ async function syncCalComBookings(userId) {
     }
 
     const notes = b.description || bfr.notes || '';
+    const resolved = resolveBookingFields(b);
 
     const startIso = b.start ? new Date(b.start).toISOString() : null;
     const endIso = b.end ? new Date(b.end).toISOString() : null;
@@ -804,8 +814,10 @@ async function syncCalComBookings(userId) {
     const wasNew = existing.rows.length === 0;
 
     const insertRes = await db.query(
-      `INSERT INTO calendly_events (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, location, meeting_link, questions, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW())
+      `INSERT INTO calendly_events (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time, status, location, meeting_link, questions, created_at,
+                                    metadata, resolved_branch, resolved_provider, resolved_concern, resolved_source, interaction_id, booking_created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(),
+               $13::jsonb, $14, $15, $16, $17, $18, $19)
        ON CONFLICT (calendly_uri) DO UPDATE SET
          user_id = EXCLUDED.user_id,
          invitee_name = EXCLUDED.invitee_name,
@@ -816,9 +828,19 @@ async function syncCalComBookings(userId) {
          status = EXCLUDED.status,
          location = EXCLUDED.location,
          meeting_link = EXCLUDED.meeting_link,
-         questions = EXCLUDED.questions
+         questions = EXCLUDED.questions,
+         metadata = EXCLUDED.metadata,
+         resolved_branch = EXCLUDED.resolved_branch,
+         resolved_provider = EXCLUDED.resolved_provider,
+         resolved_concern = EXCLUDED.resolved_concern,
+         resolved_source = EXCLUDED.resolved_source,
+         interaction_id = EXCLUDED.interaction_id,
+         booking_created_at = EXCLUDED.booking_created_at
        RETURNING id`,
-      [userId, bookingUri, cleanEmail(attendee.email) || null, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, locationStr, meetingLink, JSON.stringify(questionsObj)]
+      [userId, bookingUri, cleanEmail(attendee.email) || null, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, locationStr, meetingLink, JSON.stringify(questionsObj),
+        JSON.stringify(resolved.metadata || {}), resolved.branch || null, resolved.provider || null,
+        resolved.concern || null, resolved.source || null, resolved.interactionId || null,
+        resolved.bookingCreatedAt ? resolved.bookingCreatedAt.toISOString() : null]
     );
 
     const eventId = insertRes.rows[0]?.id;

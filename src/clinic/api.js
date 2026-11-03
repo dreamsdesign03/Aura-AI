@@ -26,6 +26,8 @@ export const clinicApi = {
   createAppointment: (body) => request('/appointments', { method: 'POST', body: JSON.stringify(body) }),
   updateAppointment: (id, body) => request(`/appointments/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deleteAppointment: (id) => request(`/appointments/${id}`, { method: 'DELETE' }),
+  appointmentCalls: (id, type = 'clinic', phone) => request(`/appointments/${id}/calls?type=${type}${phone ? `&phone=${encodeURIComponent(phone)}` : ''}`),
+  linkAppointmentCall: (id, callId, type = 'clinic') => request(`/appointments/${id}/link-call`, { method: 'POST', body: JSON.stringify({ callId, type }) }),
 
   patients: (search, branch) => request(`/patients${search || branch ? `?${[search ? `search=${encodeURIComponent(search)}` : '', branch ? `branch=${encodeURIComponent(branch)}` : ''].filter(Boolean).join('&')}` : ''}`),
   patient: (id) => request(`/patients/${id}`),
