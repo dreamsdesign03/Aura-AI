@@ -89,6 +89,7 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
 // Create the Sarvam campaign for a draft AuraAI campaign and stream its pending contacts.
 async function launchSarvamCampaign(camp) {
   const pending = await db.query("SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND status = 'pending' ORDER BY id", [camp.id]);
+  // (do_not_call contacts already have status='do_not_call' and are excluded above)
   if (pending.rows.length === 0) {
     const e = new Error('No pending contacts to call');
     e.status = 400;
@@ -152,41 +153,51 @@ async function syncSarvamStatus(camp) {
 }
 
 /**
- * Extract person name from AI call transcript
- * Looks for patterns like "my name is X", "this is X", "I am X"
+ * Extract caller's name from transcript turns that belong to the USER/CUSTOMER only.
+ * Scans ALL user turns; keeps the LAST match (user may correct themselves).
+ * Never returns text longer than 3 words or names spoken by the agent.
+ *
+ * Passes: user "My name is Manjali" then "My name is Mansi" → "Mansi"
+ * Fails:  agent "I am Riya speaking from Aura…"             → null  (agent role skipped)
  */
 function extractNameFromTranscript(transcript) {
   if (!Array.isArray(transcript)) return null;
-  
+  // Pattern: intro phrase followed by 1–3 words (Latin or common Indic characters)
+  const NAME_RE = /(?:my name is|name is|mera naam|this is|i am|i'm)\s+([\p{L}\d'-]+(?:\s+[\p{L}\d'-]+){0,2})/iu;
+  const AGENT_ROLES = /^(agent|assistant|bot|system|ai)$/i;
+  const BAD_NAMES = /^(riya|ketki|aura|hello|speaking|from|sure|sorry|okay|yes|no)$/i;
+
+  let lastMatch = null;
   for (const turn of transcript) {
-    const text = turn.text || turn.content || turn.message || '';
+    const role = String(turn.role || turn.speaker || '').trim();
+    if (AGENT_ROLES.test(role)) continue; // skip agent turns
+    const text = String(turn.en_text || turn.text || turn.content || turn.message || '').trim();
     if (!text) continue;
-    
-    // Look for name introduction patterns
-    const patterns = [
-      /(?:my name is|this is|i am|i'm|name is)\s+([A-Za-z\s]+)/i,
-      /(?:i am|i'm)\s+([A-Za-z\s]{2,})/i,
-    ];
-    
-    for (const pattern of patterns) {
-      const match = text.match(pattern);
-      if (match && match[1]) {
-        const name = match[1].trim();
-        // Filter out common false positives
-        if (name.length >= 2 && name.length <= 50 && !/^\d+$/.test(name)) {
-          return name;
-        }
-      }
-    }
+    const m = text.match(NAME_RE);
+    if (!m) continue;
+    const candidate = m[1].trim();
+    const words = candidate.split(/\s+/);
+    if (words.length < 1 || words.length > 3) continue;
+    if (BAD_NAMES.test(words[0])) continue; // skip common agent phrases captured accidentally
+    lastMatch = candidate;
   }
-  return null;
+  return lastMatch;
 }
 
-async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingUrl, transcript) {
-  await db.query(
-    'UPDATE bulk_attempts SET ended_at = NOW(), call_status = $1, outcome = $2, summary = $3, sentiment = $4, recording_url = $5, transcript = $6 WHERE id = $7',
-    [callStatus, outcome, summary, sentiment, recordingUrl, JSON.stringify(transcript), attempt.id]
-  );
+async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recordingUrl, transcript, spokenName) {
+  // Only update transcript if we actually have content (never write "null" string)
+  const transcriptJson = (transcript && Array.isArray(transcript) && transcript.length > 0) ? JSON.stringify(transcript) : null;
+  if (transcriptJson) {
+    await db.query(
+      'UPDATE bulk_attempts SET ended_at = NOW(), call_status = $1, outcome = $2, summary = $3, sentiment = $4, recording_url = $5, transcript = $6 WHERE id = $7',
+      [callStatus, outcome, summary, sentiment, recordingUrl, transcriptJson, attempt.id]
+    );
+  } else {
+    await db.query(
+      'UPDATE bulk_attempts SET ended_at = NOW(), call_status = $1, outcome = $2, summary = $3, sentiment = $4, recording_url = COALESCE($5, recording_url) WHERE id = $6',
+      [callStatus, outcome, summary, sentiment, recordingUrl, attempt.id]
+    );
+  }
 
   const cRes = await db.query('SELECT * FROM bulk_contacts WHERE id = $1', [attempt.contact_id]);
   if (cRes.rows.length === 0) return;
@@ -220,10 +231,18 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
     nextStatus = 'not_booked';
   }
 
-  await db.query(
-    "UPDATE bulk_contacts SET status = $1, next_attempt_at = $2, last_summary = $3, last_sentiment = $4, recording_url = $5, transcript = $6, booked_datetime_text = (CASE WHEN $1 = 'booked' THEN booked_datetime_text ELSE NULL END) WHERE id = $7",
-    [nextStatus, nextAttemptAt, summary, sentiment, recordingUrl, JSON.stringify(transcript), contact.id]
-  );
+  const _transcriptForContact = (transcript && Array.isArray(transcript) && transcript.length > 0) ? JSON.stringify(transcript) : null;
+  if (_transcriptForContact) {
+    await db.query(
+      "UPDATE bulk_contacts SET status = $1, next_attempt_at = $2, last_summary = $3, last_sentiment = $4, recording_url = $5, transcript = $6, booked_datetime_text = (CASE WHEN $1 = 'booked' THEN booked_datetime_text ELSE NULL END) WHERE id = $7",
+      [nextStatus, nextAttemptAt, summary, sentiment, recordingUrl, _transcriptForContact, contact.id]
+    );
+  } else {
+    await db.query(
+      "UPDATE bulk_contacts SET status = $1, next_attempt_at = $2, last_summary = $3, last_sentiment = $4, recording_url = COALESCE($5, recording_url), booked_datetime_text = (CASE WHEN $1 = 'booked' THEN booked_datetime_text ELSE NULL END) WHERE id = $6",
+      [nextStatus, nextAttemptAt, summary, sentiment, recordingUrl, contact.id]
+    );
+  }
 
   if (contact.lead_id) {
     if (outcome === 'do_not_call') {
@@ -258,30 +277,15 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
     }
   }
 
-  // Update contact name from call result (spoken name from AI agent)
+  // Update contact name: prefer spokenName from agent vars, then transcript extraction
   try {
-    // Try to extract name from transcript summary or outcome
-    // The transcript may contain the caller's name
-    let rawName = contact.name;
-    if (transcript && Array.isArray(transcript) && transcript.length > 0) {
-      // Try to extract name from transcript
-      const nameFromTranscript = extractNameFromTranscript(transcript);
-      if (nameFromTranscript) rawName = nameFromTranscript;
-    } else if (summary && summary.includes('name')) {
-      // Try to extract from summary
-      const nameMatch = summary.match(/(?:name is|my name is|this is|i am)\s+([A-Za-z\s]+)/i);
-      if (nameMatch) rawName = nameMatch[1].trim();
-    }
-    
-    if (rawName && rawName !== contact.name) {
+    const nameFromTranscript = extractNameFromTranscript(transcript);
+    const resolvedName = (spokenName && spokenName.trim()) || nameFromTranscript || null;
+    if (resolvedName && resolvedName !== contact.name) {
       const phoneForName = contact.phone_e164 || contact.phone10;
       if (phoneForName) {
-        await updateContactName({
-          phone: phoneForName,
-          rawName: rawName,
-          nameSource: 'call'
-        });
-        console.log(`[resolveAttempt] ✅ Updated contact name for ${phoneForName}: ${rawName}`);
+        await updateContactName({ phone: phoneForName, rawName: resolvedName, nameSource: 'call' });
+        console.log(`[resolveAttempt] ✅ Updated contact name for ${phoneForName}: ${resolvedName}`);
       }
     }
   } catch (nameErr) {
@@ -290,7 +294,7 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
 }
 
 // GET all campaigns
-router.get('/', async (req, res) => {
+router.get('/', requireUserCookie, async (req, res) => {
   try {
     const result = await db.query(`
       SELECT c.*, 
@@ -358,6 +362,21 @@ router.post('/', async (req, res) => {
       const phoneE164 = phoneObj ? phoneObj.e164 : (c.phone || null);
       const phone10 = phoneObj ? phoneObj.local : null;
 
+      // Check do_not_call flag before processing further
+      if (status === 'pending' && (phoneE164 || phone10)) {
+        try {
+          const dncCheck = await db.query(
+            "SELECT id FROM leads WHERE do_not_call = TRUE AND (phone = $1 OR whatsapp = $1 OR phone = $2 OR whatsapp = $2) LIMIT 1",
+            [phoneE164, phone10]
+          );
+          if (dncCheck.rows.length > 0) {
+            status = 'do_not_call';
+            reason = 'Lead has do_not_call=true';
+            targetLeadId = dncCheck.rows[0].id;
+          }
+        } catch (_dncErr) { /* best-effort */ }
+      }
+
       try {
         if (!targetLeadId && (phoneE164 || phone10)) {
           const existingLead = await db.query(
@@ -413,7 +432,7 @@ router.post('/', async (req, res) => {
 });
 
 // GET campaign details
-router.get('/:id', async (req, res) => {
+router.get('/:id', requireUserCookie, async (req, res) => {
   try {
     const id = req.params.id;
     const campRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [id]);
@@ -430,7 +449,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // GET contacts for campaign
-router.get('/:id/contacts', async (req, res) => {
+router.get('/:id/contacts', requireUserCookie, async (req, res) => {
   try {
     const contacts = await db.query('SELECT * FROM bulk_contacts WHERE campaign_id = $1 ORDER BY id ASC', [req.params.id]);
     res.json(contacts.rows);
@@ -440,7 +459,7 @@ router.get('/:id/contacts', async (req, res) => {
 });
 
 // GET attempts for a contact
-router.get('/:id/contacts/:contactId/attempts', async (req, res) => {
+router.get('/:id/contacts/:contactId/attempts', requireUserCookie, async (req, res) => {
   try {
     // Scope by campaign too, so a stale/mismatched contact id can never leak another
     // campaign's conversation into this contact's drawer.
@@ -823,8 +842,10 @@ router.post('/clear-stuck', async (req, res) => {
 
 // POST booking confirmed
 router.post('/booking-confirmed', async (req, res) => {
+  const _cronSecret = process.env.CRON_SECRET;
+  if (!_cronSecret) return res.status(401).json({ error: 'CRON_SECRET not configured' });
   const secret = req.query.secret || req.headers['authorization'];
-  if (secret !== process.env.CRON_SECRET) return res.status(401).json({ error: 'Unauthorized' });
+  if (secret !== _cronSecret) return res.status(401).json({ error: 'Unauthorized' });
 
   const { lead_phone, start_ist_text, booking_uid } = req.body;
   if (!lead_phone) return res.status(400).json({ error: 'missing lead_phone' });
@@ -844,6 +865,31 @@ router.post('/booking-confirmed', async (req, res) => {
     }
     res.json({ success: true });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// DELETE campaign: cancel Sarvam campaign if running, then delete everything
+router.delete('/:id', requireUserCookie, async (req, res) => {
+  try {
+    const cRes = await db.query('SELECT * FROM bulk_campaigns WHERE id = $1', [req.params.id]);
+    if (cRes.rows.length === 0) return res.status(404).json({ error: 'not found' });
+    const camp = cRes.rows[0];
+
+    if (camp.sarvam_campaign_id) {
+      try {
+        await setSarvamCampaignStatus(camp.sarvam_campaign_id, 'cancel');
+      } catch (cancelErr) {
+        console.warn('[Bulk Delete] Sarvam cancel failed:', cancelErr.message);
+        return res.status(409).json({ error: 'Could not cancel Sarvam campaign: ' + cancelErr.message });
+      }
+    }
+
+    // FK cascade deletes bulk_contacts + bulk_attempts
+    await db.query('DELETE FROM bulk_campaigns WHERE id = $1', [camp.id]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('[Bulk Delete] failed:', err.message);
     res.status(500).json({ error: err.message });
   }
 });

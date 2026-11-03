@@ -15,6 +15,8 @@ function recordingProxyUrl(interactionId) {
 
 async function handleCampaignWebhook(campaignId, payload) {
   let contact = null;
+  // Any unhandled error: record as not_booked so the contact isn't stuck
+  const _contactId_holder = { id: null };
 
   // 1. Try matching by integer user_identifier
   const cid = parseInt(payload.user_identifier, 10);
@@ -29,8 +31,8 @@ async function handleCampaignWebhook(campaignId, payload) {
     const p10 = String(rawPhone).replace(/\D/g, '').slice(-10);
     if (p10.length === 10) {
       const r = await db.query(
-        'SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND (phone10 LIKE $2 OR phone LIKE $2) ORDER BY id LIMIT 1',
-        [campaignId, `%${p10}`]
+        'SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND phone10 = $2 ORDER BY id LIMIT 1',
+        [campaignId, p10]
       );
       contact = r.rows[0] || null;
     }
@@ -47,7 +49,7 @@ async function handleCampaignWebhook(campaignId, payload) {
     return;
   }
 
-  const { callStatus, outcome, summary, confirmedSlot, sentiment } = mapSarvamOutcome(adaptCampaignPayload(payload));
+  const { callStatus, outcome, summary, confirmedSlot, sentiment, spokenName } = mapSarvamOutcome(adaptCampaignPayload(payload));
   const interactionId = payload.interaction_id || null;
   const requestId = payload.attempt_id || interactionId || `att-${Date.now()}`;
   const recUrl = recordingProxyUrl(interactionId);
@@ -76,17 +78,17 @@ async function handleCampaignWebhook(campaignId, payload) {
         payload.duration != null ? Math.round(payload.duration) : null,
         interactionId,
         recUrl,
-        callStatus || 'completed',
-        outcome || 'CONNECTED',
-        summary || 'Call finished',
+        callStatus,
+        outcome,
+        summary,
         JSON.stringify(payload)
       ]
     );
     attempt = ins.rows[0];
 
     await db.query(
-      'UPDATE bulk_contacts SET attempts = GREATEST(attempts, $1), last_attempt_at = NOW(), last_request_id = $2, status = $3, last_summary = $4 WHERE id = $5',
-      [attemptNo, requestId, callStatus || 'completed', summary, contact.id]
+      'UPDATE bulk_contacts SET attempts = GREATEST(attempts, $1), last_attempt_at = NOW(), last_request_id = $2, last_summary = $3 WHERE id = $4',
+      [attemptNo, requestId, summary, contact.id]
     );
   } else {
     // Update existing attempt
@@ -103,8 +105,8 @@ async function handleCampaignWebhook(campaignId, payload) {
     );
 
     await db.query(
-      'UPDATE bulk_contacts SET status = $1, last_summary = $2 WHERE id = $3',
-      [callStatus || 'completed', summary, contact.id]
+      'UPDATE bulk_contacts SET last_summary = $1 WHERE id = $2',
+      [summary, contact.id]
     );
   }
 
@@ -122,20 +124,15 @@ async function handleCampaignWebhook(campaignId, payload) {
     }
   }
 
-  // Update contact name from call result (spoken name from AI agent)
-  try {
-    const rawName = payload.extracted_variables?.name || payload.lead_name || payload.name || contact.name;
-    if (rawName) {
+  // Update contact name from AI call (spoken name extracted from final_agent_variables)
+  if (spokenName) {
+    try {
       const phoneForName = contact.phone_e164 || rawPhone;
-      await updateContactName({
-        phone: phoneForName,
-        rawName: rawName,
-        nameSource: 'call'
-      });
-      console.log(`[Sarvam webhook] ✅ Updated contact name for ${phoneForName}: ${rawName}`);
+      await updateContactName({ phone: phoneForName, rawName: spokenName, nameSource: 'call' });
+      console.log(`[Sarvam webhook] ✅ Updated contact name for ${phoneForName}: ${spokenName}`);
+    } catch (nameErr) {
+      console.warn('[Sarvam webhook] updateContactName warning:', nameErr.message);
     }
-  } catch (nameErr) {
-    console.warn('[Sarvam webhook] updateContactName warning:', nameErr.message);
   }
 
   // Also sync to centralized ai_calls table for Call Review
@@ -213,10 +210,14 @@ async function handleCampaignWebhook(campaignId, payload) {
 
 router.post('/', async (req, res) => {
   try {
-    const secret = process.env.SARVAM_WEBHOOK_SECRET;
-    if (secret && req.query.secret && req.query.secret !== secret) {
-      console.log('[Sarvam webhook] unauthorized attempt');
-      return res.status(401).json({ error: 'Unauthorized' });
+    const _whSecret = process.env.SARVAM_WEBHOOK_SECRET;
+    if (_whSecret) {
+      if (req.query.secret !== _whSecret) {
+        console.warn('[Sarvam webhook] rejected: missing/invalid secret');
+        return res.status(401).json({ error: 'Unauthorized' });
+      }
+    } else {
+      console.warn('[Sarvam webhook] SARVAM_WEBHOOK_SECRET not set — accepting all webhook calls (set it to require authentication)');
     }
 
     const payload = req.body || {};
@@ -242,8 +243,8 @@ router.post('/', async (req, res) => {
     const p10 = String(userPhone).replace(/\D/g, '').slice(-10);
     if (p10.length === 10) {
       const contRes = await db.query(
-        'SELECT id, campaign_id FROM bulk_contacts WHERE phone10 LIKE $1 OR phone LIKE $1 ORDER BY id DESC LIMIT 1',
-        [`%${p10}`]
+        'SELECT id, campaign_id FROM bulk_contacts WHERE phone10 = $1 ORDER BY id DESC LIMIT 1',
+        [p10]
       );
       if (contRes.rows.length > 0) {
         await handleCampaignWebhook(contRes.rows[0].campaign_id, payload);

@@ -26,7 +26,15 @@ function isCallingHours() {
   const minute = parseInt(parts.find(p => p.type === 'minute').value, 10);
 
   const timeNum = hour + minute / 60;
-  return timeNum >= 10 && timeNum <= 19.5; // 10:00 to 19:30
+  // Single source of truth: CALL_START / CALL_END env vars (default 10:00 – 19:00)
+  function parseHHMM(str, dflt) {
+    const m = String(str || '').match(/^(\d{1,2}):(\d{2})$/);
+    if (!m) return dflt;
+    return parseInt(m[1], 10) + parseInt(m[2], 10) / 60;
+  }
+  const callStart = parseHHMM(process.env.CALL_START, 10);
+  const callEnd   = parseHHMM(process.env.CALL_END, 19);
+  return timeNum >= callStart && timeNum <= callEnd;
 }
 
 function canCall(lead, isScheduled = false) {

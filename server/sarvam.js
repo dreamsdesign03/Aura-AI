@@ -188,12 +188,26 @@ function extractValidSlot(fv) {
   return raw;
 }
 
+// Extract a clean spoken name from final_agent_variables.
+// Returns a trimmed 1-3 word name string, or empty string if invalid/absent.
+function extractSpokenName(fv) {
+  const BAD = /^(none|null|undefined|nil|n\/a|na|no|false|unknown|customer|patient|caller)$/i;
+  const raw = [fv.confirmed_name, fv.user_name, fv.customer_name, fv.caller_name, fv.patient_name]
+    .map(v => String(v || '').trim())
+    .find(v => v && !BAD.test(v)) || '';
+  if (!raw) return '';
+  // Allow only Latin + Indic (Devanagari/Gujarati) letters and spaces, 1-3 words max
+  const words = raw.split(/\s+/).filter(w => /^[\u0000-\u024F\u0900-\u097F\u0A80-\u0AFF]+$/u.test(w));
+  if (words.length === 0 || words.length > 3) return '';
+  return words.join(' ');
+}
 // Pure mapping of a Sarvam webhook payload to the bulk engine's vocabulary.
 function mapSarvamOutcome(payload) {
   const status = String(payload?.status || '').toLowerCase();
   const fv = payload?.final_agent_variables || {};
   const disposition = String(fv.call_disposition || '').toLowerCase().trim();
   const slotValue = extractValidSlot(fv);
+  const spokenName = extractSpokenName(fv);
 
   console.log('[mapSarvamOutcome] raw status=' + status + ' disposition=' + disposition + ' slotValue=' + slotValue + ' fv_keys=' + Object.keys(fv).join(','));
 
@@ -243,7 +257,7 @@ function mapSarvamOutcome(payload) {
 
   console.log('[mapSarvamOutcome] result: callStatus=' + callStatus + ' outcome=' + outcome + ' sentiment=' + sentiment + ' summaryLen=' + summary.length);
 
-  return { callStatus, outcome, summary, confirmedSlot, sentiment };
+  return { callStatus, outcome, summary, confirmedSlot, sentiment, spokenName };
 }
 
 // ───────────────────────── Sarvam CAMPAIGN mode ─────────────────────────
@@ -319,6 +333,11 @@ function normalizeSarvamSettings(input) {
   const endTime = s.endTime == null ? '18:00' : String(s.endTime);
   if (!HHMM.test(startTime) || !HHMM.test(endTime)) throw badInput('Calling time must be HH:MM');
   if (endTime <= startTime) throw badInput('Calls-allowed end time must be after the start time');
+  // Clamp to env-defined calling window (default 10:00–19:00)
+  const _callStart = process.env.CALL_START || process.env.SARVAM_CALL_START || '10:00';
+  const _callEnd   = process.env.CALL_END   || process.env.SARVAM_CALL_END   || '19:00';
+  if (HHMM.test(_callStart) && startTime < _callStart) throw badInput(`Calling start cannot be before ${_callStart}`);
+  if (HHMM.test(_callEnd)   && endTime   > _callEnd)   throw badInput(`Calling end cannot be after ${_callEnd}`);
 
   const startMode = s.start && s.start.mode === 'custom' ? 'custom' : 'now';
   const endMode = s.end && s.end.mode === 'custom' ? 'custom' : 'today';
@@ -328,7 +347,7 @@ function normalizeSarvamSettings(input) {
   if (endMode === 'custom' && !LOCAL_DT.test(endAt)) throw badInput('Pick a valid custom end date and time');
 
   const retryEnabled = r.enabled !== false;
-  const maxRetries = clampInt(r.maxRetries, 0, 20, 3);
+  const maxRetries = clampInt(r.maxRetries, 0, 2, 1); // default 1, max 2 retries
   const intervalMin = clampInt(r.intervalMin, 1, 1440, 30);
   let customIntervals = null;
   if (Array.isArray(r.customIntervals) && r.customIntervals.length) {
@@ -369,8 +388,8 @@ function normalizeSarvamSettings(input) {
 function legacySarvamSettings(camp) {
   return normalizeSarvamSettings({
     attemptsPerSecond: Number(process.env.SARVAM_CAMPAIGN_APS || 0.5),
-    startTime: process.env.SARVAM_CALL_START || '10:00',
-    endTime: process.env.SARVAM_CALL_END || '19:30',
+    startTime: process.env.CALL_START || process.env.SARVAM_CALL_START || '10:00',
+    endTime: process.env.CALL_END || process.env.SARVAM_CALL_END || '19:00',
     retry: { enabled: true, maxRetries: Math.max(0, (camp.max_attempts || 2) - 1), intervalMin: camp.retry_delay_min || 30 }
   });
 }
