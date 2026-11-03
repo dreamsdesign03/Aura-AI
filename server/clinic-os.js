@@ -21,6 +21,109 @@ const {
 } = require('./whatsapp');
 const { updateContactName } = require('./contact-name');
 
+const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
+const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
+
+function normalizePatientName(raw) {
+  if (!raw) return 'Unnamed patient';
+  let str = String(raw).trim();
+  if (!str) return 'Unnamed patient';
+  // Remove common prefixes
+  str = str.replace(/^(my name is|mera naam|mera nam|name is|this is|i am|main)\s+/i, '');
+  str = str.replace(/^(mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?)\s+/i, '');
+  // Remove " Patient" suffix (case insensitive)
+  str = str.replace(/\s+patient$/i, '');
+  // Clean up
+  str = cleanEnglishName(str);
+  return str || 'Unnamed patient';
+}
+
+function parseBranchFromNotes(notes) {
+  if (!notes) return '';
+  const m = /Branch:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
+  if (m) return m[1].trim();
+  return '';
+}
+
+function parseProviderFromNotes(notes) {
+  if (!notes) return '';
+  const m = /With:\s*([A-Za-z .]+?)(?:\s*\||$)/i.exec(String(notes || ''));
+  if (m) return m[1].trim();
+  return '';
+}
+
+function parseServiceFromNotes(notes) {
+  if (!notes) return '';
+  const m = /Service:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
+  if (m) return m[1].trim();
+  return '';
+}
+
+function isValidBranch(branch) {
+  const valid = ['alkapuri', 'waghodia', 'manjalpur', 'vasna'];
+  return valid.includes(String(branch || '').toLowerCase().trim());
+}
+
+function normalizeBranch(branch) {
+  if (!branch) return '';
+  const b = String(branch).toLowerCase().trim();
+  if (b.includes('alkapuri')) return 'Alkapuri';
+  if (b.includes('waghodia')) return 'Waghodia';
+  if (b.includes('manjalpur')) return 'Manjalpur';
+  if (b.includes('vasna')) return 'Vasna';
+  return '';
+}
+
+function normalizePatientName(raw) {
+  if (!raw) return 'Unnamed patient';
+  let str = String(raw).trim();
+  if (!str) return 'Unnamed patient';
+  // Remove common prefixes
+  str = str.replace(/^(my name is|mera naam|mera nam|name is|this is|i am|main)\s+/i, '');
+  str = str.replace(/^(mr\.?|mrs\.?|ms\.?|dr\.?|prof\.?)\s+/i, '');
+  // Remove " Patient" suffix (case insensitive)
+  str = str.replace(/\s+patient$/i, '');
+  // Clean up
+  str = cleanEnglishName(str);
+  return str || 'Unnamed patient';
+}
+
+function parseBranchFromNotes(notes) {
+  if (!notes) return '';
+  const m = /Branch:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
+  if (m) return m[1].trim();
+  return '';
+}
+
+function parseProviderFromNotes(notes) {
+  if (!notes) return '';
+  const m = /With:\s*([A-Za-z .]+?)(?:\s*\||$)/i.exec(String(notes || ''));
+  if (m) return m[1].trim();
+  return '';
+}
+
+function parseServiceFromNotes(notes) {
+  if (!notes) return '';
+  const m = /Service:\s*([A-Za-z ]+?)(?:\s*\||$)/i.exec(String(notes || ''));
+  if (m) return m[1].trim();
+  return '';
+}
+
+function isValidBranch(branch) {
+  const valid = ['alkapuri', 'waghodia', 'manjalpur', 'vasna'];
+  return valid.includes(String(branch || '').toLowerCase().trim());
+}
+
+function normalizeBranch(branch) {
+  if (!branch) return '';
+  const b = String(branch).toLowerCase().trim();
+  if (b.includes('alkapuri')) return 'Alkapuri';
+  if (b.includes('waghodia')) return 'Waghodia';
+  if (b.includes('manjalpur')) return 'Manjalpur';
+  if (b.includes('vasna')) return 'Vasna';
+  return '';
+}
+
 const router = express.Router();
 
 // ---------------------------------------------------------------------------
@@ -181,6 +284,27 @@ function ensureSchema() {
     ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMPTZ;
     ALTER TABLE clinic_notes ADD COLUMN IF NOT EXISTS meta JSONB DEFAULT '{}'::jsonb;
+
+    -- Visits table (actual completed visits, distinct from appointments/bookings)
+    CREATE TABLE IF NOT EXISTS clinic_visits (
+      id SERIAL PRIMARY KEY,
+      user_id INT REFERENCES users(id) ON DELETE CASCADE,
+      lead_id INT,
+      patient_name TEXT,
+      phone TEXT,
+      branch TEXT,
+      provider TEXT,
+      visit_type TEXT, -- 'consultation' | 'treatment' | 'follow_up'
+      visit_date TIMESTAMPTZ NOT NULL,
+      notes TEXT,
+      outcome TEXT,
+      next_steps TEXT,
+      appointment_id INT, -- link to originating appointment if any
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS clinic_visits_user_date_idx ON clinic_visits (user_id, visit_date);
+    CREATE INDEX IF NOT EXISTS clinic_visits_lead_idx ON clinic_visits (lead_id);
     ALTER TABLE clinic_packages ADD COLUMN IF NOT EXISTS paid_amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS reply TEXT;
 
@@ -373,17 +497,28 @@ function mapCalRowToClinic(row) {
     treatment = cleanEnglishTreatment(serviceMatch[1].trim());
   }
 
-  let branch = 'Alkapuri Main Clinic';
+  // Parse branch from notes (priority over Cal.com location)
+  let branch = '';
   const branchMatch = rawNotes.match(/Branch:\s*([^|]+)/i);
   if (branchMatch) {
-    branch = branchMatch[1].trim();
+    branch = normalizeBranch(branchMatch[1].trim());
   } else if (row.meeting_link && !row.meeting_link.startsWith('http')) {
-    branch = row.meeting_link;
+    branch = normalizeBranch(row.meeting_link);
+  }
+  // Also try to parse from questions object
+  if (!branch) {
+    const branchKey = Object.keys(q).find(k => /branch/i.test(k));
+    if (branchKey && q[branchKey]) {
+      branch = normalizeBranch(q[branchKey]);
+    }
   }
 
   const start = new Date(row.start_time);
   const end = row.end_time ? new Date(row.end_time) : new Date(start.getTime() + 30 * 60000);
   const durationMin = Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000)) || 30;
+
+  // Handle placeholder email
+  const email = isPlaceholderEmail(row.invitee_email) ? '' : (row.invitee_email || '');
 
   return {
     id: row.id,
@@ -391,7 +526,7 @@ function mapCalRowToClinic(row) {
     lead_id: null,
     patient_name: cleanEnglishName(row.invitee_name, 'Consultation Patient'),
     phone: phone,
-    email: row.invitee_email || '',
+    email: email,
     treatment: treatment,
     branch: branch,
     starts_at: row.start_time,
@@ -977,19 +1112,126 @@ router.post('/appointments/reminders', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ---------------------------------------------------------------------------
-// Patients (dedicated clinic patient directory & records)
+  // ---------------------------------------------------------------------------
+  // Visits (actual clinical visits, distinct from appointments/bookings)
+  // ---------------------------------------------------------------------------
+  router.get('/visits', requireUser, async (req, res) => {
+    try {
+      const uid = req.user.id;
+      const leadId = req.query.leadId;
+      const from = req.query.from ? new Date(req.query.from) : new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+      const to = req.query.to ? new Date(req.query.to) : new Date();
+
+      const sql = leadId
+        ? `SELECT * FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 AND visit_date BETWEEN $3 AND $4 ORDER BY visit_date DESC`
+        : `SELECT * FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND visit_date BETWEEN $2 AND $3 ORDER BY visit_date DESC`;
+      
+      const params = leadId ? [req.user.id, leadId, from, to] : [req.user.id, from, to];
+      const r = await db.query(sql, params);
+      res.json({ visits: r.rows });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.post('/visits', requireUser, async (req, res) => {
+    try {
+      const uid = req.user.id;
+      const { leadId, patientName, phone, branch, provider, visitType, visitDate, notes, outcome, nextSteps, appointmentId } = req.body || {};
+      
+      if (!leadId || !visitDate) {
+        return res.status(400).json({ error: 'leadId and visitDate are required' });
+      }
+
+      const r = await db.query(
+        `INSERT INTO clinic_visits
+           (user_id, lead_id, patient_name, phone, branch, provider, visit_type, visit_date, notes, outcome, next_steps, appointment_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         RETURNING *`,
+        [uid, leadId, patientName, phone, branch, provider, visitType, visitDate, notes, outcome, nextSteps, appointmentId]
+      );
+
+      await audit(uid, 'created', 'visit', r.rows[0].id, `Visit recorded for ${patientName}`);
+      res.json({ visit: r.rows[0] });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.patch('/visits/:id', requireUser, async (req, res) => {
+    try {
+      const uid = req.user.id;
+      const { patientName, phone, branch, provider, visitType, visitDate, notes, outcome, nextSteps, appointmentId } = req.body || {};
+      
+      const allowed = ['patientName', 'phone', 'branch', 'provider', 'visitType', 'visitDate', 'notes', 'outcome', 'nextSteps', 'appointmentId'];
+      const sets = [];
+      const vals = [req.params.id, uid];
+      
+      for (const [k, v] of Object.entries(req.body || {})) {
+        const col = k;
+        if (!allowed.includes(k)) continue;
+        vals.push(v);
+        sets.push(`${col} = $${vals.length}`);
+      }
+      
+      if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+      
+      const r = await db.query(
+        `UPDATE clinic_visits SET ${sets.join(', ')}, updated_at = NOW() WHERE id = $1 AND (user_id = $2 OR user_id IS NULL) RETURNING *`,
+        vals
+      );
+      
+      if (r.rows.length === 0) return res.status(404).json({ error: 'Visit not found' });
+      await audit(uid, 'updated', 'visit', req.params.id);
+      res.json({ visit: r.rows[0] });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  router.delete('/visits/:id', requireUser, async (req, res) => {
+    try {
+      const r = await db.query('DELETE FROM clinic_visits WHERE id = $1 AND (user_id = $2 OR user_id IS NULL) RETURNING id', [req.params.id, req.user.id]);
+      if (r.rowCount === 0) return res.status(404).json({ error: 'Visit not found' });
+      await audit(req.user.id, 'deleted', 'visit', req.params.id);
+      res.json({ ok: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // Mark appointment as completed (creates a visit record)
+  router.post('/appointments/:id/complete', requireUser, async (req, res) => {
+    try {
+      const uid = req.user.id;
+      const appt = await db.query('SELECT * FROM clinic_appointments WHERE id = $1 AND (user_id = $1 OR user_id IS NULL)', [req.params.id, uid]);
+      if (appt.rows.length === 0) return res.status(404).json({ error: 'Appointment not found' });
+      
+      const a = appt.rows[0];
+      const { visitType = 'consultation', provider, notes, outcome, nextSteps } = req.body || {};
+      
+      // Create visit record
+      const visit = await db.query(
+        `INSERT INTO clinic_visits
+           (user_id, lead_id, patient_name, phone, branch, provider, visit_type, visit_date, notes, outcome, next_steps, appointment_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         RETURNING *`,
+        [uid, a.lead_id, a.patient_name, a.phone, a.branch, provider, visitType, a.starts_at, notes, outcome, nextSteps, a.id]
+      );
+
+      // Mark appointment as completed
+      await db.query('UPDATE clinic_appointments SET status = $1, updated_at = NOW() WHERE id = $2', ['completed', a.id]);
+      
+      await audit(uid, 'completed', 'appointment', a.id, `Appointment marked as completed, visit recorded`);
+      res.json({ visit: visit.rows[0], appointment: { ...a, status: 'completed' } });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Patients (dedicated clinic patient directory & records)
 // ---------------------------------------------------------------------------
 router.get('/journey-stats', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
-    const [leadsRes, engageRes, callsRes, bookRes, apptsRes, treatRes, revRes, repeatRes] = await Promise.all([
+    const [leadsRes, engageRes, callsRes, bookRes, apptsRes, visitsRes, treatRes, revRes, repeatRes] = await Promise.all([
       db.query("SELECT COUNT(*)::int as c FROM leads WHERE (user_id = $1 OR user_id IS NULL)", [uid]),
       db.query("SELECT (SELECT COUNT(*)::int FROM whatsapp_conversations) + (SELECT COUNT(*)::int FROM clinic_notes) as c"),
       db.query("SELECT COUNT(*)::int as c FROM ai_calls"),
       db.query("SELECT (SELECT COUNT(*)::int FROM calendly_events WHERE is_deleted IS NOT TRUE) + (SELECT COUNT(*)::int FROM clinic_appointments) as c"),
       db.query("SELECT COUNT(DISTINCT LOWER(COALESCE(NULLIF(invitee_email,''), invitee_name)))::int as c FROM calendly_events WHERE is_deleted IS NOT TRUE"),
-      db.query("SELECT COUNT(*)::int as c FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND pipeline_stage IN ('Active Patient', 'Patient')", [uid]),
+      db.query("SELECT COUNT(*)::int as c FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND status = 'completed'", [uid]),
       db.query("SELECT COUNT(*)::int as c FROM clinic_reviews"),
       db.query(`
         SELECT COUNT(*)::int as c FROM (
@@ -1004,7 +1246,7 @@ router.get('/journey-stats', requireUser, async (req, res) => {
     const engageCount = engageRes.rows[0]?.c || 0;
     const qualifyCount = callsRes.rows[0]?.c || 0;
     const bookCount = bookRes.rows[0]?.c || 0;
-    const consultCount = apptsRes.rows[0]?.c || 0;
+    const consultCount = visitsRes.rows[0]?.c || 0;
     const treatCount = treatRes.rows[0]?.c || 0;
     const revCount = revRes.rows[0]?.c || 0;
     const repeatCount = repeatRes.rows[0]?.c || 0;
@@ -1142,7 +1384,7 @@ router.get('/patients/:id', requireUser, async (req, res) => {
     if (lead.rows.length === 0) return res.status(404).json({ error: 'Patient not found' });
     const patientRow = lead.rows[0];
 
-    const [notes, appointments, packages, calls] = await Promise.all([
+    const [notes, appointments, packages, calls, visits] = await Promise.all([
       db.query('SELECT * FROM clinic_notes WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC LIMIT 50', [uid, leadId]),
       (async () => {
         const [appts, cal] = await Promise.all([
@@ -1164,6 +1406,7 @@ router.get('/patients/:id', requireUser, async (req, res) => {
            FROM clinic_calls WHERE lead_id = $1 OR phone = $2 ORDER BY started_at DESC LIMIT 20`,
         [leadId, patientRow.phone || '']
       ),
+      db.query('SELECT * FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY visit_date DESC LIMIT 20', [uid, leadId]),
     ]);
 
     res.json({
@@ -1172,6 +1415,7 @@ router.get('/patients/:id', requireUser, async (req, res) => {
       appointments: appointments,
       packages: packages.rows,
       calls: calls.rows,
+      visits: visits.rows,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

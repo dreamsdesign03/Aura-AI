@@ -147,7 +147,7 @@ function PackageForm({ leadId }) {
 
 function PatientDrawer({ id, onClose, onDeleteClick }) {
   const qc = useQueryClient();
-  const [tab, setTab] = useState('timeline');
+  const [tab, setTab] = useState('overview');
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['clinic', 'patient', id],
     queryFn: () => clinicApi.patient(id),
@@ -173,12 +173,26 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
   const appts = data?.appointments || [];
   const packages = data?.packages || [];
   const calls = data?.calls || [];
+  const visits = data?.visits || [];
   const currentStage = p ? getPatientCareStage(p) : PATIENT_CARE_STAGES[0];
+
+  // Filter out placeholder emails for display
+  const isPlaceholder = (e) => !e || /^noemail\+\d+@auralaser\.co\.in$/i.test(String(e).trim());
+  const displayEmail = p?.email && !isPlaceholder(p.email) ? p.email : null;
+  // Format phone for display
+  const formatPhone = (phone) => {
+    if (!phone) return '';
+    const digits = String(phone).replace(/\D/g, '');
+    if (digits.length === 10) return `+91 ${digits.slice(0,5)} ${digits.slice(5)}`;
+    if (digits.length === 12 && digits.startsWith('91')) return `+91 ${digits.slice(2,7)} ${digits.slice(7)}`;
+    return phone;
+  };
+  const displayPhone = formatPhone(p?.phone);
 
   return (
     <Drawer
       title={p ? getContactDisplayName(p) : 'Patient'}
-      subtitle={p ? [p.email, p.phone].filter(Boolean).join(' · ') : ''}
+      subtitle={p ? [displayEmail, displayPhone].filter(Boolean).join(' · ') : ''}
       onClose={onClose}
       actions={
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -219,7 +233,8 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
                 >
                   {currentStage.chipLabel}
                 </span>
-                <span className="co-chip co-c-n"><CalendarDays size={11} /> {appts.length} consultations / visits</span>
+                <span className="co-chip co-c-n"><CalendarDays size={11} /> {appts.length} appointments</span>
+<span className="co-chip co-c-g"><CalendarDays size={11} /> {visits?.length || 0} visits</span>
                 {packages.length > 0 ? <span className="co-chip co-c-n"><Package size={11} /> {packages.length} packages</span> : null}
               </div>
             </div>
@@ -245,13 +260,13 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
           </div>
 
           <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
-            {p.phone ? <a className="co-chip co-c-p" href={`tel:${p.phone}`}><Phone size={11} /> Call {p.phone}</a> : null}
+            {displayPhone ? <a className="co-chip co-c-p" href={`tel:${p.phone}`}><Phone size={11} /> Call {displayPhone}</a> : null}
             {p.phone ? (
               <a className="co-chip co-c-p" href={`https://wa.me/${p.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer">
                 <MessageCircle size={11} /> WhatsApp
               </a>
             ) : null}
-            {p.email ? <a className="co-chip co-c-n" href={`mailto:${p.email}`}><Mail size={11} /> {p.email}</a> : null}
+            {displayEmail ? <a className="co-chip co-c-n" href={`mailto:${displayEmail}`}><Mail size={11} /> {displayEmail}</a> : null}
             <Link href="/clinic/appointments" className="co-chip co-c-n"><CalendarDays size={11} /> Book consultation</Link>
             <Link href="/clinic/dialer" className="co-chip co-c-n"><PhoneCall size={11} /> AI Dialer</Link>
           </div>
@@ -260,45 +275,75 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
             value={tab}
             onChange={setTab}
             items={[
-              { value: 'timeline', label: `Timeline (${notes.length})` },
-              { value: 'appointments', label: `Visits (${appts.length})` },
+              { value: 'overview', label: 'Overview' },
+              { value: 'visits', label: `Visits (${visits?.length || 0})` },
+              { value: 'appointments', label: `Appointments (${appts.length})` },
               { value: 'packages', label: `Packages (${packages.length})` },
             ]}
           />
 
-          {tab === 'timeline' ? (
+          {tab === 'overview' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <NoteForm leadId={Number(id)} />
-              <div className="co-list">
-                {notes.length === 0 ? <p className="co-sm co-mut">No notes yet.</p> : notes.map((n) => (
-                  <div className="co-list-item" key={n.id}>
-                    <span className="co-dot" />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div className="co-spread">
-                        <span className="co-strong" style={{ fontSize: 13 }}>{n.title || n.kind}</span>
-                        <span className="co-xs co-mut">{datetimeLabel(n.created_at)}</span>
-                      </div>
-                      {n.body ? <p className="co-sm co-mut" style={{ marginTop: 3 }}>{n.body}</p> : null}
-                    </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="co-label">Upcoming Appointment</div>
+                {(appts || []).length > 0 ? (
+                  <div className="co-card" style={{ padding: 12 }}>
+                    <div className="co-strong">{appts[0].treatment || 'Appointment'}</div>
+                    <div className="co-xs co-mut">{dateLabel(appts[0].starts_at)} · {timeLabel(appts[0].starts_at)}{appts[0].branch ? ` · ${appts[0].branch}` : ''}</div>
+                    <div className="co-xs co-mut" style={{ marginTop: 4 }}>Next appointment: {dateLabel(appts[0].starts_at)} at {timeLabel(appts[0].starts_at)}{appts[0].branch ? ` · ${appts[0].branch}` : ''}</div>
                   </div>
-                ))}
+                ) : (
+                  <p className="co-sm co-mut">No upcoming appointments.</p>
+                )}
               </div>
-              {calls.length > 0 ? (
-                <div>
-                  <div className="co-label" style={{ marginBottom: 6 }}>Recent calls</div>
-                  <div className="co-list">
-                    {calls.map((c) => (
-                      <div className="co-list-item" key={c.id}>
-                        <PhoneCall size={13} style={{ marginTop: 3, color: '#A4285E' }} />
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div className="co-sm co-strong">{c.transcript_summary || 'Call'}</div>
-                          <div className="co-xs co-mut">{c.started_at ? datetimeLabel(c.started_at) : '—'} · {c.status || 'completed'}</div>
-                        </div>
-                      </div>
-                    ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="co-label">Last Visit</div>
+                {p.last_visit ? (
+                  <div className="co-card" style={{ padding: 12 }}>
+                    <div className="co-strong">{datetimeLabel(p.last_visit)}</div>
+                    <div className="co-xs co-mut">Last recorded visit</div>
                   </div>
+                ) : (
+                  <p className="co-sm co-mut">—</p>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="co-label">Call Summary</div>
+                {calls.length > 0 ? (
+                  <div className="co-card" style={{ padding: 12 }}>
+                    <div className="co-sm co-strong">{calls[0].transcript_summary || 'Call completed'}</div>
+                    <div className="co-xs co-mut">{calls[0].started_at ? datetimeLabel(calls[0].started_at) : '—'} · {calls[0].status || 'completed'}</div>
+                  </div>
+                ) : (
+                  <p className="co-sm co-mut">No call records yet.</p>
+                )}
+              </div>
+              <NoteForm leadId={Number(id)} />
+            </div>
+          ) : null}
+
+          {tab === 'visits' ? (
+            <div>
+              {visits?.length === 0 ? (
+                <p className="co-sm co-mut">No visits recorded yet.</p>
+              ) : (
+                <div className="co-list">
+                  {visits.map((v) => (
+                    <div className="co-list-item" key={v.id} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                      <div className="co-spread">
+                        <span className="co-strong" style={{ fontSize: 13 }}>{v.visit_type || 'Visit'}</span>
+                        <StatusChip status={v.outcome || 'completed'} />
+                      </div>
+                      <div className="co-xs co-mut" style={{ marginTop: 3 }}>
+                        {dateLabel(v.visit_date)} · {v.branch ? ` · ${v.branch}` : ''}{v.provider ? ` · ${v.provider}` : ''}
+                      </div>
+                      {v.notes ? <div className="co-xs co-mut" style={{ marginTop: 3 }}>{v.notes}</div> : null}
+                      {v.outcome ? <div className="co-xs co-mut" style={{ marginTop: 3 }}>Outcome: {v.outcome}</div> : null}
+                      {v.next_steps ? <div className="co-xs co-mut" style={{ marginTop: 3 }}>Next: {v.next_steps}</div> : null}
+                    </div>
+                  ))}
                 </div>
-              ) : null}
+              )}
             </div>
           ) : null}
 

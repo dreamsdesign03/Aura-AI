@@ -98,6 +98,12 @@ export const clinicApi = {
   callReview: (id) => request(`/call-review/${id}`),
   transcribeCall: (id) => request(`/call-review/${id}/transcribe`, { method: 'POST' }),
 
+  // Visits
+  visits: (leadId) => request(`/visits${leadId ? `?leadId=${encodeURIComponent(leadId)}` : ''}`),
+  createVisit: (body) => request('/visits', { method: 'POST', body: JSON.stringify(body) }),
+  updateVisit: (id, body) => request(`/visits/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deleteVisit: (id) => request(`/visits/${id}`, { method: 'DELETE' }),
+
   // Agents
   agents: () => request('/agents'),
 };
