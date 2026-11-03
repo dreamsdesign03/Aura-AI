@@ -332,10 +332,11 @@ async function updateContactName({ phone, rawName, nameSource = 'call' }) {
     // 2. Update bulk_contacts
     const bulkContactRes = await db.query(
       `UPDATE bulk_contacts 
-       SET name = $1, name_original = $2, name_english = $3, name_source = $4
+       SET name = $1, name_original = $2, name_english = $3, name_source = $4,
+           lead_id = COALESCE(lead_id, $6)
        WHERE phone10 = $5 OR phone_e164 LIKE '%' || $5
        RETURNING id`,
-      [englishName, rawName, englishName, nameSource, last10]
+      [englishName, rawName, englishName, nameSource, last10, leadId]
     );
     if (bulkContactRes.rowCount > 0) {
       results.updated.push('bulk_contacts');

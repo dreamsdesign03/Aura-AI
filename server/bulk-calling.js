@@ -309,7 +309,7 @@ router.get('/', requireUserCookie, async (req, res) => {
 });
 
 // POST new campaign
-router.post('/', async (req, res) => {
+router.post('/', requireUserCookie, async (req, res) => {
   try {
     const { name, max_attempts, retry_delay_min, gap_seconds, contacts, sarvam_settings } = req.body;
     if (!contacts || !Array.isArray(contacts)) return res.status(400).json({ error: 'invalid contacts' });
@@ -325,9 +325,17 @@ router.post('/', async (req, res) => {
       retryDelay = settings.retry.intervalMin;
     }
 
+    let creatorUserId = req.user ? req.user.id : null;
+    if (!creatorUserId) {
+      try {
+        const u = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
+        creatorUserId = u.rows[0]?.id || null;
+      } catch (_) {}
+    }
+
     const insertCamp = await db.query(
       'INSERT INTO bulk_campaigns (name, branch, max_attempts, retry_delay_min, gap_seconds, total, created_by, sarvam_settings) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id',
-      [name, req.body.branch || null, maxAttempts, retryDelay, gap_seconds || 20, contacts.length, req.user ? req.user.id : 1, settings ? JSON.stringify(settings) : null]
+      [name, req.body.branch || null, maxAttempts, retryDelay, gap_seconds || 20, contacts.length, creatorUserId, settings ? JSON.stringify(settings) : null]
     );
     const campaignId = insertCamp.rows[0].id;
 
@@ -387,7 +395,7 @@ router.post('/', async (req, res) => {
             targetLeadId = existingLead.rows[0].id;
             await db.query(
               "UPDATE leads SET campaign_name = $1, campaign_id = $2, company = COALESCE(NULLIF(company, ''), $3), email = COALESCE(NULLIF(email, ''), $4), source = COALESCE(source, 'Bulk Calling') WHERE id = $5",
-              [name, campaignId, c.company || null, c.email || null, targetLeadId]
+              [name, campaignId, c.company || '', c.email || null, targetLeadId]
             );
           }
         }
@@ -395,9 +403,8 @@ router.post('/', async (req, res) => {
         if (!targetLeadId) {
           const rawName = (c.name || '').trim();
           const spaceIdx = rawName.indexOf(' ');
-          const firstName = spaceIdx > 0 ? rawName.slice(0, spaceIdx) : (rawName || 'Lead');
+          const firstName = spaceIdx > 0 ? rawName.slice(0, spaceIdx) : (rawName && rawName !== '.' ? rawName : 'Lead');
           const lastName = spaceIdx > 0 ? rawName.slice(spaceIdx + 1) : '';
-          const userId = req.user ? req.user.id : 1;
 
           const newLead = await db.query(
             `INSERT INTO leads (
@@ -406,7 +413,7 @@ router.post('/', async (req, res) => {
               status, pipeline_stage, user_id, created_at, updated_at
             ) VALUES ($1, $2, $3, $4, $5, $6, 'Bulk Calling', $7, $8, 'new', 'Lead', $9, NOW(), NOW())
             RETURNING id`,
-            [firstName, lastName, phoneE164, phoneE164, c.email || null, c.company || null, name, campaignId, userId]
+            [firstName, lastName, phoneE164, phoneE164, c.email || null, c.company || '', name, campaignId, creatorUserId]
           );
           targetLeadId = newLead.rows[0].id;
         } else if (c.lead_id) {
@@ -431,6 +438,74 @@ router.post('/', async (req, res) => {
   }
 });
 
+// Automatically backfill and ensure every bulk contact is linked to a lead in the leads table
+async function syncUnlinkedBulkContacts(campaignId = null) {
+  try {
+    const fallbackUser = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
+    const defaultUserId = fallbackUser.rows[0]?.id || null;
+
+    let query = `
+      SELECT bc.*, c.name as camp_name 
+      FROM bulk_contacts bc
+      LEFT JOIN bulk_campaigns c ON c.id = bc.campaign_id
+      WHERE bc.lead_id IS NULL
+    `;
+    const params = [];
+    if (campaignId) {
+      params.push(campaignId);
+      query += ` AND bc.campaign_id = $1`;
+    }
+    query += ` ORDER BY bc.id ASC LIMIT 200`;
+
+    const unlinked = await db.query(query, params);
+    for (const c of unlinked.rows) {
+      const phoneE164 = c.phone_e164 || (c.phone10 ? `+91${c.phone10}` : null);
+      const phone10 = c.phone10 || (c.phone_e164 ? c.phone_e164.slice(-10) : null);
+      if (!phoneE164 && !phone10) continue;
+
+      let existingLead = await db.query(
+        "SELECT id FROM leads WHERE (phone = $1 OR whatsapp = $1 OR phone = $2 OR whatsapp = $2) LIMIT 1",
+        [phoneE164, phone10]
+      );
+      let leadId = existingLead.rows[0]?.id;
+
+      if (!leadId) {
+        const rawName = (c.name || '').trim();
+        const spaceIdx = rawName.indexOf(' ');
+        const firstName = spaceIdx > 0 ? rawName.slice(0, spaceIdx) : (rawName && rawName !== '.' ? rawName : 'Lead');
+        const lastName = spaceIdx > 0 ? rawName.slice(spaceIdx + 1) : '';
+
+        const ins = await db.query(
+          `INSERT INTO leads (
+            first_name, last_name, phone, whatsapp, email, company,
+            source, campaign_name, campaign_id,
+            status, pipeline_stage, user_id, created_at, updated_at
+          ) VALUES ($1, $2, $3, $4, $5, $6, 'Bulk Calling', $7, $8, 'new', 'Lead', $9, NOW(), NOW())
+          RETURNING id`,
+          [firstName, lastName, phoneE164, phoneE164, c.email || null, c.company || '', c.camp_name || 'Bulk Campaign', c.campaign_id, defaultUserId]
+        );
+        leadId = ins.rows[0]?.id;
+      } else {
+        await db.query(
+          "UPDATE leads SET campaign_name = COALESCE(campaign_name, $1), campaign_id = COALESCE(campaign_id, $2), source = COALESCE(source, 'Bulk Calling') WHERE id = $3",
+          [c.camp_name || 'Bulk Campaign', c.campaign_id, leadId]
+        );
+      }
+
+      if (leadId) {
+        await db.query('UPDATE bulk_contacts SET lead_id = $1 WHERE id = $2', [leadId, c.id]);
+      }
+    }
+  } catch (err) {
+    console.warn('[BulkCalling] syncUnlinkedBulkContacts warning:', err.message);
+  }
+}
+
+// Background auto-heal on boot
+setTimeout(() => {
+  syncUnlinkedBulkContacts().catch(() => {});
+}, 3000);
+
 // GET campaign details
 router.get('/:id', requireUserCookie, async (req, res) => {
   try {
@@ -451,6 +526,7 @@ router.get('/:id', requireUserCookie, async (req, res) => {
 // GET contacts for campaign
 router.get('/:id/contacts', requireUserCookie, async (req, res) => {
   try {
+    await syncUnlinkedBulkContacts(req.params.id);
     const contacts = await db.query('SELECT * FROM bulk_contacts WHERE campaign_id = $1 ORDER BY id ASC', [req.params.id]);
     res.json(contacts.rows);
   } catch (err) {

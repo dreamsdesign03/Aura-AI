@@ -343,6 +343,23 @@ async function seedAdminUser() {
       );
 
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_dead_website BOOLEAN DEFAULT FALSE;
+      -- Ensure leads table columns are nullable with proper defaults for phone/bulk leads
+      ALTER TABLE leads ALTER COLUMN email DROP NOT NULL;
+      ALTER TABLE leads ALTER COLUMN first_name DROP NOT NULL;
+      ALTER TABLE leads ALTER COLUMN last_name DROP NOT NULL;
+      ALTER TABLE leads ALTER COLUMN company DROP NOT NULL;
+      ALTER TABLE leads ALTER COLUMN country DROP NOT NULL;
+      ALTER TABLE leads ALTER COLUMN designation DROP NOT NULL;
+      ALTER TABLE leads ALTER COLUMN industry DROP NOT NULL;
+      ALTER TABLE leads ALTER COLUMN email SET DEFAULT '';
+      ALTER TABLE leads ALTER COLUMN first_name SET DEFAULT 'Lead';
+      ALTER TABLE leads ALTER COLUMN last_name SET DEFAULT '';
+      ALTER TABLE leads ALTER COLUMN company SET DEFAULT '';
+      ALTER TABLE leads ALTER COLUMN country SET DEFAULT 'India';
+      ALTER TABLE leads ALTER COLUMN designation SET DEFAULT '';
+      ALTER TABLE leads ALTER COLUMN industry SET DEFAULT '';
+      ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_email_unique;
+      CREATE UNIQUE INDEX IF NOT EXISTS leads_email_unique_nonempty ON leads (LOWER(email)) WHERE email IS NOT NULL AND email != '';
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS website_status TEXT DEFAULT 'unknown';
       ALTER TABLE leads ADD COLUMN IF NOT EXISTS is_fake BOOLEAN DEFAULT FALSE;
 
@@ -1475,7 +1492,7 @@ app.get('/api/stats', async (req, res) => {
 // 5. Leads API
 app.get('/api/leads', async (req, res) => {
   try {
-    const { search, status, stage, minBant, limit = 50, page = 1, email } = req.query;
+    const { search, status, stage, minBant, limit = 50, page = 1, email, source, campaign } = req.query;
     let whereClauses = [];
     let queryParams = [];
 
@@ -1491,7 +1508,27 @@ app.get('/api/leads', async (req, res) => {
     if (search) {
       queryParams.push(`%${search}%`);
       const paramIndex = queryParams.length;
-      whereClauses.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR company ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
+      whereClauses.push(`(
+        first_name ILIKE $${paramIndex} OR 
+        last_name ILIKE $${paramIndex} OR 
+        company ILIKE $${paramIndex} OR 
+        email ILIKE $${paramIndex} OR
+        phone ILIKE $${paramIndex} OR
+        whatsapp ILIKE $${paramIndex} OR
+        name_english ILIKE $${paramIndex} OR
+        name_original ILIKE $${paramIndex} OR
+        campaign_name ILIKE $${paramIndex}
+      )`);
+    }
+
+    if (source) {
+      queryParams.push(source);
+      whereClauses.push(`source = $${queryParams.length}`);
+    }
+
+    if (campaign) {
+      queryParams.push(campaign);
+      whereClauses.push(`campaign_name = $${queryParams.length}`);
     }
 
     if (status) {
