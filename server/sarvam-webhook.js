@@ -112,7 +112,7 @@ async function handleDirectCallWebhook(payload) {
       requestId,
       toPhone,
       fromPhone,
-      [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'AI Caller',
+      ([lead?.first_name, lead?.last_name].filter(Boolean).join(' ').trim() !== '.' && [lead?.first_name, lead?.last_name].filter(Boolean).join(' ').trim()) || spokenName || 'AI Caller',
       lead.company || 'Aura Clinic',
       callStatus || 'completed',
       bookingType,
@@ -297,7 +297,7 @@ async function handleCampaignWebhook(campaignId, payload) {
 
   if (typeof resolveAttempt === 'function' && attempt) {
     try {
-      await resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recUrl, payload.interaction_transcript || null);
+      await resolveAttempt(attempt, callStatus, outcome, summary, sentiment, recUrl, payload.interaction_transcript || null, spokenName);
     } catch (e) {
       console.warn('[Sarvam webhook] resolveAttempt warning:', e.message);
     }
@@ -320,6 +320,13 @@ async function handleCampaignWebhook(campaignId, payload) {
     const fromPhone = payload.bot_contact_identifier || '+917965852999';
     const direction = payload.channel_direction || 'outbound';
     const duration = payload.duration != null ? Math.round(payload.duration) : (payload.duration_in_seconds ? Math.round(payload.duration_in_seconds) : 0);
+
+    const freshRes = await db.query(
+      `SELECT name, name_english FROM bulk_contacts WHERE id = $1`,
+      [contact.id]
+    );
+    const freshName = (freshRes.rows[0]?.name_english || freshRes.rows[0]?.name || contact.name || '').trim();
+    const cleanFinalName = (freshName === '.' || freshName === '-' || !freshName) ? 'Patient' : freshName;
 
     const existingAiCall = await db.query(
       'SELECT id FROM ai_calls WHERE conversation_id = $1 OR call_sid = $2 LIMIT 1',
@@ -345,7 +352,7 @@ async function handleCampaignWebhook(campaignId, payload) {
         requestId,
         toPhone,
         fromPhone,
-        contact.name || 'Patient',
+        cleanFinalName,
         contact.company || 'Aura Clinic',
         callStatus || 'completed',
         duration,
@@ -367,6 +374,8 @@ async function handleCampaignWebhook(campaignId, payload) {
                sentiment = COALESCE($5, sentiment),
                outcome = COALESCE($6, outcome),
                transcript = COALESCE($7, transcript),
+               lead_name = (CASE WHEN lead_name IS NULL OR lead_name IN ('.', '-', 'Patient', '') THEN $9 ELSE lead_name END),
+               lead_name_english = (CASE WHEN lead_name_english IS NULL OR lead_name_english IN ('.', '-', '') THEN $9 ELSE lead_name_english END),
                updated_at = NOW()
          WHERE id = $8
       `, [
@@ -377,7 +386,8 @@ async function handleCampaignWebhook(campaignId, payload) {
         sentiment || 'Neutral',
         outcome || 'booked',
         payload.interaction_transcript ? JSON.stringify(payload.interaction_transcript) : null,
-        existingAiCall.rows[0].id
+        existingAiCall.rows[0].id,
+        cleanFinalName
       ]);
     }
   } catch (syncErr) {

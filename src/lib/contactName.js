@@ -16,64 +16,68 @@ export function toTitleCase(str) {
     .join(' ');
 }
 
+function isCleanName(val) {
+  if (!val) return false;
+  const s = String(val).trim();
+  if (!s || s === '.' || s === '-' || s === '—' || s === 'Name Not Available' || s === 'Unknown' || s === 'Patient') return false;
+  return true;
+}
+
 /**
  * Get the best available display name for a contact
- * Priority: name_english > name_original > first_name + last_name > phone fallback
+ * Priority: display_name > name_english > name_original > first_name + last_name > lead_name > patient_name > phone fallback
  */
 export function getContactDisplayName(contact) {
   if (!contact) return 'Unknown Contact';
+
+  // Priority 0: display_name (explicitly computed clean name from backend APIs)
+  if (isCleanName(contact.display_name)) {
+    return contact.display_name.trim();
+  }
   
   // Priority 1: name_english (transliterated English name from AI calls)
-  if (contact.name_english && contact.name_english !== 'Name Not Available') {
-    return contact.name_english;
+  if (isCleanName(contact.name_english)) {
+    return contact.name_english.trim();
   }
   
   // Priority 2: name_original (original spoken name)
-  if (contact.name_original && contact.name_original !== 'Name Not Available') {
-    return contact.name_original;
+  if (isCleanName(contact.name_original)) {
+    return contact.name_original.trim();
   }
   
   // Priority 3: standard first_name + last_name
   if (contact.first_name || contact.last_name) {
-    const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ');
-    if (name && name !== 'Name Not Available') {
-      return name;
+    const fullName = [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim();
+    if (isCleanName(fullName)) {
+      return fullName;
     }
   }
   
   // Priority 4: lead_name fields (from ai_calls)
-  if (contact.lead_name_english && contact.lead_name_english !== 'Name Not Available') {
-    return contact.lead_name_english;
+  if (isCleanName(contact.lead_name_english)) {
+    return contact.lead_name_english.trim();
   }
-  if (contact.lead_name_original && contact.lead_name_original !== 'Name Not Available') {
-    return contact.lead_name_original;
+  if (isCleanName(contact.lead_name_original)) {
+    return contact.lead_name_original.trim();
   }
-  if (contact.lead_name && contact.lead_name !== 'Patient' && contact.lead_name !== 'Name Not Available') {
-    return contact.lead_name;
+  if (isCleanName(contact.lead_name)) {
+    return contact.lead_name.trim();
   }
   
   // Priority 5: patient_name fields (from clinic_appointments)
-  if (contact.patient_name_english && contact.patient_name_english !== 'Name Not Available') {
-    return contact.patient_name_english;
+  if (isCleanName(contact.patient_name_english)) {
+    return contact.patient_name_english.trim();
   }
-  if (contact.patient_name_original && contact.patient_name_original !== 'Name Not Available') {
-    return contact.patient_name_original;
+  if (isCleanName(contact.patient_name_original)) {
+    return contact.patient_name_original.trim();
   }
-  if (contact.patient_name && contact.patient_name !== 'Name Not Available') {
-    return contact.patient_name;
-  }
-  
-  // Priority 6: name_english from whatsapp_conversations
-  if (contact.name_english && contact.name_english !== 'Name Not Available') {
-    return contact.name_english;
+  if (isCleanName(contact.patient_name)) {
+    return contact.patient_name.trim();
   }
   
-  // Priority 7: name from bulk_contacts
-  if (contact.name_english && contact.name_english !== 'Name Not Available') {
-    return contact.name_english;
-  }
-  if (contact.name && contact.name !== 'Name Not Available') {
-    return contact.name;
+  // Priority 6: name from bulk_contacts
+  if (isCleanName(contact.name)) {
+    return contact.name.trim();
   }
   
   // Fallback: phone number
@@ -107,7 +111,10 @@ export function getContactInitials(contact) {
   const name = getContactDisplayName(contact);
   if (!name || name === 'Unknown Contact') return '?';
   
-  const parts = name.split(' ').filter(Boolean);
+  const clean = name.replace(/^[^a-zA-Z0-9]+/, '');
+  if (!clean) return '?';
+
+  const parts = clean.split(' ').filter(Boolean);
   if (parts.length === 1) {
     return parts[0].charAt(0).toUpperCase();
   }

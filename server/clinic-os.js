@@ -474,7 +474,7 @@ function mapCalRowToClinic(row) {
     id: row.id,
     user_id: row.user_id,
     lead_id: null,
-    patient_name: cleanEnglishName(row.invitee_name, 'Consultation Patient'),
+    patient_name: cleanEnglishName(row.resolved_patient_name || row.invitee_name, 'Consultation Patient'),
     phone: phone,
     email: email,
     treatment: treatment,
@@ -750,9 +750,24 @@ router.get('/appointments', requireUser, async (req, res) => {
 
     const [calRes, clinicRes] = await Promise.all([
       db.query(
-        `SELECT * FROM calendly_events
-          WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false
-          ORDER BY start_time DESC`,
+        `SELECT ce.*,
+                COALESCE(
+                  NULLIF(NULLIF(NULLIF(bc.name_english, '.'), '-'), ''),
+                  NULLIF(NULLIF(NULLIF(bc.name, '.'), '-'), ''),
+                  NULLIF(NULLIF(NULLIF(l.name_english, '.'), '-'), ''),
+                  NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''),
+                  ce.invitee_name
+                ) AS resolved_patient_name
+           FROM calendly_events ce
+           LEFT JOIN leads l ON (
+             l.phone LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
+             OR l.whatsapp LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
+           )
+           LEFT JOIN bulk_contacts bc ON (
+             bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
+           )
+          WHERE (ce.user_id = $1 OR ce.user_id IS NULL) AND COALESCE(ce.is_deleted, false) = false
+          ORDER BY ce.start_time DESC`,
         [userId]
       ),
       db.query(
@@ -3508,14 +3523,26 @@ router.get('/call-review', requireUser, async (req, res) => {
 
     let queryText = `
       SELECT ac.*, 
-             COALESCE(ac.lead_name, CONCAT_WS(' ', l.first_name, l.last_name), 'Patient') AS display_name,
-             COALESCE(ac.to_phone, l.phone, '—') AS display_phone,
-             COALESCE(ac.company_name, l.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
-             COALESCE(ac.provider, 'plivo') AS provider,
+             COALESCE(
+               NULLIF(NULLIF(NULLIF(ac.lead_name_english, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(ac.lead_name, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(bc.name_english, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(bc.name, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(l.name_english, '.'), '-'), ''),
+               NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''),
+               'Patient'
+             ) AS display_name,
+             COALESCE(ac.to_phone, l.phone, bc.phone_e164, '—') AS display_phone,
+             COALESCE(ac.company_name, l.company, bc.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
+             COALESCE(ac.provider, 'sarvam') AS provider,
              COALESCE(ac.direction, 'outbound') AS direction,
              jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count
         FROM ai_calls ac
-        LEFT JOIN leads l ON l.id = ac.lead_id
+        LEFT JOIN leads l ON (l.id = ac.lead_id OR l.phone = ac.to_phone OR l.whatsapp = ac.to_phone)
+        LEFT JOIN bulk_contacts bc ON (
+          bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ac.to_phone, ''), '\\D', '', 'g'), 10)
+          OR bc.phone_e164 = ac.to_phone
+        )
        WHERE (l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)
     `;
     const params = [req.user.id];

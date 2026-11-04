@@ -103,6 +103,8 @@ function transliterateIndic(str) {
     'કૃષ્ણ': 'Krishna', 'कृष्ण': 'Krishna',
     'જય': 'Jay', 'जय': 'Jay',
     'ગણેશ': 'Ganesh', 'गणेश': 'Ganesh',
+    'માનસી': 'Mansi', 'मानसी': 'Mansi',
+    'માનસીબેન': 'Mansi', 'मानसीबेन': 'Mansi',
   };
   for (const [k, v] of Object.entries(overrides)) {
     str = str.replace(new RegExp(k, 'g'), v);
@@ -145,7 +147,7 @@ const KNOWN_NAME_MAPPINGS = {
 function cleanEnglishName(raw, fallback = 'Patient') {
   if (!raw) return fallback;
   let str = String(raw).trim();
-  if (!str) return fallback;
+  if (!str || str === '.' || str === '-' || str === '—') return fallback;
 
   if (/sweetubrahmbhatt/i.test(str)) {
     return 'Sweetu Brahmbhatt';

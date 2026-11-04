@@ -135,9 +135,11 @@ export const money = (value) => {
 };
 
 export const initials = (first, last) => {
-  const a = (first || '').trim()[0] || '';
-  const b = (last || '').trim()[0] || '';
-  return (a + b).toUpperCase() || '?';
+  const f = (first || '').trim().replace(/^[^a-zA-Z0-9]+/, '');
+  const l = (last || '').trim().replace(/^[^a-zA-Z0-9]+/, '');
+  const a = f[0] || '';
+  const b = l[0] || '';
+  return (a + b).toUpperCase() || (f ? f.slice(0, 2).toUpperCase() : '?');
 };
 
 import { cleanEnglishName, cleanEnglishTreatment, transliterateIndic } from '@/lib/utils';

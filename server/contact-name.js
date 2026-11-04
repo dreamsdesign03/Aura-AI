@@ -113,7 +113,7 @@ function normalizeName(raw) {
 
   // Check for placeholder values BEFORE normalization (to catch "N/A" etc.)
   const lowerRaw = str.toLowerCase();
-  const earlyPlaceholders = ['n/a', 'na', 'name not available', 'not available', 'unknown', 'lead', 'test patient', 'patient', 'contact'];
+  const earlyPlaceholders = ['.', '-', '—', 'n/a', 'na', 'name not available', 'not available', 'unknown', 'lead', 'test patient', 'patient', 'contact'];
   if (earlyPlaceholders.includes(lowerRaw)) return null;
 
   // Remove common intro phrases from voice agents
@@ -399,6 +399,26 @@ async function updateContactName({ phone, rawName, nameSource = 'call' }) {
     );
     if (waMsgRes.rowCount > 0) {
       results.updated.push('whatsapp_messages');
+    }
+
+    // 8. Update calendly_events (Cal.com bookings and appointments)
+    try {
+      const calRes = await db.query(
+        `UPDATE calendly_events 
+         SET invitee_name = $1,
+             event_name = REGEXP_REPLACE(event_name, 'and\\s+.*$', 'and ' || $1)
+         WHERE questions->>'Phone / WhatsApp' LIKE $2 
+            OR questions->>'phone' LIKE $2 
+            OR invitee_email LIKE $2
+            OR invitee_name LIKE $3
+         RETURNING id`,
+        [englishName, `%${last10}%`, `%${rawName}%`]
+      );
+      if (calRes.rowCount > 0) {
+        results.updated.push('calendly_events');
+      }
+    } catch (calErr) {
+      console.warn('[contactName] calendly_events update warning:', calErr.message);
     }
 
     await db.query('COMMIT');
