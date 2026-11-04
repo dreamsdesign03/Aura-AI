@@ -2003,21 +2003,269 @@ router.put('/settings', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 // Playbooks
 // ---------------------------------------------------------------------------
+// Treatment Playbooks
+// ---------------------------------------------------------------------------
+const DEFAULT_PLAYBOOKS = [
+  {
+    title: 'Bridal countdown',
+    who: 'Brides, grooms and families, 2 to 6 months before the wedding',
+    status: 'Live',
+    enrolled_count: 146,
+    conv_count: 61,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Plan prices only after the doctor’s consult'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'Lead mentions a wedding', when: 'Instant', detail: 'Tagged Bridal from any channel. Wedding date asked in the first reply.', channel: 'System' },
+      { title: 'AI qualification call', when: 'Within 5 min', detail: 'Asks the date, concerns, who else in the family wants treatment, and the preferred branch.', channel: 'AI voice' },
+      { title: 'Consult with a doctor', when: 'Within 7 days', detail: 'Doctor builds the plan. Aura books every sitting backwards from the wedding date.', channel: 'Doctor' },
+      { title: 'Countdown sittings', when: '90 to 30 days before', detail: 'Peels, LHR and HydraFacial sittings with reminders 3 days and 1 day before each.', channel: 'WhatsApp' },
+      { title: 'Final glow', when: '7 days and 1 day before', detail: 'Last session, aftercare and a good luck message.', channel: 'WhatsApp' },
+      { title: 'After the wedding', when: '14 days after', detail: 'Review request and a couple or family maintenance package.', channel: 'AI voice' }
+    ]
+  },
+  {
+    title: 'Laser Hair Reduction',
+    who: 'Women 18 to 40, and men for back, chest and beard shaping',
+    status: 'Live',
+    enrolled_count: 412,
+    conv_count: 138,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Safety screen before the first session',
+      'Package prices allowed on chat'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'New LHR enquiry', when: 'Instant', detail: 'Area of interest captured from the ad or message.', channel: 'System' },
+      { title: 'AI call with safety screen', when: 'Within 5 min', detail: 'Area, pregnancy, isotretinoin, light sensitive medicines, recent tan. Any yes goes to the doctor.', channel: 'AI voice' },
+      { title: 'Consult and patch test', when: 'Within 3 days', detail: 'Doctor confirms the plan and package.', channel: 'Doctor' },
+      { title: 'Every sitting', when: 'Every 4 to 6 weeks', detail: 'Next sitting booked before the patient leaves. Reminders 3 days and 1 day before.', channel: 'WhatsApp' },
+      { title: 'Missed sitting', when: '3 days late', detail: 'AI recovery call. A second miss creates a staff task.', channel: 'AI voice' },
+      { title: 'After the last sitting', when: '6 months later', detail: 'Touch up reminder and a review request.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Acne and scars',
+    who: 'Teens to early 30s, high social media use',
+    status: 'Live',
+    enrolled_count: 238,
+    conv_count: 74,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Prescriptions only from the doctor'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'Skin analysis or enquiry', when: 'Instant', detail: 'Acne score from skin AI attached to the lead.', channel: 'System' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Concern, duration, past treatments, budget comfort.', channel: 'AI voice' },
+      { title: 'Medical plan first', when: 'Week 1', detail: 'Doctor led plan, then peels, then CO2 for scars.', channel: 'Doctor' },
+      { title: 'Progress check ins', when: 'Every 4 weeks', detail: 'Photo comparison with consent.', channel: 'WhatsApp' },
+      { title: 'Scar phase offer', when: 'After acne is controlled', detail: 'CO2 fractional consult suggested by the doctor.', channel: 'Staff task' }
+    ]
+  },
+  {
+    title: 'Hair loss: PRP and GFC',
+    who: 'Men 25 to 45, women with thinning',
+    status: 'Live',
+    enrolled_count: 183,
+    conv_count: 52,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'Hair enquiry', when: 'Instant', detail: 'Tagged hair loss.', channel: 'System' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Duration, family history, pattern, branch.', channel: 'AI voice' },
+      { title: 'Density assessment', when: 'Within 7 days', detail: 'Doctor assessment and plan.', channel: 'Doctor' },
+      { title: 'Monthly sittings', when: 'Every 4 weeks', detail: 'Reminders start 10 days early.', channel: 'WhatsApp' },
+      { title: '3 and 6 month review', when: 'Month 3 and 6', detail: 'Photo comparison. Non responders offered a transplant consult.', channel: 'Doctor' }
+    ]
+  },
+  {
+    title: 'Hair and beard transplant',
+    who: 'Men 25 to 50, high ticket, long decision cycle',
+    status: 'Live',
+    enrolled_count: 64,
+    conv_count: 9,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Graft estimates only from the doctor'
+    ],
+    channels: ['Staff task', 'WhatsApp', 'Doctor'],
+    steps: [
+      { title: 'Transplant enquiry', when: 'Instant', detail: 'Flagged high value.', channel: 'System' },
+      { title: 'Counsellor call', when: 'Same day', detail: 'A human counsellor calls, not AI.', channel: 'Staff task' },
+      { title: 'Nurture', when: 'Days 1 to 30', detail: 'Results stories, doctor explainer videos and FAQs.', channel: 'WhatsApp' },
+      { title: 'Consult and EMI', when: 'When ready', detail: 'Doctor consult, then quote and EMI link.', channel: 'Doctor' },
+      { title: 'Post op care', when: '12 months', detail: 'Follow ups at day 1, 10, month 3, 6 and 12.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Anti ageing',
+    who: 'Women and men 30 to 55',
+    status: 'Live',
+    enrolled_count: 121,
+    conv_count: 38,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Injectable prices only after consult'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'Doctor'],
+    steps: [
+      { title: 'Enquiry', when: 'Instant', detail: 'Tagged anti ageing.', channel: 'System' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Concern and preferred doctor.', channel: 'AI voice' },
+      { title: 'Private consult', when: 'Within 7 days', detail: 'Doctor credentials shared before the visit.', channel: 'Doctor' },
+      { title: '2 week review', when: 'Day 14', detail: 'Review visit booked at treatment time.', channel: 'WhatsApp' },
+      { title: 'Repeat reminder', when: 'Month 4 to 6', detail: 'Maintenance reminder.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'IV glutathione and glow',
+    who: 'Event and festive season buyers',
+    status: 'Seasonal',
+    enrolled_count: 88,
+    conv_count: 31,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Medical screening before every IV session'
+    ],
+    channels: ['WhatsApp', 'AI voice', 'Doctor'],
+    steps: [
+      { title: 'Festive campaign', when: 'Navratri, Diwali, weddings', detail: 'Offer to opted in patients only.', channel: 'WhatsApp' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Event date and medical screening questions.', channel: 'AI voice' },
+      { title: 'Doctor screening', when: 'Before session 1', detail: 'Doctor approves Basic or Advanced protocol.', channel: 'Doctor' },
+      { title: 'Session reminders', when: 'Weekly', detail: 'Reminders and aftercare.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Vitiligo and routine skin',
+    who: 'All ages, medical need',
+    status: 'Live',
+    enrolled_count: 97,
+    conv_count: 44,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'Doctor'],
+    steps: [
+      { title: 'Medical enquiry', when: 'Instant', detail: 'Tagged medical.', channel: 'System' },
+      { title: 'Consult booking', when: 'Within 3 days', detail: 'Earliest doctor slot offered.', channel: 'AI voice' },
+      { title: 'Adherence reminders', when: 'Daily or weekly', detail: 'Medicine and phototherapy reminders.', channel: 'WhatsApp' },
+      { title: 'Monthly review', when: 'Every month', detail: 'Progress photos with consent.', channel: 'Doctor' }
+    ]
+  },
+  {
+    title: 'Intimate care, private',
+    who: 'Women 30 plus, often after pregnancy',
+    status: 'Private',
+    enrolled_count: 23,
+    conv_count: 11,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'No promotional WhatsApp, ever',
+      'Female counsellor only',
+      'Restricted record access'
+    ],
+    channels: ['Staff task', 'Doctor', 'WhatsApp'],
+    steps: [
+      { title: 'Private enquiry', when: 'Instant', detail: 'Hidden from shared inboxes and reports by name.', channel: 'System' },
+      { title: 'Female counsellor callback', when: 'Same day', detail: 'Discreet call at the patient’s chosen time.', channel: 'Staff task' },
+      { title: 'Doctor consult', when: 'Within 7 days', detail: 'Neutral wording in all reminders.', channel: 'Doctor' },
+      { title: 'Follow up', when: 'Per protocol', detail: 'Neutral reminders only, no offers.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Online consultation',
+    who: 'Patients outside Vadodara, Surat and Ranchi',
+    status: 'Live',
+    enrolled_count: 56,
+    conv_count: 19,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message'
+    ],
+    channels: ['WhatsApp', 'Doctor', 'AI voice'],
+    steps: [
+      { title: 'Out of city enquiry', when: 'Instant', detail: 'City detected from number or message.', channel: 'System' },
+      { title: 'Paid slot booking', when: 'Within 1 day', detail: 'Video slot with Dr. Aditya Shah and a payment link.', channel: 'WhatsApp' },
+      { title: 'Video consult', when: 'As booked', detail: 'Prescription shared after the call.', channel: 'Doctor' },
+      { title: 'In clinic visit', when: 'If needed', detail: 'Nearest branch offered when a procedure is required.', channel: 'AI voice' }
+    ]
+  }
+];
+
 router.get('/playbooks', requireUser, async (req, res) => {
   try {
-    const r = await db.query('SELECT * FROM clinic_playbooks WHERE user_id = $1 ORDER BY created_at DESC', [req.user.id]);
+    let r = await db.query('SELECT * FROM clinic_playbooks WHERE user_id = $1 ORDER BY id ASC', [req.user.id]);
+    if (r.rows.length === 0) {
+      // Auto-seed default clinical playbooks for this user
+      for (const p of DEFAULT_PLAYBOOKS) {
+        await db.query(
+          `INSERT INTO clinic_playbooks (user_id, title, who, status, enrolled_count, conv_count, guardrails, channels, steps, body, active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)`,
+          [
+            req.user.id,
+            p.title,
+            p.who,
+            p.status,
+            p.enrolled_count,
+            p.conv_count,
+            JSON.stringify(p.guardrails),
+            JSON.stringify(p.channels),
+            JSON.stringify(p.steps),
+            p.who
+          ]
+        );
+      }
+      r = await db.query('SELECT * FROM clinic_playbooks WHERE user_id = $1 ORDER BY id ASC', [req.user.id]);
+    }
     res.json({ playbooks: r.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/playbooks', requireUser, async (req, res) => {
   try {
-    const { title, channel, stage, body } = req.body || {};
-    if (!title || !body) return res.status(400).json({ error: 'title and body required' });
+    const { title, who, status, enrolled_count, conv_count, guardrails, channels, steps, channel, stage, body } = req.body || {};
+    if (!title) return res.status(400).json({ error: 'Title is required' });
     const r = await db.query(
-      `INSERT INTO clinic_playbooks (user_id, title, channel, stage, body)
-       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-      [req.user.id, title, channel || 'call', stage || null, body]
+      `INSERT INTO clinic_playbooks (user_id, title, who, status, enrolled_count, conv_count, guardrails, channels, steps, channel, stage, body, active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE) RETURNING *`,
+      [
+        req.user.id,
+        title,
+        who || '',
+        status || 'Live',
+        parseInt(enrolled_count, 10) || 0,
+        parseInt(conv_count, 10) || 0,
+        JSON.stringify(Array.isArray(guardrails) ? guardrails : ['No diagnosis or medical advice from AI', 'Clinical words reach a doctor within 15 minutes', 'Opt out honoured on every message']),
+        JSON.stringify(Array.isArray(channels) ? channels : ['AI voice', 'WhatsApp', 'Doctor']),
+        JSON.stringify(Array.isArray(steps) ? steps : []),
+        channel || 'call',
+        stage || null,
+        body || who || ''
+      ]
     );
     await audit(req.user.id, 'created', 'playbook', r.rows[0].id, title);
     res.json({ playbook: r.rows[0] });
@@ -2026,17 +2274,66 @@ router.post('/playbooks', requireUser, async (req, res) => {
 
 router.patch('/playbooks/:id', requireUser, async (req, res) => {
   try {
-    const { active, title, body } = req.body || {};
+    const { active, title, who, status, enrolled_count, conv_count, guardrails, channels, steps, body } = req.body || {};
     const sets = []; const vals = [];
     if (typeof active === 'boolean') { vals.push(active); sets.push(`active = $${vals.length}`); }
-    if (title) { vals.push(title); sets.push(`title = $${vals.length}`); }
-    if (body) { vals.push(body); sets.push(`body = $${vals.length}`); }
+    if (title !== undefined) { vals.push(title); sets.push(`title = $${vals.length}`); }
+    if (who !== undefined) { vals.push(who); sets.push(`who = $${vals.length}`); }
+    if (status !== undefined) { vals.push(status); sets.push(`status = $${vals.length}`); }
+    if (enrolled_count !== undefined) { vals.push(parseInt(enrolled_count, 10) || 0); sets.push(`enrolled_count = $${vals.length}`); }
+    if (conv_count !== undefined) { vals.push(parseInt(conv_count, 10) || 0); sets.push(`conv_count = $${vals.length}`); }
+    if (guardrails !== undefined) { vals.push(JSON.stringify(guardrails)); sets.push(`guardrails = $${vals.length}`); }
+    if (channels !== undefined) { vals.push(JSON.stringify(channels)); sets.push(`channels = $${vals.length}`); }
+    if (steps !== undefined) { vals.push(JSON.stringify(steps)); sets.push(`steps = $${vals.length}`); }
+    if (body !== undefined) { vals.push(body); sets.push(`body = $${vals.length}`); }
+
     if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
     vals.push(req.params.id, req.user.id);
     const r = await db.query(`UPDATE clinic_playbooks SET ${sets.join(', ')} WHERE id = $${vals.length - 1} AND user_id = $${vals.length} RETURNING *`, vals);
     if (r.rows.length === 0) return res.status(404).json({ error: 'Playbook not found' });
     await audit(req.user.id, 'updated', 'playbook', req.params.id);
     res.json({ playbook: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/playbooks/:id', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('DELETE FROM clinic_playbooks WHERE id = $1 AND user_id = $2 RETURNING *', [req.params.id, req.user.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Playbook not found' });
+    await audit(req.user.id, 'deleted', 'playbook', req.params.id);
+    res.json({ success: true, deleted: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/playbooks/:id/test', requireUser, async (req, res) => {
+  try {
+    const { patient_name, phone, branch } = req.body || {};
+    const r = await db.query('SELECT * FROM clinic_playbooks WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Playbook not found' });
+    const playbook = r.rows[0];
+    const steps = Array.isArray(playbook.steps) ? playbook.steps : [];
+
+    const simulatedTimeline = steps.map((s, idx) => ({
+      step_number: idx + 1,
+      title: s.title,
+      channel: s.channel,
+      when: s.when,
+      status: idx === 0 ? 'Executed successfully' : (idx === 1 ? 'Scheduled / Dispatched' : 'Queued per protocol'),
+      simulated_at: new Date(Date.now() + idx * 60000).toISOString(),
+      preview_action: `Triggered [${s.channel}] for ${patient_name || 'Sample Patient'} (${phone || 'Test Phone'}) - ${s.title}`
+    }));
+
+    await audit(req.user.id, 'tested', 'playbook', playbook.id, `Simulated for ${patient_name || phone || 'Sample Patient'}`);
+
+    res.json({
+      success: true,
+      playbook_id: playbook.id,
+      playbook_title: playbook.title,
+      patient_name: patient_name || 'Mansi Patel',
+      phone: phone || '+91 916352504304',
+      branch: branch || 'Alkapuri',
+      timeline: simulatedTimeline
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -58,6 +58,8 @@ export const clinicApi = {
   playbooks: () => request('/playbooks'),
   createPlaybook: (body) => request('/playbooks', { method: 'POST', body: JSON.stringify(body) }),
   updatePlaybook: (id, body) => request(`/playbooks/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
+  deletePlaybook: (id) => request(`/playbooks/${id}`, { method: 'DELETE' }),
+  testPlaybook: (id, body) => request(`/playbooks/${id}/test`, { method: 'POST', body: JSON.stringify(body) }),
 
   // Reviews
   reviews: () => request('/reviews'),
