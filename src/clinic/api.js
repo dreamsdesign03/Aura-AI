@@ -98,7 +98,7 @@ export const clinicApi = {
   }),
 
   // Dialer
-  dialerLeads: () => request('/dialer/leads'),
+  dialerLeads: (branch) => request(`/dialer/leads${branch ? `?branch=${encodeURIComponent(branch)}` : ''}`),
   startDialerCall: (body) => request('/dialer/call', { method: 'POST', body: JSON.stringify(body) }),
   updateDialerCall: (id, body) => request(`/dialer/call/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   addDialerContact: (body) => request('/dialer/contact', { method: 'POST', body: JSON.stringify(body) }),
@@ -111,6 +111,7 @@ export const clinicApi = {
     if (params.provider && params.provider !== 'all') qs.set('provider', params.provider);
     if (params.direction && params.direction !== 'all') qs.set('direction', params.direction);
     if (params.search) qs.set('search', params.search);
+    if (params.branch) qs.set('branch', params.branch);
     const qStr = qs.toString();
     return request(`/call-review${qStr ? `?${qStr}` : ''}`);
   },

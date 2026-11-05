@@ -45,12 +45,6 @@ const DOCTORS = [
   { id: 'clinic_ai', name: 'Ketki (AI Clinical Voice Coordinator)' },
 ];
 
-const BRANCHES = [
-  { id: 'alkapuri', name: 'Alkapuri Main Clinic' },
-  { id: 'vasna', name: 'Vasna Branch' },
-  { id: 'virtual', name: 'Virtual Consultation Hub' },
-];
-
 // DTMF audio feedback generator using Web Audio API
 function playDtmf(key) {
   try {
@@ -100,7 +94,7 @@ function formatDuration(sec) {
 
 export default function ClinicDialer() {
   const qc = useQueryClient();
-  const { selectedBranch } = useBranch();
+  const { branches, selectedBranch } = useBranch();
 
   // Tab: 'keypad' | 'leads' | 'history' | 'settings'
   const [activeTab, setActiveTab] = useState('keypad');
@@ -112,9 +106,14 @@ export default function ClinicDialer() {
   // Call configuration
   const [conversationType, setConversationType] = useState('patient_consultation');
   const [doctor, setDoctor] = useState('dr_aditya');
-  const [branch, setBranch] = useState('alkapuri');
+  const [branch, setBranch] = useState(selectedBranch || (branches[0]?.name || ''));
   const [telephonyEngine, setTelephonyEngine] = useState('plivo');
   const [mockOutcome, setMockOutcome] = useState('connected');
+
+  // Sync branch with selectedBranch from context
+  useEffect(() => {
+    if (selectedBranch) setBranch(selectedBranch);
+  }, [selectedBranch]);
 
   // Plivo Settings state
   const [plivoForm, setPlivoForm] = useState({ authId: '', authToken: '', callerId: '' });
@@ -286,7 +285,7 @@ export default function ClinicDialer() {
     setLastCallResult(null);
 
     const docObj = DOCTORS.find((d) => d.id === doctor);
-    const branchObj = BRANCHES.find((b) => b.id === branch);
+    const branchObj = branches.find((b) => b.name === branch);
 
     try {
       // 1. Immediately insert/dispatch call into PostgreSQL DB and Plivo telephony!
@@ -346,7 +345,7 @@ export default function ClinicDialer() {
     setCallPhase('ended');
 
     const docObj = DOCTORS.find((d) => d.id === doctor);
-    const branchObj = BRANCHES.find((b) => b.id === branch);
+    const branchObj = branches.find((b) => b.name === branch);
 
     const typeLabels = {
       patient_consultation: 'Patient Consultation',
@@ -922,9 +921,9 @@ export default function ClinicDialer() {
                       onChange={(e) => setBranch(e.target.value)}
                       disabled={isBusy}
                     >
-                      {BRANCHES.map((b) => (
-                        <option key={b.id} value={b.id}>
-                          {b.name}
+                      {branches.map((b) => (
+                        <option key={b.name} value={b.name}>
+                          {b.name}{b.isDefault ? ' (Default)' : ''}
                         </option>
                       ))}
                     </select>

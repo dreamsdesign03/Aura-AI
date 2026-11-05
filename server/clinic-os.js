@@ -3217,12 +3217,21 @@ router.post('/inbox/reply', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/dialer/leads', requireUser, async (req, res) => {
   try {
-    const r = await db.query(
-      `SELECT id, first_name, last_name, phone, company, pipeline_stage
+    const { branch } = req.query;
+    let queryText = `
+      SELECT id, first_name, last_name, phone, company, pipeline_stage
          FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND phone IS NOT NULL AND phone <> ''
-         ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST LIMIT 250`,
-      [req.user.id]
-    );
+    `;
+    const params = [req.user.id];
+    
+    if (branch) {
+      queryText += ` AND (pipeline_stage = $${params.length + 1} OR source = $${params.length + 1} OR company = $${params.length + 1})`;
+      params.push(branch);
+    }
+    
+    queryText += ` ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST LIMIT 250`;
+    
+    const r = await db.query(queryText, params);
     res.json({ leads: r.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -3816,7 +3825,7 @@ router.post('/dialer/settings', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/call-review', requireUser, async (req, res) => {
   try {
-    const { provider, direction, search } = req.query;
+    const { provider, direction, search, branch } = req.query;
 
     let queryText = `
       SELECT ac.*, 
@@ -3854,6 +3863,12 @@ router.get('/call-review', requireUser, async (req, res) => {
       queryText += ` AND LOWER(COALESCE(ac.direction, 'outbound')) = $${params.length}`;
     }
 
+    if (branch) {
+      // Filter by branch: check if lead's pipeline_stage, source, or company matches branch
+      params.push(branch);
+      queryText += ` AND (l.pipeline_stage = $${params.length} OR l.source = $${params.length} OR l.company = $${params.length} OR ac.company_name = $${params.length})`;
+    }
+
     if (search && search.trim()) {
       params.push(`%${search.trim().toLowerCase()}%`);
       queryText += ` AND (
@@ -3872,8 +3887,9 @@ router.get('/call-review', requireUser, async (req, res) => {
 
     const r = await db.query(queryText, params);
 
+    const branch = req.query.branch;
     // Compute KPI stats across all calls
-    const statsRes = await db.query(`
+    let statsQuery = `
       SELECT 
         COUNT(*)::int AS total,
         COUNT(CASE WHEN LOWER(COALESCE(direction, 'outbound')) = 'inbound' THEN 1 END)::int AS inbound,
@@ -3882,7 +3898,15 @@ router.get('/call-review', requireUser, async (req, res) => {
         COUNT(CASE WHEN LOWER(COALESCE(provider, 'plivo')) = 'sarvam' THEN 1 END)::int AS sarvam,
         COALESCE(SUM(duration_secs), 0)::int AS total_duration
       FROM ai_calls
-    `);
+    `;
+    const statsParams = [];
+    
+    if (branch) {
+      statsQuery += ` WHERE company_name = $1`;
+      statsParams.push(branch);
+    }
+    
+    const statsRes = await db.query(statsQuery, statsParams);
 
     const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
     const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
