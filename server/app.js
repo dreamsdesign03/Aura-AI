@@ -1459,7 +1459,9 @@ app.post('/api/auth/login', async (req, res) => {
     await db.query('UPDATE users SET username = $1, password_salt = $2, password_hash = $3, is_active = true WHERE id = $4', [ADMIN_USERNAME, newSalt, newHash, user.id]).catch(() => {});
 
     const maxAge = 30 * 24 * 60 * 60; // 30 days
-    res.setHeader('Set-Cookie', `aura_user_email=${encodeURIComponent(user.email)}; Path=/; SameSite=Lax; Max-Age=${maxAge}`);
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookie = `aura_user_email=${encodeURIComponent(user.email)}; Path=/; ${isProd ? 'Secure; SameSite=None' : 'SameSite=Lax'}; Max-Age=${maxAge}`;
+    res.setHeader('Set-Cookie', cookie);
 
     res.json({
       success: true,
@@ -1497,7 +1499,9 @@ app.post('/api/auth/logout', async (req, res) => {
     if (email) {
       await db.query('UPDATE users SET is_active = false WHERE email = $1', [email]);
     }
-    res.clearCookie('aura_user_email');
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOpts = isProd ? 'Secure; SameSite=None' : 'SameSite=Lax';
+    res.setHeader('Set-Cookie', `aura_user_email=; Path=/; ${cookieOpts}; Max-Age=0`);
     res.json({ success: true });
   } catch (err) {
     console.error('Logout error:', err.message);
@@ -7344,9 +7348,11 @@ app.get('/api/auth/google/callback', async (req, res) => {
     }
 
     // 4. Set session cookies via native HTTP Header (to avoid res.cookie function error)
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOpts = isProd ? 'Secure; SameSite=None' : 'SameSite=Lax';
     res.setHeader('Set-Cookie', [
-      `aura_user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`,
-      `user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`
+      `aura_user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; ${cookieOpts}`,
+      `user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; ${cookieOpts}`
     ]);
 
     res.redirect(`/?google_success=true&email=${encodeURIComponent(email)}`);
@@ -7393,9 +7399,11 @@ app.post('/api/auth/google/token', async (req, res) => {
       console.warn('[Google Token Auth] DB upsert warning:', dbErr.message);
     }
 
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieOpts = isProd ? 'Secure; SameSite=None' : 'SameSite=Lax';
     res.setHeader('Set-Cookie', [
-      `aura_user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`,
-      `user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; SameSite=Lax`
+      `aura_user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; ${cookieOpts}`,
+      `user_email=${encodeURIComponent(email)}; Path=/; Max-Age=2592000; ${cookieOpts}`
     ]);
 
     res.json({
