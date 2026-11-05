@@ -102,8 +102,16 @@ const mobileBottomNav = [
     { href: "/leads", label: "Leads", icon: Users },
     { href: "/qualify", label: "BANT", icon: CheckSquare },
 ];
-// Leader / Executive only get the modules they are allowed to open.
-const restrictedMobileBottomNav = [
+// Leader gets Bulk Calling + restricted clinic modules
+const leaderMobileBottomNav = [
+    { href: "/leads", label: "Leads", icon: Users },
+    { href: "/bulk-calling", label: "Bulk Calling", icon: PhoneOutgoing },
+    { href: "/clinic", label: "Clinic", icon: Activity },
+    { href: "/clinic/appointments", label: "Appts", icon: Calendar },
+    { href: "/clinic/dialer", label: "Dialer", icon: PhoneOutgoing },
+];
+// Executive only gets the restricted clinic modules (no Bulk Calling)
+const executiveMobileBottomNav = [
     { href: "/leads", label: "Leads", icon: Users },
     { href: "/clinic", label: "Clinic", icon: Activity },
     { href: "/clinic/appointments", label: "Appts", icon: Calendar },
@@ -636,7 +644,10 @@ export default function Layout({ children }) {
     const authUser = useAuthUser();
     const userRole = useUserRole();
     const canSee = (href) => canAccessPath(userRole, href, authUser);
-    const bottomNav = userRole === "admin" ? mobileBottomNav : restrictedMobileBottomNav;
+    let bottomNav;
+    if (userRole === "admin") bottomNav = mobileBottomNav;
+    else if (userRole === "leader") bottomNav = leaderMobileBottomNav;
+    else bottomNav = executiveMobileBottomNav;
     const initials = getUserInitials(authUser);
     const { expired: pendingExpired, label: pendingCountdownLabel, nearExpiry: pendingNearExpiry } = usePendingEmailCountdown(authUser?.pendingEmailTokenExpiresAt);
     const currentPage = nav.filter((n) => canSee(n.href)).find(n => n.href === "/" ? location === "/" : location.startsWith(n.href))?.label ?? "Dashboard";

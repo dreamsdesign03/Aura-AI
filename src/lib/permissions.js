@@ -23,10 +23,25 @@ const EXECUTIVE_ALIASES = new Set(["executive", "exec", "member", "staff", "agen
 const PUBLIC_PATHS = ["/login", "/register", "/verify", "/invite", "/audit/share", "/book", "/form-quest", "/chatbot-preview"];
 
 /**
- * Pages a Leader / Executive may open.
+ * Pages a Leader may open (includes Bulk Calling).
  * `prefix: true` allows child routes (e.g. /leads/123).
  */
-export const RESTRICTED_ROUTES = [
+export const LEADER_ROUTES = [
+  { path: "/leads", prefix: true },
+  { path: "/clinic", exact: true },
+  { path: "/clinic/appointments", prefix: true },
+  { path: "/clinic/inbox", prefix: true },
+  { path: "/clinic/dialer", prefix: true },
+  { path: "/bulk-calling", prefix: true },
+  // Legacy links that immediately redirect to an allowed clinic page.
+  { path: "/appointments", exact: true },
+  { path: "/meetings", exact: true },
+];
+
+/**
+ * Pages an Executive may open (no Bulk Calling).
+ */
+export const EXECUTIVE_ROUTES = [
   { path: "/leads", prefix: true },
   { path: "/clinic", exact: true },
   { path: "/clinic/appointments", prefix: true },
@@ -82,8 +97,8 @@ export function isRestrictedRole(role, user) {
   return !isAdminRole(role, user);
 }
 
-function matchesRestrictedRoute(path) {
-  return RESTRICTED_ROUTES.some((rule) => {
+function matchesRoute(path, routes) {
+  return routes.some((rule) => {
     if (rule.prefix) return path === rule.path || path.startsWith(`${rule.path}/`);
     return path === rule.path;
   });
@@ -94,12 +109,15 @@ export function canAccessPath(role, pathname, user) {
   const path = normalizePath(pathname);
   if (PUBLIC_PATHS.some((p) => path === p || path.startsWith(`${p}/`))) return true;
   if (isAdminRole(role, user)) return true;
-  return matchesRestrictedRoute(path);
+  if (role === "leader") return matchesRoute(path, LEADER_ROUTES);
+  if (role === "executive") return matchesRoute(path, EXECUTIVE_ROUTES);
+  return false;
 }
 
 /** Landing page for a role after login / when an unauthorised page is opened. */
 export function homePathForRole(role, user) {
-  return isAdminRole(role, user) ? "/" : "/leads";
+  if (isAdminRole(role, user)) return "/";
+  return "/leads"; // both leader and executive land on leads
 }
 
 export function allowedNavHrefs(role, user) {

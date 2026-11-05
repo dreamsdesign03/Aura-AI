@@ -21,9 +21,10 @@ async function requireUserCookie(req, res, next) {
     if (!match) return res.status(401).json({ error: 'Unauthenticated' });
     const u = await db.query('SELECT id, email, username, role FROM users WHERE email = $1', [decodeURIComponent(match[1])]);
     if (u.rows.length === 0) return res.status(401).json({ error: 'Unauthenticated' });
-    // Bulk Calling (campaigns + conversation explorer) is an admin-only module.
-    if (!isAdminRole(normalizeRole(u.rows[0].role, u.rows[0]))) {
-      return res.status(403).json({ error: 'Admin access required', code: 'ROLE_FORBIDDEN' });
+    // Bulk Calling: admin and leader allowed; executive blocked.
+    const role = normalizeRole(u.rows[0].role, u.rows[0]);
+    if (role !== "admin" && role !== "leader") {
+      return res.status(403).json({ error: 'Admin or Leader access required', code: 'ROLE_FORBIDDEN' });
     }
     next();
   } catch (err) {
