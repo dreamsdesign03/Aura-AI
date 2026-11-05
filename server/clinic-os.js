@@ -37,6 +37,7 @@ const {
   phoneLast10: callPhoneLast10,
   pickCallForAppointment,
 } = require('./appointment-call-match');
+const { normalizeRole, isAdminRole, canAccessClinicApi } = require('./permissions');
 
 const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
@@ -69,17 +70,32 @@ async function requireUser(req, res, next) {
     if (!email && req.body && req.body.email) email = String(req.body.email);
 
     if (email) {
-      const u = await db.query('SELECT id, first_name, last_name, email FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+      const u = await db.query('SELECT id, first_name, last_name, email, username, role FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
       if (u.rows.length > 0) {
         req.user = u.rows[0];
+        req.user.accessRole = normalizeRole(req.user.role, req.user);
+        // Leaders / Executives may only use the clinic modules on the allowlist.
+        if (!isAdminRole(req.user.accessRole) && !canAccessClinicApi(req.method, req.originalUrl)) {
+          return res.status(403).json({
+            error: 'You do not have access to this feature',
+            code: 'ROLE_FORBIDDEN',
+          });
+        }
         return next();
       }
     }
 
     // Fallback to first user in system so clinic OS works seamlessly in preview/dev
-    const firstUser = await db.query('SELECT id, first_name, last_name, email FROM users ORDER BY id ASC LIMIT 1');
+    const firstUser = await db.query('SELECT id, first_name, last_name, email, username, role FROM users ORDER BY id ASC LIMIT 1');
     if (firstUser.rows.length > 0) {
       req.user = firstUser.rows[0];
+      req.user.accessRole = normalizeRole(req.user.role, req.user);
+      if (!isAdminRole(req.user.accessRole) && !canAccessClinicApi(req.method, req.originalUrl)) {
+        return res.status(403).json({
+          error: 'You do not have access to this feature',
+          code: 'ROLE_FORBIDDEN',
+        });
+      }
       return next();
     }
 

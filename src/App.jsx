@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, lazy, Suspense } from "react";
-import { AuthContext } from "@/contexts/AuthContext";
+import { AuthContext, useAuthUser } from "@/contexts/AuthContext";
 import { BranchProvider } from "@/contexts/BranchContext";
+import { canAccessPath, normalizeRole, homePathForRole } from "@/lib/permissions";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -296,6 +297,13 @@ function OnboardingModal({ user, onComplete }) {
     </div>);
 }
 function AuthenticatedRouter({ onAuthRefresh }) {
+    const authUser = useAuthUser();
+    const [location] = useLocation();
+    const role = normalizeRole(authUser?.role, authUser);
+    // Block direct URL access to pages this role is not allowed to open.
+    if (!canAccessPath(role, location, authUser)) {
+        return <RedirectTo to={homePathForRole(role, authUser)}/>;
+    }
     return (<Suspense fallback={<PageLoader />}>
       <Switch>
         {/* Allow the email verification link to be processed even when logged in */}

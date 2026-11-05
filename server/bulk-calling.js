@@ -1,6 +1,7 @@
 const express = require('express');
 const db = require('./db');
 const { normalizePhone, isCallingHours } = require('./call-utils');
+const { normalizeRole, isAdminRole } = require('./permissions');
 const { updateContactName } = require('./contact-name');
 const {
   dispatchSarvamCall, buildAgentVars, buildOutboundGreeting,
@@ -18,8 +19,12 @@ async function requireUserCookie(req, res, next) {
   try {
     const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
     if (!match) return res.status(401).json({ error: 'Unauthenticated' });
-    const u = await db.query('SELECT id FROM users WHERE email = $1', [decodeURIComponent(match[1])]);
+    const u = await db.query('SELECT id, email, username, role FROM users WHERE email = $1', [decodeURIComponent(match[1])]);
     if (u.rows.length === 0) return res.status(401).json({ error: 'Unauthenticated' });
+    // Bulk Calling (campaigns + conversation explorer) is an admin-only module.
+    if (!isAdminRole(normalizeRole(u.rows[0].role, u.rows[0]))) {
+      return res.status(403).json({ error: 'Admin access required', code: 'ROLE_FORBIDDEN' });
+    }
     next();
   } catch (err) {
     res.status(500).json({ error: err.message });

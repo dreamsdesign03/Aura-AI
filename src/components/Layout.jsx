@@ -1,7 +1,8 @@
 import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useIsAdmin, useAuthUser, useRefreshUser, getUserInitials } from "@/contexts/AuthContext";
+import { useUserRole, useAuthUser, useRefreshUser, getUserInitials } from "@/contexts/AuthContext";
+import { canAccessPath } from "@/lib/permissions";
 import { BranchSelectorWithRefresh } from "@/components/BranchSelector";
 function usePendingEmailCountdown(expiresAt) {
     const [now, setNow] = useState(() => new Date());
@@ -100,6 +101,13 @@ const mobileBottomNav = [
     { href: "/icp", label: "ICP", icon: Target },
     { href: "/leads", label: "Leads", icon: Users },
     { href: "/qualify", label: "BANT", icon: CheckSquare },
+];
+// Leader / Executive only get the modules they are allowed to open.
+const restrictedMobileBottomNav = [
+    { href: "/leads", label: "Leads", icon: Users },
+    { href: "/clinic", label: "Clinic", icon: Activity },
+    { href: "/clinic/appointments", label: "Appts", icon: Calendar },
+    { href: "/clinic/dialer", label: "Dialer", icon: PhoneOutgoing },
 ];
 async function doLogout() {
     sessionStorage.setItem("aura_logged_out", "true");
@@ -624,12 +632,14 @@ export default function Layout({ children }) {
     const [location, navigate] = useLocation();
     const [moreOpen, setMoreOpen] = useState(false);
     const [mysaOpen, setMysaOpen] = useState(false);
-    const isAdmin = useIsAdmin();
     const { data: planInfo } = usePlan();
     const authUser = useAuthUser();
+    const userRole = useUserRole();
+    const canSee = (href) => canAccessPath(userRole, href, authUser);
+    const bottomNav = userRole === "admin" ? mobileBottomNav : restrictedMobileBottomNav;
     const initials = getUserInitials(authUser);
     const { expired: pendingExpired, label: pendingCountdownLabel, nearExpiry: pendingNearExpiry } = usePendingEmailCountdown(authUser?.pendingEmailTokenExpiresAt);
-    const currentPage = nav.find(n => n.href === "/" ? location === "/" : location.startsWith(n.href))?.label ?? "Dashboard";
+    const currentPage = nav.filter((n) => canSee(n.href)).find(n => n.href === "/" ? location === "/" : location.startsWith(n.href))?.label ?? "Dashboard";
     function navIsActive(href) {
         return href === "/" ? location === "/" : location.startsWith(href);
     }
@@ -649,7 +659,7 @@ export default function Layout({ children }) {
           {/* Nav */}
           <nav className="flex-1 py-2 overflow-y-auto px-2">
             {navGroups.map(({ group, items }) => {
-            const visibleItems = items.filter(item => item.href === "/lead-bank" ? isAdmin : true);
+            const visibleItems = items.filter(item => canSee(item.href));
             if (!visibleItems.length)
                 return null;
             return (<div key={group} className="mb-1">
@@ -824,7 +834,7 @@ export default function Layout({ children }) {
 
       {/* ── Mobile bottom nav — fixed floating bar above all content ─── */}
       <nav className="fixed bottom-0 left-0 right-0 z-40 flex md:hidden items-stretch" style={{ background: "#ffffff", borderTop: "1px solid hsl(220 13% 91%)", height: 60, paddingBottom: "env(safe-area-inset-bottom, 0px)", boxShadow: "0 -4px 24px rgba(0,0,0,0.08)" }}>
-            {mobileBottomNav.map(({ href, label, icon: Icon }) => {
+            {bottomNav.map(({ href, label, icon: Icon }) => {
             const active = navIsActive(href);
             return (<Link key={href} href={href} className="flex-1">
                   <div className="flex flex-col items-center justify-center gap-0.5 h-full transition-colors cursor-pointer" style={{ color: active ? PURPLE : "#9CA3AF" }}>
@@ -857,7 +867,7 @@ export default function Layout({ children }) {
             </div>
             {/* Nav grid */}
             <div className="grid grid-cols-4 gap-1 px-3 pb-2">
-              {nav.filter(item => item.href === "/lead-bank" ? isAdmin : true).filter(item => !item.comingSoon).map(({ href, label, icon: Icon, accent, exact }) => {
+              {nav.filter(item => canSee(item.href)).filter(item => !item.comingSoon).map(({ href, label, icon: Icon, accent, exact }) => {
                 const active = exact ? location === href : navIsActive(href);
                 return (<Link key={href} href={href} onClick={() => setMoreOpen(false)}>
                     <div className="flex flex-col items-center gap-1.5 py-3 px-1 rounded-xl cursor-pointer transition-all active:scale-95" style={{

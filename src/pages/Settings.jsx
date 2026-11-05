@@ -3,10 +3,12 @@ import { useGetBrandingSettings } from "@workspace/api-client-react";
 import { User, Building2, Mail, MessageCircle, Link2, CheckCircle, XCircle, Loader2, Save, Palette, Upload, X, Send, Eye, EyeOff, Lock, Globe, Phone, Smartphone, AlertCircle, ExternalLink, Users, UserPlus, Shield, UserX, Trash2, MoreVertical, ChevronDown, ChevronLeft, Zap, Brain, Copy, ShieldCheck, Check } from "lucide-react";
 import { RecaptchaVerifier, signInWithPhoneNumber, } from "firebase/auth";
 import { getFirebaseAuth, firebaseConfigured } from "../lib/firebase";
-import { useAuthUser, useUpdateUser, useRefreshUser } from "@/contexts/AuthContext";
+import { useAuthUser, useUpdateUser, useRefreshUser, useIsAdmin } from "@/contexts/AuthContext";
+import { normalizeRole, roleLabel } from "@/lib/permissions";
 const ALL_TABS = [
     { id: "profile", label: "Profile", icon: User },
     { id: "company", label: "Company", icon: Building2 },
+    { id: "team", label: "Team & Roles", icon: Users, ownerOnly: true },
     { id: "email", label: "Email", icon: Mail, adminOnly: true },
     { id: "whatsapp", label: "WhatsApp", icon: MessageCircle, adminOnly: true },
     { id: "ai", label: "AI Models", icon: Brain, ownerOnly: true },
@@ -1349,11 +1351,105 @@ function ModelIntelligenceTab() {
       </SectionCard>
     </div>);
 }
+// ── Team & Roles Tab ────────────────────────────────────────────────────────────
+const TEAM_ROLE_OPTIONS = [
+    { value: "admin", label: "Admin" },
+    { value: "leader", label: "Leader" },
+    { value: "executive", label: "Executive" },
+];
+function TeamRolesTab() {
+    const authUser = useAuthUser();
+    const [users, setUsers] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [savingId, setSavingId] = useState(null);
+    const [error, setError] = useState("");
+    const [notice, setNotice] = useState("");
+    async function load() {
+        setLoading(true);
+        setError("");
+        try {
+            const res = await fetch("/api/team", { credentials: "include" });
+            const data = await res.json().catch(() => []);
+            setUsers(Array.isArray(data) ? data : []);
+        }
+        catch (e) {
+            setError(e.message || "Could not load team");
+        }
+        finally {
+            setLoading(false);
+        }
+    }
+    useEffect(() => { load(); }, []);
+    async function changeRole(user, role) {
+        setError("");
+        setNotice("");
+        setSavingId(user.id);
+        try {
+            const res = await fetch(`/api/team/${user.id}/role`, {
+                method: "PATCH",
+                credentials: "include",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role }),
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok)
+                throw new Error(data.error || "Could not update role");
+            setUsers(prev => prev.map(u => u.id === user.id ? { ...u, role: data.role } : u));
+            setNotice(`${user.name || user.email} now has ${roleLabel(data.role)} access.`);
+        }
+        catch (e) {
+            setError(e.message);
+        }
+        finally {
+            setSavingId(null);
+        }
+    }
+    return (<div className="space-y-4">
+      <SectionCard title="Team & Roles" subtitle="Control which pages each person can open" icon={Shield} iconBg="#FDF2F8" iconColor="#CB3273">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-[11px] text-gray-600 leading-relaxed mb-4">
+          <div><strong>Admin</strong> — full access to every page and feature.</div>
+          <div className="mt-0.5"><strong>Leader / Executive</strong> — Branch selection, Leads, Clinic Command Center, Appointments, Inbox and Dialer only.</div>
+        </div>
+
+        {error && (<div className="flex items-center gap-2 text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 border border-red-100 mb-3">
+            <AlertCircle className="w-3.5 h-3.5 flex-shrink-0"/> {error}
+          </div>)}
+        {notice && (<div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-lg px-3 py-2 border border-green-100 mb-3">
+            <CheckCircle className="w-3.5 h-3.5 flex-shrink-0"/> {notice}
+          </div>)}
+
+        {loading ? (<div className="flex items-center gap-2 text-xs text-gray-400 py-6 justify-center">
+            <Loader2 className="w-4 h-4 animate-spin"/> Loading team…
+          </div>) : users.length === 0 ? (<div className="text-xs text-gray-400 py-6 text-center">No users found.</div>) : (<div>
+            {users.map((u) => {
+                const isSelf = u.id === authUser?.id;
+                const current = normalizeRole(u.role, u);
+                return (<div key={u.id} className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: "linear-gradient(135deg,#A4285E,#CB3273)" }}>
+                    {(u.name || u.email || "?").slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-gray-900 truncate">
+                      {u.name || u.email} {isSelf && <span className="text-[10px] font-medium text-gray-400">(you)</span>}
+                    </div>
+                    <div className="text-[11px] text-gray-400 truncate">{u.email}</div>
+                  </div>
+                  <select value={current} disabled={isSelf || savingId === u.id} onChange={(e) => changeRole(u, e.target.value)} className="text-xs font-semibold rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-gray-700 focus:outline-none focus:ring-2 focus:ring-teal-500/30 disabled:opacity-60 disabled:cursor-not-allowed">
+                    {TEAM_ROLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                  </select>
+                  {savingId === u.id && <Loader2 className="w-3.5 h-3.5 animate-spin text-gray-400"/>}
+                </div>);
+            })}
+          </div>)}
+      </SectionCard>
+    </div>);
+}
 // ── Main Settings Page ──────────────────────────────────────────────────────────
 export default function Settings() {
     const authUser = useAuthUser();
-    const isOwner = authUser?.role === "owner";
-    const isPrivileged = authUser?.role === "owner" || authUser?.role === "admin";
+    const isAdmin = useIsAdmin();
+    const isOwner = isAdmin;
+    const isPrivileged = isAdmin;
     const TABS = ALL_TABS.filter(t => {
         if (t.ownerOnly)
             return isOwner;
@@ -1388,6 +1484,7 @@ export default function Settings() {
 
       <div className={activeTab === "profile" ? undefined : "hidden"}><ProfileTab /></div>
       <div className={activeTab === "company" ? undefined : "hidden"}><CompanyTab /></div>
+      {isOwner && <div className={activeTab === "team" ? undefined : "hidden"}><TeamRolesTab /></div>}
       {isPrivileged && <div className={activeTab === "email" ? undefined : "hidden"}><EmailTab /></div>}
       {isPrivileged && <div className={activeTab === "whatsapp" ? undefined : "hidden"}><WhatsAppTab /></div>}
       {isOwner && <div className={activeTab === "ai" ? undefined : "hidden"}><ModelIntelligenceTab /></div>}

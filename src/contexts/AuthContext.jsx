@@ -1,4 +1,5 @@
 import { createContext, useContext } from "react";
+import { normalizeRole, isAdminRole } from "@/lib/permissions";
 /**
  * Returns true when the user can access the platform.
  * - Real email users: only need email verified (phone is optional).
@@ -29,9 +30,14 @@ export function useUpdateUser() {
     return useContext(AuthContext).updateUser;
 }
 export const ADMIN_EMAIL = "admin@aurai.clinic";
+/** Normalised role for the signed-in user: admin | leader | executive. */
+export function useUserRole() {
+    const user = useAuthUser();
+    return normalizeRole(user?.role, user);
+}
 export function useIsAdmin() {
     const user = useAuthUser();
-    return user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+    return isAdminRole(user?.role, user);
 }
 export function getUserInitials(user) {
     if (!user)

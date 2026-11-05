@@ -39,6 +39,7 @@ const aiCallsApi = require('./ai-calls');
 const sarvamWebhookApi = require('./sarvam-webhook');
 const { cleanEnglishName } = require('./call-utils');
 const { resolveBookingFields } = require('./booking-metadata');
+const { normalizeRole, isAdminRole } = require('./permissions');
 
 const app = express();
 
@@ -55,11 +56,65 @@ function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString('hex');
 }
 
+/** Resolve the signed-in user + normalised role from the session cookie. */
+async function getRequestActor(req) {
+  try {
+    const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
+    if (!match) return null;
+    const email = decodeURIComponent(match[1]).trim();
+    const r = await db.query(
+      'SELECT id, email, username, role FROM users WHERE LOWER(email) = LOWER($1)',
+      [email]
+    );
+    const user = r.rows[0];
+    if (!user) return null;
+    return { user, role: normalizeRole(user.role, user) };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The users table shipped with a CHECK constraint limited to owner/admin/member.
+ * RBAC also needs leader/executive, so widen the allowed set (idempotent).
+ */
+async function ensureRoleConstraint() {
+  try {
+    const existing = await db.query(`
+      SELECT conname, pg_get_constraintdef(oid) AS def
+        FROM pg_constraint
+       WHERE conrelid = 'users'::regclass AND contype = 'c'`);
+    const roleChecks = existing.rows.filter((r) => /\brole\b/i.test(r.def));
+    if (roleChecks.length === 0) return;
+    if (roleChecks.every((r) => r.def.includes("'leader'") && r.def.includes("'executive'"))) return;
+
+    for (const row of roleChecks) {
+      await db.query(`ALTER TABLE users DROP CONSTRAINT IF EXISTS "${row.conname}"`);
+    }
+    await db.query(
+      `ALTER TABLE users ADD CONSTRAINT users_role_check
+         CHECK (role IN ('owner', 'admin', 'leader', 'executive', 'member', 'staff', 'agent'))`
+    );
+  } catch (e) {
+    console.error('[Startup Migration] role constraint error:', e.message);
+  }
+}
+
 async function seedAdminUser() {
   try {
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_salt TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';`);
+    await db.query(`ALTER TABLE users ALTER COLUMN role SET DEFAULT 'member';`);
+    await ensureRoleConstraint();
+    // Keep the seeded admin as a full-access owner; anything without an explicit
+    // role falls back to least privilege (member → executive).
+    await db.query(
+      `UPDATE users SET role = 'owner' WHERE (LOWER(username) = $1 OR LOWER(email) = $2) AND (role IS NULL OR role = '')`,
+      [ADMIN_USERNAME.toLowerCase(), ADMIN_EMAIL.toLowerCase()]
+    );
+    await db.query(`UPDATE users SET role = 'member' WHERE role IS NULL OR role = ''`);
 
     const salt = crypto.randomBytes(16).toString('hex');
     const hash = hashPassword(ADMIN_PASSWORD, salt);
@@ -71,15 +126,15 @@ async function seedAdminUser() {
 
     if (existing.rows.length === 0) {
       await db.query(
-        `INSERT INTO users (username, first_name, last_name, email, password_hash, password_salt, is_active, onboarding_completed, created_at)
-         VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, true, true, NOW())`,
+        `INSERT INTO users (username, first_name, last_name, email, password_hash, password_salt, role, is_active, onboarding_completed, created_at)
+         VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, 'owner', true, true, NOW())`,
         [ADMIN_USERNAME, ADMIN_EMAIL, hash, salt]
       );
       console.log('[Auth] ✅ Seeded admin user: auraadmin');
     } else {
       for (const row of existing.rows) {
         await db.query(
-          `UPDATE users SET username = $1, email = $2, password_salt = $3, password_hash = $4, is_active = true, onboarding_completed = true WHERE id = $5`,
+          `UPDATE users SET username = $1, email = $2, password_salt = $3, password_hash = $4, role = 'owner', is_active = true, onboarding_completed = true WHERE id = $5`,
           [ADMIN_USERNAME, ADMIN_EMAIL, salt, hash, row.id]
         );
       }
@@ -115,6 +170,14 @@ async function seedAdminUser() {
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name TEXT;`);
     await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name TEXT;`);
+    await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member';`);
+    await db.query(`ALTER TABLE users ALTER COLUMN role SET DEFAULT 'member';`);
+    await ensureRoleConstraint();
+    await db.query(
+      `UPDATE users SET role = 'owner' WHERE (LOWER(username) = $1 OR LOWER(email) = $2) AND (role IS NULL OR role = '')`,
+      [ADMIN_USERNAME.toLowerCase(), ADMIN_EMAIL.toLowerCase()]
+    );
+    await db.query(`UPDATE users SET role = 'member' WHERE role IS NULL OR role = ''`);
 
     // Ensure branding_settings table exists
     await db.query(`
@@ -1333,6 +1396,8 @@ app.get('/api/auth/me', async (req, res) => {
         phone: dbUser.phone || '',
         companyName: dbUser.company_name || 'Aura Laser & Cosmetic Clinic | Skinnonest',
         businessWhy: dbUser.business_why || 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.',
+        role: dbUser.role || '',
+        accessRole: normalizeRole(dbUser.role, dbUser),
         isVerified: true,
         isActive: dbUser.is_active ?? true,
         onboardingCompleted: dbUser.onboarding_completed ?? true
@@ -1404,6 +1469,8 @@ app.post('/api/auth/login', async (req, res) => {
         firstName: user.first_name || 'Krishna',
         lastName: user.last_name || 'Admin',
         email: user.email,
+        role: user.role || 'owner',
+        accessRole: normalizeRole(user.role, user),
         isVerified: true,
         isActive: true,
         onboardingCompleted: user.onboarding_completed ?? true
@@ -5004,7 +5071,69 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
 
 // 11. Stub routes — return empty valid JSON so frontend hooks don't 404
 app.get(['/api/sequences', '/api/useListSequences'], (req, res) => res.json([]));
-app.get(['/api/team', '/api/useListTeamMembers'], (req, res) => res.json([]));
+app.get(['/api/team', '/api/team/members', '/api/useListTeamMembers'], async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT id,
+             TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')) AS name,
+             first_name, last_name, email,
+             COALESCE(NULLIF(role, ''), 'member') AS role,
+             CASE WHEN is_active IS FALSE THEN 'inactive' ELSE 'active' END AS status
+        FROM users
+       ORDER BY id ASC
+       LIMIT 100`);
+    res.json(result.rows.length
+      ? result.rows
+      : [{ id: 1, name: 'Aura Admin', email: 'aurabackoffice123@gmail.com', role: 'owner', status: 'active' }]);
+  } catch {
+    res.json([{ id: 1, name: 'Aura Admin', email: 'aurabackoffice123@gmail.com', role: 'owner', status: 'active' }]);
+  }
+});
+
+// Admin-only role assignment. Leader / Executive share the restricted allowlist.
+app.patch(['/api/team/:id/role', '/api/users/:id/role'], async (req, res) => {
+  try {
+    const actor = await getRequestActor(req);
+    if (!actor || !isAdminRole(actor.role, actor.user)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'Invalid user id' });
+
+    const requested = String(req.body?.role || '').trim().toLowerCase();
+    let role;
+    if (['admin', 'owner', 'administrator'].includes(requested)) role = 'admin';
+    else if (['leader', 'team_lead', 'manager', 'supervisor'].includes(requested)) role = 'leader';
+    else if (['executive', 'member', 'staff', 'agent', 'user', 'employee'].includes(requested)) role = 'executive';
+    else return res.status(400).json({ error: 'Role must be admin, leader or executive' });
+
+    if (id === actor.user.id && role !== 'admin') {
+      return res.status(400).json({ error: 'You cannot remove your own admin access' });
+    }
+
+    const target = await db.query('SELECT id, role FROM users WHERE id = $1', [id]);
+    if (target.rows.length === 0) return res.status(404).json({ error: 'User not found' });
+
+    if (role !== 'admin' && normalizeRole(target.rows[0].role) === 'admin') {
+      const admins = await db.query(`
+        SELECT COUNT(*)::int AS n FROM users
+         WHERE LOWER(COALESCE(role, '')) IN
+               ('owner', 'admin', 'administrator', 'superadmin', 'super_admin', 'org_admin', 'organization_admin')`);
+      if ((admins.rows[0]?.n || 0) <= 1) {
+        return res.status(400).json({ error: 'At least one admin must remain' });
+      }
+    }
+
+    const updated = await db.query(
+      'UPDATE users SET role = $1, updated_at = NOW() WHERE id = $2 RETURNING id, role',
+      [role, id]
+    );
+    res.json({ ok: true, id: updated.rows[0].id, role: updated.rows[0].role });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.get('/api/useInitiateWhatsApp', (req, res) => res.json({ success: false, error: 'Not configured' }));
 app.get('/api/useInitiateWhatsAppBulk', (req, res) => res.json({ success: false, error: 'Not configured' }));
 app.get('/api/billing/current-plan', async (req, res) => {
@@ -5410,7 +5539,9 @@ app.get(['/api/users/me', '/api/auth/me'], async (req, res) => {
       companyName: user.company_name || 'Aura Laser & Cosmetic Clinic | Skinnonest',
       businessWhy: (user.business_why !== null && user.business_why !== undefined && user.business_why !== '')
         ? user.business_why
-        : 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.'
+        : 'We believe every patient and consumer deserves dermatologist-backed, scientifically proven skin and hair solutions.',
+      role: user.role || '',
+      accessRole: normalizeRole(user.role, user)
     });
   } catch (err) {
     console.error('[users/me] GET Error:', err.message);
@@ -5589,17 +5720,7 @@ app.post('/api/settings/smtp/test', async (req, res) => {
   }
 });
 
-// GET /api/team & /api/team/members & /api/team/pending-invites
-app.get(['/api/team', '/api/team/members', '/api/useListTeamMembers'], async (req, res) => {
-  try {
-    const result = await db.query("SELECT id, first_name || ' ' || last_name as name, email, 'owner' as role, 'active' as status FROM users LIMIT 10");
-    res.json(result.rows.length ? result.rows : [{ id: 1, name: 'Aura Admin', email: 'aurabackoffice123@gmail.com', role: 'owner', status: 'active' }]);
-  } catch {
-    res.json([{ id: 1, name: 'Aura Admin', email: 'aurabackoffice123@gmail.com', role: 'owner', status: 'active' }]);
-  }
-});
-
-
+// GET /api/team/pending-invites (the /api/team handler lives above, near the other stubs)
 app.get('/api/team/pending-invites', (req, res) => {
   res.json([]);
 });
