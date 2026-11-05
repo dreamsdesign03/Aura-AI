@@ -38,6 +38,7 @@ const {
   pickCallForAppointment,
 } = require('./appointment-call-match');
 const { normalizeRole, isAdminRole, canAccessClinicApi } = require('./permissions');
+const { sendMetaMessage } = require('./meta');
 
 const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
@@ -2747,7 +2748,7 @@ router.get('/inbox', requireUser, async (req, res) => {
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;
 
-    const [wa, emails, calls, notes] = await Promise.all([
+    const [wa, emails, calls, notes, meta] = await Promise.all([
       // 1. WhatsApp Conversations - deduplicate by wa_phone_number (prefer those with lead_id)
       db.query(
         `WITH ranked AS (
@@ -2825,6 +2826,16 @@ router.get('/inbox', requireUser, async (req, res) => {
            FROM clinic_notes cn
            LEFT JOIN leads l ON l.id = cn.lead_id
           ORDER BY cn.created_at DESC LIMIT $1`,
+        [limit]
+      ),
+      // 5. Meta Omnichannel (Facebook Messenger & Instagram Direct)
+      tryQuery(
+        `SELECT mc.id, mc.lead_id, mc.channel, mc.sender_id, mc.sender_name, mc.sender_username,
+                mc.sender_avatar, mc.unread_count, mc.last_message, mc.last_message_at,
+                l.first_name, l.last_name, l.email, l.phone
+           FROM meta_conversations mc
+           LEFT JOIN leads l ON l.id = mc.lead_id
+          ORDER BY mc.last_message_at DESC LIMIT $1`,
         [limit]
       ),
     ]);
@@ -2906,6 +2917,26 @@ router.get('/inbox', requireUser, async (req, res) => {
         status: row.kind || 'note',
         lastAt: row.created_at,
         preview: `${row.title || row.kind}: ${(row.body || '').slice(0, 90)}`,
+      });
+    }
+
+    // Meta Omnichannel Threads (Facebook Messenger & Instagram Direct)
+    for (const row of (meta?.rows || [])) {
+      const isIg = row.channel === 'instagram';
+      threads.push({
+        type: row.channel, // 'facebook' or 'instagram'
+        id: row.id,
+        leadId: row.lead_id,
+        senderId: row.sender_id,
+        senderUsername: row.sender_username,
+        senderAvatar: row.sender_avatar,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.sender_name || (isIg ? `@${row.sender_username || 'user'}` : 'Facebook User'),
+        phone: row.phone,
+        email: row.email,
+        unread: row.unread_count || 0,
+        status: 'active',
+        lastAt: row.last_message_at,
+        preview: row.last_message || (isIg ? 'Instagram Direct Message' : 'Facebook Messenger message'),
       });
     }
 
@@ -3111,6 +3142,46 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
       });
     }
 
+    if (type === 'facebook' || type === 'instagram') {
+      const convId = parseInt(id);
+      const convRes = await db.query(
+        `SELECT mc.*, l.first_name, l.last_name, l.email, l.phone
+           FROM meta_conversations mc
+           LEFT JOIN leads l ON l.id = mc.lead_id
+          WHERE mc.id = $1`,
+        [convId]
+      );
+      if (convRes.rows.length === 0) return res.status(404).json({ error: 'Meta conversation not found' });
+      const conv = convRes.rows[0];
+
+      // Mark conversation as read
+      await db.query('UPDATE meta_conversations SET unread_count = 0 WHERE id = $1', [conv.id]).catch(() => {});
+
+      // Fetch all messages in this thread
+      const msgsRes = await db.query(
+        `SELECT id, direction, channel, content, media_url, status, error_message, sent_at, created_at
+           FROM meta_messages
+          WHERE conversation_id = $1
+          ORDER BY COALESCE(sent_at, created_at) ASC`,
+        [conv.id]
+      );
+
+      return res.json({
+        type,
+        conversation: conv,
+        lead: conv.lead_id ? { id: conv.lead_id, first_name: conv.first_name, last_name: conv.last_name, email: conv.email, phone: conv.phone } : null,
+        messages: msgsRes.rows.map((m) => ({
+          id: m.id,
+          direction: m.direction,
+          type: m.channel,
+          content: m.content,
+          mediaUrl: m.media_url,
+          status: m.status,
+          timestamp: m.sent_at || m.created_at
+        }))
+      });
+    }
+
     res.status(400).json({ error: 'Unknown thread type' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3143,6 +3214,33 @@ router.post('/inbox/reply', requireUser, async (req, res) => {
       }
 
       return res.json({ success: true, message: 'WhatsApp message sent', metaMessageId: sendResult.metaMessageId, warning: sendResult.warning });
+    }
+
+    if (type === 'facebook' || type === 'instagram') {
+      const convId = conversationId ? parseInt(conversationId) : null;
+      let recipientId = req.body.recipientId || req.body.senderId;
+
+      if (!recipientId && convId) {
+        const c = await db.query('SELECT sender_id FROM meta_conversations WHERE id = $1', [convId]);
+        recipientId = c.rows[0]?.sender_id;
+      }
+
+      if (!recipientId) {
+        return res.status(400).json({ error: `Recipient ID is required to send ${type} message` });
+      }
+
+      const sendResult = await sendMetaMessage({
+        channel: type,
+        recipientId,
+        text: (body || '').trim(),
+        conversationId: convId
+      });
+
+      return res.json({
+        success: true,
+        message: `${type === 'instagram' ? 'Instagram DM' : 'Facebook Messenger message'} sent`,
+        messageId: sendResult.messageId
+      });
     }
 
     if (type === 'email') {

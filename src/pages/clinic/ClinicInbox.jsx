@@ -11,9 +11,29 @@ import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, Spinner, Drawer, EmptyState } from '@/clinic/ui';
 import { useBranch } from '@/contexts/BranchContext';
 
+function InstagramIcon({ size = 16, color = "currentColor", ...props }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect width="20" height="20" x="2" y="2" rx="5" ry="5"/>
+      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5"/>
+    </svg>
+  );
+}
+
+function FacebookIcon({ size = 16, color = "currentColor", ...props }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+    </svg>
+  );
+}
+
 const CHANNEL_CONFIG = {
   all: { label: 'All Messages', icon: Filter, chip: 'co-c-n' },
   whatsapp: { label: 'WhatsApp', icon: MessageSquare, chip: 'co-c-g', color: '#10B981', bg: '#ECFDF5' },
+  instagram: { label: 'Instagram', icon: InstagramIcon, chip: 'co-c-p', color: '#E1306C', bg: '#FDF2F8' },
+  facebook: { label: 'Facebook', icon: FacebookIcon, chip: 'co-c-m', color: '#1877F2', bg: '#EFF6FF' },
   email: { label: 'Emails', icon: Mail, chip: 'co-c-m', color: '#2563EB', bg: '#EFF6FF' },
   drafts: { label: 'Drafts', icon: Mail, chip: 'co-c-n', color: '#475569', bg: '#F8FAFC' },
   call: { label: 'AI Calls', icon: PhoneCall, chip: 'co-c-p', color: '#A4285E', bg: '#FBE9F1' },
@@ -287,6 +307,14 @@ function ThreadDrawer({ thread, onClose }) {
         payload.templateLang = selectedTemplate === 'hello_world' ? 'en_US' : 'en';
       }
       replyMutation.mutate(payload);
+    } else if (thread.type === 'facebook' || thread.type === 'instagram') {
+      replyMutation.mutate({
+        type: thread.type,
+        conversationId: thread.id,
+        recipientId: thread.senderId || detail?.conversation?.sender_id,
+        senderId: thread.senderId || detail?.conversation?.sender_id,
+        body: replyText.trim(),
+      });
     } else if (thread.type === 'email') {
       replyMutation.mutate({
         type: 'email',
@@ -494,6 +522,130 @@ function ThreadDrawer({ thread, onClose }) {
                               {m.errorMessage}
                             </div>
                           ) : null}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* INSTAGRAM & FACEBOOK OMNICHANNEL VIEW */}
+            {(thread.type === 'instagram' || thread.type === 'facebook') && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Official Meta Channel Banner */}
+                <div style={{
+                  background: thread.type === 'instagram' ? '#FDF2F8' : '#EFF6FF',
+                  border: thread.type === 'instagram' ? '1px solid #FBCFE8' : '1px solid #BFDBFE',
+                  borderRadius: 8,
+                  padding: '8px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  flexWrap: 'wrap'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    {thread.type === 'instagram' ? (
+                      <InstagramIcon size={16} color="#E1306C" />
+                    ) : (
+                      <FacebookIcon size={16} color="#1877F2" />
+                    )}
+                    <span style={{ fontSize: 11.5, fontWeight: 600, color: thread.type === 'instagram' ? '#9D174D' : '#1E40AF' }}>
+                      {thread.type === 'instagram' ? 'Instagram Direct (@aura_laserclinic)' : 'Facebook Messenger (Aura Laser & Cosmetic Clinic)'}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 10.5, color: '#64748B', fontWeight: 500 }}>
+                    {thread.senderUsername ? `@${thread.senderUsername}` : thread.name}
+                  </span>
+                </div>
+                <div className="co-label" style={{ marginBottom: 4 }}>
+                  {thread.type === 'instagram' ? 'Instagram DMs' : 'Messenger Messages'}
+                </div>
+                <div
+                  style={{
+                    background: '#FAFAF9',
+                    border: '1px solid #E7E5E4',
+                    borderRadius: 8,
+                    padding: 12,
+                    maxHeight: 380,
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  {(detail?.messages || []).length === 0 ? (
+                    <div className="co-empty" style={{ padding: 20 }}>
+                      <div className="co-empty-title">No messages yet</div>
+                      <div className="co-xs co-mut">Type a reply below to reach the patient on {thread.type === 'instagram' ? 'Instagram' : 'Facebook'}.</div>
+                    </div>
+                  ) : (
+                    detail.messages.map((m) => {
+                      const isOut = m.direction === 'outbound';
+                      return (
+                        <div
+                          key={m.id}
+                          style={{
+                            alignSelf: isOut ? 'flex-end' : 'flex-start',
+                            maxWidth: '82%',
+                            background: isOut
+                              ? (thread.type === 'instagram' ? '#FDF2F8' : '#EFF6FF')
+                              : '#FFFFFF',
+                            color: isOut
+                              ? (thread.type === 'instagram' ? '#831843' : '#1E3A8A')
+                              : '#1F2937',
+                            border: isOut
+                              ? (thread.type === 'instagram' ? '1px solid #FBCFE8' : '1px solid #BFDBFE')
+                              : '1px solid #E5E7EB',
+                            borderRadius: isOut ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                            padding: '8px 12px',
+                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                          }}
+                        >
+                          {isOut && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                              <span style={{
+                                fontSize: 9.5,
+                                fontWeight: 700,
+                                color: thread.type === 'instagram' ? '#BE185D' : '#1D4ED8',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 3,
+                                background: '#FFFFFF',
+                                border: '1px solid #E5E7EB',
+                                padding: '1px 6px',
+                                borderRadius: 8
+                              }}>
+                                <User size={9} /> Clinic Team
+                              </span>
+                            </div>
+                          )}
+                          <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                            {m.content}
+                          </div>
+                          {m.mediaUrl && (
+                            <div style={{ marginTop: 6 }}>
+                              <img src={m.mediaUrl} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6 }} />
+                            </div>
+                          )}
+                          <div
+                            style={{
+                              fontSize: 10,
+                              color: isOut ? '#64748B' : '#9CA3AF',
+                              marginTop: 4,
+                              textAlign: 'right',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'flex-end',
+                              gap: 3,
+                            }}
+                          >
+                            <span>{m.timestamp ? timeLabel(m.timestamp) : ''}</span>
+                            {isOut && (
+                              <CheckCheck size={11} style={{ color: thread.type === 'instagram' ? '#E1306C' : '#1877F2' }} />
+                            )}
+                          </div>
                         </div>
                       );
                     })
@@ -737,6 +889,10 @@ function ThreadDrawer({ thread, onClose }) {
             <span>
               {thread.type === 'whatsapp'
                 ? 'Send WhatsApp Reply'
+                : thread.type === 'instagram'
+                ? 'Send Instagram Direct Reply'
+                : thread.type === 'facebook'
+                ? 'Send Facebook Messenger Reply'
                 : thread.type === 'email'
                 ? 'Send Email Reply'
                 : 'Add Follow-up Note'}
@@ -843,6 +999,10 @@ function ThreadDrawer({ thread, onClose }) {
               placeholder={
                 thread.type === 'whatsapp'
                   ? 'Type your WhatsApp message to patient...'
+                  : thread.type === 'instagram'
+                  ? 'Type your Instagram Direct message...'
+                  : thread.type === 'facebook'
+                  ? 'Type your Facebook Messenger message...'
                   : thread.type === 'email'
                   ? 'Write your email response...'
                   : 'Add a clinical note or task for this patient...'
@@ -863,6 +1023,10 @@ function ThreadDrawer({ thread, onClose }) {
                   <Spinner size={12} />
                 ) : thread.type === 'whatsapp' ? (
                   <Send size={12} />
+                ) : thread.type === 'instagram' ? (
+                  <InstagramIcon size={12} />
+                ) : thread.type === 'facebook' ? (
+                  <FacebookIcon size={12} />
                 ) : thread.type === 'email' ? (
                   <Mail size={12} />
                 ) : (
@@ -873,6 +1037,10 @@ function ThreadDrawer({ thread, onClose }) {
                     ? 'Sending...'
                     : thread.type === 'whatsapp'
                     ? 'Send WhatsApp'
+                    : thread.type === 'instagram'
+                    ? 'Send Instagram DM'
+                    : thread.type === 'facebook'
+                    ? 'Send Messenger'
                     : thread.type === 'email'
                     ? 'Send Email'
                     : 'Save Note'}
@@ -979,6 +1147,8 @@ export default function ClinicInbox() {
   // Metrics
   const counts = useMemo(() => {
     const wa = threads.filter((t) => t.type === 'whatsapp');
+    const ig = threads.filter((t) => t.type === 'instagram');
+    const fb = threads.filter((t) => t.type === 'facebook');
     const em = threads.filter((t) => t.type === 'email');
     const dr = threads.filter((t) => t.isDraft);
     const ca = threads.filter((t) => t.type === 'call');
@@ -987,6 +1157,8 @@ export default function ClinicInbox() {
     return {
       all: threads.length,
       whatsapp: wa.length,
+      instagram: ig.length,
+      facebook: fb.length,
       email: em.length,
       drafts: dr.length,
       call: ca.length,
@@ -1041,7 +1213,7 @@ export default function ClinicInbox() {
       </PageHead>
 
       {/* KPI Cards across Channels */}
-      <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))' }}>
+      <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
         <Card>
           <div className="co-kpi-label">
             <Filter size={13} /> All Messages
@@ -1058,6 +1230,20 @@ export default function ClinicInbox() {
         </Card>
         <Card>
           <div className="co-kpi-label">
+            <InstagramIcon size={13} color="#E1306C" /> Instagram
+          </div>
+          <div className="co-kpi-value">{counts.instagram}</div>
+          <div className="co-kpi-foot">Direct Messages</div>
+        </Card>
+        <Card>
+          <div className="co-kpi-label">
+            <FacebookIcon size={13} color="#1877F2" /> Facebook
+          </div>
+          <div className="co-kpi-value">{counts.facebook}</div>
+          <div className="co-kpi-foot">Messenger</div>
+        </Card>
+        <Card>
+          <div className="co-kpi-label">
             <Mail size={13} style={{ color: '#2563EB' }} /> Emails
           </div>
           <div className="co-kpi-value">{counts.email}</div>
@@ -1068,7 +1254,7 @@ export default function ClinicInbox() {
             <PhoneCall size={13} style={{ color: '#A4285E' }} /> AI Calls
           </div>
           <div className="co-kpi-value">{counts.call}</div>
-          <div className="co-kpi-foot">Audio & Transcripts</div>
+          <div className="co-kpi-foot">Audio &amp; Transcripts</div>
         </Card>
         <Card>
           <div className="co-kpi-label">
@@ -1097,6 +1283,8 @@ export default function ClinicInbox() {
             {[
               { id: 'all', label: 'All Channels', count: counts.all },
               { id: 'whatsapp', label: 'WhatsApp', count: counts.whatsapp },
+              { id: 'instagram', label: 'Instagram', count: counts.instagram },
+              { id: 'facebook', label: 'Facebook', count: counts.facebook },
               { id: 'email', label: 'Emails', count: counts.email },
               { id: 'drafts', label: 'Drafts', count: counts.drafts },
               { id: 'call', label: 'AI Calls', count: counts.call },

@@ -40,6 +40,8 @@ const sarvamWebhookApi = require('./sarvam-webhook');
 const { cleanEnglishName } = require('./call-utils');
 const { resolveBookingFields } = require('./booking-metadata');
 const { normalizeRole, isAdminRole } = require('./permissions');
+const { ensureMetaSchema } = require('./meta');
+ensureMetaSchema().catch((e) => console.error('[Meta Init]', e.message));
 
 const app = express();
 
@@ -651,6 +653,7 @@ app.use('/api/clinic', require('./clinic-os').router);
 app.use('/api/ai-calls', aiCallsApi.router);
 app.use('/api/sarvam/webhook', sarvamWebhookApi.router);
 app.use('/api/bulk-calling', require('./bulk-calling').router);
+app.use('/api/meta', require('./meta-webhook'));
 
 // Client error reporting from ErrorBoundary
 app.post('/api/client-error', (req, res) => {
