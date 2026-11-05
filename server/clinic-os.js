@@ -759,10 +759,19 @@ router.get('/overview', requireUser, async (req, res) => {
 router.get('/appointments', requireUser, async (req, res) => {
   try {
     const userId = req.user.id;
+    const accessRole = req.user.accessRole || 'executive';
+    // Admin & Leader see all appointments (team view); Executive sees only own + unassigned
+    const isTeamView = accessRole === 'admin' || accessRole === 'leader';
+    
     const isAll = req.query.all === 'true' || req.query.view === 'list';
     const from = safeDate(req.query.from) || (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })();
     const to = safeDate(req.query.to) || (() => { const d = new Date(); d.setDate(d.getDate() + 60); return d; })();
     const branchFilter = normalizeBranch(req.query.branch);
+
+    const calWhere = isTeamView ? '' : 'WHERE (ce.user_id = $1 OR ce.user_id IS NULL)';
+    const clinicWhere = isTeamView ? '' : 'WHERE (a.user_id = $1 OR a.user_id IS NULL)';
+    const calParams = isTeamView ? [] : [userId];
+    const clinicParams = isTeamView ? [] : [userId];
 
     const [calRes, clinicRes] = await Promise.all([
       db.query(
@@ -782,17 +791,17 @@ router.get('/appointments', requireUser, async (req, res) => {
            LEFT JOIN bulk_contacts bc ON (
              bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
            )
-          WHERE (ce.user_id = $1 OR ce.user_id IS NULL) AND COALESCE(ce.is_deleted, false) = false
-          ORDER BY ce.start_time DESC`,
-        [userId]
+           ${calWhere} AND COALESCE(ce.is_deleted, false) = false
+           ORDER BY ce.start_time DESC`,
+        calParams
       ),
       db.query(
         `SELECT a.*, l.first_name, l.last_name, l.email AS lead_email
            FROM clinic_appointments a
            LEFT JOIN leads l ON l.id = a.lead_id
-          WHERE (a.user_id = $1 OR a.user_id IS NULL)
-          ORDER BY a.starts_at DESC`,
-        [userId]
+           ${clinicWhere}
+           ORDER BY a.starts_at DESC`,
+        clinicParams
       )
     ]);
 
