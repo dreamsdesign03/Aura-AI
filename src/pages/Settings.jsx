@@ -1230,6 +1230,19 @@ function DisconnectButton({ href, onDisconnected }) {
         </div>)}
     </div>);
 }
+// Operation descriptions for the Model Intelligence tab
+const OPERATION_DESCRIPTIONS = {
+    bantb_scoring: "Scores leads using BANT + Belief criteria",
+    belief_scoring: "Assesses prospect belief alignment",
+    followup_email: "Writes follow-up email content",
+    proposal_email: "Drafts proposal cover emails",
+    whatsapp_reply: "Generates WhatsApp message replies",
+    call_summary: "Summarizes call transcripts",
+    lead_enrichment: "Enriches lead profiles with external data",
+    objection_handling: "Suggests responses to common objections",
+    sales_coaching: "Provides coaching feedback for sales reps",
+    audit_generation: "Creates brand audit reports",
+};
 function ModelIntelligenceTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
