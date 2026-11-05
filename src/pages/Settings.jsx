@@ -1295,10 +1295,6 @@ function ModelIntelligenceTab() {
     const ops = Object.keys(defaults);
     const hasOverrides = ops.some(op => overrides[op] !== undefined);
     return (<div className="space-y-6">
-      <SectionCard title="Daily AI Spend Alert" subtitle="Get an email if your workspace crosses a daily AI cost threshold" icon={AlertCircle} iconBg="#FEF2F2" iconColor="#DC2626">
-        <AiSpendThresholdSection />
-      </SectionCard>
-
       <SectionCard title="Model Intelligence" subtitle="Override AI model tier per operation — Fast cuts cost, Smart boosts quality" icon={Brain} iconBg="#FBE9F1" iconColor="#8E1F54">
         <form onSubmit={handleSave} className="space-y-4">
           <div className="rounded-lg border border-purple-100 bg-purple-50 px-3 py-2.5 text-[11px] text-purple-800 flex items-start gap-2">

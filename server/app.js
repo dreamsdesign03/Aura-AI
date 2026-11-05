@@ -5777,6 +5777,104 @@ app.post('/api/settings/branding', saveBrandingHandler);
 app.put('/api/branding/settings', saveBrandingHandler);
 app.post('/api/branding/settings', saveBrandingHandler);
 
+// GET /api/settings/model-routing — AI model tier configuration
+app.get('/api/settings/model-routing', async (req, res) => {
+  try {
+    const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
+    const email = match ? decodeURIComponent(match[1]).trim() : null;
+    let userId = null;
+    if (email) {
+      const u = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+      if (u.rows.length > 0) userId = u.rows[0].id;
+    }
+    // Fallback to first user
+    if (!userId) {
+      const first = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
+      if (first.rows.length > 0) userId = first.rows[0].id;
+    }
+
+    // Defaults for each AI operation
+    const defaults = {
+      bantb_scoring: 'FAST',
+      belief_scoring: 'FAST',
+      followup_email: 'FAST',
+      proposal_email: 'FAST',
+      whatsapp_reply: 'FAST',
+      call_summary: 'FAST',
+      lead_enrichment: 'FAST',
+      objection_handling: 'FAST',
+      sales_coaching: 'SMART',
+      audit_generation: 'SMART',
+    };
+
+    const operationLabels = {
+      bantb_scoring: 'BANT+B Scoring',
+      belief_scoring: 'Belief Scoring',
+      followup_email: 'Follow-up Email',
+      proposal_email: 'Proposal Email',
+      whatsapp_reply: 'WhatsApp Reply',
+      call_summary: 'Call Summary',
+      lead_enrichment: 'Lead Enrichment',
+      objection_handling: 'Objection Handling',
+      sales_coaching: 'Sales Coaching',
+      audit_generation: 'Audit Generation',
+    };
+
+    let overrides = {};
+    if (userId) {
+      try {
+        const r = await db.query('SELECT data FROM user_ai_settings WHERE user_id = $1 AND key = $2', [userId, 'model-routing']);
+        if (r.rows.length > 0 && r.rows[0].data) overrides = r.rows[0].data;
+      } catch { /* table may not exist */ }
+    }
+
+    res.json({ defaults, overrides, operationLabels });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PUT /api/settings/model-routing — Save AI model tier overrides
+app.put('/api/settings/model-routing', async (req, res) => {
+  try {
+    const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
+    const email = match ? decodeURIComponent(match[1]).trim() : null;
+    if (!email) return res.status(401).json({ error: 'Unauthenticated' });
+
+    const u = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]);
+    if (u.rows.length === 0) return res.status(401).json({ error: 'Unauthenticated' });
+    const userId = u.rows[0].id;
+
+    const { overrides } = req.body || {};
+    if (!overrides || typeof overrides !== 'object') {
+      return res.status(400).json({ error: 'Invalid overrides' });
+    }
+
+    // Ensure user_ai_settings table exists
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS user_ai_settings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        key VARCHAR(100) NOT NULL,
+        data JSONB NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE (user_id, key)
+      );
+    `);
+
+    await db.query(`
+      INSERT INTO user_ai_settings (user_id, key, data, updated_at)
+      VALUES ($1, 'model-routing', $2, NOW())
+      ON CONFLICT (user_id, key) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+    `, [userId, JSON.stringify(overrides)]);
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /api/useComposeOutreachEmail — Generate AI Outreach Email using Google Gemini API
 app.post(['/api/useComposeOutreachEmail', '/api/outreach/compose', '/api/outreach-ai/compose'], async (req, res) => {
   try {
