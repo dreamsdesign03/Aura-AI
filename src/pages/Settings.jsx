@@ -1243,6 +1243,20 @@ const OPERATION_DESCRIPTIONS = {
     sales_coaching: "Provides coaching feedback for sales reps",
     audit_generation: "Creates brand audit reports",
 };
+// Tier pill button used in Model Intelligence tab
+function TierPill({ tier, active, onClick }) {
+    const isFast = tier === "FAST";
+    return (<button type="button" onClick={onClick} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all border"
+        style={active ? {
+            background: isFast ? "#F0FDF4" : "#F5F3FF",
+            color: isFast ? "#1A7A45" : "#5C1A8C",
+            borderColor: isFast ? "#BBF7D0" : "#DDD6FE",
+        } : {
+            background: "#FFFFFF",
+            color: "#6B7280",
+            borderColor: "#E5E7EB",
+        }}>{tier === "FAST" ? "Fast" : "Smart"}</button>);
+}
 function ModelIntelligenceTab() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
