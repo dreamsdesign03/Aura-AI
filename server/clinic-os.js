@@ -3887,7 +3887,6 @@ router.get('/call-review', requireUser, async (req, res) => {
 
     const r = await db.query(queryText, params);
 
-    const branch = req.query.branch;
     // Compute KPI stats across all calls
     let statsQuery = `
       SELECT 
