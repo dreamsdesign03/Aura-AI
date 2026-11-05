@@ -1453,10 +1453,13 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid username or password' });
     }
 
-    // Force update hash to ensure database is always in sync
-    const newSalt = crypto.randomBytes(16).toString('hex');
-    const newHash = hashPassword(ADMIN_PASSWORD, newSalt);
-    await db.query('UPDATE users SET username = $1, password_salt = $2, password_hash = $3, is_active = true WHERE id = $4', [ADMIN_USERNAME, newSalt, newHash, user.id]).catch(() => {});
+    // Force update hash ONLY for the admin user to ensure database is always in sync
+    const isAdminUser = user.username === ADMIN_USERNAME || user.email === ADMIN_EMAIL;
+    if (isAdminUser) {
+      const newSalt = crypto.randomBytes(16).toString('hex');
+      const newHash = hashPassword(ADMIN_PASSWORD, newSalt);
+      await db.query('UPDATE users SET username = $1, password_salt = $2, password_hash = $3, is_active = true WHERE id = $4', [ADMIN_USERNAME, newSalt, newHash, user.id]).catch(() => {});
+    }
 
     const maxAge = 30 * 24 * 60 * 60; // 30 days
     const isProd = process.env.NODE_ENV === 'production';
