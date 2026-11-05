@@ -5177,28 +5177,48 @@ app.post('/api/useImportLeadsCsv', (req, res) => res.json({ imported: 0, skipped
 app.get('/api/useLeadAssigneeCounts', (req, res) => res.json({}));
 
 // 12. Dashboard & Command Center APIs (Real Database Analytics)
-async function fetchDashboardSummaryData(userId) {
+async function fetchDashboardSummaryData(userId, userRole) {
   try {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay()).toISOString();
 
+    // Admin & Leader see all leads (team view); Executive sees only own + unassigned
+    const isTeamView = userRole === 'admin' || userRole === 'leader';
+    
+    let leadWhere = '';
+    let leadParams = [];
+    let meetingParams = [];
+    let whereClause = '';
+
+    if (isTeamView) {
+      leadWhere = '';
+      leadParams = [];
+      meetingParams = [startOfWeek];
+      whereClause = '';
+    } else {
+      leadWhere = 'WHERE user_id = $1 OR user_id IS NULL';
+      leadParams = [userId];
+      meetingParams = [userId, startOfWeek];
+      whereClause = 'WHERE user_id = $1 OR user_id IS NULL';
+    }
+
     const [totalLeads, leadsMonth, qualified, meetingsWeek, proposalsRes, dealsWon, pipelineVal] = await Promise.all([
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE user_id = $1 OR user_id IS NULL`, [userId]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND created_at >= $2`, [userId, startOfMonth]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND (
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads ${leadWhere}`, leadParams),
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads ${leadWhere ? leadWhere + ' AND' : 'WHERE'} created_at >= $${isTeamView ? 1 : 2}`, isTeamView ? [startOfMonth] : [userId, startOfMonth]),
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads ${leadWhere ? leadWhere + ' AND' : 'WHERE'} (
           pipeline_stage ILIKE '%qualif%' OR pipeline_stage ILIKE '%meeting%'
           OR pipeline_stage ILIKE '%proposal%' OR pipeline_stage ILIKE '%booked%'
           OR pipeline_stage ILIKE '%won%'
           OR status ILIKE '%qualif%' OR status ILIKE '%meeting%'
-          OR status ILIKE '%proposal%' OR status ILIKE '%won%')`, [userId]),
+          OR status ILIKE '%proposal%' OR status ILIKE '%won%')`, leadParams),
       db.query(`SELECT (
-          COALESCE((SELECT COUNT(*)::int FROM meetings WHERE (user_id = $1 OR user_id IS NULL) AND scheduled_at >= $2), 0) +
-          COALESCE((SELECT COUNT(*)::int FROM calendly_events WHERE (user_id = $1 OR user_id IS NULL) AND (created_at >= $2 OR start_time >= $2) AND COALESCE(is_deleted, false) = false), 0)
-        )::int as cnt`, [userId, startOfWeek]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM proposals WHERE (user_id = $1 OR user_id IS NULL)`, [userId]),
-      db.query(`SELECT COUNT(*)::int as cnt FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND (pipeline_stage ILIKE '%won%' OR status ILIKE '%won%')`, [userId]),
-      db.query(`SELECT COALESCE(SUM(CASE WHEN deal_value > 0 THEN deal_value ELSE 5000 END), 0)::numeric AS v FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND pipeline_stage NOT ILIKE '%won%' AND pipeline_stage NOT ILIKE '%lost%'`, [userId]),
+          COALESCE((SELECT COUNT(*)::int FROM meetings ${whereClause ? whereClause + ' AND' : 'WHERE'} scheduled_at >= $${isTeamView ? 1 : 2}), 0) +
+          COALESCE((SELECT COUNT(*)::int FROM calendly_events ${whereClause ? whereClause + ' AND' : 'WHERE'} (created_at >= $${isTeamView ? 1 : 2} OR start_time >= $${isTeamView ? 1 : 2}) AND COALESCE(is_deleted, false) = false), 0)
+        )::int as cnt`, meetingParams),
+      db.query(`SELECT COUNT(*)::int as cnt FROM proposals ${whereClause}`, leadParams),
+      db.query(`SELECT COUNT(*)::int as cnt FROM leads ${leadWhere ? leadWhere + ' AND' : 'WHERE'} (pipeline_stage ILIKE '%won%' OR status ILIKE '%won%')`, leadParams),
+      db.query(`SELECT COALESCE(SUM(CASE WHEN deal_value > 0 THEN deal_value ELSE 5000 END), 0)::numeric AS v FROM leads ${leadWhere ? leadWhere + ' AND' : 'WHERE'} pipeline_stage NOT ILIKE '%won%' AND pipeline_stage NOT ILIKE '%lost%'`, leadParams),
     ]);
 
     const totalLeadsCnt = totalLeads.rows[0]?.cnt || 0;
@@ -5225,14 +5245,18 @@ async function fetchDashboardSummaryData(userId) {
   }
 }
 
-async function fetchDashboardActivityData(userId) {
+async function fetchDashboardActivityData(userId, userRole) {
   try {
+    const isTeamView = userRole === 'admin' || userRole === 'leader';
+    const filter = isTeamView ? '' : 'WHERE user_id = $1 OR user_id IS NULL';
+    const params = isTeamView ? [] : [userId];
+
     const r = await db.query(
       `SELECT id, agent_name, activity_type, status, lead_name, company_name, detail, executed_at
        FROM agent_activity 
-       WHERE user_id = $1 OR user_id IS NULL
+       ${filter}
        ORDER BY executed_at DESC LIMIT 30`,
-      [userId]
+      params
     );
 
     return r.rows.map(row => ({
@@ -5247,12 +5271,16 @@ async function fetchDashboardActivityData(userId) {
   }
 }
 
-async function fetchPipelineFunnelData(userId) {
+async function fetchPipelineFunnelData(userId, userRole) {
   try {
+    const isTeamView = userRole === 'admin' || userRole === 'leader';
+    const filter = isTeamView ? '' : 'WHERE user_id = $1 OR user_id IS NULL';
+    const params = isTeamView ? [] : [userId];
+
     const r = await db.query(
       `SELECT COALESCE(NULLIF(pipeline_stage, ''), 'Lead In') AS stage, COUNT(*)::int AS n
-       FROM leads WHERE (user_id = $1 OR user_id IS NULL) GROUP BY 1`,
-      [userId]
+       FROM leads ${filter} GROUP BY 1`,
+      params
     );
 
     const counts = { New: 0, Audited: 0, Qualified: 0, Meeting: 0, Proposal: 0, Closed: 0 };
@@ -5284,14 +5312,43 @@ async function fetchPipelineFunnelData(userId) {
   }
 }
 
-app.get('/api/useGetPipelineFunnel', async (req, res) => res.json(await fetchPipelineFunnelData(await resolveUserId(null, req.headers.cookie))));
-app.get('/api/dashboard/funnel', async (req, res) => res.json(await fetchPipelineFunnelData(await resolveUserId(null, req.headers.cookie))));
+async function getDashboardUserInfo(req) {
+  const email = req.headers.cookie?.split('; ').find(c => c.startsWith('aura_user_email='))?.split('=')[1];
+  if (!email) return { userId: await resolveUserId(null, req.headers.cookie), role: 'executive' };
+  try {
+    const decoded = decodeURIComponent(email);
+    const r = await db.query('SELECT id, role FROM users WHERE LOWER(email) = LOWER($1)', [decoded]);
+    if (r.rows.length > 0) return { userId: r.rows[0].id, role: r.rows[0].role || 'member' };
+  } catch { /* ignore */ }
+  return { userId: await resolveUserId(null, req.headers.cookie), role: 'executive' };
+}
 
-app.get('/api/useGetDashboardSummary', async (req, res) => res.json(await fetchDashboardSummaryData(await resolveUserId(null, req.headers.cookie))));
-app.get('/api/dashboard/summary', async (req, res) => res.json(await fetchDashboardSummaryData(await resolveUserId(null, req.headers.cookie))));
+app.get('/api/useGetPipelineFunnel', async (req, res) => {
+  const { userId, role } = await getDashboardUserInfo(req);
+  res.json(await fetchPipelineFunnelData(userId, role));
+});
+app.get('/api/dashboard/funnel', async (req, res) => {
+  const { userId, role } = await getDashboardUserInfo(req);
+  res.json(await fetchPipelineFunnelData(userId, role));
+});
 
-app.get('/api/useGetDashboardActivity', async (req, res) => res.json(await fetchDashboardActivityData(await resolveUserId(null, req.headers.cookie))));
-app.get('/api/dashboard/activity', async (req, res) => res.json(await fetchDashboardActivityData(await resolveUserId(null, req.headers.cookie))));
+app.get('/api/useGetDashboardSummary', async (req, res) => {
+  const { userId, role } = await getDashboardUserInfo(req);
+  res.json(await fetchDashboardSummaryData(userId, role));
+});
+app.get('/api/dashboard/summary', async (req, res) => {
+  const { userId, role } = await getDashboardUserInfo(req);
+  res.json(await fetchDashboardSummaryData(userId, role));
+});
+
+app.get('/api/useGetDashboardActivity', async (req, res) => {
+  const { userId, role } = await getDashboardUserInfo(req);
+  res.json(await fetchDashboardActivityData(userId, role));
+});
+app.get('/api/dashboard/activity', async (req, res) => {
+  const { userId, role } = await getDashboardUserInfo(req);
+  res.json(await fetchDashboardActivityData(userId, role));
+});
 app.get('/api/client-error', (req, res) => res.json({ received: true }));
 app.get('/api/search', (req, res) => res.json({ leads: [], proposals: [], meetings: [] }));
 
