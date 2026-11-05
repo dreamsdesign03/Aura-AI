@@ -47,11 +47,34 @@ async function ensureMetaSchema() {
       );
     `);
 
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS meta_comments (
+        id SERIAL PRIMARY KEY,
+        channel TEXT NOT NULL,                -- 'instagram' | 'facebook'
+        comment_id TEXT UNIQUE NOT NULL,
+        post_id TEXT,
+        post_url TEXT,
+        sender_id TEXT,
+        sender_name TEXT,
+        sender_username TEXT,
+        sender_avatar TEXT,
+        text TEXT NOT NULL,
+        reply_text TEXT,
+        replied_at TIMESTAMPTZ,
+        status TEXT DEFAULT 'pending',        -- 'pending' | 'replied'
+        unread BOOLEAN DEFAULT TRUE,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
     // Useful indexes
     await db.query(`
       CREATE INDEX IF NOT EXISTS idx_meta_conv_channel_sender ON meta_conversations(channel, sender_id);
       CREATE INDEX IF NOT EXISTS idx_meta_conv_last_message ON meta_conversations(last_message_at DESC);
       CREATE INDEX IF NOT EXISTS idx_meta_msg_conv_id ON meta_messages(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_meta_comments_channel ON meta_comments(channel);
+      CREATE INDEX IF NOT EXISTS idx_meta_comments_created ON meta_comments(created_at DESC);
     `);
 
     console.log('✅ [Meta Omnichannel] DB schema verified and ready');
@@ -255,12 +278,86 @@ async function sendMetaMessage({ channel, recipientId, text, conversationId }) {
   };
 }
 
+/**
+ * Persist incoming Instagram or Facebook comment
+ */
+async function persistMetaComment({
+  channel,
+  commentId,
+  postId = null,
+  postUrl = null,
+  senderId = null,
+  senderName = null,
+  senderUsername = null,
+  senderAvatar = null,
+  text
+}) {
+  await ensureMetaSchema();
+
+  const r = await db.query(
+    `INSERT INTO meta_comments (
+       channel, comment_id, post_id, post_url, sender_id, sender_name, sender_username, sender_avatar, text, status, unread, created_at
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', TRUE, NOW())
+     ON CONFLICT (comment_id)
+     DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()
+     RETURNING *`,
+    [channel, commentId, postId, postUrl, senderId, senderName, senderUsername, senderAvatar, text]
+  );
+
+  return r.rows[0];
+}
+
+/**
+ * Reply directly to an Instagram or Facebook comment
+ */
+async function replyToMetaComment({ channel, commentId, message }) {
+  const token = META_PAGE_ACCESS_TOKEN();
+  if (!token) throw new Error('Meta Page Access Token is missing');
+  if (!commentId || !message) throw new Error('Comment ID and reply message are required');
+
+  // Both Instagram & Facebook use POST /{comment_id}/replies or /{comment_id}/comments
+  const endpoint = channel === 'instagram' ? 'replies' : 'comments';
+  const url = `https://graph.facebook.com/v19.0/${commentId}/${endpoint}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      message: message.trim(),
+      access_token: token
+    })
+  });
+
+  const resJson = await response.json();
+  if (!response.ok || resJson.error) {
+    const errMsg = resJson.error?.message || 'Failed to post reply to comment';
+    console.error(`[Meta Comment Reply] Error on ${channel} comment ${commentId}:`, resJson.error);
+    throw new Error(errMsg);
+  }
+
+  // Update in database
+  await db.query(
+    `UPDATE meta_comments
+        SET reply_text = $1,
+            replied_at = NOW(),
+            status = 'replied',
+            unread = FALSE,
+            updated_at = NOW()
+      WHERE comment_id = $2`,
+    [message.trim(), commentId]
+  );
+
+  return { success: true, replyId: resJson.id };
+}
+
 module.exports = {
   ensureMetaSchema,
   fetchMetaUserProfile,
   findOrCreateMetaConversation,
   persistMetaMessage,
   sendMetaMessage,
+  persistMetaComment,
+  replyToMetaComment,
   META_PAGE_ID,
   META_INSTAGRAM_ACCOUNT_ID
 };

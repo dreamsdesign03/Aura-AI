@@ -38,7 +38,7 @@ const {
   pickCallForAppointment,
 } = require('./appointment-call-match');
 const { normalizeRole, isAdminRole, canAccessClinicApi } = require('./permissions');
-const { sendMetaMessage } = require('./meta');
+const { sendMetaMessage, replyToMetaComment } = require('./meta');
 
 const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
@@ -2748,7 +2748,7 @@ router.get('/inbox', requireUser, async (req, res) => {
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;
 
-    const [wa, emails, calls, notes, meta] = await Promise.all([
+    const [wa, emails, calls, notes, meta, comments] = await Promise.all([
       // 1. WhatsApp Conversations - deduplicate by wa_phone_number (prefer those with lead_id)
       db.query(
         `WITH ranked AS (
@@ -2836,6 +2836,15 @@ router.get('/inbox', requireUser, async (req, res) => {
            FROM meta_conversations mc
            LEFT JOIN leads l ON l.id = mc.lead_id
           ORDER BY mc.last_message_at DESC LIMIT $1`,
+        [limit]
+      ),
+      // 6. Meta Comments (Instagram & Facebook Post/Reel Comments)
+      tryQuery(
+        `SELECT mc.id, mc.channel, mc.comment_id, mc.post_id, mc.post_url,
+                mc.sender_name, mc.sender_username, mc.sender_avatar, mc.text,
+                mc.reply_text, mc.replied_at, mc.status, mc.unread, mc.created_at
+           FROM meta_comments mc
+          ORDER BY mc.created_at DESC LIMIT $1`,
         [limit]
       ),
     ]);
@@ -2937,6 +2946,27 @@ router.get('/inbox', requireUser, async (req, res) => {
         status: 'active',
         lastAt: row.last_message_at,
         preview: row.last_message || (isIg ? 'Instagram Direct Message' : 'Facebook Messenger message'),
+      });
+    }
+
+    // Meta Comments (Instagram & Facebook Post/Reel Comments)
+    for (const row of (comments?.rows || [])) {
+      const isIg = row.channel === 'instagram';
+      threads.push({
+        type: 'comment',
+        channel: row.channel,
+        id: row.id,
+        commentId: row.comment_id,
+        postId: row.post_id,
+        postUrl: row.post_url,
+        senderUsername: row.sender_username,
+        name: row.sender_name || (isIg ? `@${row.sender_username || 'user'}` : 'Facebook User'),
+        unread: row.unread ? 1 : 0,
+        status: row.status || 'pending',
+        replyText: row.reply_text,
+        repliedAt: row.replied_at,
+        lastAt: row.replied_at || row.created_at,
+        preview: `Comment on ${isIg ? 'Instagram' : 'Facebook'}: "${(row.text || '').slice(0, 80)}"`,
       });
     }
 
@@ -3182,6 +3212,33 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
       });
     }
 
+    if (type === 'comment') {
+      const commRes = await db.query('SELECT * FROM meta_comments WHERE id = $1', [parseInt(id)]);
+      if (commRes.rows.length === 0) return res.status(404).json({ error: 'Comment not found' });
+      const comment = commRes.rows[0];
+      await db.query('UPDATE meta_comments SET unread = FALSE WHERE id = $1', [comment.id]).catch(() => {});
+      return res.json({
+        type: 'comment',
+        comment,
+        messages: [
+          {
+            id: comment.id,
+            direction: 'inbound',
+            type: comment.channel,
+            content: comment.text,
+            timestamp: comment.created_at
+          },
+          ...(comment.reply_text ? [{
+            id: `${comment.id}-reply`,
+            direction: 'outbound',
+            type: comment.channel,
+            content: comment.reply_text,
+            timestamp: comment.replied_at
+          }] : [])
+        ]
+      });
+    }
+
     res.status(400).json({ error: 'Unknown thread type' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -3241,6 +3298,20 @@ router.post('/inbox/reply', requireUser, async (req, res) => {
         message: `${type === 'instagram' ? 'Instagram DM' : 'Facebook Messenger message'} sent`,
         messageId: sendResult.messageId
       });
+    }
+
+    if (type === 'comment') {
+      const commentId = req.body.commentId || req.body.id;
+      const channel = req.body.channel || 'instagram';
+      if (!commentId) return res.status(400).json({ error: 'Comment ID is required to reply' });
+
+      await replyToMetaComment({
+        channel,
+        commentId,
+        message: (body || '').trim()
+      });
+
+      return res.json({ success: true, message: 'Comment reply posted successfully' });
     }
 
     if (type === 'email') {

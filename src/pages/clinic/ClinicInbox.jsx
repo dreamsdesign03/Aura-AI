@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import {
   MessageSquare, PhoneCall, StickyNote, RefreshCw, Search, ChevronRight,
   Mail, Phone, Clock, Send, ExternalLink, Check, CheckCheck,
-  User, ArrowUpRight, Sparkles, Filter, X
+  User, ArrowUpRight, Sparkles, Filter, X, MessageSquareQuote
 } from 'lucide-react';
 import { clinicApi, datetimeLabel, dateLabel, timeLabel, cleanEnglishName } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
@@ -34,6 +34,7 @@ const CHANNEL_CONFIG = {
   whatsapp: { label: 'WhatsApp', icon: MessageSquare, chip: 'co-c-g', color: '#10B981', bg: '#ECFDF5' },
   instagram: { label: 'Instagram', icon: InstagramIcon, chip: 'co-c-p', color: '#E1306C', bg: '#FDF2F8' },
   facebook: { label: 'Facebook', icon: FacebookIcon, chip: 'co-c-m', color: '#1877F2', bg: '#EFF6FF' },
+  comment: { label: 'Comments', icon: MessageSquareQuote, chip: 'co-c-p', color: '#8B5CF6', bg: '#F5F3FF' },
   email: { label: 'Emails', icon: Mail, chip: 'co-c-m', color: '#2563EB', bg: '#EFF6FF' },
   drafts: { label: 'Drafts', icon: Mail, chip: 'co-c-n', color: '#475569', bg: '#F8FAFC' },
   call: { label: 'AI Calls', icon: PhoneCall, chip: 'co-c-p', color: '#A4285E', bg: '#FBE9F1' },
@@ -313,6 +314,13 @@ function ThreadDrawer({ thread, onClose }) {
         conversationId: thread.id,
         recipientId: thread.senderId || detail?.conversation?.sender_id,
         senderId: thread.senderId || detail?.conversation?.sender_id,
+        body: replyText.trim(),
+      });
+    } else if (thread.type === 'comment') {
+      replyMutation.mutate({
+        type: 'comment',
+        commentId: thread.commentId || detail?.comment?.comment_id,
+        channel: thread.channel || detail?.comment?.channel || 'instagram',
         body: replyText.trim(),
       });
     } else if (thread.type === 'email') {
@@ -654,6 +662,70 @@ function ThreadDrawer({ thread, onClose }) {
               </div>
             )}
 
+            {/* COMMENT VIEW */}
+            {thread.type === 'comment' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div
+                  style={{
+                    background: '#F5F3FF',
+                    border: '1px solid #DDD6FE',
+                    borderRadius: 8,
+                    padding: 14,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {thread.channel === 'instagram' ? (
+                        <InstagramIcon size={16} color="#E1306C" />
+                      ) : (
+                        <FacebookIcon size={16} color="#1877F2" />
+                      )}
+                      <span style={{ fontWeight: 600, fontSize: 13, color: '#5B21B6' }}>
+                        Post / Reel Comment on {thread.channel === 'instagram' ? 'Instagram' : 'Facebook'}
+                      </span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        padding: '2px 8px',
+                        borderRadius: 999,
+                        background: detail?.comment?.status === 'replied' ? '#DCFCE7' : '#FEF3C7',
+                        color: detail?.comment?.status === 'replied' ? '#166534' : '#92400E',
+                      }}
+                    >
+                      {detail?.comment?.status === 'replied' ? 'Replied' : 'Awaiting Reply'}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: 13.5, color: '#1F2937', lineHeight: 1.5, background: '#FFFFFF', padding: 10, borderRadius: 6, border: '1px solid #E5E7EB' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6D28D9', marginBottom: 4 }}>
+                      {detail?.comment?.sender_name || (detail?.comment?.sender_username ? `@${detail.comment.sender_username}` : 'User')} wrote:
+                    </div>
+                    {detail?.comment?.text || thread.preview}
+                  </div>
+
+                  {detail?.comment?.reply_text && (
+                    <div style={{ marginTop: 10, background: '#EDE9FE', border: '1px solid #DDD6FE', borderRadius: 6, padding: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#6D28D9', marginBottom: 3, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <CheckCheck size={12} color="#7C3AED" /> Clinic Reply:
+                      </div>
+                      <div style={{ fontSize: 12.5, color: '#4C1D95' }}>
+                        {detail.comment.reply_text}
+                      </div>
+                      <div style={{ fontSize: 10, color: '#8B5CF6', marginTop: 4 }}>
+                        {detail.comment.replied_at ? datetimeLabel(detail.comment.replied_at) : ''}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ fontSize: 10.5, color: '#7C3AED', marginTop: 8 }}>
+                    Commented on {datetimeLabel(detail?.comment?.created_at || thread.lastAt)}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* EMAIL VIEW */}
             {thread.type === 'email' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -893,6 +965,8 @@ function ThreadDrawer({ thread, onClose }) {
                 ? 'Send Instagram Direct Reply'
                 : thread.type === 'facebook'
                 ? 'Send Facebook Messenger Reply'
+                : thread.type === 'comment'
+                ? `Reply to ${thread.channel === 'instagram' ? 'Instagram' : 'Facebook'} Comment`
                 : thread.type === 'email'
                 ? 'Send Email Reply'
                 : 'Add Follow-up Note'}
@@ -1003,6 +1077,8 @@ function ThreadDrawer({ thread, onClose }) {
                   ? 'Type your Instagram Direct message...'
                   : thread.type === 'facebook'
                   ? 'Type your Facebook Messenger message...'
+                  : thread.type === 'comment'
+                  ? `Write a public reply to this ${thread.channel === 'instagram' ? 'Instagram' : 'Facebook'} comment...`
                   : thread.type === 'email'
                   ? 'Write your email response...'
                   : 'Add a clinical note or task for this patient...'
@@ -1027,6 +1103,8 @@ function ThreadDrawer({ thread, onClose }) {
                   <InstagramIcon size={12} />
                 ) : thread.type === 'facebook' ? (
                   <FacebookIcon size={12} />
+                ) : thread.type === 'comment' ? (
+                  <MessageSquareQuote size={12} />
                 ) : thread.type === 'email' ? (
                   <Mail size={12} />
                 ) : (
@@ -1041,6 +1119,8 @@ function ThreadDrawer({ thread, onClose }) {
                     ? 'Send Instagram DM'
                     : thread.type === 'facebook'
                     ? 'Send Messenger'
+                    : thread.type === 'comment'
+                    ? 'Post Reply to Comment'
                     : thread.type === 'email'
                     ? 'Send Email'
                     : 'Save Note'}
@@ -1149,6 +1229,7 @@ export default function ClinicInbox() {
     const wa = threads.filter((t) => t.type === 'whatsapp');
     const ig = threads.filter((t) => t.type === 'instagram');
     const fb = threads.filter((t) => t.type === 'facebook');
+    const com = threads.filter((t) => t.type === 'comment');
     const em = threads.filter((t) => t.type === 'email');
     const dr = threads.filter((t) => t.isDraft);
     const ca = threads.filter((t) => t.type === 'call');
@@ -1159,6 +1240,7 @@ export default function ClinicInbox() {
       whatsapp: wa.length,
       instagram: ig.length,
       facebook: fb.length,
+      comment: com.length,
       email: em.length,
       drafts: dr.length,
       call: ca.length,
@@ -1244,6 +1326,13 @@ export default function ClinicInbox() {
         </Card>
         <Card>
           <div className="co-kpi-label">
+            <MessageSquareQuote size={13} style={{ color: '#8B5CF6' }} /> Comments
+          </div>
+          <div className="co-kpi-value">{counts.comment}</div>
+          <div className="co-kpi-foot">FB &amp; IG Posts</div>
+        </Card>
+        <Card>
+          <div className="co-kpi-label">
             <Mail size={13} style={{ color: '#2563EB' }} /> Emails
           </div>
           <div className="co-kpi-value">{counts.email}</div>
@@ -1285,6 +1374,7 @@ export default function ClinicInbox() {
               { id: 'whatsapp', label: 'WhatsApp', count: counts.whatsapp },
               { id: 'instagram', label: 'Instagram', count: counts.instagram },
               { id: 'facebook', label: 'Facebook', count: counts.facebook },
+              { id: 'comment', label: 'Comments', count: counts.comment },
               { id: 'email', label: 'Emails', count: counts.email },
               { id: 'drafts', label: 'Drafts', count: counts.drafts },
               { id: 'call', label: 'AI Calls', count: counts.call },

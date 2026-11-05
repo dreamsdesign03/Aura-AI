@@ -5,6 +5,8 @@ const {
   findOrCreateMetaConversation,
   persistMetaMessage,
   fetchMetaUserProfile,
+  persistMetaComment,
+  replyToMetaComment,
   META_PAGE_ID,
   META_INSTAGRAM_ACCOUNT_ID
 } = require('./meta');
@@ -120,10 +122,53 @@ router.post('/webhook', async (req, res) => {
       }
 
       // ────────────────────────────────────────────────────────────────────────
-      // 2. LEAD ADS EVENT (Instant Facebook & Instagram Ad Leads Capture!)
+      // 2. LEAD ADS & COMMENTS EVENTS (Instagram Comments & Facebook Post Comments)
       // ────────────────────────────────────────────────────────────────────────
       if (Array.isArray(entry.changes)) {
         for (const change of entry.changes) {
+          // A. Instagram Comments
+          if (change.field === 'comments' && change.value?.text) {
+            const val = change.value;
+            const commentId = val.id;
+            const text = val.text || '';
+            const from = val.from || {};
+            const media = val.media || {};
+
+            console.log(`💬 [Meta Webhook] New Instagram Comment from @${from.username || from.id}: "${text}"`);
+            await persistMetaComment({
+              channel: 'instagram',
+              commentId,
+              postId: media.id || val.media_id || null,
+              senderId: from.id || null,
+              senderName: from.name || from.username || 'Instagram User',
+              senderUsername: from.username || null,
+              text
+            }).catch(e => console.error('[Meta Webhook] Comment save error:', e.message));
+          }
+
+          // B. Facebook Page Post Comments
+          if (change.field === 'feed' && change.value?.item === 'comment' && (change.value?.verb === 'add' || !change.value?.verb)) {
+            const val = change.value;
+            const commentId = val.comment_id || val.id;
+            const text = val.message || '';
+            const senderName = val.sender_name || 'Facebook User';
+            const senderId = val.sender_id || null;
+            const postId = val.post_id || null;
+
+            if (commentId && text) {
+              console.log(`💬 [Meta Webhook] New Facebook Comment from ${senderName}: "${text}"`);
+              await persistMetaComment({
+                channel: 'facebook',
+                commentId,
+                postId,
+                senderId,
+                senderName,
+                text
+              }).catch(e => console.error('[Meta Webhook] FB Comment save error:', e.message));
+            }
+          }
+
+          // C. Lead Ads Form Submissions
           if (change.field === 'leadgen' && change.value?.leadgen_id) {
             const leadgenId = change.value.leadgen_id;
             console.log(`🎯 [Meta Webhook] New Lead Ad submission received! Lead ID: ${leadgenId}`);
@@ -177,6 +222,52 @@ router.post('/webhook', async (req, res) => {
     }
   } catch (err) {
     console.error('❌ [Meta Webhook] Error processing event:', err.message);
+  }
+});
+
+/**
+ * GET /api/meta/comments - list comments
+ */
+router.get('/comments', async (req, res) => {
+  try {
+    await ensureMetaSchema();
+    const limit = Number(req.query.limit) || 50;
+    const channel = req.query.channel;
+    let query = 'SELECT * FROM meta_comments';
+    const params = [];
+    if (channel) {
+      params.push(channel);
+      query += ` WHERE channel = $${params.length}`;
+    }
+    query += ` ORDER BY created_at DESC LIMIT $${params.length + 1}`;
+    params.push(limit);
+
+    const r = await db.query(query, params);
+    res.json({ comments: r.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/meta/comments/reply - reply to a comment
+ */
+router.post('/comments/reply', async (req, res) => {
+  try {
+    const { commentId, channel, message } = req.body || {};
+    if (!commentId || !message) {
+      return res.status(400).json({ error: 'commentId and message are required' });
+    }
+
+    const result = await replyToMetaComment({
+      channel: channel || 'instagram',
+      commentId,
+      message
+    });
+
+    res.json({ success: true, result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
