@@ -86,6 +86,207 @@ router.get('/calls/recording', requireUserCookie, async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// Unified conversation explorer: bulk outbound + dialer + inbound transcripts.
+// Additive endpoint — does not affect campaign behaviour.
+// ---------------------------------------------------------------------------
+const {
+  CONVERSATION_TYPES,
+  CONVERSATION_TYPE_LABELS,
+  classifyConversation,
+  deriveCallSource,
+  purposeLabel,
+  transcriptToText,
+} = require('./conversation-intelligence');
+
+async function cookieUserId(req) {
+  const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
+  if (!match) return null;
+  const u = await db.query('SELECT id FROM users WHERE email = $1', [decodeURIComponent(match[1])]);
+  return u.rows[0]?.id || null;
+}
+
+const DIALER_BOOKING_TYPES = ['patient_consultation', 'follow_up', 'treatment_query', 'appointment_booking', 'payment_reminder', 'general'];
+
+function conversationSelect() {
+  return `
+    SELECT ac.id, ac.lead_id, ac.conversation_id, ac.call_sid,
+           ac.to_phone, ac.from_phone, ac.lead_name, ac.company_name,
+           ac.status, ac.booking_type, ac.started_at, ac.duration_secs,
+           ac.transcript_summary, ac.recording_url, ac.sentiment, ac.outcome,
+           ac.provider, ac.direction, ac.transcript,
+           l.pipeline_stage,
+           COALESCE(
+             NULLIF(NULLIF(NULLIF(ac.lead_name_english, '.'), '-'), ''),
+             NULLIF(NULLIF(NULLIF(ac.lead_name, '.'), '-'), ''),
+             NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''),
+             'Unknown caller'
+           ) AS display_name,
+           COALESCE(ac.to_phone, l.phone, ac.from_phone, '—') AS display_phone,
+           jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count,
+           (ac.transcript IS NOT NULL AND jsonb_typeof(ac.transcript) = 'array') AS has_transcript
+      FROM ai_calls ac
+      LEFT JOIN leads l ON l.id = ac.lead_id
+  `;
+}
+
+function sourceWhere(source, params) {
+  if (source === 'inbound') {
+    return ` AND LOWER(COALESCE(ac.direction, 'outbound')) = 'inbound'`;
+  }
+  if (source === 'bulk') {
+    return ` AND LOWER(COALESCE(ac.direction, 'outbound')) <> 'inbound'
+             AND LOWER(COALESCE(ac.booking_type, '')) = 'bulk_campaign'`;
+  }
+  if (source === 'dialer') {
+    params.push(DIALER_BOOKING_TYPES);
+    const idx = params.length;
+    return ` AND LOWER(COALESCE(ac.direction, 'outbound')) <> 'inbound'
+             AND LOWER(COALESCE(ac.booking_type, '')) <> 'bulk_campaign'
+             AND (LOWER(COALESCE(ac.booking_type, '')) = ANY($${idx}::text[])
+                  OR LOWER(COALESCE(ac.provider, '')) = 'plivo')`;
+  }
+  if (source === 'single') {
+    params.push(DIALER_BOOKING_TYPES);
+    const idx = params.length;
+    return ` AND LOWER(COALESCE(ac.direction, 'outbound')) <> 'inbound'
+             AND LOWER(COALESCE(ac.booking_type, '')) <> 'bulk_campaign'
+             AND LOWER(COALESCE(ac.booking_type, '')) <> ALL($${idx}::text[])
+             AND LOWER(COALESCE(ac.provider, '')) <> 'plivo'`;
+  }
+  return '';
+}
+
+function decorateConversation(row, { includeTranscript = false } = {}) {
+  const source = deriveCallSource(row);
+  const classification = classifyConversation(row);
+  const preview = transcriptToText(row.transcript).replace(/\s+/g, ' ').trim().slice(0, 220);
+
+  const out = {
+    id: row.id,
+    lead_id: row.lead_id,
+    conversation_id: row.conversation_id,
+    call_sid: row.call_sid,
+    display_name: row.display_name,
+    display_phone: row.display_phone,
+    company_name: row.company_name,
+    direction: row.direction || 'outbound',
+    provider: row.provider || 'sarvam',
+    source,
+    status: row.status,
+    outcome: row.outcome,
+    booking_type: row.booking_type,
+    purpose: purposeLabel(row.booking_type),
+    started_at: row.started_at,
+    duration_secs: row.duration_secs || 0,
+    transcript_summary: row.transcript_summary,
+    recording_url: row.recording_url,
+    sentiment: row.sentiment,
+    pipeline_stage: row.pipeline_stage,
+    turn_count: Number(row.turn_count) || 0,
+    has_transcript: Boolean(row.has_transcript),
+    transcript_preview: preview,
+    conversation_type: classification.type,
+    conversation_type_label: classification.label,
+    conversation_confidence: classification.confidence,
+    classification_source: classification.source,
+  };
+
+  if (includeTranscript) {
+    let turns = row.transcript;
+    if (typeof turns === 'string') {
+      try { turns = JSON.parse(turns); } catch { turns = []; }
+    }
+    out.transcript = Array.isArray(turns) ? turns : [];
+  }
+
+  return out;
+}
+
+// List every conversation (bulk outbound, dialer, inbound) with its type.
+router.get('/conversations', requireUserCookie, async (req, res) => {
+  try {
+    const userId = await cookieUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthenticated' });
+
+    const source = String(req.query.source || 'all').toLowerCase();
+    const typeFilter = String(req.query.type || 'all').toLowerCase();
+    const search = String(req.query.search || '').trim();
+    const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 400);
+
+    const params = [userId];
+    let where = ` WHERE (l.user_id = $1 OR l.user_id IS NULL OR ac.lead_id IS NULL)`;
+    where += sourceWhere(source, params);
+
+    if (search) {
+      params.push(`%${search.toLowerCase()}%`);
+      const i = params.length;
+      where += ` AND (
+        LOWER(COALESCE(ac.lead_name, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.lead_name_english, '')) LIKE $${i} OR
+        LOWER(COALESCE(l.first_name, '')) LIKE $${i} OR
+        LOWER(COALESCE(l.last_name, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.to_phone, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.from_phone, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.transcript_summary, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.conversation_id, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.transcript::text, '')) LIKE $${i}
+      )`;
+    }
+
+    const queryText = `${conversationSelect()}${where} ORDER BY ac.started_at DESC NULLS LAST LIMIT $${params.length + 1}`;
+    params.push(limit);
+    const r = await db.query(queryText, params);
+
+    const all = r.rows.map((row) => decorateConversation(row));
+
+    const byType = { marketing_sales: 0, patient_consultation: 0, customer_care: 0 };
+    const bySource = { bulk: 0, dialer: 0, inbound: 0, single: 0 };
+    for (const c of all) {
+      byType[c.conversation_type] = (byType[c.conversation_type] || 0) + 1;
+      bySource[c.source] = (bySource[c.source] || 0) + 1;
+    }
+
+    const conversations = typeFilter === 'all'
+      ? all
+      : all.filter((c) => c.conversation_type === typeFilter);
+
+    res.json({
+      conversations,
+      counts: {
+        total: all.length,
+        by_type: byType,
+        by_source: bySource,
+      },
+      type_labels: CONVERSATION_TYPE_LABELS,
+      types: CONVERSATION_TYPES,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Full transcript for one conversation (used when a card is expanded).
+router.get('/conversations/:id', requireUserCookie, async (req, res) => {
+  try {
+    const userId = await cookieUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthenticated' });
+
+    const id = Number(req.params.id);
+    if (!Number.isFinite(id)) return res.status(400).json({ error: 'invalid id' });
+
+    const r = await db.query(
+      `${conversationSelect()} WHERE ac.id = $1 AND (l.user_id = $2 OR l.user_id IS NULL OR ac.lead_id IS NULL)`,
+      [id, userId]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
+
+    res.json({ conversation: decorateConversation(r.rows[0], { includeTranscript: true }) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create the Sarvam campaign for a draft AuraAI campaign and stream its pending contacts.
 async function launchSarvamCampaign(camp) {
   const pending = await db.query("SELECT * FROM bulk_contacts WHERE campaign_id = $1 AND status = 'pending' ORDER BY id", [camp.id]);

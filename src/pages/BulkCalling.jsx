@@ -3,6 +3,7 @@ import { PhoneOutgoing, Plus, Loader2, RefreshCw, Play, Pause, XCircle, Search, 
 import { useToast } from "@/hooks/use-toast";
 import BulkCallModal from "@/components/BulkCallModal";
 import EditCampaignModal from "@/components/EditCampaignModal";
+import AllConversations from "@/components/AllConversations";
 import { format } from "date-fns";
 import * as XLSX from "xlsx-js-style";
 import { cleanEnglishName } from "@/lib/utils";
@@ -21,6 +22,7 @@ export default function BulkCalling() {
   const [loading, setLoading] = useState(true);
   const [showNew, setShowNew] = useState(false);
   const [selectedId, setSelectedId] = useState(null);
+  const [view, setView] = useState('campaigns');
 
   const loadCampaigns = async () => {
     try {
@@ -53,18 +55,37 @@ export default function BulkCalling() {
             Bulk AI Calling
           </h1>
           <p className="text-xs text-gray-500 mt-1">Manage and track AI voice campaigns</p>
+          <div className="flex items-center gap-1 mt-3 bg-gray-100 rounded-xl p-1 w-fit">
+            <button
+              onClick={() => setView('campaigns')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${view === 'campaigns' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              Campaigns
+            </button>
+            <button
+              onClick={() => setView('conversations')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${view === 'conversations' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              All Conversations
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setShowNew(true)}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-xl shadow-sm transition-all"
-          style={{ background: "#CB3273" }}
-        >
-          <Plus className="w-4 h-4" />
-          New Campaign
-        </button>
+        {view === 'campaigns' && (
+          <button
+            onClick={() => setShowNew(true)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-xl shadow-sm transition-all"
+            style={{ background: "#CB3273" }}
+          >
+            <Plus className="w-4 h-4" />
+            New Campaign
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-auto p-6">
+        {view === 'conversations' ? (
+          <AllConversations />
+        ) : (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-12 flex justify-center text-gray-400">
@@ -125,6 +146,7 @@ export default function BulkCalling() {
             </table>
           )}
         </div>
+        )}
       </div>
 
       <BulkCallModal isOpen={showNew} onClose={() => setShowNew(false)} onComplete={loadCampaigns} />
