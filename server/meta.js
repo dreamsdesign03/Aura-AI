@@ -350,6 +350,53 @@ async function replyToMetaComment({ channel, commentId, message }) {
   return { success: true, replyId: resJson.id };
 }
 
+/**
+ * Sync Instagram Comments from Meta Graph API
+ */
+async function syncInstagramComments() {
+  const token = META_PAGE_ACCESS_TOKEN();
+  const igId = META_INSTAGRAM_ACCOUNT_ID();
+  if (!token || !igId) return { synced: 0 };
+
+  try {
+    await ensureMetaSchema();
+    const url = `https://graph.facebook.com/v19.0/${igId}/media?fields=id,caption,permalink,timestamp,comments_count,comments{id,text,timestamp,username,from}&limit=30&access_token=${encodeURIComponent(token)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) {
+      console.warn('[Instagram Sync] API returned warning:', data.error.message);
+      return { synced: 0, error: data.error.message };
+    }
+
+    let count = 0;
+    for (const post of (data.data || [])) {
+      const commentsList = post.comments?.data || [];
+      for (const c of commentsList) {
+        if (!c.id || !c.text) continue;
+        const createdAt = c.timestamp ? new Date(c.timestamp) : new Date();
+        const username = c.username || c.from?.username || null;
+        const senderName = username ? `@${username}` : 'Instagram User';
+
+        await db.query(
+          `INSERT INTO meta_comments (
+             channel, comment_id, post_id, post_url, sender_id, sender_name, sender_username, text, status, unread, created_at
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (comment_id)
+           DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()`,
+          ['instagram', String(c.id), String(post.id), post.permalink || null, c.from?.id ? String(c.from.id) : null, senderName, username, c.text, 'pending', true, createdAt]
+        );
+        count++;
+      }
+    }
+
+    console.log(`✅ [Instagram Sync] Successfully synced ${count} comments from Instagram API`);
+    return { synced: count };
+  } catch (err) {
+    console.error('[Instagram Sync] Error:', err.message);
+    return { synced: 0, error: err.message };
+  }
+}
+
 module.exports = {
   ensureMetaSchema,
   fetchMetaUserProfile,
@@ -358,6 +405,7 @@ module.exports = {
   sendMetaMessage,
   persistMetaComment,
   replyToMetaComment,
+  syncInstagramComments,
   META_PAGE_ID,
   META_INSTAGRAM_ACCOUNT_ID
 };

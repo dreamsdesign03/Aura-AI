@@ -7,6 +7,7 @@ const {
   fetchMetaUserProfile,
   persistMetaComment,
   replyToMetaComment,
+  syncInstagramComments,
   META_PAGE_ID,
   META_INSTAGRAM_ACCOUNT_ID
 } = require('./meta');
@@ -127,23 +128,28 @@ router.post('/webhook', async (req, res) => {
       if (Array.isArray(entry.changes)) {
         for (const change of entry.changes) {
           // A. Instagram Comments
-          if (change.field === 'comments' && change.value?.text) {
-            const val = change.value;
-            const commentId = val.id;
-            const text = val.text || '';
+          if (change.field === 'comments' || change.field === 'live_comments') {
+            const val = change.value || {};
+            const commentId = val.id || val.comment_id;
+            const text = val.text || val.message || '';
             const from = val.from || {};
             const media = val.media || {};
 
-            console.log(`💬 [Meta Webhook] New Instagram Comment from @${from.username || from.id}: "${text}"`);
-            await persistMetaComment({
-              channel: 'instagram',
-              commentId,
-              postId: media.id || val.media_id || null,
-              senderId: from.id || null,
-              senderName: from.name || from.username || 'Instagram User',
-              senderUsername: from.username || null,
-              text
-            }).catch(e => console.error('[Meta Webhook] Comment save error:', e.message));
+            if (commentId && text) {
+              console.log(`💬 [Meta Webhook] New Instagram Comment from @${from.username || from.id || 'user'}: "${text}"`);
+              await persistMetaComment({
+                channel: 'instagram',
+                commentId: String(commentId),
+                postId: media.id || val.media_id || null,
+                senderId: from.id ? String(from.id) : null,
+                senderName: from.name || (from.username ? `@${from.username}` : 'Instagram User'),
+                senderUsername: from.username || null,
+                text
+              }).catch(e => console.error('[Meta Webhook] Comment save error:', e.message));
+            } else {
+              console.log('[Meta Webhook] Comment change received, triggering background sync');
+              syncInstagramComments().catch(() => {});
+            }
           }
 
           // B. Facebook Page Post Comments
@@ -244,6 +250,18 @@ router.get('/comments', async (req, res) => {
 
     const r = await db.query(query, params);
     res.json({ comments: r.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/meta/comments/sync - manually sync comments from Meta Graph API
+ */
+router.post('/comments/sync', async (req, res) => {
+  try {
+    const result = await syncInstagramComments();
+    res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

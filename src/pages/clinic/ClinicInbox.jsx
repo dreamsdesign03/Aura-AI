@@ -156,7 +156,23 @@ function ThreadRow({ thread, isSelected, onClick }) {
                 gap: 3,
               }}
             >
-              <CheckCheck size={10} /> Client Replied
+              <CheckCheck size={10} /> {thread.type === 'comment' ? 'Replied' : 'Client Replied'}
+            </span>
+          ) : thread.type === 'comment' ? (
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: '#7C3AED',
+                background: '#EDE9FE',
+                padding: '1px 6px',
+                borderRadius: 4,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 3,
+              }}
+            >
+              New Comment
             </span>
           ) : null}
           {thread.isDraft ? (

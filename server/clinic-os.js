@@ -38,7 +38,7 @@ const {
   pickCallForAppointment,
 } = require('./appointment-call-match');
 const { normalizeRole, isAdminRole, canAccessClinicApi } = require('./permissions');
-const { sendMetaMessage, replyToMetaComment } = require('./meta');
+const { sendMetaMessage, replyToMetaComment, syncInstagramComments } = require('./meta');
 
 const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
@@ -2722,10 +2722,19 @@ async function deliverClinicEmail({ to, subject, html, leadId = null }) {
 // ---------------------------------------------------------------------------
 // Unified Omni-Channel Inbox (WhatsApp + Emails + AI Calls + Clinic Notes)
 // ---------------------------------------------------------------------------
+let lastIgSyncTime = 0;
+
 router.get('/inbox/sync', requireUser, async (req, res) => {
   try {
-    const result = await syncWhatsAppInbox({ force: true });
-    res.json({ ok: true, ...result });
+    const [waRes, igRes] = await Promise.allSettled([
+      syncWhatsAppInbox({ force: true }),
+      syncInstagramComments()
+    ]);
+    res.json({
+      ok: true,
+      whatsapp: waRes.status === 'fulfilled' ? waRes.value : null,
+      instagram: igRes.status === 'fulfilled' ? igRes.value : null
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2733,8 +2742,15 @@ router.get('/inbox/sync', requireUser, async (req, res) => {
 
 router.post('/inbox/sync', requireUser, async (req, res) => {
   try {
-    const result = await syncWhatsAppInbox({ force: true });
-    res.json({ ok: true, ...result });
+    const [waRes, igRes] = await Promise.allSettled([
+      syncWhatsAppInbox({ force: true }),
+      syncInstagramComments()
+    ]);
+    res.json({
+      ok: true,
+      whatsapp: waRes.status === 'fulfilled' ? waRes.value : null,
+      instagram: igRes.status === 'fulfilled' ? igRes.value : null
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -2742,9 +2758,13 @@ router.post('/inbox/sync', requireUser, async (req, res) => {
 
 router.get('/inbox', requireUser, async (req, res) => {
   try {
-    // Fire-and-forget recovery: pull anything the webhook dropped into the
-    // live inbox without forcing the client to hit an extra button.
+    // Fire-and-forget recovery: pull anything dropped into the live inbox
     syncWhatsAppInbox().catch(() => {});
+    const now = Date.now();
+    if (now - lastIgSyncTime > 40_000) {
+      lastIgSyncTime = now;
+      syncInstagramComments().catch(() => {});
+    }
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;
 
@@ -3213,7 +3233,10 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
     }
 
     if (type === 'comment') {
-      const commRes = await db.query('SELECT * FROM meta_comments WHERE id = $1', [parseInt(id)]);
+      const commRes = await db.query(
+        'SELECT * FROM meta_comments WHERE id = $1 OR comment_id = $2 LIMIT 1',
+        [parseInt(id) || -1, String(id || '')]
+      );
       if (commRes.rows.length === 0) return res.status(404).json({ error: 'Comment not found' });
       const comment = commRes.rows[0];
       await db.query('UPDATE meta_comments SET unread = FALSE WHERE id = $1', [comment.id]).catch(() => {});
@@ -3301,8 +3324,19 @@ router.post('/inbox/reply', requireUser, async (req, res) => {
     }
 
     if (type === 'comment') {
-      const commentId = req.body.commentId || req.body.id;
-      const channel = req.body.channel || 'instagram';
+      let commentId = req.body.commentId || req.body.id;
+      let channel = req.body.channel || 'instagram';
+
+      // If numeric ID or not found directly, lookup real comment_id
+      const cRow = await db.query(
+        'SELECT comment_id, channel FROM meta_comments WHERE comment_id = $1 OR id = $2 LIMIT 1',
+        [String(commentId || ''), parseInt(commentId) || -1]
+      );
+      if (cRow.rows.length > 0) {
+        commentId = cRow.rows[0].comment_id;
+        channel = cRow.rows[0].channel || channel;
+      }
+
       if (!commentId) return res.status(400).json({ error: 'Comment ID is required to reply' });
 
       await replyToMetaComment({
