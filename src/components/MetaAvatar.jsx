@@ -25,18 +25,18 @@ function getHashColor(str) {
 }
 
 function getInitials(name, username) {
+  if (name && name !== 'Instagram User' && name !== 'Facebook User' && !name.startsWith('@')) {
+    const parts = String(name).trim().split(/\s+/);
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0].slice(0, 2).toUpperCase();
+  }
   if (username) {
     const cleanUser = String(username).replace(/^@/, '').trim();
-    if (cleanUser) return cleanUser.charAt(0).toUpperCase();
+    if (cleanUser) return cleanUser.slice(0, 2).toUpperCase();
   }
-  if (!name || name === 'Instagram User' || name === 'Facebook User') {
-    return 'U';
-  }
-  const parts = String(name).trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[1][0]).toUpperCase();
-  }
-  return parts[0].slice(0, 2).toUpperCase();
+  return 'U';
 }
 
 export function ChannelBadge({ channel, size = 16 }) {
@@ -136,7 +136,13 @@ export function MetaAvatar({
   const bgColor = useMemo(() => getHashColor(username || name), [name, username]);
   const badgeSize = Math.max(14, Math.round(size * 0.36));
 
-  const hasValidImage = Boolean(avatarUrl && !imgError);
+  const isFakeUrl = typeof avatarUrl === 'string' && (
+    avatarUrl.includes('unsplash.com') ||
+    avatarUrl.includes('placeholder') ||
+    avatarUrl.includes('via.placeholder') ||
+    avatarUrl.includes('example.com')
+  );
+  const hasValidImage = Boolean(avatarUrl && !imgError && !isFakeUrl);
 
   return (
     <div

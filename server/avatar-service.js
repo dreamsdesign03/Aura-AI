@@ -32,16 +32,26 @@ async function ensureAvatarSchema() {
 
       ALTER TABLE meta_avatar_cache ADD COLUMN IF NOT EXISTS error_message TEXT;
 
-      -- Reset bogus placeholder/unsplash URLs in participant_avatar and author_avatar
+      -- Reset bogus placeholder/unsplash URLs in participant_avatar, author_avatar, and sender_avatar
       UPDATE meta_conversations
          SET participant_avatar = NULL
        WHERE participant_avatar IS NOT NULL
          AND participant_avatar NOT LIKE '/api/meta/avatar/%';
 
+      UPDATE meta_conversations
+         SET sender_avatar = NULL
+       WHERE sender_avatar IS NOT NULL
+         AND sender_avatar NOT LIKE '/api/meta/avatar/%';
+
       UPDATE meta_comments
          SET author_avatar = NULL
        WHERE author_avatar IS NOT NULL
          AND author_avatar NOT LIKE '/api/meta/avatar/%';
+
+      UPDATE meta_comments
+         SET sender_avatar = NULL
+       WHERE sender_avatar IS NOT NULL
+         AND sender_avatar NOT LIKE '/api/meta/avatar/%';
     `);
     console.log('✅ [Avatar Service] DB schema verified');
   } catch (err) {
