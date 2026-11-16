@@ -448,6 +448,45 @@ router.post('/comments/visibility', async (req, res) => {
 });
 
 /**
+ * GET /api/meta/avatar-debug - Diagnostic route for testing participant avatar fetching
+ * Query: ?channel=messenger|instagram&id=<participant_id>
+ */
+router.get('/avatar-debug', async (req, res) => {
+  try {
+    const rawChannel = (req.query.channel || 'messenger').toLowerCase();
+    const channel = (rawChannel === 'messenger' || rawChannel === 'facebook') ? 'messenger' : 'instagram';
+    const id = req.query.id;
+
+    if (!id) {
+      return res.status(400).json({ error: 'Missing required query parameter: id' });
+    }
+
+    const { getDerivedPageToken, GRAPH_VERSION } = require('./meta');
+    const pageToken = await getDerivedPageToken();
+    const graphVer = GRAPH_VERSION();
+    const fields = channel === 'instagram' ? 'name,username,profile_pic' : 'name,profile_pic';
+
+    const url = `https://graph.facebook.com/${graphVer}/${encodeURIComponent(id)}?fields=${fields}&access_token=${encodeURIComponent(pageToken)}`;
+    const graphRes = await fetch(url);
+    const rawJson = await graphRes.json().catch(() => ({}));
+
+    // Redact any access tokens or secrets from the response
+    const sanitizedString = JSON.stringify(rawJson).replace(/EAA[A-Za-z0-9]+/g, 'EAA***');
+    const sanitizedData = JSON.parse(sanitizedString);
+
+    return res.status(200).json({
+      channel,
+      id,
+      fieldsRequested: fields,
+      graphStatus: graphRes.status,
+      response: sanitizedData
+    });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
  * GET /api/meta/avatar/:channel/:id - Serve cached avatar binary image
  */
 router.get('/avatar/:channel/:id', async (req, res) => {
@@ -457,11 +496,12 @@ router.get('/avatar/:channel/:id', async (req, res) => {
 
     const r = await db.query(
       `SELECT image_data, mime_type, fetched_at FROM meta_avatar_cache
-        WHERE participant_id = $1 AND channel = $2 LIMIT 1`,
+        WHERE participant_id = $1 AND channel = $2 AND status = 'cached' AND image_data IS NOT NULL LIMIT 1`,
       [participantId, channel]
     );
 
     if (r.rows.length === 0 || !r.rows[0].image_data) {
+      res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
       return res.status(404).send('Avatar not cached');
     }
 
@@ -469,6 +509,7 @@ router.get('/avatar/:channel/:id', async (req, res) => {
     res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400'); // 7 days
     return res.send(r.rows[0].image_data);
   } catch (err) {
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     return res.status(500).json({ error: err.message });
   }
 });
