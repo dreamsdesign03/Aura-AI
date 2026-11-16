@@ -2768,7 +2768,7 @@ router.get('/inbox', requireUser, async (req, res) => {
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;
 
-    const [wa, emails, calls, notes, meta, comments] = await Promise.all([
+    const [wa, emails, calls, notes, meta, comments, reactions] = await Promise.all([
       // 1. WhatsApp Conversations - deduplicate by wa_phone_number (prefer those with lead_id)
       db.query(
         `WITH ranked AS (
@@ -2860,11 +2860,19 @@ router.get('/inbox', requireUser, async (req, res) => {
       ),
       // 6. Meta Comments (Instagram & Facebook Post/Reel Comments)
       tryQuery(
-        `SELECT mc.id, mc.channel, mc.comment_id, mc.post_id, mc.post_url,
+        `SELECT mc.id, mc.channel, mc.comment_id, mc.post_id, mc.post_url, mc.post_title, mc.media_type, mc.media_thumbnail, mc.like_count,
                 mc.sender_name, mc.sender_username, mc.sender_avatar, mc.text,
                 mc.reply_text, mc.replied_at, mc.status, mc.unread, mc.created_at
            FROM meta_comments mc
           ORDER BY mc.created_at DESC LIMIT $1`,
+        [limit]
+      ),
+      // 7. Meta Reactions (Instagram & Facebook Post/Reel & Message Reactions)
+      tryQuery(
+        `SELECT mr.id, mr.channel, mr.target_type, mr.target_id, mr.target_title, mr.target_url,
+                mr.sender_id, mr.sender_name, mr.sender_username, mr.reaction, mr.reaction_emoji, mr.created_at
+           FROM meta_reactions mr
+          ORDER BY mr.created_at DESC LIMIT $1`,
         [limit]
       ),
     ]);
@@ -2972,6 +2980,8 @@ router.get('/inbox', requireUser, async (req, res) => {
     // Meta Comments (Instagram & Facebook Post/Reel Comments)
     for (const row of (comments?.rows || [])) {
       const isIg = row.channel === 'instagram';
+      const mediaLabel = row.media_type || (isIg ? 'Post' : 'Post');
+      const postTitle = row.post_title || '';
       threads.push({
         type: 'comment',
         channel: row.channel,
@@ -2979,6 +2989,10 @@ router.get('/inbox', requireUser, async (req, res) => {
         commentId: row.comment_id,
         postId: row.post_id,
         postUrl: row.post_url,
+        postTitle: row.post_title,
+        mediaType: row.media_type || 'Post',
+        mediaThumbnail: row.media_thumbnail,
+        likeCount: row.like_count || 0,
         senderUsername: row.sender_username,
         name: row.sender_name || (isIg ? `@${row.sender_username || 'user'}` : 'Facebook User'),
         unread: row.unread ? 1 : 0,
@@ -2986,7 +3000,32 @@ router.get('/inbox', requireUser, async (req, res) => {
         replyText: row.reply_text,
         repliedAt: row.replied_at,
         lastAt: row.replied_at || row.created_at,
-        preview: `Comment on ${isIg ? 'Instagram' : 'Facebook'}: "${(row.text || '').slice(0, 80)}"`,
+        preview: postTitle
+          ? `On ${mediaLabel} "${postTitle.slice(0, 45)}...": "${(row.text || '').slice(0, 70)}"`
+          : `Comment on ${isIg ? 'Instagram' : 'Facebook'}: "${(row.text || '').slice(0, 80)}"`,
+      });
+    }
+
+    // Meta Reactions (Instagram & Facebook Post/Reel & Message Reactions)
+    for (const row of (reactions?.rows || [])) {
+      const isIg = row.channel === 'instagram';
+      const targetLabel = (row.target_type || 'post').toLowerCase() === 'reel' ? 'Reel' : ((row.target_type || '').toLowerCase() === 'message' ? 'Message' : 'Post');
+      threads.push({
+        type: 'reaction',
+        channel: row.channel,
+        id: row.id,
+        targetType: row.target_type || 'post',
+        targetId: row.target_id,
+        targetTitle: row.target_title,
+        targetUrl: row.target_url,
+        reaction: row.reaction || 'like',
+        reactionEmoji: row.reaction_emoji || (row.reaction === 'like' ? '❤️' : '👍'),
+        senderUsername: row.sender_username,
+        name: row.sender_name || (row.sender_username ? `@${row.sender_username}` : (isIg ? 'Instagram Follower' : 'Facebook User')),
+        unread: 0,
+        status: 'reacted',
+        lastAt: row.created_at,
+        preview: `${row.reaction_emoji || '❤️'} ${row.reaction || 'Like'} on ${targetLabel}${row.target_title ? `: "${row.target_title.slice(0, 60)}"` : ''}`,
       });
     }
 
@@ -3260,6 +3299,27 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
             content: comment.reply_text,
             timestamp: comment.replied_at
           }] : [])
+        ]
+      });
+    }
+
+    if (type === 'reaction') {
+      const rxRes = await db.query('SELECT * FROM meta_reactions WHERE id = $1 LIMIT 1', [parseInt(id) || -1]);
+      if (rxRes.rows.length === 0) return res.status(404).json({ error: 'Reaction not found' });
+      const rx = rxRes.rows[0];
+      return res.json({
+        type: 'reaction',
+        reaction: rx,
+        messages: [
+          {
+            id: rx.id,
+            direction: 'inbound',
+            type: rx.channel,
+            content: `${rx.reaction_emoji || '❤️'} ${rx.reaction || 'Like'} by ${rx.sender_name || (rx.sender_username ? `@${rx.sender_username}` : 'Follower')} on ${rx.target_type || 'post'}: "${rx.target_title || 'Post'}"`,
+            timestamp: rx.created_at,
+            reactionEmoji: rx.reaction_emoji || '❤️',
+            reaction: rx.reaction || 'like'
+          }
         ]
       });
     }

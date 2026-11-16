@@ -83,6 +83,34 @@ async function ensureMetaSchema() {
       ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reaction_emoji TEXT;
     `);
 
+    // Add post details to meta_comments
+    await db.query(`
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS post_title TEXT;
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS media_type TEXT;
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS media_thumbnail TEXT;
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS like_count INT DEFAULT 0;
+    `);
+
+    // Create meta_reactions table for post/reel and message reactions
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS meta_reactions (
+        id SERIAL PRIMARY KEY,
+        channel TEXT NOT NULL,                -- 'instagram' | 'facebook'
+        target_type TEXT NOT NULL,            -- 'reel' | 'post' | 'message'
+        target_id TEXT,
+        target_title TEXT,
+        target_url TEXT,
+        sender_id TEXT,
+        sender_name TEXT,
+        sender_username TEXT,
+        reaction TEXT,                        -- 'like', 'love', 'haha', etc.
+        reaction_emoji TEXT,                  -- '❤️', '👍', '🔥', etc.
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_meta_reactions_channel ON meta_reactions(channel);
+      CREATE INDEX IF NOT EXISTS idx_meta_reactions_created ON meta_reactions(created_at DESC);
+    `);
+
     console.log('✅ [Meta Omnichannel] DB schema verified and ready');
   } catch (err) {
     console.error('❌ [Meta Omnichannel] Schema error:', err.message);
@@ -366,7 +394,7 @@ async function syncInstagramComments() {
 
   try {
     await ensureMetaSchema();
-    const url = `https://graph.facebook.com/v19.0/${igId}/media?fields=id,caption,permalink,timestamp,comments_count,comments{id,text,timestamp,username,from}&limit=30&access_token=${encodeURIComponent(token)}`;
+    const url = `https://graph.facebook.com/v19.0/${igId}/media?fields=id,caption,permalink,media_type,thumbnail_url,media_url,timestamp,comments_count,like_count,comments{id,text,timestamp,username,from}&limit=35&access_token=${encodeURIComponent(token)}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.error) {
@@ -376,6 +404,31 @@ async function syncInstagramComments() {
 
     let count = 0;
     for (const post of (data.data || [])) {
+      const postId = String(post.id);
+      const postUrl = post.permalink || null;
+      const postTitle = (post.caption || 'Instagram Post').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
+      const mediaType = post.media_type === 'VIDEO' ? 'Reel' : (post.media_type === 'CAROUSEL_ALBUM' ? 'Carousel' : 'Post');
+      const mediaThumb = post.thumbnail_url || post.media_url || null;
+      const likeCount = Number(post.like_count) || 0;
+
+      // Track post likes in meta_reactions
+      if (likeCount > 0) {
+        await db.query(
+          `INSERT INTO meta_reactions (
+             channel, target_type, target_id, target_title, target_url, sender_name, reaction, reaction_emoji, created_at
+           ) VALUES ($1, $2, $3, $4, $5, $6, 'like', '❤️', $7)`,
+          [
+            'instagram',
+            mediaType.toLowerCase(),
+            postId,
+            postTitle,
+            postUrl,
+            `${likeCount} Likes`,
+            post.timestamp ? new Date(post.timestamp) : new Date()
+          ]
+        ).catch(() => {});
+      }
+
       const commentsList = post.comments?.data || [];
       for (const c of commentsList) {
         if (!c.id || !c.text) continue;
@@ -385,11 +438,16 @@ async function syncInstagramComments() {
 
         await db.query(
           `INSERT INTO meta_comments (
-             channel, comment_id, post_id, post_url, sender_id, sender_name, sender_username, text, status, unread, created_at
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+             channel, comment_id, post_id, post_url, post_title, media_type, media_thumbnail, like_count, sender_id, sender_name, sender_username, text, status, unread, created_at
+           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', TRUE, $13)
            ON CONFLICT (comment_id)
-           DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()`,
-          ['instagram', String(c.id), String(post.id), post.permalink || null, c.from?.id ? String(c.from.id) : null, senderName, username, c.text, 'pending', true, createdAt]
+           DO UPDATE SET text = EXCLUDED.text,
+                         post_title = COALESCE(EXCLUDED.post_title, meta_comments.post_title),
+                         media_type = COALESCE(EXCLUDED.media_type, meta_comments.media_type),
+                         media_thumbnail = COALESCE(EXCLUDED.media_thumbnail, meta_comments.media_thumbnail),
+                         like_count = EXCLUDED.like_count,
+                         updated_at = NOW()`,
+          ['instagram', String(c.id), postId, postUrl, postTitle, mediaType, mediaThumb, likeCount, c.from?.id ? String(c.from.id) : null, senderName, username, c.text, createdAt]
         );
         count++;
       }
@@ -437,6 +495,7 @@ async function syncFacebookComments() {
     for (const post of (data.data || [])) {
       const postId = post.id;
       const postUrl = post.permalink_url;
+      const postTitle = (post.message || 'Facebook Post').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
 
       try {
         const cRes = await fetch(`https://graph.facebook.com/v19.0/${postId}/comments?fields=id,message,created_time,from&access_token=${encodeURIComponent(pageToken)}`);
@@ -450,11 +509,13 @@ async function syncFacebookComments() {
 
           await db.query(
             `INSERT INTO meta_comments (
-               channel, comment_id, post_id, post_url, sender_id, sender_name, text, status, unread, created_at
-             ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', TRUE, $8)
+               channel, comment_id, post_id, post_url, post_title, media_type, sender_id, sender_name, text, status, unread, created_at
+             ) VALUES ($1, $2, $3, $4, $5, 'Post', $6, $7, $8, 'pending', TRUE, $9)
              ON CONFLICT (comment_id)
-             DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()`,
-            ['facebook', String(c.id), String(postId), postUrl || null, c.from?.id ? String(c.from.id) : null, senderName, c.message, createdAt]
+             DO UPDATE SET text = EXCLUDED.text,
+                           post_title = COALESCE(EXCLUDED.post_title, meta_comments.post_title),
+                           updated_at = NOW()`,
+            ['facebook', String(c.id), String(postId), postUrl || null, postTitle, c.from?.id ? String(c.from.id) : null, senderName, c.message, createdAt]
           );
           count++;
         }
