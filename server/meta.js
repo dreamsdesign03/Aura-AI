@@ -77,6 +77,12 @@ async function ensureMetaSchema() {
       CREATE INDEX IF NOT EXISTS idx_meta_comments_created ON meta_comments(created_at DESC);
     `);
 
+    // Add reactions support to meta_messages
+    await db.query(`
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reaction TEXT;
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reaction_emoji TEXT;
+    `);
+
     console.log('✅ [Meta Omnichannel] DB schema verified and ready');
   } catch (err) {
     console.error('❌ [Meta Omnichannel] Schema error:', err.message);

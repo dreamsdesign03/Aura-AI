@@ -119,6 +119,50 @@ router.post('/webhook', async (req, res) => {
               status: 'delivered'
             });
           }
+
+          // Handle incoming reaction (emoji ❤️, 👍, 😂, etc.)
+          if (event.reaction) {
+            const mid = event.reaction.mid;
+            const action = event.reaction.action; // 'react' | 'unreact'
+            const reactionName = event.reaction.reaction || '';
+            const emojiMap = {
+              love: '❤️',
+              like: '👍',
+              smile: '😄',
+              wow: '😮',
+              sad: '😢',
+              angry: '😡'
+            };
+            const emoji = event.reaction.emoji || emojiMap[reactionName] || reactionName;
+
+            console.log(`❤️ [Meta Webhook] Reaction ${action} (${emoji}) on message ${mid} from ${senderId}`);
+
+            if (mid) {
+              await db.query(
+                `UPDATE meta_messages
+                    SET reaction = $1,
+                        reaction_emoji = $2
+                  WHERE meta_message_id = $3`,
+                [action === 'unreact' ? null : reactionName, action === 'unreact' ? null : emoji, mid]
+              ).catch(e => console.warn('[Meta Webhook] Reaction update warning:', e.message));
+            }
+          }
+
+          // Handle read receipt / seen status
+          if (event.read) {
+            console.log(`👁️ [Meta Webhook] Messages seen by ${senderId}`);
+            await db.query(
+              `UPDATE meta_messages m
+                  SET status = 'read'
+                 FROM meta_conversations c
+                WHERE m.conversation_id = c.id
+                  AND c.channel = $1
+                  AND c.sender_id = $2
+                  AND m.direction = 'outbound'
+                  AND m.status != 'read'`,
+              [channel, senderId]
+            ).catch(e => console.warn('[Meta Webhook] Read receipt update warning:', e.message));
+          }
         }
       }
 
@@ -207,16 +251,44 @@ router.post('/webhook', async (req, res) => {
                   const firstName = nameParts[0] || 'Meta';
                   const lastName = nameParts.slice(1).join(' ') || 'Lead';
 
-                  // Insert into leads table
-                  const inserted = await db.query(
-                    `INSERT INTO leads (
-                       first_name, last_name, email, phone, status, pipeline_stage, industry, brand_audit_report, created_at
-                     ) VALUES ($1, $2, $3, $4, 'New', 'Lead In', $5, $6, NOW())
-                     RETURNING id`,
-                    [firstName, lastName, email, phone, concern, `Imported via Meta Lead Ad (${change.value.form_id || 'Form'})`]
-                  );
+                  // Normalize phone number
+                  let cleanPhone = phone.replace(/[^\d+]/g, '').trim();
+                  if (cleanPhone.length === 10 && !cleanPhone.startsWith('+')) {
+                    cleanPhone = '+91' + cleanPhone;
+                  }
 
-                  console.log(`✅ [Meta Lead Ad] Successfully inserted Lead #${inserted.rows[0]?.id} (${firstName} ${lastName}, ${phone})`);
+                  // Check if lead already exists by phone
+                  const phoneDigits = cleanPhone.replace(/\D/g, '').slice(-10);
+                  const existingLead = phoneDigits ? await db.query(
+                    `SELECT id, brand_audit_report FROM leads WHERE RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 10) = $1 LIMIT 1`,
+                    [phoneDigits]
+                  ) : { rows: [] };
+
+                  let leadId;
+                  if (existingLead.rows.length > 0) {
+                    leadId = existingLead.rows[0].id;
+                    await db.query(
+                      `UPDATE leads
+                          SET status = 'New',
+                              pipeline_stage = 'Lead In',
+                              source = 'Meta Lead Ad',
+                              brand_audit_report = $1,
+                              updated_at = NOW()
+                        WHERE id = $2`,
+                      [`[New Ad Inquiry: ${concern}] · ${existingLead.rows[0].brand_audit_report || ''}`.slice(0, 500), leadId]
+                    );
+                    console.log(`✅ [Meta Lead Ad] Updated existing Lead #${leadId} (${firstName} ${lastName}, ${cleanPhone})`);
+                  } else {
+                    const inserted = await db.query(
+                      `INSERT INTO leads (
+                         first_name, last_name, email, phone, whatsapp, source, status, pipeline_stage, industry, brand_audit_report, user_id, created_at
+                       ) VALUES ($1, $2, $3, $4, $5, 'Meta Lead Ad', 'New', 'Lead In', $6, $7, 1, NOW())
+                       RETURNING id`,
+                      [firstName, lastName, email, cleanPhone, cleanPhone, concern, `Imported via Meta Lead Ad (Form: ${change.value.form_id || 'Instant Form'})`]
+                    );
+                    leadId = inserted.rows[0]?.id;
+                    console.log(`✅ [Meta Lead Ad] Successfully inserted new Lead #${leadId} (${firstName} ${lastName}, ${cleanPhone})`);
+                  }
                 }
               } catch (leadErr) {
                 console.error('❌ [Meta Lead Ad] Failed to process lead data:', leadErr.message);

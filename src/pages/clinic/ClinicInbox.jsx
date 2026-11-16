@@ -670,6 +670,23 @@ function ThreadDrawer({ thread, onClose }) {
                               <img src={m.mediaUrl} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6 }} />
                             </div>
                           )}
+                          {(m.reactionEmoji || m.reaction) && (
+                            <div
+                              style={{
+                                marginTop: 4,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                background: '#FFFFFF',
+                                border: '1px solid #E5E7EB',
+                                borderRadius: 12,
+                                padding: '1px 6px',
+                                fontSize: 12,
+                                boxShadow: '0 1px 2px rgba(0,0,0,0.06)',
+                              }}
+                            >
+                              <span>{m.reactionEmoji || m.reaction}</span>
+                            </div>
+                          )}
                           <div
                             style={{
                               fontSize: 10,
@@ -684,7 +701,11 @@ function ThreadDrawer({ thread, onClose }) {
                           >
                             <span>{m.timestamp ? timeLabel(m.timestamp) : ''}</span>
                             {isOut && (
-                              <CheckCheck size={11} style={{ color: thread.type === 'instagram' ? '#E1306C' : '#1877F2' }} />
+                              m.status === 'read' ? (
+                                <span style={{ color: '#2563EB', fontWeight: 600, fontSize: 9.5 }}>Seen</span>
+                              ) : (
+                                <CheckCheck size={11} style={{ color: thread.type === 'instagram' ? '#E1306C' : '#1877F2' }} />
+                              )
                             )}
                           </div>
                         </div>

@@ -3209,7 +3209,7 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
 
       // Fetch all messages in this thread
       const msgsRes = await db.query(
-        `SELECT id, direction, channel, content, media_url, status, error_message, sent_at, created_at
+        `SELECT id, direction, channel, content, media_url, status, reaction, reaction_emoji, error_message, sent_at, created_at
            FROM meta_messages
           WHERE conversation_id = $1
           ORDER BY COALESCE(sent_at, created_at) ASC`,
@@ -3227,6 +3227,8 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
           content: m.content,
           mediaUrl: m.media_url,
           status: m.status,
+          reaction: m.reaction,
+          reactionEmoji: m.reaction_emoji,
           timestamp: m.sent_at || m.created_at
         }))
       });
