@@ -153,21 +153,21 @@ router.post('/webhook', async (req, res) => {
           }
 
           // B. Facebook Page Post Comments
-          if (change.field === 'feed' && change.value?.item === 'comment' && (change.value?.verb === 'add' || !change.value?.verb)) {
-            const val = change.value;
+          if (change.field === 'feed') {
+            const val = change.value || {};
             const commentId = val.comment_id || val.id;
-            const text = val.message || '';
-            const senderName = val.sender_name || 'Facebook User';
-            const senderId = val.sender_id || null;
+            const text = val.message || val.text || '';
+            const senderName = val.sender_name || val.from?.name || 'Facebook User';
+            const senderId = val.sender_id || val.from?.id || null;
             const postId = val.post_id || null;
 
-            if (commentId && text) {
+            if (commentId && text && (val.item === 'comment' || !val.item)) {
               console.log(`💬 [Meta Webhook] New Facebook Comment from ${senderName}: "${text}"`);
               await persistMetaComment({
                 channel: 'facebook',
-                commentId,
-                postId,
-                senderId,
+                commentId: String(commentId),
+                postId: postId ? String(postId) : null,
+                senderId: senderId ? String(senderId) : null,
                 senderName,
                 text
               }).catch(e => console.error('[Meta Webhook] FB Comment save error:', e.message));
