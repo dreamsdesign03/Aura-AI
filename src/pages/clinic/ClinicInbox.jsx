@@ -30,14 +30,13 @@ function FacebookIcon({ size = 16, color = "currentColor", ...props }) {
 }
 
 const CHANNEL_CONFIG = {
-  all: { label: 'All Messages', icon: Filter, chip: 'co-c-n' },
+  all: { label: 'All messages', icon: Filter, chip: 'co-c-n' },
+  facebook: { label: 'Messenger', icon: FacebookIcon, chip: 'co-c-m', color: '#1877F2', bg: '#EFF6FF' },
+  instagram: { label: 'Instagram', icon: InstagramIcon, chip: 'co-c-p', color: '#E1306C', bg: '#FDF2F8' },
   whatsapp: { label: 'WhatsApp', icon: MessageSquare, chip: 'co-c-g', color: '#10B981', bg: '#ECFDF5' },
-  instagram: { label: 'Instagram Inbox', icon: InstagramIcon, chip: 'co-c-p', color: '#E1306C', bg: '#FDF2F8' },
-  facebook: { label: 'Facebook Inbox', icon: FacebookIcon, chip: 'co-c-m', color: '#1877F2', bg: '#EFF6FF' },
-  comment_ig: { label: 'IG Comments', icon: InstagramIcon, chip: 'co-c-p', color: '#BE185D', bg: '#FDF2F8' },
-  comment_fb: { label: 'FB Comments', icon: FacebookIcon, chip: 'co-c-m', color: '#1D4ED8', bg: '#EFF6FF' },
+  comment_fb: { label: 'Facebook comments', icon: FacebookIcon, chip: 'co-c-m', color: '#1877F2', bg: '#EFF6FF' },
+  comment_ig: { label: 'Instagram comments', icon: InstagramIcon, chip: 'co-c-p', color: '#E1306C', bg: '#FDF2F8' },
   comment: { label: 'Comments', icon: MessageSquareQuote, chip: 'co-c-p', color: '#8B5CF6', bg: '#F5F3FF' },
-  reaction: { label: 'Reactions', icon: Heart, chip: 'co-c-p', color: '#E11D48', bg: '#FFF1F2' },
   email: { label: 'Emails', icon: Mail, chip: 'co-c-m', color: '#2563EB', bg: '#EFF6FF' },
   drafts: { label: 'Drafts', icon: Mail, chip: 'co-c-n', color: '#475569', bg: '#F8FAFC' },
   call: { label: 'AI Calls', icon: PhoneCall, chip: 'co-c-p', color: '#A4285E', bg: '#FBE9F1' },
@@ -88,7 +87,6 @@ function renderTranscriptContent(rawTranscript) {
 
 function ThreadRow({ thread, isSelected, onClick }) {
   const isComment = thread.type === 'comment';
-  const isReaction = thread.type === 'reaction';
   const configKey = isComment
     ? (thread.channel === 'facebook' ? 'comment_fb' : 'comment_ig')
     : thread.type;
@@ -120,21 +118,15 @@ function ThreadRow({ thread, isSelected, onClick }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: isReaction
-              ? '#FFF1F2'
-              : isComment
+            background: isComment
               ? (thread.channel === 'facebook' ? '#EFF6FF' : '#FDF2F8')
               : config.bg,
-            color: isReaction
-              ? '#E11D48'
-              : isComment
+            color: isComment
               ? (thread.channel === 'facebook' ? '#1877F2' : '#E1306C')
               : config.color,
           }}
         >
-          {isReaction ? (
-            <Heart size={16} fill="#E11D48" color="#E11D48" />
-          ) : isComment ? (
+          {isComment ? (
             thread.channel === 'facebook' ? (
               <FacebookIcon size={16} color="#1877F2" />
             ) : (
@@ -166,12 +158,10 @@ function ThreadRow({ thread, isSelected, onClick }) {
             {thread.name}
           </span>
           <span
-            className={`co-chip ${isReaction ? 'co-c-p' : isComment ? (thread.channel === 'facebook' ? 'co-c-m' : 'co-c-p') : config.chip}`}
+            className={`co-chip ${isComment ? (thread.channel === 'facebook' ? 'co-c-m' : 'co-c-p') : config.chip}`}
             style={{ fontSize: 10, padding: '1px 6px' }}
           >
-            {isReaction
-              ? (thread.channel === 'facebook' ? 'Facebook Reaction' : 'Instagram Reaction')
-              : isComment
+            {isComment
               ? (thread.channel === 'facebook' ? 'Facebook Comment' : 'Instagram Comment')
               : config.label}
           </span>
@@ -266,34 +256,6 @@ function ThreadRow({ thread, isSelected, onClick }) {
             </span>
             <span style={{ color: '#334155', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {thread.postTitle}
-            </span>
-          </div>
-        ) : null}
-
-        {/* Reaction on Reel / Post badge */}
-        {isReaction && thread.targetTitle ? (
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              marginBottom: 4,
-              padding: '2px 8px',
-              background: '#FFF1F2',
-              border: '1px solid #FFE4E6',
-              borderRadius: 4,
-              fontSize: 11,
-              maxWidth: '100%',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span style={{ fontWeight: 700, color: '#E11D48' }}>
-              {thread.reactionEmoji || '❤️'} {thread.targetType === 'reel' ? 'Reel' : 'Post'}:
-            </span>
-            <span style={{ color: '#9F1239', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {thread.targetTitle}
             </span>
           </div>
         ) : null}
@@ -891,66 +853,6 @@ function ThreadDrawer({ thread, onClose }) {
               </div>
             )}
 
-            {/* REACTION VIEW */}
-            {thread.type === 'reaction' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div
-                  style={{
-                    background: '#FFF1F2',
-                    border: '1px solid #FECDD3',
-                    borderRadius: 8,
-                    padding: 16,
-                    textAlign: 'center',
-                  }}
-                >
-                  <div style={{ fontSize: 42, marginBottom: 6 }}>
-                    {thread.reactionEmoji || detail?.reaction?.reaction_emoji || '❤️'}
-                  </div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: '#9F1239' }}>
-                    {thread.name} reacted with {thread.reaction || detail?.reaction?.reaction || 'Like'}
-                  </div>
-                  <div style={{ fontSize: 12, color: '#E11D48', marginTop: 3 }}>
-                    on {thread.channel === 'instagram' ? 'Instagram' : 'Facebook'} {thread.targetType === 'reel' ? 'Reel' : (thread.targetType === 'message' ? 'Direct Message' : 'Post')}
-                  </div>
-                </div>
-
-                {/* Target Post / Reel Card */}
-                <div
-                  style={{
-                    background: '#F8FAFC',
-                    border: '1px solid #E2E8F0',
-                    borderRadius: 8,
-                    padding: 14,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
-                      {thread.targetType === 'reel' ? '🎬 Reel Details' : '🖼️ Post Details'}
-                    </span>
-                    {(thread.targetUrl || detail?.reaction?.target_url) && (
-                      <a
-                        href={thread.targetUrl || detail?.reaction?.target_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="co-btn co-btn-sm"
-                        style={{ fontSize: 11, padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: 4, background: '#FFFFFF', color: '#E11D48', borderColor: '#FECDD3' }}
-                      >
-                        <ExternalLink size={10} /> View on {thread.channel === 'facebook' ? 'Facebook' : 'Instagram'}
-                      </a>
-                    )}
-                  </div>
-
-                  <div style={{ fontSize: 13, color: '#1F2937', lineHeight: 1.5, background: '#FFFFFF', padding: 10, borderRadius: 6, border: '1px solid #E2E8F0' }}>
-                    {thread.targetTitle || detail?.reaction?.target_title || 'Post / Reel on Clinic Page'}
-                  </div>
-
-                  <div style={{ fontSize: 11, color: '#64748B', marginTop: 8 }}>
-                    Reacted at: {datetimeLabel(thread.lastAt || detail?.reaction?.created_at)}
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* EMAIL VIEW */}
             {thread.type === 'email' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1456,7 +1358,6 @@ export default function ClinicInbox() {
     const fb = threads.filter((t) => t.type === 'facebook');
     const comIg = threads.filter((t) => t.type === 'comment' && t.channel === 'instagram');
     const comFb = threads.filter((t) => t.type === 'comment' && t.channel === 'facebook');
-    const rx = threads.filter((t) => t.type === 'reaction');
     const em = threads.filter((t) => t.type === 'email');
     const dr = threads.filter((t) => t.isDraft);
     const ca = threads.filter((t) => t.type === 'call');
@@ -1469,7 +1370,6 @@ export default function ClinicInbox() {
       facebook: fb.length,
       comment_ig: comIg.length,
       comment_fb: comFb.length,
-      reaction: rx.length,
       email: em.length,
       drafts: dr.length,
       call: ca.length,
@@ -1490,8 +1390,6 @@ export default function ClinicInbox() {
       list = list.filter((t) => t.type === 'comment' && t.channel === 'instagram');
     } else if (activeChannel === 'comment_fb') {
       list = list.filter((t) => t.type === 'comment' && t.channel === 'facebook');
-    } else if (activeChannel === 'reaction') {
-      list = list.filter((t) => t.type === 'reaction');
     } else if (activeChannel !== 'all') {
       list = list.filter((t) => t.type === activeChannel);
     }
@@ -1505,8 +1403,7 @@ export default function ClinicInbox() {
           (t.phone && t.phone.toLowerCase().includes(q)) ||
           (t.preview && t.preview.toLowerCase().includes(q)) ||
           (t.subject && t.subject.toLowerCase().includes(q)) ||
-          (t.postTitle && t.postTitle.toLowerCase().includes(q)) ||
-          (t.targetTitle && t.targetTitle.toLowerCase().includes(q))
+          (t.postTitle && t.postTitle.toLowerCase().includes(q))
       );
     }
 
@@ -1542,10 +1439,10 @@ export default function ClinicInbox() {
         </Card>
         <Card>
           <div className="co-kpi-label">
-            <MessageSquare size={13} style={{ color: '#10B981' }} /> WhatsApp
+            <FacebookIcon size={16} color="#1877F2" /> Messenger
           </div>
-          <div className="co-kpi-value">{counts.whatsapp}</div>
-          <div className="co-kpi-foot">Live Chats</div>
+          <div className="co-kpi-value">{counts.facebook}</div>
+          <div className="co-kpi-foot">Facebook Page</div>
         </Card>
         <Card>
           <div className="co-kpi-label">
@@ -1556,31 +1453,24 @@ export default function ClinicInbox() {
         </Card>
         <Card>
           <div className="co-kpi-label">
-            <FacebookIcon size={16} color="#1877F2" /> Facebook
+            <MessageSquare size={13} style={{ color: '#10B981' }} /> WhatsApp
           </div>
-          <div className="co-kpi-value">{counts.facebook}</div>
-          <div className="co-kpi-foot">Messenger</div>
+          <div className="co-kpi-value">{counts.whatsapp}</div>
+          <div className="co-kpi-foot">Live Chats</div>
         </Card>
         <Card>
           <div className="co-kpi-label">
-            <InstagramIcon size={13} color="#BE185D" /> IG Comments
-          </div>
-          <div className="co-kpi-value">{counts.comment_ig}</div>
-          <div className="co-kpi-foot">Posts &amp; Reels</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <FacebookIcon size={13} color="#1D4ED8" /> FB Comments
+            <FacebookIcon size={13} color="#1877F2" /> FB Comments
           </div>
           <div className="co-kpi-value">{counts.comment_fb}</div>
           <div className="co-kpi-foot">Page Posts</div>
         </Card>
         <Card>
           <div className="co-kpi-label">
-            <Heart size={13} fill="#E11D48" color="#E11D48" /> Reactions
+            <InstagramIcon size={13} color="#E1306C" /> IG Comments
           </div>
-          <div className="co-kpi-value">{counts.reaction}</div>
-          <div className="co-kpi-foot">Reels &amp; Posts</div>
+          <div className="co-kpi-value">{counts.comment_ig}</div>
+          <div className="co-kpi-foot">Posts &amp; Reels</div>
         </Card>
         <Card>
           <div className="co-kpi-label">
@@ -1621,13 +1511,12 @@ export default function ClinicInbox() {
           {/* Channel Tabs */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {[
-              { id: 'all', label: 'All Channels', count: counts.all },
+              { id: 'all', label: 'All messages', count: counts.all },
+              { id: 'facebook', label: 'Messenger', count: counts.facebook },
+              { id: 'instagram', label: 'Instagram', count: counts.instagram },
               { id: 'whatsapp', label: 'WhatsApp', count: counts.whatsapp },
-              { id: 'instagram', label: 'Instagram Inbox', count: counts.instagram },
-              { id: 'facebook', label: 'Facebook Inbox', count: counts.facebook },
-              { id: 'comment_ig', label: 'IG Comments', count: counts.comment_ig },
-              { id: 'comment_fb', label: 'FB Comments', count: counts.comment_fb },
-              { id: 'reaction', label: 'Reactions', count: counts.reaction },
+              { id: 'comment_fb', label: 'Facebook comments', count: counts.comment_fb },
+              { id: 'comment_ig', label: 'Instagram comments', count: counts.comment_ig },
               { id: 'email', label: 'Emails', count: counts.email },
               { id: 'drafts', label: 'Drafts', count: counts.drafts },
               { id: 'call', label: 'AI Calls', count: counts.call },
