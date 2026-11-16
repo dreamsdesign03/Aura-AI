@@ -447,4 +447,43 @@ router.post('/comments/visibility', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/meta/avatar/:channel/:id - Serve cached avatar binary image
+ */
+router.get('/avatar/:channel/:id', async (req, res) => {
+  try {
+    const { channel, id } = req.params;
+    const participantId = decodeURIComponent(id);
+
+    const r = await db.query(
+      `SELECT image_data, mime_type, fetched_at FROM meta_avatar_cache
+        WHERE participant_id = $1 AND channel = $2 LIMIT 1`,
+      [participantId, channel]
+    );
+
+    if (r.rows.length === 0 || !r.rows[0].image_data) {
+      return res.status(404).send('Avatar not cached');
+    }
+
+    res.set('Content-Type', r.rows[0].mime_type || 'image/jpeg');
+    res.set('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400'); // 7 days
+    return res.send(r.rows[0].image_data);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * POST /api/meta/avatar/backfill - Trigger rate-limited avatar backfill
+ */
+router.post('/avatar/backfill', async (req, res) => {
+  try {
+    const { backfillAvatars } = require('./avatar-service');
+    const stats = await backfillAvatars();
+    return res.json({ success: true, stats });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

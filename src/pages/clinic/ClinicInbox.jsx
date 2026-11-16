@@ -11,6 +11,7 @@ import { clinicApi, datetimeLabel, dateLabel, timeLabel, cleanEnglishName } from
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, Spinner, Drawer, EmptyState } from '@/clinic/ui';
 import { useBranch } from '@/contexts/BranchContext';
+import { MetaAvatar, ChannelBadge } from '@/components/MetaAvatar';
 
 function InstagramIcon({ size = 16, color = "currentColor", ...props }) {
   return (
@@ -111,32 +112,13 @@ function ThreadRow({ thread, isSelected, onClick }) {
       onClick={onClick}
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, paddingTop: 2 }}>
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            background: isComment
-              ? (thread.channel === 'facebook' ? '#EFF6FF' : '#FDF2F8')
-              : config.bg,
-            color: isComment
-              ? (thread.channel === 'facebook' ? '#1877F2' : '#E1306C')
-              : config.color,
-          }}
-        >
-          {isComment ? (
-            thread.channel === 'facebook' ? (
-              <FacebookIcon size={16} color="#1877F2" />
-            ) : (
-              <InstagramIcon size={16} color="#E1306C" />
-            )
-          ) : (
-            <Icon size={16} />
-          )}
-        </div>
+        <MetaAvatar
+          name={thread.name}
+          username={thread.senderUsername}
+          avatarUrl={thread.senderAvatar || thread.participantAvatar}
+          channel={isComment ? (thread.channel === 'facebook' ? 'comment_fb' : 'comment_ig') : thread.type}
+          size={40}
+        />
         {thread.unread > 0 ? (
           <span
             style={{
@@ -496,30 +478,44 @@ function ThreadDrawer({ thread, onClose }) {
             background: '#F8FAFC',
             border: '1px solid #E2E8F0',
             borderRadius: 8,
-            padding: '10px 14px',
+            padding: '12px 14px',
             display: 'flex',
-            flexWrap: 'wrap',
+            alignItems: 'center',
             gap: 12,
             fontSize: 12,
-            alignItems: 'center',
           }}
         >
-          <span className={`co-chip ${config.chip}`}>{config.label}</span>
-          {thread.phone && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#475569' }}>
-              <Phone size={12} style={{ color: '#94A3B8' }} /> {thread.phone}
-            </span>
-          )}
-          {thread.email && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#475569' }}>
-              <Mail size={12} style={{ color: '#94A3B8' }} /> {thread.email}
-            </span>
-          )}
-          {thread.lastAt && (
-            <span style={{ marginLeft: 'auto', color: '#64748B', fontSize: 11 }}>
-              Last active: {datetimeLabel(thread.lastAt)}
-            </span>
-          )}
+          <MetaAvatar
+            name={thread.name}
+            username={thread.senderUsername}
+            avatarUrl={thread.senderAvatar || thread.participantAvatar}
+            channel={thread.type === 'comment' ? (thread.channel === 'facebook' ? 'comment_fb' : 'comment_ig') : thread.type}
+            size={48}
+          />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+              <span style={{ fontWeight: 700, fontSize: 14, color: '#111827' }}>{thread.name}</span>
+              <span className={`co-chip ${config.chip}`}>{config.label}</span>
+              {thread.senderUsername && (
+                <span style={{ fontSize: 11, color: '#64748B' }}>@{thread.senderUsername}</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', color: '#64748B', fontSize: 11 }}>
+              {thread.phone && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Phone size={11} style={{ color: '#94A3B8' }} /> {thread.phone}
+                </span>
+              )}
+              {thread.email && (
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Mail size={11} style={{ color: '#94A3B8' }} /> {thread.email}
+                </span>
+              )}
+              {thread.lastAt && (
+                <span>Last active: {datetimeLabel(thread.lastAt)}</span>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Content View */}
@@ -810,26 +806,17 @@ function ThreadDrawer({ thread, onClose }) {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div
-                        style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: 999,
-                          background: thread.type === 'instagram' ? '#FDF2F8' : '#EFF6FF',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: thread.type === 'instagram' ? '#E1306C' : '#1877F2',
-                          fontWeight: 700,
-                          fontSize: 12,
-                        }}
-                      >
-                        {thread.name?.charAt(0) || 'U'}
-                      </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <MetaAvatar
+                        name={thread.name}
+                        username={thread.senderUsername}
+                        avatarUrl={thread.senderAvatar || thread.participantAvatar}
+                        channel={thread.type}
+                        size={72}
+                      />
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 13, color: '#1E293B' }}>{thread.name}</div>
-                        <div style={{ fontSize: 11, color: '#64748B' }}>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: '#1E293B' }}>{thread.name}</div>
+                        <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 2 }}>
                           {thread.senderUsername ? `@${thread.senderUsername}` : (thread.type === 'instagram' ? 'Instagram Direct' : 'Facebook Messenger')}
                         </div>
                       </div>
@@ -840,7 +827,7 @@ function ThreadDrawer({ thread, onClose }) {
                         target="_blank"
                         rel="noopener noreferrer"
                         className="co-btn co-btn-sm"
-                        style={{ fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                        style={{ fontSize: 11, padding: '4px 10px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
                       >
                         <ExternalLink size={10} /> View profile
                       </a>
@@ -923,14 +910,23 @@ function ThreadDrawer({ thread, onClose }) {
                     padding: 14,
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontWeight: 700, fontSize: 13, color: '#1E293B' }}>
-                        {detail?.comment?.sender_name || (detail?.comment?.sender_username ? `@${detail.comment.sender_username}` : thread.name)}
-                      </span>
-                      {detail?.comment?.sender_username && (
-                        <span style={{ fontSize: 11, color: '#64748B' }}>@{detail.comment.sender_username}</span>
-                      )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <MetaAvatar
+                        name={detail?.comment?.sender_name || thread.name}
+                        username={detail?.comment?.sender_username || thread.senderUsername}
+                        avatarUrl={detail?.comment?.sender_avatar || thread.senderAvatar}
+                        channel={thread.channel === 'facebook' ? 'comment_fb' : 'comment_ig'}
+                        size={40}
+                      />
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13.5, color: '#1E293B' }}>
+                          {detail?.comment?.sender_name || (detail?.comment?.sender_username ? `@${detail.comment.sender_username}` : thread.name)}
+                        </div>
+                        {detail?.comment?.sender_username && (
+                          <div style={{ fontSize: 11, color: '#64748B' }}>@{detail.comment.sender_username}</div>
+                        )}
+                      </div>
                     </div>
                     <span
                       style={{

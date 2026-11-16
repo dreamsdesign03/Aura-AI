@@ -107,7 +107,10 @@ async function ensureMetaSchema(force = false) {
       ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS window_expires_at TIMESTAMPTZ;
       ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS ad_id TEXT;
       ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS participant_avatar TEXT;
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS avatar_updated_at TIMESTAMPTZ;
       UPDATE meta_conversations SET external_id = sender_id WHERE external_id IS NULL AND sender_id IS NOT NULL;
+      UPDATE meta_conversations SET participant_avatar = sender_avatar WHERE participant_avatar IS NULL AND sender_avatar IS NOT NULL;
       CREATE UNIQUE INDEX IF NOT EXISTS uq_meta_conv_ext ON meta_conversations(channel, external_id);
     `);
 
@@ -181,7 +184,10 @@ async function ensureMetaSchema(force = false) {
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS like_count INT DEFAULT 0;
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS replies JSONB DEFAULT '[]';
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE;
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS author_avatar TEXT;
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS avatar_updated_at TIMESTAMPTZ;
       UPDATE meta_comments SET external_id = comment_id WHERE external_id IS NULL AND comment_id IS NOT NULL;
+      UPDATE meta_comments SET author_avatar = sender_avatar WHERE author_avatar IS NULL AND sender_avatar IS NOT NULL;
       CREATE UNIQUE INDEX IF NOT EXISTS uq_meta_comm_ext ON meta_comments(external_id);
     `);
 

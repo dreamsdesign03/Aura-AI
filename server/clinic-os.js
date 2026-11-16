@@ -2851,7 +2851,8 @@ router.get('/inbox', requireUser, async (req, res) => {
       // 5. Meta Omnichannel (Facebook Messenger & Instagram Direct)
       tryQuery(
         `SELECT mc.id, mc.lead_id, mc.channel, mc.sender_id, mc.sender_name, mc.sender_username,
-                mc.sender_avatar, mc.unread_count, mc.last_message, mc.last_message_at,
+                COALESCE(mc.participant_avatar, mc.sender_avatar) AS sender_avatar,
+                mc.unread_count, mc.last_message, mc.last_message_at,
                 l.first_name, l.last_name, l.email, l.phone
            FROM meta_conversations mc
            LEFT JOIN leads l ON l.id = mc.lead_id
@@ -2861,8 +2862,9 @@ router.get('/inbox', requireUser, async (req, res) => {
       // 6. Meta Comments (Instagram & Facebook Post/Reel Comments)
       tryQuery(
         `SELECT mc.id, mc.channel, mc.comment_id, mc.post_id, mc.post_url, mc.post_title, mc.media_type, mc.media_thumbnail, mc.like_count,
-                mc.sender_name, mc.sender_username, mc.sender_avatar, mc.text,
-                mc.reply_text, mc.replied_at, mc.status, mc.unread, mc.created_at
+                mc.sender_name, mc.sender_username,
+                COALESCE(mc.author_avatar, mc.sender_avatar) AS sender_avatar,
+                mc.text, mc.reply_text, mc.replied_at, mc.status, mc.unread, mc.created_at
            FROM meta_comments mc
           ORDER BY mc.created_at DESC LIMIT $1`,
         [limit]
