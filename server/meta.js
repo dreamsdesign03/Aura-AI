@@ -107,6 +107,8 @@ async function ensureMetaSchema() {
         reaction_emoji TEXT,                  -- '❤️', '👍', '🔥', etc.
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
+      ALTER TABLE meta_reactions DROP CONSTRAINT IF EXISTS uq_meta_reactions_target;
+      ALTER TABLE meta_reactions ADD CONSTRAINT uq_meta_reactions_target UNIQUE (channel, target_id, reaction);
       CREATE INDEX IF NOT EXISTS idx_meta_reactions_channel ON meta_reactions(channel);
       CREATE INDEX IF NOT EXISTS idx_meta_reactions_created ON meta_reactions(created_at DESC);
     `);
@@ -416,7 +418,14 @@ async function syncInstagramComments() {
         await db.query(
           `INSERT INTO meta_reactions (
              channel, target_type, target_id, target_title, target_url, sender_name, reaction, reaction_emoji, created_at
-           ) VALUES ($1, $2, $3, $4, $5, $6, 'like', '❤️', $7)`,
+           ) VALUES ($1, $2, $3, $4, $5, $6, 'like', '❤️', $7)
+           ON CONFLICT (channel, target_id, reaction)
+           DO UPDATE SET
+             target_type = EXCLUDED.target_type,
+             target_title = EXCLUDED.target_title,
+             target_url = EXCLUDED.target_url,
+             sender_name = EXCLUDED.sender_name,
+             created_at = EXCLUDED.created_at`,
           [
             'instagram',
             mediaType.toLowerCase(),
