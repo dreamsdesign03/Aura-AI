@@ -38,7 +38,7 @@ const {
   pickCallForAppointment,
 } = require('./appointment-call-match');
 const { normalizeRole, isAdminRole, canAccessClinicApi } = require('./permissions');
-const { sendMetaMessage, replyToMetaComment, syncInstagramComments } = require('./meta');
+const { sendMetaMessage, replyToMetaComment, syncInstagramComments, syncFacebookComments, syncMetaComments } = require('./meta');
 
 const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
@@ -2722,18 +2722,18 @@ async function deliverClinicEmail({ to, subject, html, leadId = null }) {
 // ---------------------------------------------------------------------------
 // Unified Omni-Channel Inbox (WhatsApp + Emails + AI Calls + Clinic Notes)
 // ---------------------------------------------------------------------------
-let lastIgSyncTime = 0;
+let lastCommentSyncTime = 0;
 
 router.get('/inbox/sync', requireUser, async (req, res) => {
   try {
-    const [waRes, igRes] = await Promise.allSettled([
+    const [waRes, commentRes] = await Promise.allSettled([
       syncWhatsAppInbox({ force: true }),
-      syncInstagramComments()
+      syncMetaComments()
     ]);
     res.json({
       ok: true,
       whatsapp: waRes.status === 'fulfilled' ? waRes.value : null,
-      instagram: igRes.status === 'fulfilled' ? igRes.value : null
+      comments: commentRes.status === 'fulfilled' ? commentRes.value : null
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2742,14 +2742,14 @@ router.get('/inbox/sync', requireUser, async (req, res) => {
 
 router.post('/inbox/sync', requireUser, async (req, res) => {
   try {
-    const [waRes, igRes] = await Promise.allSettled([
+    const [waRes, commentRes] = await Promise.allSettled([
       syncWhatsAppInbox({ force: true }),
-      syncInstagramComments()
+      syncMetaComments()
     ]);
     res.json({
       ok: true,
       whatsapp: waRes.status === 'fulfilled' ? waRes.value : null,
-      instagram: igRes.status === 'fulfilled' ? igRes.value : null
+      comments: commentRes.status === 'fulfilled' ? commentRes.value : null
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -2761,9 +2761,9 @@ router.get('/inbox', requireUser, async (req, res) => {
     // Fire-and-forget recovery: pull anything dropped into the live inbox
     syncWhatsAppInbox().catch(() => {});
     const now = Date.now();
-    if (now - lastIgSyncTime > 40_000) {
-      lastIgSyncTime = now;
-      syncInstagramComments().catch(() => {});
+    if (now - lastCommentSyncTime > 40_000) {
+      lastCommentSyncTime = now;
+      syncMetaComments().catch(() => {});
     }
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;

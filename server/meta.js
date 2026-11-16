@@ -397,6 +397,88 @@ async function syncInstagramComments() {
   }
 }
 
+/**
+ * Sync Facebook Page Comments from Meta Graph API
+ */
+async function syncFacebookComments() {
+  const userToken = META_PAGE_ACCESS_TOKEN();
+  const pageId = META_PAGE_ID();
+  if (!userToken || !pageId) return { synced: 0 };
+
+  try {
+    await ensureMetaSchema();
+
+    // 1. Resolve Page Access Token
+    let pageToken = userToken;
+    try {
+      const pageRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=access_token&access_token=${encodeURIComponent(userToken)}`);
+      const pageData = await pageRes.json();
+      if (pageData.access_token) {
+        pageToken = pageData.access_token;
+      }
+    } catch (_) {}
+
+    // 2. Fetch recent Page posts
+    const url = `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,permalink_url,created_time&limit=25&access_token=${encodeURIComponent(pageToken)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    if (data.error) {
+      console.warn('[Facebook Sync] Posts API warning:', data.error.message);
+      return { synced: 0, error: data.error.message };
+    }
+
+    let count = 0;
+    for (const post of (data.data || [])) {
+      const postId = post.id;
+      const postUrl = post.permalink_url;
+
+      try {
+        const cRes = await fetch(`https://graph.facebook.com/v19.0/${postId}/comments?fields=id,message,created_time,from&access_token=${encodeURIComponent(pageToken)}`);
+        const cData = await cRes.json();
+        const commentsList = cData.data || [];
+
+        for (const c of commentsList) {
+          if (!c.id || !c.message) continue;
+          const createdAt = c.created_time ? new Date(c.created_time) : new Date();
+          const senderName = c.from?.name || 'Facebook User';
+
+          await db.query(
+            `INSERT INTO meta_comments (
+               channel, comment_id, post_id, post_url, sender_id, sender_name, text, status, unread, created_at
+             ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', TRUE, $8)
+             ON CONFLICT (comment_id)
+             DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()`,
+            ['facebook', String(c.id), String(postId), postUrl || null, c.from?.id ? String(c.from.id) : null, senderName, c.message, createdAt]
+          );
+          count++;
+        }
+      } catch (cErr) {
+        // Individual post comment fetch error
+      }
+    }
+
+    console.log(`✅ [Facebook Sync] Successfully synced ${count} comments from Facebook Page`);
+    return { synced: count };
+  } catch (err) {
+    console.error('[Facebook Sync] Error:', err.message);
+    return { synced: 0, error: err.message };
+  }
+}
+
+/**
+ * Unified sync for both Instagram and Facebook comments
+ */
+async function syncMetaComments() {
+  const [ig, fb] = await Promise.allSettled([
+    syncInstagramComments(),
+    syncFacebookComments()
+  ]);
+  return {
+    instagram: ig.status === 'fulfilled' ? ig.value : null,
+    facebook: fb.status === 'fulfilled' ? fb.value : null
+  };
+}
+
 module.exports = {
   ensureMetaSchema,
   fetchMetaUserProfile,
@@ -406,6 +488,8 @@ module.exports = {
   persistMetaComment,
   replyToMetaComment,
   syncInstagramComments,
+  syncFacebookComments,
+  syncMetaComments,
   META_PAGE_ID,
   META_INSTAGRAM_ACCOUNT_ID
 };

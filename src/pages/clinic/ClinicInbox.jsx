@@ -112,11 +112,23 @@ function ThreadRow({ thread, isSelected, onClick }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: config.bg,
-            color: config.color,
+            background: thread.type === 'comment'
+              ? (thread.channel === 'facebook' ? '#EFF6FF' : '#FDF2F8')
+              : config.bg,
+            color: thread.type === 'comment'
+              ? (thread.channel === 'facebook' ? '#1877F2' : '#E1306C')
+              : config.color,
           }}
         >
-          <Icon size={16} />
+          {thread.type === 'comment' ? (
+            thread.channel === 'facebook' ? (
+              <FacebookIcon size={16} color="#1877F2" />
+            ) : (
+              <InstagramIcon size={16} color="#E1306C" />
+            )
+          ) : (
+            <Icon size={16} />
+          )}
         </div>
         {thread.unread > 0 ? (
           <span
@@ -139,8 +151,13 @@ function ThreadRow({ thread, isSelected, onClick }) {
           <span className="co-strong" style={{ fontSize: 13.5, color: '#111827' }}>
             {thread.name}
           </span>
-          <span className={`co-chip ${config.chip}`} style={{ fontSize: 10, padding: '1px 6px' }}>
-            {config.label}
+          <span
+            className={`co-chip ${thread.type === 'comment' ? (thread.channel === 'facebook' ? 'co-c-m' : 'co-c-p') : config.chip}`}
+            style={{ fontSize: 10, padding: '1px 6px' }}
+          >
+            {thread.type === 'comment'
+              ? (thread.channel === 'facebook' ? 'Facebook Comment' : 'Instagram Comment')
+              : config.label}
           </span>
           {thread.status === 'replied' ? (
             <span
