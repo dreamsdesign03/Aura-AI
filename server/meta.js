@@ -451,6 +451,8 @@ async function syncInstagramComments() {
            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', TRUE, $13)
            ON CONFLICT (comment_id)
            DO UPDATE SET text = EXCLUDED.text,
+                         sender_name = COALESCE(NULLIF(EXCLUDED.sender_name, 'Instagram User'), meta_comments.sender_name, EXCLUDED.sender_name),
+                         sender_username = COALESCE(EXCLUDED.sender_username, meta_comments.sender_username),
                          post_title = COALESCE(EXCLUDED.post_title, meta_comments.post_title),
                          media_type = COALESCE(EXCLUDED.media_type, meta_comments.media_type),
                          media_thumbnail = COALESCE(EXCLUDED.media_thumbnail, meta_comments.media_thumbnail),
