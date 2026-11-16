@@ -1,44 +1,129 @@
 const db = require('./db');
 
-const META_PAGE_ACCESS_TOKEN = () =>
-  process.env.META_PAGE_ACCESS_TOKEN ||
-  process.env.WHATSAPP_ACCESS_TOKEN ||
-  '';
+const TARGET_PAGE_ID = '267592620109700';
+const TARGET_IG_USER_ID = '17841461905363722';
 
-const META_PAGE_ID = () => String(process.env.META_PAGE_ID || '267592620109700').trim();
-const META_INSTAGRAM_ACCOUNT_ID = () => String(process.env.META_INSTAGRAM_ACCOUNT_ID || '17841461905363722').trim();
+const META_PAGE_ID = () => String(process.env.META_PAGE_ID || TARGET_PAGE_ID).trim();
+const META_INSTAGRAM_ACCOUNT_ID = () => String(process.env.META_IG_USER_ID || process.env.META_INSTAGRAM_ACCOUNT_ID || TARGET_IG_USER_ID).trim();
+const GRAPH_VERSION = () => process.env.META_GRAPH_VERSION || 'v20.0';
+
+let cachedDerivedPageToken = null;
+let tokenCacheExpiresAt = 0;
+
+/**
+ * Safely redact tokens in strings or objects
+ */
+function redact(obj) {
+  if (!obj) return obj;
+  let str = typeof obj === 'string' ? obj : JSON.stringify(obj);
+  str = str.replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+  str = str.replace(/access_token=[^&"'\s]+/gi, 'access_token=EAA***');
+  return typeof obj === 'string' ? str : JSON.parse(str);
+}
+
+/**
+ * Derives and in-memory caches the Page Access Token for Aura Laser & Cosmetic Clinic
+ * from the user access token (/me/accounts). Never hardcodes, logs, or stores in DB.
+ */
+async function getDerivedPageToken(forceRefresh = false) {
+  const now = Date.now();
+  if (!forceRefresh && cachedDerivedPageToken && now < tokenCacheExpiresAt) {
+    return cachedDerivedPageToken;
+  }
+
+  const userToken = process.env.META_USER_ACCESS_TOKEN || process.env.META_PAGE_ACCESS_TOKEN;
+  if (!userToken) {
+    throw new Error('META_USER_ACCESS_TOKEN is missing in environment');
+  }
+
+  const targetPageId = META_PAGE_ID();
+  const graphVer = GRAPH_VERSION();
+
+  const url = `https://graph.facebook.com/${graphVer}/me/accounts?fields=id,name,access_token&access_token=${encodeURIComponent(userToken)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+
+  if (!res.ok || data.error) {
+    throw new Error(`Failed to derive page token: ${data.error?.message || res.statusText}`);
+  }
+
+  const accounts = Array.isArray(data.data) ? data.data : [];
+  const targetPage = accounts.find((p) => String(p.id).trim() === targetPageId);
+
+  if (!targetPage || !targetPage.access_token) {
+    throw new Error(`CRITICAL: Page ID ${targetPageId} not found in user accounts! Total pages returned: ${accounts.length}`);
+  }
+
+  cachedDerivedPageToken = targetPage.access_token;
+  tokenCacheExpiresAt = now + 3600 * 1000; // Cache for 1 hour
+
+  console.log(`✅ [Meta Auth] Derived Page Token for "${targetPage.name}" (${targetPage.id}) [Redacted: EAA***]`);
+  return cachedDerivedPageToken;
+}
+
+/**
+ * Fallback accessor for backwards compatibility
+ */
+const META_PAGE_ACCESS_TOKEN = () => cachedDerivedPageToken || process.env.META_PAGE_ACCESS_TOKEN || '';
+
+let schemaEnsured = false;
 
 /**
  * Idempotent DB schema initializer for Facebook & Instagram omnichannel.
  */
-async function ensureMetaSchema() {
+async function ensureMetaSchema(force = false) {
+  if (schemaEnsured && !force) return;
   try {
+    // 1. meta_conversations
     await db.query(`
       CREATE TABLE IF NOT EXISTS meta_conversations (
         id SERIAL PRIMARY KEY,
         lead_id INT REFERENCES leads(id) ON DELETE SET NULL,
         channel TEXT NOT NULL,                -- 'facebook' | 'instagram'
-        sender_id TEXT NOT NULL,              -- PSID (Facebook) or IGSID (Instagram)
+        external_id TEXT,                     -- PSID (Facebook) or IGSID (Instagram)
+        sender_id TEXT NOT NULL,              -- Backwards compatibility
         sender_name TEXT,                     -- Full name or username
         sender_username TEXT,                 -- Instagram handle
         sender_avatar TEXT,                   -- Profile picture URL
         unread_count INT DEFAULT 0,
         last_message TEXT,
         last_message_at TIMESTAMPTZ DEFAULT NOW(),
+        labels TEXT[] DEFAULT '{}',
+        assigned_to TEXT,
+        window_expires_at TIMESTAMPTZ,
+        ad_id TEXT,
+        status TEXT DEFAULT 'active',
         created_at TIMESTAMPTZ DEFAULT NOW(),
         updated_at TIMESTAMPTZ DEFAULT NOW(),
         CONSTRAINT uq_meta_channel_sender UNIQUE (channel, sender_id)
       );
     `);
 
+    // Ensure external_id column and unique constraint
+    await db.query(`
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS external_id TEXT;
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS labels TEXT[] DEFAULT '{}';
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS assigned_to TEXT;
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS window_expires_at TIMESTAMPTZ;
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS ad_id TEXT;
+      ALTER TABLE meta_conversations ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+      UPDATE meta_conversations SET external_id = sender_id WHERE external_id IS NULL AND sender_id IS NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_meta_conv_ext ON meta_conversations(channel, external_id);
+    `);
+
+    // 2. meta_messages
     await db.query(`
       CREATE TABLE IF NOT EXISTS meta_messages (
         id SERIAL PRIMARY KEY,
         conversation_id INT REFERENCES meta_conversations(id) ON DELETE CASCADE,
         direction TEXT NOT NULL,              -- 'inbound' | 'outbound'
         channel TEXT NOT NULL,                -- 'facebook' | 'instagram'
+        external_id TEXT,                     -- Meta message id (mid)
         content TEXT,
         media_url TEXT,
+        attachments JSONB DEFAULT '[]',
+        shared_post JSONB,
+        reactions JSONB DEFAULT '[]',
         meta_message_id TEXT,
         status TEXT DEFAULT 'sent',           -- 'sent', 'delivered', 'read', 'failed'
         error_message TEXT,
@@ -48,19 +133,39 @@ async function ensureMetaSchema() {
     `);
 
     await db.query(`
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS external_id TEXT;
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS attachments JSONB DEFAULT '[]';
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS shared_post JSONB;
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reactions JSONB DEFAULT '[]';
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reaction TEXT;
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reaction_emoji TEXT;
+      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS error_message TEXT;
+      UPDATE meta_messages SET external_id = meta_message_id WHERE external_id IS NULL AND meta_message_id IS NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_meta_msg_ext ON meta_messages(external_id);
+    `);
+
+    // 3. meta_comments
+    await db.query(`
       CREATE TABLE IF NOT EXISTS meta_comments (
         id SERIAL PRIMARY KEY,
         channel TEXT NOT NULL,                -- 'instagram' | 'facebook'
-        comment_id TEXT UNIQUE NOT NULL,
+        external_id TEXT,                     -- Meta comment id
+        comment_id TEXT UNIQUE NOT NULL,      -- Backwards compatibility
         post_id TEXT,
         post_url TEXT,
+        post_title TEXT,
+        media_type TEXT,
+        media_thumbnail TEXT,
         sender_id TEXT,
         sender_name TEXT,
         sender_username TEXT,
         sender_avatar TEXT,
         text TEXT NOT NULL,
+        like_count INT DEFAULT 0,
         reply_text TEXT,
         replied_at TIMESTAMPTZ,
+        replies JSONB DEFAULT '[]',
+        hidden BOOLEAN DEFAULT FALSE,
         status TEXT DEFAULT 'pending',        -- 'pending' | 'replied'
         unread BOOLEAN DEFAULT TRUE,
         created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -68,52 +173,63 @@ async function ensureMetaSchema() {
       );
     `);
 
-    // Useful indexes
     await db.query(`
-      CREATE INDEX IF NOT EXISTS idx_meta_conv_channel_sender ON meta_conversations(channel, sender_id);
-      CREATE INDEX IF NOT EXISTS idx_meta_conv_last_message ON meta_conversations(last_message_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_meta_msg_conv_id ON meta_messages(conversation_id);
-      CREATE INDEX IF NOT EXISTS idx_meta_comments_channel ON meta_comments(channel);
-      CREATE INDEX IF NOT EXISTS idx_meta_comments_created ON meta_comments(created_at DESC);
-    `);
-
-    // Add reactions support to meta_messages
-    await db.query(`
-      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reaction TEXT;
-      ALTER TABLE meta_messages ADD COLUMN IF NOT EXISTS reaction_emoji TEXT;
-    `);
-
-    // Add post details to meta_comments
-    await db.query(`
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS external_id TEXT;
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS post_title TEXT;
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS media_type TEXT;
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS media_thumbnail TEXT;
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS like_count INT DEFAULT 0;
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS replies JSONB DEFAULT '[]';
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE;
+      UPDATE meta_comments SET external_id = comment_id WHERE external_id IS NULL AND comment_id IS NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_meta_comm_ext ON meta_comments(external_id);
     `);
 
-    // Create meta_reactions table for post/reel and message reactions
+    // 4. meta_media
     await db.query(`
-      CREATE TABLE IF NOT EXISTS meta_reactions (
+      CREATE TABLE IF NOT EXISTS meta_media (
         id SERIAL PRIMARY KEY,
+        external_id TEXT UNIQUE NOT NULL,     -- IG Media ID or FB Post ID
         channel TEXT NOT NULL,                -- 'instagram' | 'facebook'
-        target_type TEXT NOT NULL,            -- 'reel' | 'post' | 'message'
-        target_id TEXT,
-        target_title TEXT,
-        target_url TEXT,
-        sender_id TEXT,
-        sender_name TEXT,
-        sender_username TEXT,
-        reaction TEXT,                        -- 'like', 'love', 'haha', etc.
-        reaction_emoji TEXT,                  -- '❤️', '👍', '🔥', etc.
+        caption TEXT,
+        media_type TEXT,
+        media_product_type TEXT,
+        permalink TEXT,
+        media_url TEXT,
+        thumbnail_url TEXT,
+        like_count INT DEFAULT 0,
+        comments_count INT DEFAULT 0,
+        timestamp TIMESTAMPTZ,
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+
+    // 5. webhook_events
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS webhook_events (
+        id SERIAL PRIMARY KEY,
+        platform TEXT NOT NULL,
+        event_type TEXT,
+        payload JSONB NOT NULL,
+        processed BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-      ALTER TABLE meta_reactions DROP CONSTRAINT IF EXISTS uq_meta_reactions_target;
-      ALTER TABLE meta_reactions ADD CONSTRAINT uq_meta_reactions_target UNIQUE (channel, target_id, reaction);
-      CREATE INDEX IF NOT EXISTS idx_meta_reactions_channel ON meta_reactions(channel);
-      CREATE INDEX IF NOT EXISTS idx_meta_reactions_created ON meta_reactions(created_at DESC);
     `);
 
-    console.log('✅ [Meta Omnichannel] DB schema verified and ready');
+    // Useful indexes
+    await db.query(`
+      CREATE INDEX IF NOT EXISTS idx_meta_conv_channel_ext ON meta_conversations(channel, external_id);
+      CREATE INDEX IF NOT EXISTS idx_meta_conv_last_message ON meta_conversations(last_message_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_meta_msg_conv_id ON meta_messages(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_meta_comments_channel ON meta_comments(channel);
+      CREATE INDEX IF NOT EXISTS idx_meta_comments_created ON meta_comments(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_meta_media_channel ON meta_media(channel);
+      CREATE INDEX IF NOT EXISTS idx_webhook_events_created ON webhook_events(created_at DESC);
+    `);
+
+    schemaEnsured = true;
+    console.log('✅ [Meta Omnichannel] DB schema verified with strict external_id uniqueness');
   } catch (err) {
     console.error('❌ [Meta Omnichannel] Schema error:', err.message);
   }
@@ -123,17 +239,15 @@ async function ensureMetaSchema() {
  * Fetch public user profile from Graph API (Name, Profile Pic)
  */
 async function fetchMetaUserProfile({ channel, userId }) {
-  const token = META_PAGE_ACCESS_TOKEN();
-  if (!token || !userId) return null;
-
+  if (!userId) return null;
   try {
+    const pageToken = await getDerivedPageToken();
+    const graphVer = GRAPH_VERSION();
     let url;
     if (channel === 'instagram') {
-      // Instagram user profile
-      url = `https://graph.facebook.com/v19.0/${userId}?fields=name,username,profile_pic&access_token=${encodeURIComponent(token)}`;
+      url = `https://graph.facebook.com/${graphVer}/${userId}?fields=name,username,profile_pic&access_token=${encodeURIComponent(pageToken)}`;
     } else {
-      // Facebook user profile (PSID)
-      url = `https://graph.facebook.com/v19.0/${userId}?fields=first_name,last_name,profile_pic&access_token=${encodeURIComponent(token)}`;
+      url = `https://graph.facebook.com/${graphVer}/${userId}?fields=first_name,last_name,profile_pic&access_token=${encodeURIComponent(pageToken)}`;
     }
 
     const res = await fetch(url);
@@ -150,44 +264,43 @@ async function fetchMetaUserProfile({ channel, userId }) {
 }
 
 /**
- * Find or create a conversation record in meta_conversations
+ * Find or create a conversation record in meta_conversations using external_id
  */
-async function findOrCreateMetaConversation({ channel, senderId, senderName, senderUsername, senderAvatar, leadId }) {
+async function findOrCreateMetaConversation({ channel, senderId, senderName, senderUsername, senderAvatar, leadId, labels = [], windowExpiresAt = null }) {
   await ensureMetaSchema();
+  const extId = String(senderId).trim();
 
-  // Try find existing
+  // 1. Try find existing by external_id
   const existing = await db.query(
-    `SELECT * FROM meta_conversations WHERE channel = $1 AND sender_id = $2 LIMIT 1`,
-    [channel, senderId]
+    `SELECT * FROM meta_conversations WHERE channel = $1 AND (external_id = $2 OR sender_id = $2) LIMIT 1`,
+    [channel, extId]
   );
 
   if (existing.rows.length > 0) {
     const row = existing.rows[0];
-    // Update profile info if newly available
-    if ((!row.sender_name && senderName) || (!row.sender_username && senderUsername) || (!row.sender_avatar && senderAvatar) || (!row.lead_id && leadId)) {
-      const updated = await db.query(
-        `UPDATE meta_conversations
-            SET sender_name = COALESCE($1, sender_name),
-                sender_username = COALESCE($2, sender_username),
-                sender_avatar = COALESCE($3, sender_avatar),
-                lead_id = COALESCE($4, lead_id),
-                updated_at = NOW()
-          WHERE id = $5
-          RETURNING *`,
-        [senderName || null, senderUsername || null, senderAvatar || null, leadId || null, row.id]
-      );
-      return updated.rows[0];
-    }
-    return row;
+    const updated = await db.query(
+      `UPDATE meta_conversations
+          SET sender_name = COALESCE($1, sender_name),
+              sender_username = COALESCE($2, sender_username),
+              sender_avatar = COALESCE($3, sender_avatar),
+              lead_id = COALESCE($4, lead_id),
+              external_id = $5,
+              window_expires_at = COALESCE($6, window_expires_at),
+              updated_at = NOW()
+        WHERE id = $7
+        RETURNING *`,
+      [senderName || null, senderUsername || null, senderAvatar || null, leadId || null, extId, windowExpiresAt || null, row.id]
+    );
+    return updated.rows[0];
   }
 
-  // If sender name is missing, attempt to fetch from Graph API
+  // 2. If sender name is missing, attempt to fetch from Graph API
   let fetchedName = senderName;
   let fetchedUsername = senderUsername;
   let fetchedAvatar = senderAvatar;
 
   if (!fetchedName && !fetchedUsername) {
-    const profile = await fetchMetaUserProfile({ channel, userId: senderId });
+    const profile = await fetchMetaUserProfile({ channel, userId: extId });
     if (profile) {
       fetchedName = profile.name;
       fetchedUsername = profile.username;
@@ -195,23 +308,27 @@ async function findOrCreateMetaConversation({ channel, senderId, senderName, sen
     }
   }
 
-  const fallbackName = fetchedName || fetchedUsername || (channel === 'instagram' ? `@user_${senderId.slice(-4)}` : `FB User ${senderId.slice(-4)}`);
+  const fallbackName = fetchedName || (fetchedUsername ? `@${fetchedUsername}` : (channel === 'instagram' ? `@user_${extId.slice(-4)}` : `Facebook User`));
 
   const inserted = await db.query(
     `INSERT INTO meta_conversations (
-       channel, sender_id, sender_name, sender_username, sender_avatar, lead_id, unread_count, last_message_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, 1, NOW())
+       channel, external_id, sender_id, sender_name, sender_username, sender_avatar, lead_id, unread_count, labels, window_expires_at, last_message_at
+     ) VALUES ($1, $2, $2, $3, $4, $5, $6, 1, $7, $8, NOW())
      ON CONFLICT (channel, sender_id)
-     DO UPDATE SET updated_at = NOW()
+     DO UPDATE SET external_id = EXCLUDED.external_id,
+                   sender_name = COALESCE(EXCLUDED.sender_name, meta_conversations.sender_name),
+                   sender_username = COALESCE(EXCLUDED.sender_username, meta_conversations.sender_username),
+                   sender_avatar = COALESCE(EXCLUDED.sender_avatar, meta_conversations.sender_avatar),
+                   updated_at = NOW()
      RETURNING *`,
-    [channel, senderId, fallbackName, fetchedUsername || null, fetchedAvatar || null, leadId || null]
+    [channel, extId, fallbackName, fetchedUsername || null, fetchedAvatar || null, leadId || null, labels, windowExpiresAt || null]
   );
 
   return inserted.rows[0];
 }
 
 /**
- * Persist an inbound or outbound message
+ * Persist an inbound or outbound message keyed on external_id
  */
 async function persistMetaMessage({
   conversationId,
@@ -220,46 +337,84 @@ async function persistMetaMessage({
   content,
   mediaUrl,
   metaMessageId,
+  attachments = [],
+  sharedPost = null,
+  reactions = [],
   status = 'sent',
-  errorMessage = null
+  errorMessage = null,
+  sentAt = new Date()
 }) {
-  const r = await db.query(
-    `INSERT INTO meta_messages (
-       conversation_id, direction, channel, content, media_url, meta_message_id, status, error_message, sent_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-     RETURNING *`,
-    [conversationId, direction, channel, content || '', mediaUrl || null, metaMessageId || null, status, errorMessage]
-  );
+  await ensureMetaSchema();
+  const extId = metaMessageId ? String(metaMessageId).trim() : null;
 
-  // Update conversation last message and unread count
+  let msgRow = null;
+  if (extId) {
+    const existing = await db.query('SELECT * FROM meta_messages WHERE external_id = $1 OR meta_message_id = $1 LIMIT 1', [extId]);
+    if (existing.rows.length > 0) {
+      const updated = await db.query(
+        `UPDATE meta_messages
+            SET status = COALESCE($1, status),
+                reactions = CASE WHEN jsonb_array_length($2::jsonb) > 0 THEN $2::jsonb ELSE reactions END,
+                attachments = CASE WHEN jsonb_array_length($3::jsonb) > 0 THEN $3::jsonb ELSE attachments END,
+                shared_post = COALESCE($4::jsonb, shared_post),
+                content = COALESCE(NULLIF($5, ''), content)
+          WHERE id = $6
+          RETURNING *`,
+        [status, JSON.stringify(reactions), JSON.stringify(attachments), sharedPost ? JSON.stringify(sharedPost) : null, content, existing.rows[0].id]
+      );
+      msgRow = updated.rows[0];
+    }
+  }
+
+  if (!msgRow) {
+    const r = await db.query(
+      `INSERT INTO meta_messages (
+         conversation_id, direction, channel, external_id, meta_message_id, content, media_url, attachments, shared_post, reactions, status, error_message, sent_at
+       ) VALUES ($1, $2, $3, $4, $4, $5, $6, $7::jsonb, $8::jsonb, $9::jsonb, $10, $11, $12)
+       RETURNING *`,
+      [
+        conversationId,
+        direction,
+        channel,
+        extId,
+        content || '',
+        mediaUrl || null,
+        JSON.stringify(attachments),
+        sharedPost ? JSON.stringify(sharedPost) : null,
+        JSON.stringify(reactions),
+        status,
+        errorMessage,
+        sentAt
+      ]
+    );
+    msgRow = r.rows[0];
+  }
+
+  // Update conversation's last message snippet and timestamp
+  const snippet = content || (sharedPost ? '[Shared Post/Reel]' : (mediaUrl || attachments.length ? '[Media attachment]' : ''));
   await db.query(
     `UPDATE meta_conversations
-        SET last_message = $1,
-            last_message_at = NOW(),
-            unread_count = CASE WHEN $2 = 'inbound' THEN unread_count + 1 ELSE unread_count END,
+        SET last_message = COALESCE(NULLIF($1, ''), last_message),
+            last_message_at = $2,
+            unread_count = CASE WHEN $3 = 'inbound' THEN unread_count + 1 ELSE unread_count END,
             updated_at = NOW()
-      WHERE id = $3`,
-    [content || (mediaUrl ? '[Media attachment]' : ''), direction, conversationId]
+      WHERE id = $4`,
+    [snippet, sentAt, direction, conversationId]
   );
 
-  return r.rows[0];
+  return msgRow;
 }
 
 /**
  * Send an outbound message back to Facebook Messenger or Instagram Direct
  */
 async function sendMetaMessage({ channel, recipientId, text, conversationId }) {
-  const token = META_PAGE_ACCESS_TOKEN();
-  if (!token) {
-    throw new Error('Meta Page Access Token is missing from server configuration');
-  }
+  const pageToken = await getDerivedPageToken();
+  if (!pageToken) throw new Error('Meta Page Access Token is unavailable');
+  if (!recipientId || !text) throw new Error('Recipient ID and message text are required');
 
-  if (!recipientId || !text) {
-    throw new Error('Recipient ID and message text are required');
-  }
-
-  // Meta Graph API Send Message Endpoint
-  const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${encodeURIComponent(token)}`;
+  const graphVer = GRAPH_VERSION();
+  const url = `https://graph.facebook.com/${graphVer}/me/messages?access_token=${encodeURIComponent(pageToken)}`;
 
   const payload = {
     recipient: { id: recipientId },
@@ -293,7 +448,6 @@ async function sendMetaMessage({ channel, recipientId, text, conversationId }) {
     throw new Error(errorMsg);
   }
 
-  // Save successful outbound message
   let savedMsg = null;
   if (conversationId) {
     savedMsg = await persistMetaMessage({
@@ -315,29 +469,65 @@ async function sendMetaMessage({ channel, recipientId, text, conversationId }) {
 }
 
 /**
- * Persist incoming Instagram or Facebook comment
+ * Persist incoming Instagram or Facebook comment keyed on external_id
  */
 async function persistMetaComment({
   channel,
   commentId,
   postId = null,
   postUrl = null,
+  postTitle = null,
+  mediaType = 'Post',
+  mediaThumbnail = null,
   senderId = null,
   senderName = null,
   senderUsername = null,
   senderAvatar = null,
-  text
+  text,
+  likeCount = 0,
+  replies = [],
+  hidden = false,
+  createdAt = new Date()
 }) {
   await ensureMetaSchema();
+  const extId = String(commentId).trim();
 
   const r = await db.query(
     `INSERT INTO meta_comments (
-       channel, comment_id, post_id, post_url, sender_id, sender_name, sender_username, sender_avatar, text, status, unread, created_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'pending', TRUE, NOW())
+       channel, external_id, comment_id, post_id, post_url, post_title, media_type, media_thumbnail,
+       sender_id, sender_name, sender_username, sender_avatar, text, like_count, replies, hidden, status, unread, created_at
+     ) VALUES ($1, $2, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, 'pending', TRUE, $16)
      ON CONFLICT (comment_id)
-     DO UPDATE SET text = EXCLUDED.text, updated_at = NOW()
+     DO UPDATE SET text = EXCLUDED.text,
+                   external_id = EXCLUDED.external_id,
+                   post_title = COALESCE(EXCLUDED.post_title, meta_comments.post_title),
+                   media_type = COALESCE(EXCLUDED.media_type, meta_comments.media_type),
+                   media_thumbnail = COALESCE(EXCLUDED.media_thumbnail, meta_comments.media_thumbnail),
+                   sender_name = COALESCE(NULLIF(EXCLUDED.sender_name, 'Instagram User'), meta_comments.sender_name, EXCLUDED.sender_name),
+                   sender_username = COALESCE(EXCLUDED.sender_username, meta_comments.sender_username),
+                   like_count = EXCLUDED.like_count,
+                   replies = CASE WHEN jsonb_array_length(EXCLUDED.replies) > 0 THEN EXCLUDED.replies ELSE meta_comments.replies END,
+                   hidden = EXCLUDED.hidden,
+                   updated_at = NOW()
      RETURNING *`,
-    [channel, commentId, postId, postUrl, senderId, senderName, senderUsername, senderAvatar, text]
+    [
+      channel,
+      extId,
+      postId,
+      postUrl,
+      postTitle,
+      mediaType,
+      mediaThumbnail,
+      senderId,
+      senderName,
+      senderUsername,
+      senderAvatar,
+      text,
+      likeCount,
+      JSON.stringify(replies),
+      hidden,
+      createdAt
+    ]
   );
 
   return r.rows[0];
@@ -347,20 +537,20 @@ async function persistMetaComment({
  * Reply directly to an Instagram or Facebook comment
  */
 async function replyToMetaComment({ channel, commentId, message }) {
-  const token = META_PAGE_ACCESS_TOKEN();
-  if (!token) throw new Error('Meta Page Access Token is missing');
+  const pageToken = await getDerivedPageToken();
+  if (!pageToken) throw new Error('Meta Page Access Token is missing');
   if (!commentId || !message) throw new Error('Comment ID and reply message are required');
 
-  // Both Instagram & Facebook use POST /{comment_id}/replies or /{comment_id}/comments
+  const graphVer = GRAPH_VERSION();
   const endpoint = channel === 'instagram' ? 'replies' : 'comments';
-  const url = `https://graph.facebook.com/v19.0/${commentId}/${endpoint}`;
+  const url = `https://graph.facebook.com/${graphVer}/${commentId}/${endpoint}`;
 
   const response = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       message: message.trim(),
-      access_token: token
+      access_token: pageToken
     })
   });
 
@@ -371,7 +561,6 @@ async function replyToMetaComment({ channel, commentId, message }) {
     throw new Error(errMsg);
   }
 
-  // Update in database
   await db.query(
     `UPDATE meta_comments
         SET reply_text = $1,
@@ -379,7 +568,7 @@ async function replyToMetaComment({ channel, commentId, message }) {
             status = 'replied',
             unread = FALSE,
             updated_at = NOW()
-      WHERE comment_id = $2`,
+      WHERE external_id = $2 OR comment_id = $2`,
     [message.trim(), commentId]
   );
 
@@ -387,16 +576,183 @@ async function replyToMetaComment({ channel, commentId, message }) {
 }
 
 /**
- * Sync Instagram Comments from Meta Graph API
+ * Like or unlike a Facebook / Instagram comment
+ */
+async function toggleCommentLike({ channel, commentId }) {
+  const pageToken = await getDerivedPageToken();
+  const graphVer = GRAPH_VERSION();
+  const url = `https://graph.facebook.com/${graphVer}/${commentId}/likes`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ access_token: pageToken })
+  });
+  return await response.json();
+}
+
+/**
+ * Hide / Unhide a comment
+ */
+async function toggleCommentVisibility({ commentId, hidden = true }) {
+  const pageToken = await getDerivedPageToken();
+  const graphVer = GRAPH_VERSION();
+  const url = `https://graph.facebook.com/${graphVer}/${commentId}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ is_hidden: hidden, access_token: pageToken })
+  });
+  const resJson = await response.json();
+  if (resJson.success) {
+    await db.query('UPDATE meta_comments SET hidden = $1, updated_at = NOW() WHERE external_id = $2 OR comment_id = $2', [hidden, commentId]);
+  }
+  return resJson;
+}
+
+/**
+ * Backfill Messenger Conversations (Page ID: 267592620109700)
+ */
+async function backfillMessengerConversations(limit = 25) {
+  try {
+    const pageToken = await getDerivedPageToken();
+    const pageId = META_PAGE_ID();
+    const graphVer = GRAPH_VERSION();
+
+    const url = `https://graph.facebook.com/${graphVer}/${pageId}/conversations?fields=id,updated_time,unread_count,participants,messages.limit(20){id,message,created_time,from,to,attachments,shares}&limit=${limit}&access_token=${encodeURIComponent(pageToken)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.error) {
+      console.warn('[Messenger Backfill] API warning:', data.error.message);
+      return { count: 0, error: data.error.message };
+    }
+
+    let syncedConversations = 0;
+    let syncedMessages = 0;
+
+    for (const conv of (data.data || [])) {
+      const participants = conv.participants?.data || [];
+      const patient = participants.find((p) => String(p.id) !== pageId) || participants[0];
+      if (!patient) continue;
+
+      const convRecord = await findOrCreateMetaConversation({
+        channel: 'facebook',
+        senderId: patient.id,
+        senderName: patient.name || `Facebook User`,
+        senderAvatar: null
+      });
+
+      const messagesList = conv.messages?.data || [];
+      for (const msg of messagesList) {
+        if (!msg.id) continue;
+        const isFromPage = String(msg.from?.id) === pageId;
+        const direction = isFromPage ? 'outbound' : 'inbound';
+        const attachments = msg.attachments?.data || [];
+        const shares = msg.shares?.data || [];
+        const sharedPost = shares.length > 0 ? shares[0] : null;
+        const mediaUrl = attachments.length > 0 ? (attachments[0].image_data?.url || attachments[0].video_data?.url || attachments[0].file_url) : null;
+
+        await persistMetaMessage({
+          conversationId: convRecord.id,
+          direction,
+          channel: 'facebook',
+          content: msg.message || '',
+          mediaUrl,
+          attachments,
+          sharedPost,
+          metaMessageId: msg.id,
+          status: 'delivered',
+          sentAt: msg.created_time ? new Date(msg.created_time) : new Date()
+        });
+        syncedMessages++;
+      }
+      syncedConversations++;
+    }
+
+    console.log(`✅ [Messenger Backfill] Synced ${syncedConversations} conversations and ${syncedMessages} messages`);
+    return { syncedConversations, syncedMessages };
+  } catch (err) {
+    console.error('[Messenger Backfill] Error:', err.message);
+    return { count: 0, error: err.message };
+  }
+}
+
+/**
+ * Backfill Instagram DMs for a specific IGSID (or known users)
+ */
+async function backfillInstagramThreadForUser(igsid) {
+  if (!igsid) return null;
+  try {
+    const pageToken = await getDerivedPageToken();
+    const pageId = META_PAGE_ID();
+    const graphVer = GRAPH_VERSION();
+
+    const url = `https://graph.facebook.com/${graphVer}/${pageId}/conversations?platform=instagram&user_id=${igsid}&fields=id,messages{id,message,created_time,from,to,attachments,shares}&access_token=${encodeURIComponent(pageToken)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.error) {
+      console.warn(`[IG Thread Backfill] Warning for user ${igsid}:`, data.error.message);
+      return null;
+    }
+
+    const convList = data.data || [];
+    if (convList.length === 0) return null;
+
+    const conv = convList[0];
+    const profile = await fetchMetaUserProfile({ channel: 'instagram', userId: igsid });
+    const convRecord = await findOrCreateMetaConversation({
+      channel: 'instagram',
+      senderId: igsid,
+      senderName: profile?.name || (profile?.username ? `@${profile.username}` : `@user_${igsid.slice(-4)}`),
+      senderUsername: profile?.username || null,
+      senderAvatar: profile?.avatar || null
+    });
+
+    const messagesList = conv.messages?.data || [];
+    for (const msg of messagesList) {
+      if (!msg.id) continue;
+      const isFromMe = String(msg.from?.id) === META_INSTAGRAM_ACCOUNT_ID() || String(msg.from?.id) === pageId;
+      const direction = isFromMe ? 'outbound' : 'inbound';
+      const attachments = msg.attachments?.data || [];
+      const shares = msg.shares?.data || [];
+      const sharedPost = shares.length > 0 ? shares[0] : null;
+
+      await persistMetaMessage({
+        conversationId: convRecord.id,
+        direction,
+        channel: 'instagram',
+        content: msg.message || '',
+        mediaUrl: attachments[0]?.image_data?.url || attachments[0]?.video_data?.url || null,
+        attachments,
+        sharedPost,
+        metaMessageId: msg.id,
+        status: 'delivered',
+        sentAt: msg.created_time ? new Date(msg.created_time) : new Date()
+      });
+    }
+
+    return convRecord;
+  } catch (err) {
+    console.error('[IG Thread Backfill] Error:', err.message);
+    return null;
+  }
+}
+
+/**
+ * Backfill Instagram Media & Comments from Meta Graph API
  */
 async function syncInstagramComments() {
-  const token = META_PAGE_ACCESS_TOKEN();
+  const pageToken = await getDerivedPageToken().catch(() => null);
   const igId = META_INSTAGRAM_ACCOUNT_ID();
-  if (!token || !igId) return { synced: 0 };
+  if (!pageToken || !igId) return { synced: 0 };
 
   try {
     await ensureMetaSchema();
-    const url = `https://graph.facebook.com/v19.0/${igId}/media?fields=id,caption,permalink,media_type,thumbnail_url,media_url,timestamp,comments_count,like_count,comments{id,text,timestamp,username,from}&limit=35&access_token=${encodeURIComponent(token)}`;
+    const graphVer = GRAPH_VERSION();
+    const url = `https://graph.facebook.com/${graphVer}/${igId}/media?fields=id,caption,permalink,media_type,media_product_type,thumbnail_url,media_url,timestamp,comments_count,like_count,comments.limit(30){id,text,timestamp,username,like_count,hidden,replies{id,text,username,timestamp}}&limit=40&access_token=${encodeURIComponent(pageToken)}`;
     const res = await fetch(url);
     const data = await res.json();
     if (data.error) {
@@ -409,62 +765,55 @@ async function syncInstagramComments() {
       const postId = String(post.id);
       const postUrl = post.permalink || null;
       const postTitle = (post.caption || 'Instagram Post').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
-      const mediaType = post.media_type === 'VIDEO' ? 'Reel' : (post.media_type === 'CAROUSEL_ALBUM' ? 'Carousel' : 'Post');
+      const mediaType = post.media_product_type === 'REELS' || post.media_type === 'VIDEO' ? 'Reel' : (post.media_type === 'CAROUSEL_ALBUM' ? 'Carousel' : 'Post');
       const mediaThumb = post.thumbnail_url || post.media_url || null;
       const likeCount = Number(post.like_count) || 0;
+      const commentsCount = Number(post.comments_count) || 0;
 
-      // Track post likes in meta_reactions
-      if (likeCount > 0) {
-        await db.query(
-          `INSERT INTO meta_reactions (
-             channel, target_type, target_id, target_title, target_url, sender_name, reaction, reaction_emoji, created_at
-           ) VALUES ($1, $2, $3, $4, $5, $6, 'like', '❤️', $7)
-           ON CONFLICT (channel, target_id, reaction)
-           DO UPDATE SET
-             target_type = EXCLUDED.target_type,
-             target_title = EXCLUDED.target_title,
-             target_url = EXCLUDED.target_url,
-             sender_name = EXCLUDED.sender_name,
-             created_at = EXCLUDED.created_at`,
-          [
-            'instagram',
-            mediaType.toLowerCase(),
-            postId,
-            postTitle,
-            postUrl,
-            `${likeCount} Likes`,
-            post.timestamp ? new Date(post.timestamp) : new Date()
-          ]
-        ).catch(() => {});
-      }
+      // Upsert into meta_media
+      await db.query(
+        `INSERT INTO meta_media (
+           external_id, channel, caption, media_type, media_product_type, permalink, media_url, thumbnail_url, like_count, comments_count, timestamp, updated_at
+         ) VALUES ($1, 'instagram', $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+         ON CONFLICT (external_id)
+         DO UPDATE SET caption = EXCLUDED.caption,
+                       like_count = EXCLUDED.like_count,
+                       comments_count = EXCLUDED.comments_count,
+                       thumbnail_url = COALESCE(EXCLUDED.thumbnail_url, meta_media.thumbnail_url),
+                       media_url = COALESCE(EXCLUDED.media_url, meta_media.media_url),
+                       updated_at = NOW()`,
+        [postId, post.caption || '', post.media_type, post.media_product_type, postUrl, post.media_url, mediaThumb, likeCount, commentsCount, post.timestamp ? new Date(post.timestamp) : new Date()]
+      ).catch(() => {});
 
       const commentsList = post.comments?.data || [];
       for (const c of commentsList) {
         if (!c.id || !c.text) continue;
         const createdAt = c.timestamp ? new Date(c.timestamp) : new Date();
-        const username = c.username || c.from?.username || null;
-        const senderName = username ? `@${username}` : 'Instagram User';
+        const username = c.username || null;
+        const senderName = username ? `@${username}` : `@user_${String(c.id).slice(-4)}`;
+        const replies = c.replies?.data || [];
 
-        await db.query(
-          `INSERT INTO meta_comments (
-             channel, comment_id, post_id, post_url, post_title, media_type, media_thumbnail, like_count, sender_id, sender_name, sender_username, text, status, unread, created_at
-           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'pending', TRUE, $13)
-           ON CONFLICT (comment_id)
-           DO UPDATE SET text = EXCLUDED.text,
-                         sender_name = COALESCE(NULLIF(EXCLUDED.sender_name, 'Instagram User'), meta_comments.sender_name, EXCLUDED.sender_name),
-                         sender_username = COALESCE(EXCLUDED.sender_username, meta_comments.sender_username),
-                         post_title = COALESCE(EXCLUDED.post_title, meta_comments.post_title),
-                         media_type = COALESCE(EXCLUDED.media_type, meta_comments.media_type),
-                         media_thumbnail = COALESCE(EXCLUDED.media_thumbnail, meta_comments.media_thumbnail),
-                         like_count = EXCLUDED.like_count,
-                         updated_at = NOW()`,
-          ['instagram', String(c.id), postId, postUrl, postTitle, mediaType, mediaThumb, likeCount, c.from?.id ? String(c.from.id) : null, senderName, username, c.text, createdAt]
-        );
+        await persistMetaComment({
+          channel: 'instagram',
+          commentId: String(c.id),
+          postId,
+          postUrl,
+          postTitle,
+          mediaType,
+          mediaThumbnail: mediaThumb,
+          senderName,
+          senderUsername: username,
+          text: c.text,
+          likeCount: Number(c.like_count) || 0,
+          replies,
+          hidden: Boolean(c.hidden),
+          createdAt
+        });
         count++;
       }
     }
 
-    console.log(`✅ [Instagram Sync] Successfully synced ${count} comments from Instagram API`);
+    console.log(`✅ [Instagram Sync] Successfully synced ${count} comments & media items`);
     return { synced: count };
   } catch (err) {
     console.error('[Instagram Sync] Error:', err.message);
@@ -473,30 +822,21 @@ async function syncInstagramComments() {
 }
 
 /**
- * Sync Facebook Page Comments from Meta Graph API
+ * Backfill Facebook Published Posts & Comments
  */
 async function syncFacebookComments() {
-  const userToken = META_PAGE_ACCESS_TOKEN();
+  const pageToken = await getDerivedPageToken().catch(() => null);
   const pageId = META_PAGE_ID();
-  if (!userToken || !pageId) return { synced: 0 };
+  if (!pageToken || !pageId) return { synced: 0 };
 
   try {
     await ensureMetaSchema();
+    const graphVer = GRAPH_VERSION();
 
-    // 1. Resolve Page Access Token
-    let pageToken = userToken;
-    try {
-      const pageRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}?fields=access_token&access_token=${encodeURIComponent(userToken)}`);
-      const pageData = await pageRes.json();
-      if (pageData.access_token) {
-        pageToken = pageData.access_token;
-      }
-    } catch (_) {}
-
-    // 2. Fetch recent Page posts
-    const url = `https://graph.facebook.com/v19.0/${pageId}/posts?fields=id,message,permalink_url,created_time&limit=25&access_token=${encodeURIComponent(pageToken)}`;
+    const url = `https://graph.facebook.com/${graphVer}/${pageId}/published_posts?fields=id,message,permalink_url,full_picture,created_time,attachments,comments.summary(true).limit(25){id,message,from{id,name,picture},created_time,like_count,comment_count,permalink_url}&limit=25&access_token=${encodeURIComponent(pageToken)}`;
     const res = await fetch(url);
     const data = await res.json();
+
     if (data.error) {
       console.warn('[Facebook Sync] Posts API warning:', data.error.message);
       return { synced: 0, error: data.error.message };
@@ -507,31 +847,43 @@ async function syncFacebookComments() {
       const postId = post.id;
       const postUrl = post.permalink_url;
       const postTitle = (post.message || 'Facebook Post').replace(/[\r\n]+/g, ' ').trim().slice(0, 160);
+      const picture = post.full_picture || post.attachments?.data?.[0]?.media?.image?.src || null;
+      const commentsSummary = post.comments?.summary?.total_count || 0;
 
-      try {
-        const cRes = await fetch(`https://graph.facebook.com/v19.0/${postId}/comments?fields=id,message,created_time,from&access_token=${encodeURIComponent(pageToken)}`);
-        const cData = await cRes.json();
-        const commentsList = cData.data || [];
+      // Upsert into meta_media
+      await db.query(
+        `INSERT INTO meta_media (
+           external_id, channel, caption, media_type, permalink, thumbnail_url, comments_count, timestamp, updated_at
+         ) VALUES ($1, 'facebook', $2, 'Post', $3, $4, $5, $6, NOW())
+         ON CONFLICT (external_id)
+         DO UPDATE SET caption = EXCLUDED.caption,
+                       comments_count = EXCLUDED.comments_count,
+                       thumbnail_url = COALESCE(EXCLUDED.thumbnail_url, meta_media.thumbnail_url),
+                       updated_at = NOW()`,
+        [postId, post.message || '', postUrl, picture, commentsSummary, post.created_time ? new Date(post.created_time) : new Date()]
+      ).catch(() => {});
 
-        for (const c of commentsList) {
-          if (!c.id || !c.message) continue;
-          const createdAt = c.created_time ? new Date(c.created_time) : new Date();
-          const senderName = c.from?.name || 'Facebook User';
+      const commentsList = post.comments?.data || [];
+      for (const c of commentsList) {
+        if (!c.id || !c.message) continue;
+        const createdAt = c.created_time ? new Date(c.created_time) : new Date();
+        const senderName = c.from?.name || 'Facebook User';
 
-          await db.query(
-            `INSERT INTO meta_comments (
-               channel, comment_id, post_id, post_url, post_title, media_type, sender_id, sender_name, text, status, unread, created_at
-             ) VALUES ($1, $2, $3, $4, $5, 'Post', $6, $7, $8, 'pending', TRUE, $9)
-             ON CONFLICT (comment_id)
-             DO UPDATE SET text = EXCLUDED.text,
-                           post_title = COALESCE(EXCLUDED.post_title, meta_comments.post_title),
-                           updated_at = NOW()`,
-            ['facebook', String(c.id), String(postId), postUrl || null, postTitle, c.from?.id ? String(c.from.id) : null, senderName, c.message, createdAt]
-          );
-          count++;
-        }
-      } catch (cErr) {
-        // Individual post comment fetch error
+        await persistMetaComment({
+          channel: 'facebook',
+          commentId: String(c.id),
+          postId: String(postId),
+          postUrl: c.permalink_url || postUrl,
+          postTitle,
+          mediaType: 'Post',
+          mediaThumbnail: picture,
+          senderId: c.from?.id ? String(c.from.id) : null,
+          senderName,
+          text: c.message,
+          likeCount: Number(c.like_count) || 0,
+          createdAt
+        });
+        count++;
       }
     }
 
@@ -544,31 +896,67 @@ async function syncFacebookComments() {
 }
 
 /**
- * Unified sync for both Instagram and Facebook comments
+ * Unified sync for omnichannel backfill
  */
-async function syncMetaComments() {
-  const [ig, fb] = await Promise.allSettled([
+async function syncMetaOmnichannel() {
+  const [messenger, igComments, fbComments] = await Promise.allSettled([
+    backfillMessengerConversations(25),
     syncInstagramComments(),
     syncFacebookComments()
   ]);
+
   return {
-    instagram: ig.status === 'fulfilled' ? ig.value : null,
-    facebook: fb.status === 'fulfilled' ? fb.value : null
+    messenger: messenger.status === 'fulfilled' ? messenger.value : null,
+    instagramComments: igComments.status === 'fulfilled' ? igComments.value : null,
+    facebookComments: fbComments.status === 'fulfilled' ? fbComments.value : null
   };
+}
+
+/**
+ * Subscribe Page to Webhook events on startup
+ */
+async function subscribePageWebhooks() {
+  try {
+    const pageToken = await getDerivedPageToken();
+    const pageId = META_PAGE_ID();
+    const graphVer = GRAPH_VERSION();
+
+    const url = `https://graph.facebook.com/${graphVer}/${pageId}/subscribed_apps`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        subscribed_fields: 'feed,messages,message_reactions,message_reads,message_deliveries,messaging_postbacks',
+        access_token: pageToken
+      })
+    });
+    const data = await res.json();
+    console.log('✅ [Meta Subscribed Apps] Auto-subscribed webhook fields:', data);
+    return data;
+  } catch (err) {
+    console.warn('[Meta Subscribed Apps] Auto-subscribe warning:', err.message);
+    return null;
+  }
 }
 
 module.exports = {
   ensureMetaSchema,
+  getDerivedPageToken,
   fetchMetaUserProfile,
   findOrCreateMetaConversation,
   persistMetaMessage,
   sendMetaMessage,
   persistMetaComment,
   replyToMetaComment,
+  toggleCommentLike,
+  toggleCommentVisibility,
+  backfillMessengerConversations,
+  backfillInstagramThreadForUser,
   syncInstagramComments,
   syncFacebookComments,
-  syncMetaComments,
+  syncMetaOmnichannel,
+  subscribePageWebhooks,
   META_PAGE_ID,
-  META_INSTAGRAM_ACCOUNT_ID
+  META_INSTAGRAM_ACCOUNT_ID,
+  GRAPH_VERSION
 };
-

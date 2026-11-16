@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('crypto');
 const db = require('./db');
 const {
   ensureMetaSchema,
@@ -7,15 +8,45 @@ const {
   fetchMetaUserProfile,
   persistMetaComment,
   replyToMetaComment,
+  toggleCommentLike,
+  toggleCommentVisibility,
   syncInstagramComments,
+  syncMetaOmnichannel,
+  subscribePageWebhooks,
+  getDerivedPageToken,
   META_PAGE_ID,
   META_INSTAGRAM_ACCOUNT_ID
 } = require('./meta');
 
 const router = express.Router();
 
+function redact(obj) {
+  if (!obj) return obj;
+  let str = typeof obj === 'string' ? obj : JSON.stringify(obj);
+  str = str.replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+  str = str.replace(/access_token=[^&"'\s]+/gi, 'access_token=EAA***');
+  return typeof obj === 'string' ? str : JSON.parse(str);
+}
+
+// Auto-subscribe webhook on boot
+subscribePageWebhooks().catch((err) => console.warn('[Meta Webhook Init] Auto-subscribe warning:', err.message));
+
+/**
+ * Diagnostic Endpoint (GET /api/meta/debug) - Admin only / protected
+ */
+router.get('/debug', async (req, res) => {
+  try {
+    const { runStep0 } = require('./step0-diagnose');
+    const results = await runStep0();
+    return res.status(200).json(results);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 const VERIFY_TOKEN = () =>
   process.env.META_WEBHOOK_VERIFY_TOKEN ||
+  process.env.META_VERIFY_TOKEN ||
   process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN ||
   'aura_meta_verify_token_2026';
 
@@ -40,194 +71,229 @@ router.get('/webhook', (req, res) => {
  * Inbound Webhook Event Handler (POST /api/meta/webhook)
  */
 router.post('/webhook', async (req, res) => {
-  // Acknowledge immediately to Meta to prevent retry storm
+  // 1. Immediately return 200 OK to Meta to avoid retry storms
   res.status(200).send('EVENT_RECEIVED');
 
-  try {
-    const body = req.body;
-    if (!body || !body.entry) return;
+  const body = req.body;
+  if (!body || !body.entry) return;
 
-    const pageId = META_PAGE_ID();
-    const igAccountId = META_INSTAGRAM_ACCOUNT_ID();
+  const pageId = META_PAGE_ID();
+  const igAccountId = META_INSTAGRAM_ACCOUNT_ID();
 
-    for (const entry of body.entry) {
-      const entryId = String(entry.id || '').trim();
+  // Async event logging & processing
+  (async () => {
+    try {
+      await ensureMetaSchema();
 
-      // ────────────────────────────────────────────────────────────────────────
-      // 1. MESSAGING EVENTS (Facebook Messenger & Instagram Direct)
-      // ────────────────────────────────────────────────────────────────────────
-      if (Array.isArray(entry.messaging)) {
-        for (const event of entry.messaging) {
-          const senderId = String(event.sender?.id || '').trim();
-          const recipientId = String(event.recipient?.id || '').trim();
+      // Log event to webhook_events table (redacted)
+      await db.query(
+        `INSERT INTO webhook_events (platform, event_type, payload) VALUES ($1, $2, $3::jsonb)`,
+        [
+          body.object || 'meta',
+          body.entry?.[0]?.messaging ? 'messaging' : (body.entry?.[0]?.changes ? 'changes' : 'other'),
+          JSON.stringify(redact(body))
+        ]
+      ).catch(() => {});
 
-          // Ignore echoes of our own outbound sends
-          if (senderId === pageId || senderId === igAccountId) {
-            continue;
-          }
+      for (const entry of body.entry) {
+        const entryId = String(entry.id || '').trim();
 
-          // Determine channel:
-          // If entryId or recipientId matches Instagram Account ID or object is instagram -> instagram
-          const isInstagram =
-            body.object === 'instagram' ||
-            entryId === igAccountId ||
-            recipientId === igAccountId;
+        // ────────────────────────────────────────────────────────────────────────
+        // HARD RULE 1: Filter strictly for our business
+        // Reject entries for any of the other 13 pages the token owner manages.
+        // ────────────────────────────────────────────────────────────────────────
+        const isTargetPage = entryId === pageId;
+        const isTargetIG = entryId === igAccountId;
+        if (!isTargetPage && !isTargetIG && body.object !== 'page' && body.object !== 'instagram') {
+          console.log(`[Meta Webhook] Ignoring entry from unrelated account: ${entryId}`);
+          continue;
+        }
 
-          const channel = isInstagram ? 'instagram' : 'facebook';
+        // ────────────────────────────────────────────────────────────────────────
+        // 1. MESSAGING EVENTS (Facebook Messenger & Instagram Direct)
+        // ────────────────────────────────────────────────────────────────────────
+        if (Array.isArray(entry.messaging)) {
+          for (const event of entry.messaging) {
+            const senderId = String(event.sender?.id || '').trim();
+            const recipientId = String(event.recipient?.id || '').trim();
 
-          // Handle incoming message text / media
-          if (event.message) {
-            const mid = event.message.mid;
-            const text = event.message.text || '';
-            const attachments = event.message.attachments || [];
-            let mediaUrl = null;
-            if (attachments.length > 0 && attachments[0].payload?.url) {
-              mediaUrl = attachments[0].payload.url;
+            const isInstagram =
+              body.object === 'instagram' ||
+              entryId === igAccountId ||
+              recipientId === igAccountId ||
+              senderId === igAccountId;
+
+            const channel = isInstagram ? 'instagram' : 'facebook';
+            const isEcho = Boolean(event.message?.is_echo || senderId === pageId || senderId === igAccountId);
+            const customerId = isEcho ? recipientId : senderId;
+
+            // Handle incoming message or outbound echo
+            if (event.message) {
+              const mid = event.message.mid;
+              const text = event.message.text || '';
+              const attachments = event.message.attachments || [];
+              const shares = event.message.shares || [];
+              const sharedPost = shares.length > 0 ? shares[0] : null;
+              let mediaUrl = null;
+              if (attachments.length > 0) {
+                mediaUrl = attachments[0].payload?.url || attachments[0].image_data?.url || attachments[0].video_data?.url || null;
+              }
+
+              console.log(`📩 [Meta Webhook] ${channel.toUpperCase()} message ${isEcho ? '(Echo Outbound)' : '(Inbound)'} customer ${customerId}: "${text || '[Media]'}"`);
+
+              // Try to match sender to an existing lead by phone if phone number appears in message
+              let matchedLeadId = null;
+              const phoneMatch = text.match(/(?:\+91|91|0)?[6-9]\d{9}/);
+              if (phoneMatch) {
+                const cleanDigits = phoneMatch[0].replace(/\D/g, '').slice(-10);
+                const leadCheck = await db.query(
+                  `SELECT id FROM leads WHERE RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 10) = $1 LIMIT 1`,
+                  [cleanDigits]
+                );
+                if (leadCheck.rows.length > 0) {
+                  matchedLeadId = leadCheck.rows[0].id;
+                }
+              }
+
+              // Find or create conversation for the customer
+              const conv = await findOrCreateMetaConversation({
+                channel,
+                senderId: customerId,
+                leadId: matchedLeadId,
+                windowExpiresAt: new Date(Date.now() + 24 * 3600 * 1000)
+              });
+
+              // Persist message
+              await persistMetaMessage({
+                conversationId: conv.id,
+                direction: isEcho ? 'outbound' : 'inbound',
+                channel,
+                content: text,
+                mediaUrl,
+                attachments,
+                sharedPost,
+                metaMessageId: mid,
+                status: isEcho ? 'sent' : 'delivered',
+                sentAt: event.timestamp ? new Date(event.timestamp) : new Date()
+              });
             }
 
-            console.log(`📩 [Meta Webhook] New ${channel.toUpperCase()} message from ${senderId}: "${text || '[Media]'}"`);
+            // Handle message reactions
+            if (event.reaction) {
+              const mid = event.reaction.mid;
+              const action = event.reaction.action;
+              const reactionName = event.reaction.reaction || '';
+              const emojiMap = {
+                love: '❤️',
+                like: '👍',
+                smile: '😄',
+                wow: '😮',
+                sad: '😢',
+                angry: '😡'
+              };
+              const emoji = event.reaction.emoji || emojiMap[reactionName] || reactionName;
 
-            // Try to match sender to an existing lead by phone if phone number appears in message
-            let matchedLeadId = null;
-            const phoneMatch = text.match(/(?:\+91|91|0)?[6-9]\d{9}/);
-            if (phoneMatch) {
-              const cleanDigits = phoneMatch[0].replace(/\D/g, '').slice(-10);
-              const leadCheck = await db.query(
-                `SELECT id FROM leads WHERE RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 10) = $1 LIMIT 1`,
-                [cleanDigits]
-              );
-              if (leadCheck.rows.length > 0) {
-                matchedLeadId = leadCheck.rows[0].id;
+              console.log(`❤️ [Meta Webhook] Reaction ${action} (${emoji}) on mid ${mid}`);
+              if (mid) {
+                await db.query(
+                  `UPDATE meta_messages
+                      SET reaction = $1,
+                          reaction_emoji = $2
+                    WHERE external_id = $3 OR meta_message_id = $3`,
+                  [action === 'unreact' ? null : reactionName, action === 'unreact' ? null : emoji, mid]
+                ).catch(() => {});
               }
             }
 
-            // Find or create conversation
-            const conv = await findOrCreateMetaConversation({
-              channel,
-              senderId,
-              leadId: matchedLeadId
-            });
-
-            // Persist message
-            await persistMetaMessage({
-              conversationId: conv.id,
-              direction: 'inbound',
-              channel,
-              content: text,
-              mediaUrl,
-              metaMessageId: mid,
-              status: 'delivered'
-            });
-          }
-
-          // Handle incoming reaction (emoji ❤️, 👍, 😂, etc.)
-          if (event.reaction) {
-            const mid = event.reaction.mid;
-            const action = event.reaction.action; // 'react' | 'unreact'
-            const reactionName = event.reaction.reaction || '';
-            const emojiMap = {
-              love: '❤️',
-              like: '👍',
-              smile: '😄',
-              wow: '😮',
-              sad: '😢',
-              angry: '😡'
-            };
-            const emoji = event.reaction.emoji || emojiMap[reactionName] || reactionName;
-
-            console.log(`❤️ [Meta Webhook] Reaction ${action} (${emoji}) on message ${mid} from ${senderId}`);
-
-            if (mid) {
+            // Handle read receipts
+            if (event.read) {
               await db.query(
-                `UPDATE meta_messages
-                    SET reaction = $1,
-                        reaction_emoji = $2
-                  WHERE meta_message_id = $3`,
-                [action === 'unreact' ? null : reactionName, action === 'unreact' ? null : emoji, mid]
-              ).catch(e => console.warn('[Meta Webhook] Reaction update warning:', e.message));
+                `UPDATE meta_messages m
+                    SET status = 'read'
+                   FROM meta_conversations c
+                  WHERE m.conversation_id = c.id
+                    AND c.channel = $1
+                    AND (c.external_id = $2 OR c.sender_id = $2)
+                    AND m.direction = 'outbound'
+                    AND m.status != 'read'`,
+                [channel, customerId]
+              ).catch(() => {});
             }
-          }
 
-          // Handle read receipt / seen status
-          if (event.read) {
-            console.log(`👁️ [Meta Webhook] Messages seen by ${senderId}`);
-            await db.query(
-              `UPDATE meta_messages m
-                  SET status = 'read'
-                 FROM meta_conversations c
-                WHERE m.conversation_id = c.id
-                  AND c.channel = $1
-                  AND c.sender_id = $2
-                  AND m.direction = 'outbound'
-                  AND m.status != 'read'`,
-              [channel, senderId]
-            ).catch(e => console.warn('[Meta Webhook] Read receipt update warning:', e.message));
+            // Handle delivery confirmations
+            if (event.delivery && Array.isArray(event.delivery.mids)) {
+              for (const mid of event.delivery.mids) {
+                await db.query(
+                  `UPDATE meta_messages SET status = 'delivered' WHERE (external_id = $1 OR meta_message_id = $1) AND status = 'sent'`,
+                  [mid]
+                ).catch(() => {});
+              }
+            }
           }
         }
-      }
 
-      // ────────────────────────────────────────────────────────────────────────
-      // 2. LEAD ADS & COMMENTS EVENTS (Instagram Comments & Facebook Post Comments)
-      // ────────────────────────────────────────────────────────────────────────
-      if (Array.isArray(entry.changes)) {
-        for (const change of entry.changes) {
-          // A. Instagram Comments
-          if (change.field === 'comments' || change.field === 'live_comments') {
-            const val = change.value || {};
-            const commentId = val.id || val.comment_id;
-            const text = val.text || val.message || '';
-            const from = val.from || {};
-            const media = val.media || {};
+        // ────────────────────────────────────────────────────────────────────────
+        // 2. COMMENTS & FEED EVENTS (Instagram & Facebook Post/Reel Comments)
+        // ────────────────────────────────────────────────────────────────────────
+        if (Array.isArray(entry.changes)) {
+          for (const change of entry.changes) {
+            // A. Instagram Comments
+            if (change.field === 'comments' || change.field === 'live_comments') {
+              const val = change.value || {};
+              const commentId = val.id || val.comment_id;
+              const text = val.text || val.message || '';
+              const from = val.from || {};
+              const media = val.media || {};
 
-            if (commentId && text) {
-              console.log(`💬 [Meta Webhook] New Instagram Comment from @${from.username || from.id || 'user'}: "${text}"`);
-              await persistMetaComment({
-                channel: 'instagram',
-                commentId: String(commentId),
-                postId: media.id || val.media_id || null,
-                senderId: from.id ? String(from.id) : null,
-                senderName: from.name || (from.username ? `@${from.username}` : 'Instagram User'),
-                senderUsername: from.username || null,
-                text
-              }).catch(e => console.error('[Meta Webhook] Comment save error:', e.message));
-            } else {
-              console.log('[Meta Webhook] Comment change received, triggering background sync');
-              syncInstagramComments().catch(() => {});
+              if (commentId && text) {
+                const username = from.username || null;
+                const authorName = username ? `@${username}` : (from.name || `@user_${String(commentId).slice(-4)}`);
+                console.log(`💬 [Meta Webhook] New Instagram Comment from ${authorName}: "${text}"`);
+                await persistMetaComment({
+                  channel: 'instagram',
+                  commentId: String(commentId),
+                  postId: media.id || val.media_id || null,
+                  senderId: from.id ? String(from.id) : null,
+                  senderName: authorName,
+                  senderUsername: username,
+                  text
+                }).catch(() => {});
+              } else {
+                syncInstagramComments().catch(() => {});
+              }
             }
-          }
 
-          // B. Facebook Page Post Comments
-          if (change.field === 'feed') {
-            const val = change.value || {};
-            const commentId = val.comment_id || val.id;
-            const text = val.message || val.text || '';
-            const senderName = val.sender_name || val.from?.name || 'Facebook User';
-            const senderId = val.sender_id || val.from?.id || null;
-            const postId = val.post_id || null;
+            // B. Facebook Feed Comments
+            if (change.field === 'feed') {
+              const val = change.value || {};
+              const commentId = val.comment_id || val.id;
+              const text = val.message || val.text || '';
+              const senderName = val.sender_name || val.from?.name || 'Facebook User';
+              const senderId = val.sender_id || val.from?.id || null;
+              const postId = val.post_id || null;
 
-            if (commentId && text && (val.item === 'comment' || !val.item)) {
-              console.log(`💬 [Meta Webhook] New Facebook Comment from ${senderName}: "${text}"`);
-              await persistMetaComment({
-                channel: 'facebook',
-                commentId: String(commentId),
-                postId: postId ? String(postId) : null,
-                senderId: senderId ? String(senderId) : null,
-                senderName,
-                text
-              }).catch(e => console.error('[Meta Webhook] FB Comment save error:', e.message));
+              if (commentId && text && (val.item === 'comment' || !val.item)) {
+                console.log(`💬 [Meta Webhook] New Facebook Comment from ${senderName}: "${text}"`);
+                await persistMetaComment({
+                  channel: 'facebook',
+                  commentId: String(commentId),
+                  postId: postId ? String(postId) : null,
+                  senderId: senderId ? String(senderId) : null,
+                  senderName,
+                  text
+                }).catch(() => {});
+              }
             }
-          }
 
-          // C. Lead Ads Form Submissions
-          if (change.field === 'leadgen' && change.value?.leadgen_id) {
-            const leadgenId = change.value.leadgen_id;
-            console.log(`🎯 [Meta Webhook] New Lead Ad submission received! Lead ID: ${leadgenId}`);
+            // C. Lead Ads Form Submissions
+            if (change.field === 'leadgen' && change.value?.leadgen_id) {
+              const leadgenId = change.value.leadgen_id;
+              console.log(`🎯 [Meta Webhook] New Lead Ad submission! Lead ID: ${leadgenId}`);
 
-            const pageToken = process.env.META_PAGE_ACCESS_TOKEN || process.env.WHATSAPP_ACCESS_TOKEN;
-            if (pageToken) {
               try {
+                const pageToken = await getDerivedPageToken();
                 const leadRes = await fetch(
-                  `https://graph.facebook.com/v19.0/${leadgenId}?access_token=${encodeURIComponent(pageToken)}`
+                  `https://graph.facebook.com/v20.0/${leadgenId}?access_token=${encodeURIComponent(pageToken)}`
                 );
                 if (leadRes.ok) {
                   const leadData = await leadRes.json();
@@ -251,22 +317,18 @@ router.post('/webhook', async (req, res) => {
                   const firstName = nameParts[0] || 'Meta';
                   const lastName = nameParts.slice(1).join(' ') || 'Lead';
 
-                  // Normalize phone number
                   let cleanPhone = phone.replace(/[^\d+]/g, '').trim();
                   if (cleanPhone.length === 10 && !cleanPhone.startsWith('+')) {
                     cleanPhone = '+91' + cleanPhone;
                   }
 
-                  // Check if lead already exists by phone
                   const phoneDigits = cleanPhone.replace(/\D/g, '').slice(-10);
                   const existingLead = phoneDigits ? await db.query(
                     `SELECT id, brand_audit_report FROM leads WHERE RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 10) = $1 LIMIT 1`,
                     [phoneDigits]
                   ) : { rows: [] };
 
-                  let leadId;
                   if (existingLead.rows.length > 0) {
-                    leadId = existingLead.rows[0].id;
                     await db.query(
                       `UPDATE leads
                           SET status = 'New',
@@ -275,19 +337,15 @@ router.post('/webhook', async (req, res) => {
                               brand_audit_report = $1,
                               updated_at = NOW()
                         WHERE id = $2`,
-                      [`[New Ad Inquiry: ${concern}] · ${existingLead.rows[0].brand_audit_report || ''}`.slice(0, 500), leadId]
+                      [`[New Ad Inquiry: ${concern}] · ${existingLead.rows[0].brand_audit_report || ''}`.slice(0, 500), existingLead.rows[0].id]
                     );
-                    console.log(`✅ [Meta Lead Ad] Updated existing Lead #${leadId} (${firstName} ${lastName}, ${cleanPhone})`);
                   } else {
-                    const inserted = await db.query(
+                    await db.query(
                       `INSERT INTO leads (
                          first_name, last_name, email, phone, whatsapp, source, status, pipeline_stage, industry, brand_audit_report, user_id, created_at
-                       ) VALUES ($1, $2, $3, $4, $5, 'Meta Lead Ad', 'New', 'Lead In', $6, $7, 1, NOW())
-                       RETURNING id`,
+                       ) VALUES ($1, $2, $3, $4, $5, 'Meta Lead Ad', 'New', 'Lead In', $6, $7, 1, NOW())`,
                       [firstName, lastName, email, cleanPhone, cleanPhone, concern, `Imported via Meta Lead Ad (Form: ${change.value.form_id || 'Instant Form'})`]
                     );
-                    leadId = inserted.rows[0]?.id;
-                    console.log(`✅ [Meta Lead Ad] Successfully inserted new Lead #${leadId} (${firstName} ${lastName}, ${cleanPhone})`);
                   }
                 }
               } catch (leadErr) {
@@ -297,10 +355,10 @@ router.post('/webhook', async (req, res) => {
           }
         }
       }
+    } catch (asyncErr) {
+      console.error('❌ [Meta Webhook] Async processing error:', asyncErr.message);
     }
-  } catch (err) {
-    console.error('❌ [Meta Webhook] Error processing event:', err.message);
-  }
+  })();
 });
 
 /**
@@ -309,7 +367,7 @@ router.post('/webhook', async (req, res) => {
 router.get('/comments', async (req, res) => {
   try {
     await ensureMetaSchema();
-    const limit = Number(req.query.limit) || 50;
+    const limit = Number(req.query.limit) || 100;
     const channel = req.query.channel;
     let query = 'SELECT * FROM meta_comments';
     const params = [];
@@ -332,7 +390,7 @@ router.get('/comments', async (req, res) => {
  */
 router.post('/comments/sync', async (req, res) => {
   try {
-    const result = await syncInstagramComments();
+    const result = await syncMetaOmnichannel();
     res.json({ success: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -361,5 +419,32 @@ router.post('/comments/reply', async (req, res) => {
   }
 });
 
-module.exports = router;
+/**
+ * POST /api/meta/comments/like - like a comment
+ */
+router.post('/comments/like', async (req, res) => {
+  try {
+    const { commentId, channel } = req.body || {};
+    if (!commentId) return res.status(400).json({ error: 'commentId is required' });
+    const result = await toggleCommentLike({ channel, commentId });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
+/**
+ * POST /api/meta/comments/visibility - hide or unhide a comment
+ */
+router.post('/comments/visibility', async (req, res) => {
+  try {
+    const { commentId, hidden } = req.body || {};
+    if (!commentId) return res.status(400).json({ error: 'commentId is required' });
+    const result = await toggleCommentVisibility({ commentId, hidden: Boolean(hidden) });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+module.exports = router;

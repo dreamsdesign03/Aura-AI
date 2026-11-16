@@ -4,7 +4,8 @@ import { Link } from 'wouter';
 import {
   MessageSquare, PhoneCall, StickyNote, RefreshCw, Search, ChevronRight,
   Mail, Phone, Clock, Send, ExternalLink, Check, CheckCheck,
-  User, ArrowUpRight, Sparkles, Filter, X, MessageSquareQuote, Heart
+  User, ArrowUpRight, Sparkles, Filter, X, MessageSquareQuote, Heart,
+  Eye, EyeOff, ThumbsUp, Tag, Star, AlertTriangle, Trash2
 } from 'lucide-react';
 import { clinicApi, datetimeLabel, dateLabel, timeLabel, cleanEnglishName } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
@@ -155,8 +156,26 @@ function ThreadRow({ thread, isSelected, onClick }) {
       <div style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
         <div className="co-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 4, alignItems: 'center' }}>
           <span className="co-strong" style={{ fontSize: 13.5, color: '#111827' }}>
-            {thread.name}
+            {thread.name && thread.name !== 'Instagram User'
+              ? thread.name
+              : (thread.senderUsername ? `@${thread.senderUsername}` : (thread.channel === 'instagram' || thread.type === 'instagram' ? '@insta_patient' : 'Patient'))}
           </span>
+          {Array.isArray(thread.labels) && thread.labels.map((lbl) => (
+            <span
+              key={lbl}
+              style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: '#A4285E',
+                background: '#FDF2F8',
+                border: '1px solid #FBCFE8',
+                padding: '1px 6px',
+                borderRadius: 4,
+              }}
+            >
+              {lbl}
+            </span>
+          ))}
           <span
             className={`co-chip ${isComment ? (thread.channel === 'facebook' ? 'co-c-m' : 'co-c-p') : config.chip}`}
             style={{ fontSize: 10, padding: '1px 6px' }}
@@ -293,6 +312,35 @@ function ThreadDrawer({ thread, onClose }) {
   const [selectedTemplate, setSelectedTemplate] = useState('auraai_leads');
   const [emailSubject, setEmailSubject] = useState(thread.subject ? `Re: ${thread.subject.replace(/^Re:\s*/i, '')}` : 'Re: Consultation & Treatment');
   const [sendingStatus, setSendingStatus] = useState(null);
+  const [commentLiked, setCommentLiked] = useState(false);
+  const [commentHidden, setCommentHidden] = useState(false);
+
+  const handleToggleLike = async () => {
+    try {
+      const cId = thread.commentId || detail?.comment?.comment_id;
+      if (!cId) return;
+      await fetch('/api/meta/comments/like', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentId: cId, channel: thread.channel || 'instagram' })
+      });
+      setCommentLiked((prev) => !prev);
+    } catch {}
+  };
+
+  const handleToggleHide = async () => {
+    try {
+      const cId = thread.commentId || detail?.comment?.comment_id;
+      if (!cId) return;
+      const nextHidden = !commentHidden;
+      await fetch('/api/meta/comments/visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ commentId: cId, hidden: nextHidden })
+      });
+      setCommentHidden(nextHidden);
+    } catch {}
+  };
 
   const { data: detail, isLoading, refetch } = useQuery({
     queryKey: ['clinic', 'inbox', 'thread', thread.type, thread.id, thread.leadId, thread.phone],
@@ -747,6 +795,76 @@ function ThreadDrawer({ thread, onClose }) {
                     })
                   )}
                 </div>
+
+                {/* Meta Business Suite Profile & Details Card */}
+                <div
+                  style={{
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 8,
+                    padding: '10px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    marginTop: 8,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div
+                        style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: 999,
+                          background: thread.type === 'instagram' ? '#FDF2F8' : '#EFF6FF',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: thread.type === 'instagram' ? '#E1306C' : '#1877F2',
+                          fontWeight: 700,
+                          fontSize: 12,
+                        }}
+                      >
+                        {thread.name?.charAt(0) || 'U'}
+                      </div>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: '#1E293B' }}>{thread.name}</div>
+                        <div style={{ fontSize: 11, color: '#64748B' }}>
+                          {thread.senderUsername ? `@${thread.senderUsername}` : (thread.type === 'instagram' ? 'Instagram Direct' : 'Facebook Messenger')}
+                        </div>
+                      </div>
+                    </div>
+                    {thread.senderUsername && (
+                      <a
+                        href={thread.type === 'instagram' ? `https://instagram.com/${thread.senderUsername}` : `https://facebook.com/${thread.senderId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="co-btn co-btn-sm"
+                        style={{ fontSize: 11, padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <ExternalLink size={10} /> View profile
+                      </a>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', paddingTop: 4, borderTop: '1px solid #F1F5F9' }}>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#475569' }}>Labels:</span>
+                    {Array.isArray(thread.labels) && thread.labels.length > 0 ? (
+                      thread.labels.map((lbl) => (
+                        <span key={lbl} style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#EFF6FF', color: '#1D4ED8', border: '1px solid #BFDBFE', fontWeight: 600 }}>
+                          {lbl}
+                        </span>
+                      ))
+                    ) : (
+                      <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 4, background: '#FDF2F8', color: '#BE185D', border: '1px solid #FBCFE8', fontWeight: 600 }}>
+                        Priority
+                      </span>
+                    )}
+                    <span style={{ marginLeft: 'auto', fontSize: 10.5, color: '#10B981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                      <Check size={11} /> Meta 24h Window Active
+                    </span>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -845,6 +963,45 @@ function ThreadDrawer({ thread, onClose }) {
                       </div>
                     </div>
                   )}
+
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="co-btn co-btn-sm"
+                      onClick={handleToggleLike}
+                      style={{
+                        fontSize: 11,
+                        padding: '3px 10px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        background: commentLiked ? '#FCE7F3' : '#FFFFFF',
+                        color: commentLiked ? '#BE185D' : '#475569',
+                        borderColor: commentLiked ? '#FBCFE8' : '#E2E8F0',
+                      }}
+                    >
+                      <Heart size={12} fill={commentLiked ? '#BE185D' : 'none'} color={commentLiked ? '#BE185D' : 'currentColor'} />
+                      <span>{commentLiked ? 'Liked on Page' : 'Like'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="co-btn co-btn-sm"
+                      onClick={handleToggleHide}
+                      style={{
+                        fontSize: 11,
+                        padding: '3px 10px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        background: commentHidden ? '#FEF2F2' : '#FFFFFF',
+                        color: commentHidden ? '#DC2626' : '#475569',
+                        borderColor: commentHidden ? '#FECACA' : '#E2E8F0',
+                      }}
+                    >
+                      {commentHidden ? <Eye size={12} /> : <EyeOff size={12} />}
+                      <span>{commentHidden ? 'Hidden from Page' : 'Hide'}</span>
+                    </button>
+                  </div>
 
                   <div style={{ fontSize: 10.5, color: '#64748B', marginTop: 8 }}>
                     Commented on {datetimeLabel(detail?.comment?.created_at || thread.lastAt)}
