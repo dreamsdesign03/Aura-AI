@@ -361,7 +361,8 @@ async function persistMetaMessage({
   reactions = [],
   status = 'sent',
   errorMessage = null,
-  sentAt = new Date()
+  sentAt = new Date(),
+  countUnread = true
 }) {
   await ensureMetaSchema();
   const extId = metaMessageId ? String(metaMessageId).trim() : null;
@@ -459,7 +460,7 @@ async function persistMetaMessage({
             END,
             updated_at = NOW()
       WHERE id = $4`,
-    [snippet, sentAtDate, direction, conversationId, wasNewlyInserted]
+    [snippet, sentAtDate, direction, conversationId, Boolean(wasNewlyInserted && countUnread)]
   );
 
   return msgRow;
@@ -767,9 +768,18 @@ async function backfillMessengerConversations(limit = 100) {
             sharedPost,
             metaMessageId: msg.id,
             status: 'delivered',
-            sentAt: msg.created_time ? new Date(msg.created_time) : new Date()
+            sentAt: msg.created_time ? new Date(msg.created_time) : new Date(),
+            countUnread: false
           });
           syncedMessages++;
+        }
+
+        // Set unread_count accurately from Graph's conversation.unread_count
+        if (typeof conv.unread_count === 'number') {
+          await db.query(
+            'UPDATE meta_conversations SET unread_count = $1 WHERE id = $2',
+            [Math.max(0, conv.unread_count), convRecord.id]
+          );
         }
         syncedConversations++;
         if (syncedConversations >= limit) break;
@@ -841,8 +851,16 @@ async function backfillInstagramThreadForUser(igsid) {
         sharedPost,
         metaMessageId: msg.id,
         status: 'delivered',
-        sentAt: msg.created_time ? new Date(msg.created_time) : new Date()
+        sentAt: msg.created_time ? new Date(msg.created_time) : new Date(),
+        countUnread: false
       });
+    }
+
+    if (typeof conv.unread_count === 'number') {
+      await db.query(
+        'UPDATE meta_conversations SET unread_count = $1 WHERE id = $2',
+        [Math.max(0, conv.unread_count), convRecord.id]
+      );
     }
 
     return convRecord;

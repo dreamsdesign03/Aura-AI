@@ -358,7 +358,8 @@ router.post('/webhook', async (req, res) => {
                 sharedPost,
                 metaMessageId: mid,
                 status: isEcho ? 'sent' : 'delivered',
-                sentAt: sentAtDate
+                sentAt: sentAtDate,
+                countUnread: !isEcho
               });
 
               // ────────────────────────────────────────────────────────────────────────
@@ -419,7 +420,8 @@ router.post('/webhook', async (req, res) => {
                             sharedPost: mSharedPost,
                             metaMessageId: mId,
                             status: 'delivered',
-                            sentAt: msgItem.created_time ? new Date(msgItem.created_time) : new Date()
+                            sentAt: msgItem.created_time ? new Date(msgItem.created_time) : new Date(),
+                            countUnread: false
                           });
                         }
                       }
