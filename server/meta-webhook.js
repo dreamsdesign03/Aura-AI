@@ -137,13 +137,32 @@ router.post('/webhook', async (req, res) => {
               const text = event.message.text || '';
               const attachments = event.message.attachments || [];
               const shares = event.message.shares || [];
-              const sharedPost = shares.length > 0 ? shares[0] : null;
+              const storyMention = event.message.story_mention || null;
+              const sharedPost = shares.length > 0 ? shares[0] : (storyMention ? { type: 'story_mention', ...storyMention } : null);
+
+              // Support attachments of type image, video, audio, ig_reel, share, ig_post, story_mention
               let mediaUrl = null;
               if (attachments.length > 0) {
-                mediaUrl = attachments[0].payload?.url || attachments[0].image_data?.url || attachments[0].video_data?.url || null;
+                const att = attachments[0];
+                mediaUrl = att.payload?.url || att.image_data?.url || att.video_data?.url || att.audio_data?.url || att.file_url || null;
               }
 
-              console.log(`📩 [Meta Webhook] ${channel.toUpperCase()} message ${isEcho ? '(Echo Outbound)' : '(Inbound)'} customer ${customerId}: "${text || '[Media]'}"`);
+              // Save message even if text is empty (use explicit media badge as preview)
+              let displayContent = text;
+              if (!displayContent) {
+                if (attachments.length > 0) {
+                  const attType = attachments[0].type || 'attachment';
+                  displayContent = `[${attType}]`;
+                } else if (sharedPost) {
+                  displayContent = `[${sharedPost.type || 'share'}]`;
+                } else if (storyMention) {
+                  displayContent = '[story_mention]';
+                } else {
+                  displayContent = '[Attachment]';
+                }
+              }
+
+              console.log(`📩 [Meta Webhook] ${channel.toUpperCase()} message ${isEcho ? '(Echo Outbound)' : '(Inbound)'} customer ${customerId}: "${displayContent}"`);
 
               // Try to match sender to an existing lead by phone if phone number appears in message
               let matchedLeadId = null;
@@ -167,12 +186,12 @@ router.post('/webhook', async (req, res) => {
                 windowExpiresAt: new Date(Date.now() + 24 * 3600 * 1000)
               });
 
-              // Persist message
+              // Persist message with attachments and real Meta message ID
               await persistMetaMessage({
                 conversationId: conv.id,
                 direction: isEcho ? 'outbound' : 'inbound',
                 channel,
-                content: text,
+                content: displayContent,
                 mediaUrl,
                 attachments,
                 sharedPost,
@@ -180,6 +199,56 @@ router.post('/webhook', async (req, res) => {
                 status: isEcho ? 'sent' : 'delivered',
                 sentAt: event.timestamp ? new Date(event.timestamp) : new Date()
               });
+
+              // ────────────────────────────────────────────────────────────────────────
+              // When a real IG DM arrives: query Graph API for this specific IGSID thread
+              // ────────────────────────────────────────────────────────────────────────
+              if (channel === 'instagram' && !isEcho && customerId) {
+                try {
+                  const pageToken = await getDerivedPageToken();
+                  const graphVer = process.env.META_GRAPH_VERSION || 'v26.0';
+                  const threadUrl = `https://graph.facebook.com/${graphVer}/${pageId}/conversations?platform=instagram&user_id=${encodeURIComponent(customerId)}&fields=id,updated_time,messages.limit(25){id,message,from,to,created_time,attachments,shares}&access_token=${encodeURIComponent(pageToken)}`;
+                  console.log(`[Meta Webhook] Fetching Graph conversation for IGSID ${customerId}...`);
+                  const tRes = await fetch(threadUrl);
+                  const tData = await tRes.json();
+                  const sanitizedTData = JSON.stringify(tData).replace(/EAA[A-Za-z0-9]+/g, 'EAA***');
+                  console.log(`[Meta Webhook] Graph conversation response for IGSID ${customerId} (HTTP ${tRes.status}):`, sanitizedTData);
+
+                  // If Graph returns messages for this customer's thread, backfill them
+                  if (tRes.ok && Array.isArray(tData.data)) {
+                    for (const convItem of tData.data) {
+                      if (convItem.messages?.data?.length > 0) {
+                        for (const msgItem of convItem.messages.data) {
+                          const mId = msgItem.id;
+                          const mText = msgItem.message || '';
+                          const mFromId = msgItem.from?.id;
+                          const mDirection = mFromId === customerId ? 'inbound' : 'outbound';
+                          const mAtts = msgItem.attachments?.data || [];
+                          const mShares = msgItem.shares?.data || [];
+                          let mMedia = null;
+                          if (mAtts.length > 0) {
+                            mMedia = mAtts[0].image_data?.url || mAtts[0].video_data?.url || mAtts[0].file_url || null;
+                          }
+                          await persistMetaMessage({
+                            conversationId: conv.id,
+                            direction: mDirection,
+                            channel: 'instagram',
+                            content: mText || (mAtts.length > 0 ? `[${mAtts[0].type || 'attachment'}]` : ''),
+                            mediaUrl: mMedia,
+                            attachments: mAtts,
+                            sharedPost: mShares.length > 0 ? mShares[0] : null,
+                            metaMessageId: mId,
+                            status: 'delivered',
+                            sentAt: msgItem.created_time ? new Date(msgItem.created_time) : new Date()
+                          });
+                        }
+                      }
+                    }
+                  }
+                } catch (err) {
+                  console.warn(`[Meta Webhook] Graph backfill warning for IGSID ${customerId}:`, err.message);
+                }
+              }
             }
 
             // Handle message reactions

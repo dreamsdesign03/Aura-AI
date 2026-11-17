@@ -1770,6 +1770,30 @@ export default function ClinicInbox() {
           </div>
         </div>
 
+        {/* Instagram DM API Access Notice */}
+        {activeChannel === 'instagram' && (
+          <div
+            style={{
+              margin: '14px 16px 4px',
+              padding: '12px 14px',
+              background: '#FFFBEB',
+              border: '1px solid #FDE68A',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              color: '#92400E',
+              fontSize: 12.5,
+              lineHeight: 1.4,
+            }}
+          >
+            <AlertTriangle size={16} style={{ color: '#D97706', flexShrink: 0 }} />
+            <span>
+              Old Instagram DM history needs Advanced Access for <code>instagram_manage_messages</code>. New messages appear live once received.
+            </span>
+          </div>
+        )}
+
         {/* Thread List */}
         {isLoading ? (
           <div style={{ padding: '60px 0' }}>
