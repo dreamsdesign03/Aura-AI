@@ -863,7 +863,9 @@ async function syncInstagramComments() {
                        media_url = COALESCE(EXCLUDED.media_url, meta_media.media_url),
                        updated_at = NOW()`,
         [postId, post.caption || '', post.media_type, post.media_product_type, postUrl, post.media_url, mediaThumb, likeCount, commentsCount, post.timestamp ? new Date(post.timestamp) : new Date()]
-      ).catch(() => {});
+      ).catch((err) => {
+        console.error('[Meta Media Upsert IG] Error:', redact(err?.message || String(err)));
+      });
 
       const commentsList = post.comments?.data || [];
       for (const c of commentsList) {
@@ -941,13 +943,15 @@ async function syncFacebookComments() {
                        thumbnail_url = COALESCE(EXCLUDED.thumbnail_url, meta_media.thumbnail_url),
                        updated_at = NOW()`,
         [postId, post.message || '', postUrl, picture, commentsSummary, post.created_time ? new Date(post.created_time) : new Date()]
-      ).catch(() => {});
+      ).catch((err) => {
+        console.error('[Meta Media Upsert FB] Error:', redact(err?.message || String(err)));
+      });
 
       const commentsList = post.comments?.data || [];
       for (const c of commentsList) {
         if (!c.id || !c.message) continue;
         const createdAt = c.created_time ? new Date(c.created_time) : new Date();
-        const senderName = c.from?.name || 'Facebook User';
+        const senderName = c.from?.name || null;
 
         await persistMetaComment({
           channel: 'facebook',

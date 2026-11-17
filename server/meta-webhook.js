@@ -151,26 +151,33 @@ router.post('/webhook', async (req, res) => {
     return res.status(401).json({ error: 'Missing or malformed X-Hub-Signature-256 header' });
   }
 
-  if (appSecret) {
-    const expectedSig = sigHeader.replace(/^sha256=/, '').trim();
-    const rawBuf = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
-    const computedHmac = crypto.createHmac('sha256', appSecret).update(rawBuf).digest('hex');
+  if (!appSecret) {
+    console.error('[Meta Webhook Security] META_APP_SECRET not configured');
+    await db.query(
+      "INSERT INTO webhook_events (platform, event_type, payload, error) VALUES ('meta', 'configuration_error', $1::jsonb, 'META_APP_SECRET not configured')",
+      [JSON.stringify(redact(req.body || {}))]
+    ).catch(e => console.error('[Meta Webhook] Secret failure log error:', e.message));
+    return res.status(500).json({ error: 'META_APP_SECRET not configured' });
+  }
 
-    let isValid = false;
-    try {
-      isValid = crypto.timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(computedHmac, 'hex'));
-    } catch {
-      isValid = false;
-    }
+  const expectedSig = sigHeader.replace(/^sha256=/, '').trim();
+  const rawBuf = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+  const computedHmac = crypto.createHmac('sha256', appSecret).update(rawBuf).digest('hex');
 
-    if (!isValid) {
-      console.warn('[Meta Webhook Security] Invalid HMAC signature detected');
-      await db.query(
-        "INSERT INTO webhook_events (platform, event_type, payload, error) VALUES ('meta', 'unauthorized', $1::jsonb, 'Invalid X-Hub-Signature-256 HMAC')",
-        [JSON.stringify(redact(req.body || {}))]
-      ).catch(e => console.error('[Meta Webhook] Signature failure log error:', e.message));
-      return res.status(401).json({ error: 'Invalid HMAC signature' });
-    }
+  let isValid = false;
+  try {
+    isValid = crypto.timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(computedHmac, 'hex'));
+  } catch {
+    isValid = false;
+  }
+
+  if (!isValid) {
+    console.warn('[Meta Webhook Security] Invalid HMAC signature detected');
+    await db.query(
+      "INSERT INTO webhook_events (platform, event_type, payload, error) VALUES ('meta', 'unauthorized', $1::jsonb, 'Invalid X-Hub-Signature-256 HMAC')",
+      [JSON.stringify(redact(req.body || {}))]
+    ).catch(e => console.error('[Meta Webhook] Signature failure log error:', e.message));
+    return res.status(401).json({ error: 'Invalid HMAC signature' });
   }
 
   // 1. Immediately return 200 OK to Meta after valid signature verification
