@@ -235,6 +235,18 @@ async function ensureMetaSchema(force = false) {
       CREATE INDEX IF NOT EXISTS idx_webhook_events_created ON webhook_events(created_at DESC);
     `);
 
+    try {
+      await db.query(`CREATE UNIQUE INDEX IF NOT EXISTS uq_meta_channel_sender_idx ON meta_conversations(channel, sender_id);`);
+    } catch (idxErr) {
+      console.error('[ensureMetaSchema] uq_meta_channel_sender_idx error:', redact(idxErr?.message || String(idxErr)));
+    }
+
+    try {
+      await db.query(`ALTER TABLE webhook_events ADD COLUMN IF NOT EXISTS error TEXT;`);
+    } catch (colErr) {
+      console.error('[ensureMetaSchema] webhook_events.error column error:', redact(colErr?.message || String(colErr)));
+    }
+
     schemaEnsured = true;
     console.log('✅ [Meta Omnichannel] DB schema verified with strict external_id uniqueness');
   } catch (err) {
@@ -694,68 +706,87 @@ async function toggleCommentVisibility({ commentId, hidden = true }) {
 /**
  * Backfill Messenger Conversations (Page ID: 267592620109700)
  */
-async function backfillMessengerConversations(limit = 25) {
+async function backfillMessengerConversations(limit = 100) {
   try {
     const pageToken = await getDerivedPageToken();
     const pageId = META_PAGE_ID();
     const graphVer = GRAPH_VERSION();
 
-    const url = `https://graph.facebook.com/${graphVer}/${pageId}/conversations?fields=id,updated_time,unread_count,participants,messages.limit(20){id,message,created_time,from,to,attachments,shares}&limit=${limit}&access_token=${encodeURIComponent(pageToken)}`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (data.error) {
-      console.warn('[Messenger Backfill] API warning:', data.error.message);
-      return { count: 0, error: data.error.message };
-    }
-
     let syncedConversations = 0;
     let syncedMessages = 0;
+    let afterCursor = null;
+    let hasMore = true;
 
-    for (const conv of (data.data || [])) {
-      const participants = conv.participants?.data || [];
-      const patient = participants.find((p) => String(p.id) !== pageId) || participants[0];
-      if (!patient) continue;
-
-      const convRecord = await findOrCreateMetaConversation({
-        channel: 'facebook',
-        senderId: patient.id,
-        senderName: patient.name || `Facebook User`,
-        senderAvatar: null
-      });
-
-      const messagesList = conv.messages?.data || [];
-      for (const msg of messagesList) {
-        if (!msg.id) continue;
-        const isFromPage = String(msg.from?.id) === pageId;
-        const direction = isFromPage ? 'outbound' : 'inbound';
-        const attachments = msg.attachments?.data || [];
-        const shares = msg.shares?.data || [];
-        const sharedPost = shares.length > 0 ? shares[0] : null;
-        const mediaUrl = attachments.length > 0 ? (attachments[0].image_data?.url || attachments[0].video_data?.url || attachments[0].file_url) : null;
-
-        await persistMetaMessage({
-          conversationId: convRecord.id,
-          direction,
-          channel: 'facebook',
-          content: msg.message || '',
-          mediaUrl,
-          attachments,
-          sharedPost,
-          metaMessageId: msg.id,
-          status: 'delivered',
-          sentAt: msg.created_time ? new Date(msg.created_time) : new Date()
-        });
-        syncedMessages++;
+    while (hasMore && syncedConversations < limit) {
+      const pageSize = Math.min(25, limit - syncedConversations);
+      let url = `https://graph.facebook.com/${graphVer}/${pageId}/conversations?fields=id,updated_time,unread_count,participants,messages.limit(20){id,message,created_time,from,to,attachments,shares}&limit=${pageSize}&access_token=${encodeURIComponent(pageToken)}`;
+      if (afterCursor) {
+        url += `&after=${encodeURIComponent(afterCursor)}`;
       }
-      syncedConversations++;
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.error) {
+        console.warn('[Messenger Backfill] API warning:', redact(data.error.message));
+        return { syncedConversations, syncedMessages, error: redact(data.error.message) };
+      }
+
+      const convList = data.data || [];
+      if (convList.length === 0) break;
+
+      for (const conv of convList) {
+        const participants = conv.participants?.data || [];
+        const patient = participants.find((p) => String(p.id) !== pageId) || participants[0];
+        if (!patient) continue;
+
+        const convRecord = await findOrCreateMetaConversation({
+          channel: 'facebook',
+          senderId: patient.id,
+          senderName: patient.name || null,
+          senderAvatar: null
+        });
+
+        const messagesList = conv.messages?.data || [];
+        for (const msg of messagesList) {
+          if (!msg.id) continue;
+          const isFromPage = String(msg.from?.id) === pageId;
+          const direction = isFromPage ? 'outbound' : 'inbound';
+          const attachments = msg.attachments?.data || [];
+          const shares = msg.shares?.data || [];
+          const sharedPost = shares.length > 0 ? shares[0] : null;
+          const mediaUrl = attachments.length > 0 ? (attachments[0].image_data?.url || attachments[0].video_data?.url || attachments[0].file_url) : null;
+
+          await persistMetaMessage({
+            conversationId: convRecord.id,
+            direction,
+            channel: 'facebook',
+            content: msg.message || '',
+            mediaUrl,
+            attachments,
+            sharedPost,
+            metaMessageId: msg.id,
+            status: 'delivered',
+            sentAt: msg.created_time ? new Date(msg.created_time) : new Date()
+          });
+          syncedMessages++;
+        }
+        syncedConversations++;
+        if (syncedConversations >= limit) break;
+      }
+
+      if (data.paging?.cursors?.after && data.paging?.next) {
+        afterCursor = data.paging.cursors.after;
+      } else {
+        hasMore = false;
+      }
     }
 
     console.log(`✅ [Messenger Backfill] Synced ${syncedConversations} conversations and ${syncedMessages} messages`);
     return { syncedConversations, syncedMessages };
   } catch (err) {
-    console.error('[Messenger Backfill] Error:', err.message);
-    return { count: 0, error: err.message };
+    console.error('[Messenger Backfill] Error:', redact(err.message));
+    return { syncedConversations: 0, syncedMessages: 0, error: redact(err.message) };
   }
 }
 
@@ -984,15 +1015,15 @@ async function syncFacebookComments() {
  */
 async function syncMetaOmnichannel() {
   const [messenger, igComments, fbComments] = await Promise.allSettled([
-    backfillMessengerConversations(25),
+    backfillMessengerConversations(100),
     syncInstagramComments(),
     syncFacebookComments()
   ]);
 
   return {
-    messenger: messenger.status === 'fulfilled' ? messenger.value : null,
-    instagramComments: igComments.status === 'fulfilled' ? igComments.value : null,
-    facebookComments: fbComments.status === 'fulfilled' ? fbComments.value : null
+    messenger: messenger.status === 'fulfilled' ? messenger.value : { syncedConversations: 0, syncedMessages: 0, error: redact(messenger.reason?.message || String(messenger.reason)) },
+    instagramComments: igComments.status === 'fulfilled' ? igComments.value : { synced: 0, error: redact(igComments.reason?.message || String(igComments.reason)) },
+    facebookComments: fbComments.status === 'fulfilled' ? fbComments.value : { synced: 0, error: redact(fbComments.reason?.message || String(fbComments.reason)) }
   };
 }
 

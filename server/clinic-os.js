@@ -38,7 +38,7 @@ const {
   pickCallForAppointment,
 } = require('./appointment-call-match');
 const { normalizeRole, isAdminRole, canAccessClinicApi } = require('./permissions');
-const { sendMetaMessage, replyToMetaComment, syncInstagramComments, syncFacebookComments, syncMetaComments } = require('./meta');
+const { sendMetaMessage, replyToMetaComment, syncInstagramComments, syncFacebookComments, syncMetaOmnichannel } = require('./meta');
 
 const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
@@ -2726,44 +2726,82 @@ let lastCommentSyncTime = 0;
 
 router.get('/inbox/sync', requireUser, async (req, res) => {
   try {
-    const [waRes, commentRes] = await Promise.allSettled([
+    const [waRes, metaRes] = await Promise.allSettled([
       syncWhatsAppInbox({ force: true }),
-      syncMetaComments()
+      syncMetaOmnichannel()
     ]);
+
+    const wa = waRes.status === 'fulfilled' ? waRes.value : { error: waRes.reason?.message || String(waRes.reason) };
+    const meta = metaRes.status === 'fulfilled' ? metaRes.value : {
+      messenger: { syncedConversations: 0, syncedMessages: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      instagramComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      facebookComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) }
+    };
+
+    if (waRes.status === 'rejected') {
+      const redacted = String(waRes.reason?.message || waRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync WA] Error:', redacted);
+    }
+    if (metaRes.status === 'rejected') {
+      const redacted = String(metaRes.reason?.message || metaRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync Meta] Error:', redacted);
+    }
+
     res.json({
       ok: true,
-      whatsapp: waRes.status === 'fulfilled' ? waRes.value : null,
-      comments: commentRes.status === 'fulfilled' ? commentRes.value : null
+      whatsapp: wa,
+      meta
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const redacted = (err?.message || String(err)).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+    console.error('[Inbox Sync] Error:', redacted);
+    res.status(500).json({ error: redacted });
   }
 });
 
 router.post('/inbox/sync', requireUser, async (req, res) => {
   try {
-    const [waRes, commentRes] = await Promise.allSettled([
+    const [waRes, metaRes] = await Promise.allSettled([
       syncWhatsAppInbox({ force: true }),
-      syncMetaComments()
+      syncMetaOmnichannel()
     ]);
+
+    const wa = waRes.status === 'fulfilled' ? waRes.value : { error: waRes.reason?.message || String(waRes.reason) };
+    const meta = metaRes.status === 'fulfilled' ? metaRes.value : {
+      messenger: { syncedConversations: 0, syncedMessages: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      instagramComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      facebookComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) }
+    };
+
+    if (waRes.status === 'rejected') {
+      const redacted = String(waRes.reason?.message || waRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync WA] Error:', redacted);
+    }
+    if (metaRes.status === 'rejected') {
+      const redacted = String(metaRes.reason?.message || metaRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync Meta] Error:', redacted);
+    }
+
     res.json({
       ok: true,
-      whatsapp: waRes.status === 'fulfilled' ? waRes.value : null,
-      comments: commentRes.status === 'fulfilled' ? commentRes.value : null
+      whatsapp: wa,
+      meta
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    const redacted = (err?.message || String(err)).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+    console.error('[Inbox Sync] Error:', redacted);
+    res.status(500).json({ error: redacted });
   }
 });
 
 router.get('/inbox', requireUser, async (req, res) => {
   try {
     // Fire-and-forget recovery: pull anything dropped into the live inbox
-    syncWhatsAppInbox().catch(() => {});
+    syncWhatsAppInbox().catch((err) => console.error('[WA Background Sync] Error:', err?.message || String(err)));
     const now = Date.now();
     if (now - lastCommentSyncTime > 40_000) {
       lastCommentSyncTime = now;
-      syncMetaComments().catch(() => {});
+      syncMetaOmnichannel().catch((err) => console.error('[Meta Background Sync] Error:', (err?.message || String(err)).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***')));
     }
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;

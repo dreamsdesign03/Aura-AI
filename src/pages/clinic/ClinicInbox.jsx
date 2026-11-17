@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
+import { toast } from 'sonner';
 import {
   MessageSquare, PhoneCall, StickyNote, RefreshCw, Search, ChevronRight,
   Mail, Phone, Clock, Send, ExternalLink, Check, CheckCheck,
@@ -1664,12 +1665,77 @@ export default function ClinicInbox() {
     refetchIntervalInBackground: true,
   });
 
+  const [syncStatusBanner, setSyncStatusBanner] = useState(null);
+
   const syncMutation = useMutation({
     mutationFn: async () => {
-      await clinicApi.inboxSync();
-      await clinicApi.aiCallsSync();
+      const res = await clinicApi.inboxSync();
+      try {
+        await clinicApi.aiCallsSync();
+      } catch (e) {
+        console.warn('AI calls sync warning:', e.message);
+      }
+      return res;
     },
-    onSuccess: () => refetch(),
+    onSuccess: (res) => {
+      refetch();
+      const meta = res?.meta || {};
+      const msgResult = meta.messenger;
+      const igResult = meta.instagramComments;
+      const fbResult = meta.facebookComments;
+
+      const parts = [];
+      const errors = [];
+
+      if (msgResult) {
+        if (msgResult.error) {
+          errors.push(`Messenger: ${msgResult.error}`);
+        } else {
+          parts.push(`Messenger: ${msgResult.syncedConversations ?? 0} conversations, ${msgResult.syncedMessages ?? 0} messages`);
+        }
+      }
+      if (igResult) {
+        if (igResult.error) {
+          errors.push(`IG comments: ${igResult.error}`);
+        } else if (typeof igResult.synced === 'number') {
+          parts.push(`IG comments: ${igResult.synced}`);
+        }
+      }
+      if (fbResult) {
+        if (fbResult.error) {
+          errors.push(`FB comments: ${fbResult.error}`);
+        } else if (typeof fbResult.synced === 'number') {
+          parts.push(`FB comments: ${fbResult.synced}`);
+        }
+      }
+      if (res?.whatsapp?.error) {
+        errors.push(`WhatsApp: ${res.whatsapp.error}`);
+      }
+
+      const summary = parts.join(' · ') || 'Sync completed';
+      const errorMsg = errors.length > 0 ? errors.join(' | ') : null;
+
+      setSyncStatusBanner({
+        summary,
+        error: errorMsg,
+        timestamp: new Date()
+      });
+
+      if (errorMsg) {
+        toast.error(`Sync finished with issues: ${errorMsg}`);
+      } else {
+        toast.success(summary);
+      }
+    },
+    onError: (err) => {
+      const msg = err?.message || 'Sync failed';
+      setSyncStatusBanner({
+        summary: 'Sync failed',
+        error: msg,
+        timestamp: new Date()
+      });
+      toast.error(`Sync failed: ${msg}`);
+    }
   });
 
   const [activeChannel, setActiveChannel] = useState('all');
@@ -1850,7 +1916,7 @@ export default function ClinicInbox() {
         <button
           type="button"
           className="co-btn co-btn-sm"
-          onClick={() => { syncMutation.mutate(); refetch(); }}
+          onClick={() => syncMutation.mutate()}
           disabled={isFetching || syncMutation.isPending}
           style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
         >
@@ -1858,6 +1924,49 @@ export default function ClinicInbox() {
           <span>Sync & Refresh</span>
         </button>
       </PageHead>
+
+      {/* Sync result banner */}
+      {syncStatusBanner && (
+        <div
+          className="co-rise-1"
+          style={{
+            margin: '0 0 16px 0',
+            padding: '10px 14px',
+            borderRadius: 8,
+            fontSize: 13,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: syncStatusBanner.error ? '#FEF2F2' : '#F0FDF4',
+            border: `1px solid ${syncStatusBanner.error ? '#FECACA' : '#BBF7D0'}`,
+            color: syncStatusBanner.error ? '#991B1B' : '#166534',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {syncStatusBanner.error ? <AlertTriangle size={15} color="#DC2626" /> : <Check size={15} color="#16A34A" />}
+            <span style={{ fontWeight: 600 }}>{syncStatusBanner.summary}</span>
+            {syncStatusBanner.error && (
+              <span style={{ fontSize: 12, opacity: 0.9 }}>— {syncStatusBanner.error}</span>
+            )}
+            <span style={{ fontSize: 11, opacity: 0.7 }}>({timeLabel(syncStatusBanner.timestamp)})</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSyncStatusBanner(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: 'inherit',
+              padding: 2,
+              display: 'flex',
+              alignItems: 'center'
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {/* KPI Cards across Channels */}
       <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
