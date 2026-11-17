@@ -151,11 +151,40 @@ export { cleanEnglishName, cleanEnglishTreatment, transliterateIndic };
 export const fullName = (p) =>
   cleanEnglishName([p?.first_name, p?.last_name].filter(Boolean).join(' ').trim() || p?.patient_name || p?.name || 'Patient');
 
-export const timeLabel = (value) =>
-  new Date(value).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+export const timeLabel = (value) => {
+  if (!value) return '';
+  return new Date(value).toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Kolkata'
+  });
+};
 
-export const dateLabel = (value) =>
-  new Date(value).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+export const dateLabel = (value) => {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+    timeZone: 'Asia/Kolkata'
+  });
+};
 
-export const datetimeLabel = (value) =>
-  `${dateLabel(value)} · ${timeLabel(value)}`;
+export const datetimeLabel = (value) => {
+  if (!value) return '';
+  return `${dateLabel(value)} · ${timeLabel(value)}`;
+};
+
+/**
+ * Format timestamp matching Meta Business Suite (e.g. "Sat 08:48", "Sun 13:31", "Mon 11:36")
+ * in Asia/Kolkata timezone
+ */
+export const formatMetaTime = (value) => {
+  if (!value) return '';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const weekday = d.toLocaleDateString('en-US', { weekday: 'short', timeZone: 'Asia/Kolkata' });
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
+  return `${weekday} ${time}`;
+};

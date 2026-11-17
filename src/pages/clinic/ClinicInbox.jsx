@@ -7,7 +7,7 @@ import {
   User, ArrowUpRight, Sparkles, Filter, X, MessageSquareQuote, Heart,
   Eye, EyeOff, ThumbsUp, Tag, Star, AlertTriangle, Trash2
 } from 'lucide-react';
-import { clinicApi, datetimeLabel, dateLabel, timeLabel, cleanEnglishName } from '@/clinic/api';
+import { clinicApi, datetimeLabel, dateLabel, timeLabel, formatMetaTime, cleanEnglishName } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, Spinner, Drawer, EmptyState } from '@/clinic/ui';
 import { useBranch } from '@/contexts/BranchContext';
@@ -777,7 +777,7 @@ function ThreadDrawer({ thread, onClose }) {
                               gap: 3,
                             }}
                           >
-                            <span>{m.timestamp ? timeLabel(m.timestamp) : ''}</span>
+                            <span>{m.timestamp ? formatMetaTime(m.timestamp) : ''}</span>
                             {isOut && (
                               m.status === 'read' ? (
                                 <span style={{ color: '#2563EB', fontWeight: 600, fontSize: 9.5 }}>Seen</span>

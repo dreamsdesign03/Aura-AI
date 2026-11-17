@@ -101,11 +101,15 @@ router.post('/webhook', async (req, res) => {
         // ────────────────────────────────────────────────────────────────────────
         // HARD RULE 1: Filter strictly for our business
         // Reject entries for any of the other 13 pages the token owner manages.
+        // Accepts both META_PAGE_ID and META_IG_USER_ID (17841461905363722).
         // ────────────────────────────────────────────────────────────────────────
         const isTargetPage = entryId === pageId;
         const isTargetIG = entryId === igAccountId;
-        if (!isTargetPage && !isTargetIG && body.object !== 'page' && body.object !== 'instagram') {
-          console.log(`[Meta Webhook] Ignoring entry from unrelated account: ${entryId}`);
+        const isTarget = isTargetPage || isTargetIG;
+
+        if (!isTarget) {
+          const sanitizedEntry = JSON.stringify(entry).replace(/EAA[A-Za-z0-9]+/g, 'EAA***');
+          console.log(`[Meta Webhook] Rejecting entry from unrelated account: entryId=${entryId}, object=${body.object} (allowed: page=${pageId}, ig=${igAccountId}). Payload: ${sanitizedEntry.slice(0, 160)}`);
           continue;
         }
 

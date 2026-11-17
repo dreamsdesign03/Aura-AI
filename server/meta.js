@@ -509,7 +509,13 @@ async function persistMetaComment({
                    post_title = COALESCE(EXCLUDED.post_title, meta_comments.post_title),
                    media_type = COALESCE(EXCLUDED.media_type, meta_comments.media_type),
                    media_thumbnail = COALESCE(EXCLUDED.media_thumbnail, meta_comments.media_thumbnail),
-                   sender_name = COALESCE(NULLIF(EXCLUDED.sender_name, 'Instagram User'), meta_comments.sender_name, EXCLUDED.sender_name),
+                   sender_name = CASE
+                     WHEN EXCLUDED.sender_name IS NOT NULL AND EXCLUDED.sender_name NOT IN ('Instagram User', 'Facebook User')
+                     THEN EXCLUDED.sender_name
+                     WHEN meta_comments.sender_name IS NOT NULL AND meta_comments.sender_name NOT IN ('Instagram User', 'Facebook User')
+                     THEN meta_comments.sender_name
+                     ELSE COALESCE(EXCLUDED.sender_name, meta_comments.sender_name)
+                   END,
                    sender_username = COALESCE(EXCLUDED.sender_username, meta_comments.sender_username),
                    like_count = EXCLUDED.like_count,
                    replies = CASE WHEN jsonb_array_length(EXCLUDED.replies) > 0 THEN EXCLUDED.replies ELSE meta_comments.replies END,
@@ -919,16 +925,18 @@ async function syncMetaOmnichannel() {
 }
 
 /**
- * Subscribe Page to Webhook events on startup
+ * Subscribe Page & Instagram account to Webhook events on startup
  */
 async function subscribePageWebhooks() {
   try {
     const pageToken = await getDerivedPageToken();
     const pageId = META_PAGE_ID();
+    const igId = META_INSTAGRAM_ACCOUNT_ID() || process.env.META_IG_USER_ID || '17841461905363722';
     const graphVer = GRAPH_VERSION();
 
-    const url = `https://graph.facebook.com/${graphVer}/${pageId}/subscribed_apps`;
-    const res = await fetch(url, {
+    // 1. Subscribe Facebook Page
+    const pageUrl = `https://graph.facebook.com/${graphVer}/${pageId}/subscribed_apps`;
+    const resPage = await fetch(pageUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
@@ -936,9 +944,26 @@ async function subscribePageWebhooks() {
         access_token: pageToken
       })
     });
-    const data = await res.json();
-    console.log('✅ [Meta Subscribed Apps] Auto-subscribed webhook fields:', data);
-    return data;
+    const dataPage = await resPage.json();
+    console.log('✅ [Meta Subscribed Apps] Auto-subscribed Page webhook fields:', dataPage);
+
+    // 2. Subscribe Instagram Business Account
+    let dataIG = null;
+    if (igId) {
+      const igUrl = `https://graph.facebook.com/${graphVer}/${igId}/subscribed_apps`;
+      const resIG = await fetch(igUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          subscribed_fields: 'messages,comments,messaging_seen,message_reactions',
+          access_token: pageToken
+        })
+      });
+      dataIG = await resIG.json();
+      console.log('✅ [Meta Subscribed Apps] Auto-subscribed Instagram webhook fields:', dataIG);
+    }
+
+    return { page: dataPage, instagram: dataIG };
   } catch (err) {
     console.warn('[Meta Subscribed Apps] Auto-subscribe warning:', err.message);
     return null;
