@@ -5,7 +5,7 @@ import {
   MessageSquare, PhoneCall, StickyNote, RefreshCw, Search, ChevronRight,
   Mail, Phone, Clock, Send, ExternalLink, Check, CheckCheck,
   User, ArrowUpRight, Sparkles, Filter, X, MessageSquareQuote, Heart,
-  Eye, EyeOff, ThumbsUp, Tag, Star, AlertTriangle, Trash2
+  Eye, EyeOff, ThumbsUp, Tag, Star, AlertTriangle, Trash2, Paperclip
 } from 'lucide-react';
 import { clinicApi, datetimeLabel, dateLabel, timeLabel, formatMetaTime, cleanEnglishName } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
@@ -87,6 +87,195 @@ function renderTranscriptContent(rawTranscript) {
   return String(rawTranscript);
 }
 
+function formatThreadPreview(preview) {
+  if (!preview) return '';
+  const p = String(preview).trim();
+  if (p === '[ig_reel]' || p === '[reel]') return 'Shared a reel';
+  if (p === '[ig_post]' || p === '[share]') return 'Shared a post';
+  if (p === '[story_mention]') return 'Mentioned in a story';
+  if (p === '[image]') return 'Sent an image';
+  if (p === '[video]') return 'Sent a video';
+  if (p === '[audio]') return 'Sent a voice message';
+  if (p.startsWith('[') && p.endsWith(']')) return 'Sent an attachment';
+  return p;
+}
+
+function MediaBubbleAttachment({ mediaUrl, attachments = [], sharedPost = null }) {
+  const [loadError, setLoadError] = useState(false);
+
+  // If there is a shared post/reel/story_mention
+  if (sharedPost && (sharedPost.url || sharedPost.thumbnail || sharedPost.title)) {
+    const rawType = (sharedPost.type || '').toLowerCase();
+    const isReel = rawType.includes('reel');
+    const isStory = rawType.includes('story');
+    const badgeText = isReel ? 'Reel' : isStory ? 'Story Mention' : 'Instagram Post';
+
+    return (
+      <div
+        style={{
+          marginTop: 8,
+          border: '1px solid #E2E8F0',
+          borderRadius: 8,
+          overflow: 'hidden',
+          background: '#FFFFFF',
+          maxWidth: 280,
+          boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        }}
+      >
+        {sharedPost.thumbnail && !loadError ? (
+          <img
+            src={sharedPost.thumbnail}
+            alt={sharedPost.title || 'Shared media'}
+            onError={() => setLoadError(true)}
+            style={{ width: '100%', maxHeight: 180, objectFit: 'cover', display: 'block' }}
+          />
+        ) : loadError ? (
+          <div style={{ padding: '16px 12px', background: '#F8FAFC', fontSize: 11.5, color: '#64748B', textAlign: 'center' }}>
+            Media expired — open in Instagram
+          </div>
+        ) : null}
+        <div style={{ padding: '8px 10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+            <span
+              style={{
+                fontSize: 10,
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                padding: '2px 6px',
+                borderRadius: 4,
+                background: isReel ? '#FCE7F3' : '#F1F5F9',
+                color: isReel ? '#BE185D' : '#475569',
+              }}
+            >
+              {badgeText}
+            </span>
+          </div>
+          {sharedPost.title && (
+            <div style={{ fontSize: 12, color: '#1E293B', fontWeight: 500, marginBottom: 6, lineHeight: 1.35, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+              {sharedPost.title}
+            </div>
+          )}
+          {sharedPost.url && (
+            <a
+              href={sharedPost.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                fontSize: 11,
+                color: '#BE185D',
+                fontWeight: 600,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+              }}
+            >
+              Open on Instagram <ArrowUpRight size={11} />
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Check attachments array or mediaUrl
+  const atts = Array.isArray(attachments) && attachments.length > 0 ? attachments : (mediaUrl ? [{ type: 'image', url: mediaUrl }] : []);
+  if (atts.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {atts.map((att, idx) => {
+        const type = (att.type || 'image').toLowerCase();
+        const url = att.url || mediaUrl;
+        if (!url) return null;
+
+        if (type === 'image') {
+          return loadError ? (
+            <div
+              key={idx}
+              style={{
+                padding: '12px 14px',
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: 6,
+                fontSize: 11.5,
+                color: '#64748B',
+                textAlign: 'center',
+              }}
+            >
+              Media expired — open in Instagram
+            </div>
+          ) : (
+            <img
+              key={idx}
+              src={url}
+              alt={att.title || 'Attachment'}
+              onError={() => setLoadError(true)}
+              style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 6, display: 'block' }}
+            />
+          );
+        }
+
+        if (type === 'video' || type === 'ig_reel') {
+          return (
+            <div key={idx} style={{ maxWidth: 280 }}>
+              <video
+                controls
+                src={url}
+                style={{ width: '100%', maxHeight: 240, borderRadius: 6, background: '#000' }}
+                onError={() => setLoadError(true)}
+              >
+                Your browser does not support the video tag.
+              </video>
+              {loadError && (
+                <div style={{ fontSize: 11, color: '#64748B', marginTop: 4 }}>
+                  Media expired — open in Instagram
+                </div>
+              )}
+            </div>
+          );
+        }
+
+        if (type === 'audio') {
+          return (
+            <div key={idx} style={{ marginTop: 4 }}>
+              <audio controls src={url} style={{ maxWidth: '100%', height: 36 }} />
+            </div>
+          );
+        }
+
+        return (
+          <a
+            key={idx}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '6px 10px',
+              borderRadius: 6,
+              background: '#F1F5F9',
+              border: '1px solid #CBD5E1',
+              color: '#334155',
+              fontSize: 11.5,
+              textDecoration: 'none',
+              maxWidth: '100%',
+            }}
+          >
+            <Paperclip size={12} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {att.title || 'Download file'}
+            </span>
+            <ExternalLink size={10} style={{ flexShrink: 0 }} />
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 function ThreadRow({ thread, isSelected, onClick }) {
   const isComment = thread.type === 'comment';
   const configKey = isComment
@@ -138,9 +327,9 @@ function ThreadRow({ thread, isSelected, onClick }) {
       <div style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
         <div className="co-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 4, alignItems: 'center' }}>
           <span className="co-strong" style={{ fontSize: 13.5, color: '#111827' }}>
-            {thread.name && thread.name !== 'Instagram User'
+            {thread.name && thread.name !== 'Instagram User' && thread.name !== 'Facebook User'
               ? thread.name
-              : (thread.senderUsername ? `@${thread.senderUsername}` : (thread.channel === 'instagram' || thread.type === 'instagram' ? '@insta_patient' : 'Patient'))}
+              : (thread.senderUsername ? `@${thread.senderUsername}` : (isComment ? 'Name hidden by Meta' : 'Patient'))}
           </span>
           {Array.isArray(thread.labels) && thread.labels.map((lbl) => (
             <span
@@ -271,7 +460,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
             lineHeight: 1.4,
           }}
         >
-          {thread.preview}
+          {formatThreadPreview(thread.preview)}
         </div>
       </div>
 
@@ -332,6 +521,12 @@ function ThreadDrawer({ thread, onClose }) {
     refetchOnWindowFocus: true,
   });
 
+  const isMetaChannel = thread.type === 'facebook' || thread.type === 'instagram';
+  const windowExp = detail?.window_expires_at || detail?.conversation?.window_expires_at || thread.windowExpiresAt;
+  const isWindowExpired = Boolean(
+    isMetaChannel && windowExp && new Date(windowExp).getTime() < Date.now()
+  );
+
   // Automatically mark WhatsApp conversation as read when opened
   useEffect(() => {
     if (thread?.type === 'whatsapp') {
@@ -357,7 +552,11 @@ function ThreadDrawer({ thread, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['clinic', 'inbox'] });
     },
     onError: (err) => {
-      setSendingStatus(`Failed: ${err.message}`);
+      if (err.message && (err.message.includes('24h window expired') || err.message.includes('WINDOW_EXPIRED'))) {
+        setSendingStatus('24h window expired — customer must reply first.');
+      } else {
+        setSendingStatus(`Failed: ${err.message}`);
+      }
     },
   });
 
@@ -740,12 +939,20 @@ function ThreadDrawer({ thread, onClose }) {
                               </span>
                             </div>
                           )}
-                          <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
-                            {m.content}
-                          </div>
-                          {m.mediaUrl && (
-                            <div style={{ marginTop: 6 }}>
-                              <img src={m.mediaUrl} alt="Attachment" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6 }} />
+                          {m.content && !m.content.startsWith('[') && (
+                            <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                              {m.content}
+                            </div>
+                          )}
+                          <MediaBubbleAttachment
+                            mediaUrl={m.mediaUrl}
+                            attachments={m.attachments}
+                            sharedPost={m.sharedPost}
+                          />
+                          {m.status === 'failed' && (
+                            <div style={{ marginTop: 6, fontSize: 11, color: '#DC2626', display: 'flex', alignItems: 'center', gap: 5, background: '#FEF2F2', padding: '4px 8px', borderRadius: 4, border: '1px solid #FECACA' }}>
+                              <AlertTriangle size={13} style={{ flexShrink: 0 }} />
+                              <span>Failed to deliver: {m.errorMessage || 'Meta API delivery error'}</span>
                             </div>
                           )}
                           {(m.reactionEmoji || m.reaction) && (
@@ -1335,6 +1542,29 @@ function ThreadDrawer({ thread, onClose }) {
             </div>
           )}
 
+          {isWindowExpired && (
+            <div
+              style={{
+                padding: '10px 14px',
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                borderRadius: 8,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                color: '#B91C1C',
+                fontSize: 12,
+                lineHeight: 1.4,
+                marginBottom: 8,
+              }}
+            >
+              <AlertTriangle size={16} style={{ flexShrink: 0, color: '#DC2626' }} />
+              <span>
+                <strong>24h window expired.</strong> Meta requires the user to send a new message before you can reply.
+              </span>
+            </div>
+          )}
+
           <form onSubmit={handleSendReply} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {thread.type === 'email' && (
               <input
@@ -1350,8 +1580,11 @@ function ThreadDrawer({ thread, onClose }) {
             <textarea
               className="co-input"
               rows={3}
+              disabled={isWindowExpired}
               placeholder={
-                thread.type === 'whatsapp'
+                isWindowExpired
+                  ? '24h messaging window closed — waiting for user to message...'
+                  : thread.type === 'whatsapp'
                   ? 'Type your WhatsApp message to patient...'
                   : thread.type === 'instagram'
                   ? 'Type your Instagram Direct message...'
@@ -1365,15 +1598,21 @@ function ThreadDrawer({ thread, onClose }) {
               }
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
-              style={{ fontSize: 12.5, lineHeight: 1.4, resize: 'vertical' }}
+              style={{
+                fontSize: 12.5,
+                lineHeight: 1.4,
+                resize: 'vertical',
+                background: isWindowExpired ? '#F9FAFB' : '#FFFFFF',
+                cursor: isWindowExpired ? 'not-allowed' : 'text'
+              }}
             />
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, alignItems: 'center' }}>
               <button
                 type="submit"
                 className="co-btn co-btn-p co-btn-sm"
-                disabled={replyMutation.isPending || (!replyText.trim() && !useMetaTemplate)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                disabled={isWindowExpired || replyMutation.isPending || (!replyText.trim() && !useMetaTemplate)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, opacity: isWindowExpired ? 0.6 : 1 }}
               >
                 {replyMutation.isPending ? (
                   <Spinner size={12} />
@@ -1437,12 +1676,27 @@ export default function ClinicInbox() {
   const [searchQuery, setSearchQuery] = useState('');
   const [openThread, setOpenThread] = useState(null);
   const [lastSyncedAt, setLastSyncedAt] = useState(() => new Date());
+  const [paginatedThreads, setPaginatedThreads] = useState([]);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Reset pagination when channel changes
+  useEffect(() => {
+    setPaginatedThreads([]);
+    setHasMore(true);
+  }, [activeChannel]);
 
   useEffect(() => {
     if (!isFetching) setLastSyncedAt(new Date());
   }, [isFetching, data]);
 
-  const threads = data?.threads || [];
+  const rawThreads = data?.threads || [];
+  const threads = useMemo(() => {
+    if (paginatedThreads.length === 0) return rawThreads;
+    const seen = new Set(rawThreads.map(t => `${t.type}-${t.id}`));
+    const uniquePaginated = paginatedThreads.filter(t => !seen.has(`${t.type}-${t.id}`));
+    return [...rawThreads, ...uniquePaginated];
+  }, [rawThreads, paginatedThreads]);
 
   // Handle URL query parameters (?phone=..., ?name=..., ?channel=..., ?leadId=...)
   useEffect(() => {
@@ -1562,6 +1816,30 @@ export default function ClinicInbox() {
 
     return list;
   }, [threads, activeChannel, searchQuery]);
+
+  const handleLoadMore = async () => {
+    if (isLoadingMore || !hasMore) return;
+    const currentList = filteredThreads;
+    const oldest = currentList[currentList.length - 1];
+    if (!oldest?.lastAt) {
+      setHasMore(false);
+      return;
+    }
+    setIsLoadingMore(true);
+    try {
+      const res = await clinicApi.inbox(50, oldest.lastAt, activeChannel);
+      const more = res?.threads || [];
+      if (more.length === 0) {
+        setHasMore(false);
+      } else {
+        setPaginatedThreads((prev) => [...prev, ...more]);
+      }
+    } catch {
+      setHasMore(false);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   return (
     <div className="clinic-os">
@@ -1770,12 +2048,12 @@ export default function ClinicInbox() {
           </div>
         </div>
 
-        {/* Instagram DM API Access Notice */}
+        {/* Per-channel status lines (D.2: never show a silent 0) */}
         {activeChannel === 'instagram' && (
           <div
             style={{
               margin: '14px 16px 4px',
-              padding: '12px 14px',
+              padding: '10px 14px',
               background: '#FFFBEB',
               border: '1px solid #FDE68A',
               borderRadius: 8,
@@ -1789,7 +2067,30 @@ export default function ClinicInbox() {
           >
             <AlertTriangle size={16} style={{ color: '#D97706', flexShrink: 0 }} />
             <span>
-              Old Instagram DM history needs Advanced Access for <code>instagram_manage_messages</code>. New messages appear live once received.
+              Instagram history needs Advanced Access (live messages work).
+            </span>
+          </div>
+        )}
+
+        {activeChannel === 'comment_fb' && (
+          <div
+            style={{
+              margin: '14px 16px 4px',
+              padding: '10px 14px',
+              background: '#EFF6FF',
+              border: '1px solid #BFDBFE',
+              borderRadius: 8,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              color: '#1E40AF',
+              fontSize: 12.5,
+              lineHeight: 1.4,
+            }}
+          >
+            <AlertTriangle size={16} style={{ color: '#2563EB', flexShrink: 0 }} />
+            <span>
+              Facebook commenter names need Advanced Access.
             </span>
           </div>
         )}
@@ -1812,15 +2113,31 @@ export default function ClinicInbox() {
             </p>
           </EmptyState>
         ) : (
-          <div className="co-list">
-            {filteredThreads.map((t) => (
-              <ThreadRow
-                key={`${t.type}-${t.id}`}
-                thread={t}
-                isSelected={openThread?.id === t.id && openThread?.type === t.type}
-                onClick={() => { t.unread = 0; setOpenThread(t); }}
-              />
-            ))}
+          <div>
+            <div className="co-list">
+              {filteredThreads.map((t) => (
+                <ThreadRow
+                  key={`${t.type}-${t.id}`}
+                  thread={t}
+                  isSelected={openThread?.id === t.id && openThread?.type === t.type}
+                  onClick={() => { t.unread = 0; setOpenThread(t); }}
+                />
+              ))}
+            </div>
+
+            {filteredThreads.length >= 10 && hasMore && (
+              <div style={{ padding: '12px 16px', textAlign: 'center', borderTop: '1px solid #F1F5F9' }}>
+                <button
+                  type="button"
+                  className="co-btn co-btn-sm"
+                  onClick={handleLoadMore}
+                  disabled={isLoadingMore}
+                  style={{ fontSize: 11.5, padding: '4px 14px' }}
+                >
+                  {isLoadingMore ? <Spinner size={11} label="Loading older..." /> : 'Load older conversations'}
+                </button>
+              </div>
+            )}
           </div>
         )}
       </Card>

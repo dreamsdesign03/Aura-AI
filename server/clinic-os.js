@@ -2767,6 +2767,8 @@ router.get('/inbox', requireUser, async (req, res) => {
     }
     const uid = req.user.id;
     const limit = Number(req.query.limit) || 100;
+    const before = req.query.before ? new Date(req.query.before) : null;
+    const beforeIso = before && !isNaN(before.getTime()) ? before.toISOString() : null;
 
     const [wa, emails, calls, notes, meta, comments] = await Promise.all([
       // 1. WhatsApp Conversations - deduplicate by wa_phone_number (prefer those with lead_id)
@@ -2805,8 +2807,9 @@ router.get('/inbox', requireUser, async (req, res) => {
         SELECT id, lead_id, phone, unread_count, last_message_at, first_name, last_name, email, preview
           FROM ranked
          WHERE rn = 1
+           AND ($3::timestamptz IS NULL OR last_message_at < $3::timestamptz)
          ORDER BY last_message_at DESC NULLS LAST LIMIT $2`,
-        [uid, limit]
+        [uid, limit, beforeIso]
       ),
       // 2. Emails (Outreach and Inbound Replies)
       tryQuery(
@@ -2825,9 +2828,10 @@ router.get('/inbox', requireUser, async (req, res) => {
                   ORDER BY er.received_at DESC LIMIT 1) AS reply_at
            FROM outreach_emails oe
            LEFT JOIN leads l ON l.id = oe.lead_id
-          WHERE oe.user_id = $1 OR oe.lead_id IS NOT NULL OR oe.recipient_email IS NOT NULL OR oe.to_email IS NOT NULL
+          WHERE (oe.user_id = $1 OR oe.lead_id IS NOT NULL OR oe.recipient_email IS NOT NULL OR oe.to_email IS NOT NULL)
+            AND ($3::timestamptz IS NULL OR COALESCE(oe.sent_at, oe.created_at) < $3::timestamptz)
           ORDER BY COALESCE(oe.sent_at, oe.created_at) DESC LIMIT $2`,
-        [uid, limit]
+        [uid, limit, beforeIso]
       ),
       // 3. AI Telephony Calls
       tryQuery(
@@ -2836,8 +2840,9 @@ router.get('/inbox', requireUser, async (req, res) => {
                 l.first_name, l.last_name, l.email, COALESCE(ac.to_phone, l.phone) AS phone
            FROM ai_calls ac
            LEFT JOIN leads l ON l.id = ac.lead_id
+          WHERE ($2::timestamptz IS NULL OR ac.started_at < $2::timestamptz)
           ORDER BY ac.started_at DESC LIMIT $1`,
-        [limit]
+        [limit, beforeIso]
       ),
       // 4. Clinical Notes & Consultations
       tryQuery(
@@ -2845,29 +2850,32 @@ router.get('/inbox', requireUser, async (req, res) => {
                 l.first_name, l.last_name, l.phone, l.email
            FROM clinic_notes cn
            LEFT JOIN leads l ON l.id = cn.lead_id
+          WHERE ($2::timestamptz IS NULL OR cn.created_at < $2::timestamptz)
           ORDER BY cn.created_at DESC LIMIT $1`,
-        [limit]
+        [limit, beforeIso]
       ),
       // 5. Meta Omnichannel (Facebook Messenger & Instagram Direct)
       tryQuery(
         `SELECT mc.id, mc.lead_id, mc.channel, mc.sender_id, mc.sender_name, mc.sender_username,
                 COALESCE(mc.participant_avatar, mc.sender_avatar) AS sender_avatar,
-                mc.unread_count, mc.last_message, mc.last_message_at,
+                mc.unread_count, mc.last_message, mc.last_message_at, mc.window_expires_at,
                 l.first_name, l.last_name, l.email, l.phone
            FROM meta_conversations mc
            LEFT JOIN leads l ON l.id = mc.lead_id
+          WHERE ($2::timestamptz IS NULL OR mc.last_message_at < $2::timestamptz)
           ORDER BY mc.last_message_at DESC LIMIT $1`,
-        [limit]
+        [limit, beforeIso]
       ),
       // 6. Meta Comments (Instagram & Facebook Post/Reel Comments)
       tryQuery(
         `SELECT mc.id, mc.channel, mc.comment_id, mc.post_id, mc.post_url, mc.post_title, mc.media_type, mc.media_thumbnail, mc.like_count,
                 mc.sender_name, mc.sender_username,
                 COALESCE(mc.author_avatar, mc.sender_avatar) AS sender_avatar,
-                mc.text, mc.reply_text, mc.replied_at, mc.status, mc.unread, mc.created_at
+                mc.text, mc.reply_text, mc.replied_at, mc.status, mc.unread, mc.created_at, mc.parent_id
            FROM meta_comments mc
+          WHERE ($2::timestamptz IS NULL OR mc.created_at < $2::timestamptz)
           ORDER BY mc.created_at DESC LIMIT $1`,
-        [limit]
+        [limit, beforeIso]
       ),
     ]);
 
@@ -2961,11 +2969,12 @@ router.get('/inbox', requireUser, async (req, res) => {
         senderId: row.sender_id,
         senderUsername: row.sender_username,
         senderAvatar: row.sender_avatar,
-        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.sender_name || (isIg ? `@${row.sender_username || 'user'}` : 'Facebook User'),
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.sender_name || (isIg ? `@${row.sender_username || 'user'}` : null),
         phone: row.phone,
         email: row.email,
         unread: row.unread_count || 0,
         status: 'active',
+        windowExpiresAt: row.window_expires_at,
         lastAt: row.last_message_at,
         preview: row.last_message || (isIg ? 'Instagram Direct Message' : 'Facebook Messenger message'),
       });
@@ -2974,7 +2983,7 @@ router.get('/inbox', requireUser, async (req, res) => {
     // Meta Comments (Instagram & Facebook Post/Reel Comments)
     for (const row of (comments?.rows || [])) {
       const isIg = row.channel === 'instagram';
-      const mediaLabel = row.media_type || (isIg ? 'Post' : 'Post');
+      const mediaLabel = row.media_type || 'Post';
       const postTitle = row.post_title || '';
       threads.push({
         type: 'comment',
@@ -2988,7 +2997,7 @@ router.get('/inbox', requireUser, async (req, res) => {
         mediaThumbnail: row.media_thumbnail,
         likeCount: row.like_count || 0,
         senderUsername: row.sender_username,
-        name: row.sender_name || (isIg ? `@${row.sender_username || 'user'}` : 'Facebook User'),
+        name: row.sender_name || (isIg ? (row.sender_username ? `@${row.sender_username}` : null) : null),
         unread: row.unread ? 1 : 0,
         status: row.status || 'pending',
         replyText: row.reply_text,
@@ -3217,30 +3226,58 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
       // Mark conversation as read
       await db.query('UPDATE meta_conversations SET unread_count = 0 WHERE id = $1', [conv.id]).catch(() => {});
 
-      // Fetch all messages in this thread
+      // B.2: Fetch all messages in this thread with attachments, shared_post, reactions
       const msgsRes = await db.query(
-        `SELECT id, direction, channel, content, media_url, status, reaction, reaction_emoji, error_message, sent_at, created_at
+        `SELECT id, direction, channel, content, media_url, attachments, shared_post, reactions, status, reaction, reaction_emoji, error_message, sent_at, created_at
            FROM meta_messages
           WHERE conversation_id = $1
-          ORDER BY COALESCE(sent_at, created_at) ASC`,
+          ORDER BY COALESCE(sent_at, created_at) ASC, id ASC`,
         [conv.id]
       );
 
       return res.json({
         type,
         conversation: conv,
+        window_expires_at: conv.window_expires_at,
+        sender_username: conv.sender_username,
         lead: conv.lead_id ? { id: conv.lead_id, first_name: conv.first_name, last_name: conv.last_name, email: conv.email, phone: conv.phone } : null,
-        messages: msgsRes.rows.map((m) => ({
-          id: m.id,
-          direction: m.direction,
-          type: m.channel,
-          content: m.content,
-          mediaUrl: m.media_url,
-          status: m.status,
-          reaction: m.reaction,
-          reactionEmoji: m.reaction_emoji,
-          timestamp: m.sent_at || m.created_at
-        }))
+        messages: msgsRes.rows.map((m) => {
+          // B.2: Map attachments: [{type, url, title}]
+          const rawAtts = Array.isArray(m.attachments) ? m.attachments : [];
+          const attachments = rawAtts.map((att) => ({
+            type: att.type || 'attachment',
+            url: att.payload?.url || att.url || att.image_data?.url || att.video_data?.url || att.audio_data?.url || att.file_url || null,
+            title: att.title || att.name || att.payload?.title || null
+          }));
+
+          // B.2: Map sharedPost: {type, url, title, thumbnail}
+          let sharedPost = null;
+          if (m.shared_post && typeof m.shared_post === 'object') {
+            const sp = m.shared_post;
+            sharedPost = {
+              type: sp.type || 'share',
+              url: sp.url || sp.link || sp.payload?.url || null,
+              title: sp.title || sp.caption || sp.name || null,
+              thumbnail: sp.thumbnail || sp.thumbnail_url || sp.image_data?.url || null
+            };
+          }
+
+          return {
+            id: m.id,
+            direction: m.direction,
+            type: m.channel,
+            content: m.content,
+            mediaUrl: m.media_url,
+            attachments,
+            sharedPost,
+            reactions: Array.isArray(m.reactions) ? m.reactions : (m.reaction ? [{ reaction: m.reaction, emoji: m.reaction_emoji }] : []),
+            status: m.status,
+            errorMessage: m.error_message,
+            reaction: m.reaction,
+            reactionEmoji: m.reaction_emoji,
+            timestamp: m.sent_at || m.created_at
+          };
+        })
       });
     }
 
@@ -3469,6 +3506,9 @@ router.post('/inbox/reply', requireUser, async (req, res) => {
 
     res.status(400).json({ error: 'Invalid reply type' });
   } catch (err) {
+    if (err.code === 'WINDOW_EXPIRED' || err.status === 409 || (err.message && err.message.includes('24h window expired'))) {
+      return res.status(409).json({ error: '24h window expired', details: err.message });
+    }
     res.status(500).json({ error: err.message });
   }
 });

@@ -17,6 +17,7 @@ const {
   META_PAGE_ID,
   META_INSTAGRAM_ACCOUNT_ID
 } = require('./meta');
+const { normalizeRole, isAdminRole } = require('./permissions');
 
 const router = express.Router();
 
@@ -28,13 +29,71 @@ function redact(obj) {
   return typeof obj === 'string' ? str : JSON.parse(str);
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// E.1: Auth middleware protecting /api/meta routes (same as /api/clinic)
+// ────────────────────────────────────────────────────────────────────────
+async function requireAuth(req, res, next) {
+  try {
+    let email = null;
+    if (req.headers.cookie) {
+      const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie);
+      if (match) email = decodeURIComponent(match[1]);
+    }
+    if (!email) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+
+    const u = await db.query(
+      'SELECT id, first_name, last_name, email, username, role FROM users WHERE LOWER(email) = LOWER($1)',
+      [email.trim()]
+    );
+    if (u.rows.length === 0) {
+      return res.status(401).json({ error: 'Unauthenticated' });
+    }
+
+    req.user = u.rows[0];
+    req.user.accessRole = normalizeRole(req.user.role, req.user);
+    next();
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  requireAuth(req, res, () => {
+    if (!isAdminRole(req.user?.accessRole)) {
+      return res.status(403).json({ error: 'Admin access required', code: 'ROLE_FORBIDDEN' });
+    }
+    next();
+  });
+}
+
+// A.6: Dedicated error logger that never swallows errors and records to webhook_events.error
+async function logWebhookError(context, err, eventId = null) {
+  const msg = err?.message || String(err || 'Unknown error');
+  const redacted = msg.replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+  console.error(`[Meta Webhook Error][${context}]`, redacted);
+  try {
+    if (eventId) {
+      await db.query('UPDATE webhook_events SET error = $1 WHERE id = $2', [redacted, eventId]);
+    } else {
+      await db.query(
+        'UPDATE webhook_events SET error = $1 WHERE id = (SELECT MAX(id) FROM webhook_events)',
+        [redacted]
+      );
+    }
+  } catch (dbErr) {
+    console.error('[Meta Webhook] Failed to write error to webhook_events:', dbErr.message);
+  }
+}
+
 // Auto-subscribe webhook on boot
 subscribePageWebhooks().catch((err) => console.warn('[Meta Webhook Init] Auto-subscribe warning:', err.message));
 
 /**
- * Diagnostic Endpoint (GET /api/meta/debug) - Admin only / protected
+ * Diagnostic Endpoint (GET /api/meta/debug) - Admin only
  */
-router.get('/debug', async (req, res) => {
+router.get('/debug', requireAdmin, async (req, res) => {
   try {
     const { runStep0 } = require('./step0-diagnose');
     const results = await runStep0();
@@ -48,30 +107,73 @@ const VERIFY_TOKEN = () =>
   process.env.META_WEBHOOK_VERIFY_TOKEN ||
   process.env.META_VERIFY_TOKEN ||
   process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN ||
-  'aura_meta_verify_token_2026';
+  null;
 
 /**
  * Webhook Verification Handshake (GET /api/meta/webhook)
+ * E.2: Remove hardcoded token fallback and never log the token
  */
 router.get('/webhook', (req, res) => {
   const mode = req.query['hub.mode'];
   const token = req.query['hub.verify_token'];
   const challenge = req.query['hub.challenge'];
+  const expectedToken = VERIFY_TOKEN();
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN()) {
-    console.log('✅ [Meta Webhook] Handshake verified successfully');
+  if (!expectedToken) {
+    console.error('[Meta Webhook] Verification failed: No verify token configured in environment');
+    return res.sendStatus(500);
+  }
+
+  if (mode === 'subscribe' && token === expectedToken) {
+    console.log('✅ [Meta Webhook] Handshake verified successfully with Meta');
     return res.status(200).send(challenge);
   }
 
-  console.warn('⚠️ [Meta Webhook] Verification token mismatch. Got:', token, 'Expected:', VERIFY_TOKEN());
+  console.warn('⚠️ [Meta Webhook] Verification token mismatch');
   return res.sendStatus(403);
 });
 
 /**
  * Inbound Webhook Event Handler (POST /api/meta/webhook)
+ * E.2: HMAC-SHA256 signature verification using rawBody and timingSafeEqual
  */
 router.post('/webhook', async (req, res) => {
-  // 1. Immediately return 200 OK to Meta to avoid retry storms
+  const appSecret = process.env.META_APP_SECRET;
+  const sigHeader = req.headers['x-hub-signature-256'] || req.headers['x-hub-signature'];
+
+  // Verify HMAC-SHA256 signature
+  if (!sigHeader || !sigHeader.startsWith('sha256=')) {
+    console.warn('[Meta Webhook Security] Missing or malformed X-Hub-Signature-256 header');
+    await db.query(
+      "INSERT INTO webhook_events (platform, event_type, payload, error) VALUES ('meta', 'unauthorized', $1::jsonb, 'Missing or malformed X-Hub-Signature-256 header')",
+      [JSON.stringify(redact(req.body || {}))]
+    ).catch(e => console.error('[Meta Webhook] Signature failure log error:', e.message));
+    return res.status(401).json({ error: 'Missing or malformed X-Hub-Signature-256 header' });
+  }
+
+  if (appSecret) {
+    const expectedSig = sigHeader.replace(/^sha256=/, '').trim();
+    const rawBuf = req.rawBody || Buffer.from(JSON.stringify(req.body || {}));
+    const computedHmac = crypto.createHmac('sha256', appSecret).update(rawBuf).digest('hex');
+
+    let isValid = false;
+    try {
+      isValid = crypto.timingSafeEqual(Buffer.from(expectedSig, 'hex'), Buffer.from(computedHmac, 'hex'));
+    } catch {
+      isValid = false;
+    }
+
+    if (!isValid) {
+      console.warn('[Meta Webhook Security] Invalid HMAC signature detected');
+      await db.query(
+        "INSERT INTO webhook_events (platform, event_type, payload, error) VALUES ('meta', 'unauthorized', $1::jsonb, 'Invalid X-Hub-Signature-256 HMAC')",
+        [JSON.stringify(redact(req.body || {}))]
+      ).catch(e => console.error('[Meta Webhook] Signature failure log error:', e.message));
+      return res.status(401).json({ error: 'Invalid HMAC signature' });
+    }
+  }
+
+  // 1. Immediately return 200 OK to Meta after valid signature verification
   res.status(200).send('EVENT_RECEIVED');
 
   const body = req.body;
@@ -82,25 +184,29 @@ router.post('/webhook', async (req, res) => {
 
   // Async event logging & processing
   (async () => {
+    let currentEventId = null;
     try {
       await ensureMetaSchema();
 
       // Log event to webhook_events table (redacted)
-      await db.query(
-        `INSERT INTO webhook_events (platform, event_type, payload) VALUES ($1, $2, $3::jsonb)`,
+      const eventLogRes = await db.query(
+        `INSERT INTO webhook_events (platform, event_type, payload) VALUES ($1, $2, $3::jsonb) RETURNING id`,
         [
           body.object || 'meta',
           body.entry?.[0]?.messaging ? 'messaging' : (body.entry?.[0]?.changes ? 'changes' : 'other'),
           JSON.stringify(redact(body))
         ]
-      ).catch(() => {});
+      ).catch(e => logWebhookError('EventLog', e));
+      if (eventLogRes && eventLogRes.rows && eventLogRes.rows.length > 0) {
+        currentEventId = eventLogRes.rows[0].id;
+      }
 
       for (const entry of body.entry) {
         const entryId = String(entry.id || '').trim();
 
         // ────────────────────────────────────────────────────────────────────────
         // HARD RULE 1: Filter strictly for our business
-        // Reject entries for any of the other 13 pages the token owner manages.
+        // Reject entries for any other page/account the token owner manages.
         // Accepts both META_PAGE_ID and META_IG_USER_ID (17841461905363722).
         // ────────────────────────────────────────────────────────────────────────
         const isTargetPage = entryId === pageId;
@@ -135,30 +241,73 @@ router.post('/webhook', async (req, res) => {
             if (event.message) {
               const mid = event.message.mid;
               const text = event.message.text || '';
-              const attachments = event.message.attachments || [];
+
+              // B.1: Store attachments keeping type + payload + title
+              const rawAttachments = event.message.attachments || [];
+              const attachments = rawAttachments.map(att => {
+                const type = att.type || 'attachment';
+                const url = att.payload?.url || att.url || att.image_data?.url || att.video_data?.url || att.audio_data?.url || att.file_url || null;
+                const title = att.title || att.name || att.payload?.title || null;
+                let payload = att.payload || {};
+
+                if (type === 'ig_reel' || type === 'reel') {
+                  payload = {
+                    reel_video_id: att.payload?.reel_video_id || att.reel_video_id || null,
+                    title: title || att.payload?.title || 'Shared reel',
+                    url: url || att.payload?.url || null
+                  };
+                }
+
+                return {
+                  type,
+                  payload,
+                  url,
+                  title
+                };
+              });
+
               const shares = event.message.shares || [];
               const storyMention = event.message.story_mention || null;
-              const sharedPost = shares.length > 0 ? shares[0] : (storyMention ? { type: 'story_mention', ...storyMention } : null);
-
-              // Support attachments of type image, video, audio, ig_reel, share, ig_post, story_mention
-              let mediaUrl = null;
-              if (attachments.length > 0) {
-                const att = attachments[0];
-                mediaUrl = att.payload?.url || att.image_data?.url || att.video_data?.url || att.audio_data?.url || att.file_url || null;
+              let sharedPost = null;
+              if (shares.length > 0) {
+                const sp = shares[0];
+                sharedPost = {
+                  type: sp.type || 'share',
+                  url: sp.link || sp.url || sp.payload?.url || null,
+                  title: sp.title || sp.caption || sp.name || null,
+                  thumbnail: sp.thumbnail || sp.thumbnail_url || null
+                };
+              } else if (storyMention) {
+                sharedPost = {
+                  type: 'story_mention',
+                  url: storyMention.link || storyMention.url || null,
+                  title: storyMention.title || 'Story Mention',
+                  thumbnail: storyMention.thumbnail || null
+                };
               }
 
-              // Save message even if text is empty (use explicit media badge as preview)
+              // B.1: Do NOT put a link URL in media_url unless type is image
+              let mediaUrl = null;
+              if (attachments.length > 0 && attachments[0].type === 'image') {
+                mediaUrl = attachments[0].url || attachments[0].payload?.url || null;
+              }
+
+              // Generate human-readable snippet if text is empty
               let displayContent = text;
               if (!displayContent) {
-                if (attachments.length > 0) {
-                  const attType = attachments[0].type || 'attachment';
-                  displayContent = `[${attType}]`;
-                } else if (sharedPost) {
-                  displayContent = `[${sharedPost.type || 'share'}]`;
-                } else if (storyMention) {
-                  displayContent = '[story_mention]';
+                if (sharedPost) {
+                  const spType = (sharedPost.type || '').toLowerCase();
+                  if (spType.includes('reel')) displayContent = 'Shared a reel';
+                  else if (spType.includes('story')) displayContent = 'Mentioned in a story';
+                  else displayContent = 'Shared a post';
+                } else if (attachments.length > 0) {
+                  const attType = (attachments[0].type || '').toLowerCase();
+                  if (attType === 'image') displayContent = 'Sent an image';
+                  else if (attType === 'video' || attType === 'ig_reel') displayContent = 'Sent a video';
+                  else if (attType === 'audio') displayContent = 'Sent a voice message';
+                  else displayContent = 'Sent an attachment';
                 } else {
-                  displayContent = '[Attachment]';
+                  displayContent = 'Sent an attachment';
                 }
               }
 
@@ -172,18 +321,23 @@ router.post('/webhook', async (req, res) => {
                 const leadCheck = await db.query(
                   `SELECT id FROM leads WHERE RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 10) = $1 LIMIT 1`,
                   [cleanDigits]
-                );
-                if (leadCheck.rows.length > 0) {
+                ).catch(e => logWebhookError('LeadPhoneLookup', e, currentEventId));
+                if (leadCheck && leadCheck.rows.length > 0) {
                   matchedLeadId = leadCheck.rows[0].id;
                 }
               }
 
               // Find or create conversation for the customer
+              // A.3: Set windowExpiresAt = sentAt + 24h ONLY for inbound (not echo). Echo passes null.
+              const sentAtMs = event.timestamp ? Number(event.timestamp) : Date.now();
+              const sentAtDate = new Date(sentAtMs);
+              const windowExpiresAt = isEcho ? null : new Date(sentAtMs + 24 * 3600 * 1000);
+
               const conv = await findOrCreateMetaConversation({
                 channel,
                 senderId: customerId,
                 leadId: matchedLeadId,
-                windowExpiresAt: new Date(Date.now() + 24 * 3600 * 1000)
+                windowExpiresAt
               });
 
               // Persist message with attachments and real Meta message ID
@@ -197,24 +351,24 @@ router.post('/webhook', async (req, res) => {
                 sharedPost,
                 metaMessageId: mid,
                 status: isEcho ? 'sent' : 'delivered',
-                sentAt: event.timestamp ? new Date(event.timestamp) : new Date()
+                sentAt: sentAtDate
               });
 
               // ────────────────────────────────────────────────────────────────────────
-              // When a real IG DM arrives: query Graph API for this specific IGSID thread
+              // Step 4 & B.1: For real inbound IG DMs, query Graph API for customer IGSID thread
               // ────────────────────────────────────────────────────────────────────────
               if (channel === 'instagram' && !isEcho && customerId) {
                 try {
                   const pageToken = await getDerivedPageToken();
                   const graphVer = process.env.META_GRAPH_VERSION || 'v26.0';
                   const threadUrl = `https://graph.facebook.com/${graphVer}/${pageId}/conversations?platform=instagram&user_id=${encodeURIComponent(customerId)}&fields=id,updated_time,messages.limit(25){id,message,from,to,created_time,attachments,shares}&access_token=${encodeURIComponent(pageToken)}`;
-                  console.log(`[Meta Webhook] Fetching Graph conversation for IGSID ${customerId}...`);
+                  console.log(`[Meta Webhook] Querying Graph thread for IGSID ${customerId}...`);
                   const tRes = await fetch(threadUrl);
                   const tData = await tRes.json();
                   const sanitizedTData = JSON.stringify(tData).replace(/EAA[A-Za-z0-9]+/g, 'EAA***');
-                  console.log(`[Meta Webhook] Graph conversation response for IGSID ${customerId} (HTTP ${tRes.status}):`, sanitizedTData);
+                  console.log(`[Meta Webhook] Graph thread response for IGSID ${customerId} (HTTP ${tRes.status}):`, sanitizedTData);
 
-                  // If Graph returns messages for this customer's thread, backfill them
+                  // Backfill past messages safely (persistMetaMessage will NOT double count unread)
                   if (tRes.ok && Array.isArray(tData.data)) {
                     for (const convItem of tData.data) {
                       if (convItem.messages?.data?.length > 0) {
@@ -223,20 +377,39 @@ router.post('/webhook', async (req, res) => {
                           const mText = msgItem.message || '';
                           const mFromId = msgItem.from?.id;
                           const mDirection = mFromId === customerId ? 'inbound' : 'outbound';
-                          const mAtts = msgItem.attachments?.data || [];
+                          const mRawAtts = msgItem.attachments?.data || [];
+                          const mAtts = mRawAtts.map(att => {
+                            const type = att.type || (att.image_data ? 'image' : (att.video_data ? 'video' : 'attachment'));
+                            const url = att.image_data?.url || att.video_data?.url || att.file_url || att.payload?.url || null;
+                            return {
+                              type,
+                              payload: { url, title: att.title || null },
+                              url,
+                              title: att.title || null
+                            };
+                          });
                           const mShares = msgItem.shares?.data || [];
-                          let mMedia = null;
-                          if (mAtts.length > 0) {
-                            mMedia = mAtts[0].image_data?.url || mAtts[0].video_data?.url || mAtts[0].file_url || null;
+                          let mSharedPost = null;
+                          if (mShares.length > 0) {
+                            mSharedPost = {
+                              type: mShares[0].type || 'share',
+                              url: mShares[0].link || mShares[0].url || null,
+                              title: mShares[0].title || mShares[0].name || null,
+                              thumbnail: mShares[0].thumbnail || null
+                            };
+                          }
+                          let mMediaUrl = null;
+                          if (mAtts.length > 0 && mAtts[0].type === 'image') {
+                            mMediaUrl = mAtts[0].url;
                           }
                           await persistMetaMessage({
                             conversationId: conv.id,
                             direction: mDirection,
                             channel: 'instagram',
-                            content: mText || (mAtts.length > 0 ? `[${mAtts[0].type || 'attachment'}]` : ''),
-                            mediaUrl: mMedia,
+                            content: mText || (mSharedPost ? 'Shared a post' : (mAtts.length > 0 ? 'Sent an attachment' : '')),
+                            mediaUrl: mMediaUrl,
                             attachments: mAtts,
-                            sharedPost: mShares.length > 0 ? mShares[0] : null,
+                            sharedPost: mSharedPost,
                             metaMessageId: mId,
                             status: 'delivered',
                             sentAt: msgItem.created_time ? new Date(msgItem.created_time) : new Date()
@@ -246,7 +419,7 @@ router.post('/webhook', async (req, res) => {
                     }
                   }
                 } catch (err) {
-                  console.warn(`[Meta Webhook] Graph backfill warning for IGSID ${customerId}:`, err.message);
+                  logWebhookError('InstagramGraphBackfill', err, currentEventId);
                 }
               }
             }
@@ -274,7 +447,7 @@ router.post('/webhook', async (req, res) => {
                           reaction_emoji = $2
                     WHERE external_id = $3 OR meta_message_id = $3`,
                   [action === 'unreact' ? null : reactionName, action === 'unreact' ? null : emoji, mid]
-                ).catch(() => {});
+                ).catch(e => logWebhookError('ReactionUpdate', e, currentEventId));
               }
             }
 
@@ -290,7 +463,7 @@ router.post('/webhook', async (req, res) => {
                     AND m.direction = 'outbound'
                     AND m.status != 'read'`,
                 [channel, customerId]
-              ).catch(() => {});
+              ).catch(e => logWebhookError('ReadReceiptUpdate', e, currentEventId));
             }
 
             // Handle delivery confirmations
@@ -299,7 +472,7 @@ router.post('/webhook', async (req, res) => {
                 await db.query(
                   `UPDATE meta_messages SET status = 'delivered' WHERE (external_id = $1 OR meta_message_id = $1) AND status = 'sent'`,
                   [mid]
-                ).catch(() => {});
+                ).catch(e => logWebhookError('DeliveryUpdate', e, currentEventId));
               }
             }
           }
@@ -317,11 +490,29 @@ router.post('/webhook', async (req, res) => {
               const text = val.text || val.message || '';
               const from = val.from || {};
               const media = val.media || {};
+              const parentId = val.parent_id || null;
 
               if (commentId && text) {
                 const username = from.username || null;
-                const authorName = username ? `@${username}` : (from.name || `@user_${String(commentId).slice(-4)}`);
-                console.log(`💬 [Meta Webhook] New Instagram Comment from ${authorName}: "${text}"`);
+                const isFromClinic = String(from.id) === String(igAccountId) || String(from.id) === String(pageId);
+                const authorName = username ? `@${username}` : (from.name || (isFromClinic ? 'Aura Laser & Cosmetic Clinic' : null));
+
+                console.log(`💬 [Meta Webhook] Instagram Comment from ${authorName || '(hidden)'}: "${text}" (isClinicReply: ${isFromClinic})`);
+
+                // A.5: If sender is clinic Page/IG, store as outbound reply and attach to parent
+                if (isFromClinic && parentId) {
+                  await db.query(
+                    `UPDATE meta_comments
+                        SET reply_text = $1,
+                            replied_at = NOW(),
+                            status = 'replied',
+                            replies = replies || $2::jsonb,
+                            updated_at = NOW()
+                      WHERE comment_id = $3`,
+                    [text, JSON.stringify([{ id: commentId, text, created_at: new Date() }]), String(parentId)]
+                  ).catch(e => logWebhookError('IGParentCommentReplyUpdate', e, currentEventId));
+                }
+
                 await persistMetaComment({
                   channel: 'instagram',
                   commentId: String(commentId),
@@ -329,33 +520,103 @@ router.post('/webhook', async (req, res) => {
                   senderId: from.id ? String(from.id) : null,
                   senderName: authorName,
                   senderUsername: username,
-                  text
-                }).catch(() => {});
+                  text,
+                  unread: !isFromClinic,
+                  parentId: parentId ? String(parentId) : null
+                }).catch(e => logWebhookError('IGPersistComment', e, currentEventId));
               } else {
-                syncInstagramComments().catch(() => {});
+                syncInstagramComments().catch(e => logWebhookError('IGSyncComments', e, currentEventId));
               }
             }
 
             // B. Facebook Feed Comments
             if (change.field === 'feed') {
               const val = change.value || {};
+              const verb = val.verb || 'add';
               const commentId = val.comment_id || val.id;
-              const text = val.message || val.text || '';
-              const senderName = val.sender_name || val.from?.name || 'Facebook User';
-              const senderId = val.sender_id || val.from?.id || null;
               const postId = val.post_id || null;
+              const senderId = val.sender_id || val.from?.id || null;
+              const rawText = val.message || val.text || '';
+              const item = val.item || '';
+              const parentId = val.parent_id || null;
 
-              if (commentId && text && (val.item === 'comment' || !val.item)) {
-                console.log(`💬 [Meta Webhook] New Facebook Comment from ${senderName}: "${text}"`);
-                await persistMetaComment({
-                  channel: 'facebook',
-                  commentId: String(commentId),
-                  postId: postId ? String(postId) : null,
-                  senderId: senderId ? String(senderId) : null,
-                  senderName,
-                  text
-                }).catch(() => {});
+              // Skip non-comment feed events (likes, photos, etc.)
+              if (item && item !== 'comment') continue;
+
+              // A.5: Handle remove verb — mark hidden/deleted
+              if (verb === 'remove' && commentId) {
+                await db.query(
+                  "UPDATE meta_comments SET hidden = TRUE, status = 'deleted', updated_at = NOW() WHERE comment_id = $1",
+                  [String(commentId)]
+                ).catch(e => logWebhookError('FBCommentRemove', e, currentEventId));
+                continue;
               }
+
+              // A.5: Handle edited verb — update text
+              if (verb === 'edited' && commentId) {
+                await db.query(
+                  'UPDATE meta_comments SET text = $1, updated_at = NOW() WHERE comment_id = $2',
+                  [rawText, String(commentId)]
+                ).catch(e => logWebhookError('FBCommentEdit', e, currentEventId));
+                continue;
+              }
+
+              if (!commentId || !rawText) continue;
+
+              const isPageOwner = senderId && (String(senderId) === String(pageId) || String(senderId) === String(igAccountId));
+
+              // A.5: Never save literal 'Facebook User'. Try real name from webhook payload first.
+              let senderName = null;
+              if (val.sender_name && val.sender_name !== 'Facebook User') senderName = val.sender_name;
+              else if (val.from?.name && val.from.name !== 'Facebook User') senderName = val.from.name;
+
+              // If missing on FB comment, fetch GET /{comment_id}?fields=id,message,from{id,name},created_time,parent{id},permalink_url with page token
+              if (!senderName && !isPageOwner && commentId) {
+                try {
+                  const pgTok = await getDerivedPageToken();
+                  const gVer = process.env.META_GRAPH_VERSION || 'v26.0';
+                  const cmtRes = await fetch(
+                    `https://graph.facebook.com/${gVer}/${encodeURIComponent(commentId)}?fields=id,message,from%7Bid,name%7D,created_time,parent%7Bid%7D,permalink_url&access_token=${encodeURIComponent(pgTok)}`
+                  );
+                  const cmtData = await cmtRes.json();
+                  if (cmtData.from?.name && cmtData.from.name !== 'Facebook User') {
+                    senderName = cmtData.from.name;
+                  }
+                  if (cmtData.error) {
+                    logWebhookError('FBCommentNameGraph', new Error(`Graph Error #${cmtData.error.code}: ${cmtData.error.message}`), currentEventId);
+                  }
+                } catch(e) {
+                  logWebhookError('FBCommentNameFetch', e, currentEventId);
+                }
+                // If still missing keep name NULL (UI shows initials + "Name hidden by Meta"), never literal 'Facebook User'
+              }
+
+              // A.5: If sender is clinic Page/IG, store as outbound reply and attach to parent via parent_id
+              if (isPageOwner && parentId) {
+                await db.query(
+                  `UPDATE meta_comments
+                      SET reply_text = $1,
+                          replied_at = NOW(),
+                          status = 'replied',
+                          replies = replies || $2::jsonb,
+                          updated_at = NOW()
+                    WHERE comment_id = $3`,
+                  [rawText, JSON.stringify([{ id: commentId, text: rawText, created_at: new Date() }]), String(parentId)]
+                ).catch(e => logWebhookError('FBParentCommentReplyUpdate', e, currentEventId));
+              }
+
+              console.log(`💬 [Meta Webhook] New Facebook Comment from ${senderName || '(name hidden by Meta)'}: "${rawText}" (isClinicReply: ${isPageOwner})`);
+              await persistMetaComment({
+                channel: 'facebook',
+                commentId: String(commentId),
+                postId: postId ? String(postId) : null,
+                senderId: senderId ? String(senderId) : null,
+                senderName, // null if unknown — UI shows initials + "Name hidden by Meta"
+                text: rawText,
+                unread: !isPageOwner,
+                hidden: false,
+                parentId: parentId ? String(parentId) : null
+              }).catch(e => logWebhookError('FBPersistComment', e, currentEventId));
             }
 
             // C. Lead Ads Form Submissions
@@ -390,54 +651,34 @@ router.post('/webhook', async (req, res) => {
                   const firstName = nameParts[0] || 'Meta';
                   const lastName = nameParts.slice(1).join(' ') || 'Lead';
 
-                  let cleanPhone = phone.replace(/[^\d+]/g, '').trim();
-                  if (cleanPhone.length === 10 && !cleanPhone.startsWith('+')) {
-                    cleanPhone = '+91' + cleanPhone;
-                  }
-
-                  const phoneDigits = cleanPhone.replace(/\D/g, '').slice(-10);
-                  const existingLead = phoneDigits ? await db.query(
-                    `SELECT id, brand_audit_report FROM leads WHERE RIGHT(REGEXP_REPLACE(phone, '\\D', '', 'g'), 10) = $1 LIMIT 1`,
-                    [phoneDigits]
-                  ) : { rows: [] };
-
-                  if (existingLead.rows.length > 0) {
-                    await db.query(
-                      `UPDATE leads
-                          SET status = 'New',
-                              pipeline_stage = 'Lead In',
-                              source = 'Meta Lead Ad',
-                              brand_audit_report = $1,
-                              updated_at = NOW()
-                        WHERE id = $2`,
-                      [`[New Ad Inquiry: ${concern}] · ${existingLead.rows[0].brand_audit_report || ''}`.slice(0, 500), existingLead.rows[0].id]
-                    );
-                  } else {
+                  if (phone || email) {
+                    const cleanPhone = phone.replace(/\D/g, '');
                     await db.query(
                       `INSERT INTO leads (
-                         first_name, last_name, email, phone, whatsapp, source, status, pipeline_stage, industry, brand_audit_report, user_id, created_at
-                       ) VALUES ($1, $2, $3, $4, $5, 'Meta Lead Ad', 'New', 'Lead In', $6, $7, 1, NOW())`,
-                      [firstName, lastName, email, cleanPhone, cleanPhone, concern, `Imported via Meta Lead Ad (Form: ${change.value.form_id || 'Instant Form'})`]
-                    );
+                         first_name, last_name, email, phone, company, status, pipeline_stage, notes, source, created_at, updated_at
+                       ) VALUES ($1, $2, $3, $4, $5, 'active', 'Prospect', $6, 'Facebook Ad', NOW(), NOW())
+                       ON CONFLICT DO NOTHING`,
+                      [firstName, lastName, email || null, cleanPhone || null, 'Direct Patient', `Meta Lead Form Inquiry: ${concern}`]
+                    ).catch(e => logWebhookError('LeadInsert', e, currentEventId));
                   }
                 }
               } catch (leadErr) {
-                console.error('❌ [Meta Lead Ad] Failed to process lead data:', leadErr.message);
+                logWebhookError('LeadgenProcess', leadErr, currentEventId);
               }
             }
           }
         }
       }
-    } catch (asyncErr) {
-      console.error('❌ [Meta Webhook] Async processing error:', asyncErr.message);
+    } catch (err) {
+      logWebhookError('WebhookMainLoop', err, currentEventId);
     }
   })();
 });
 
 /**
- * GET /api/meta/comments - list comments
+ * GET /api/meta/comments - Protected by requireAuth
  */
-router.get('/comments', async (req, res) => {
+router.get('/comments', requireAuth, async (req, res) => {
   try {
     await ensureMetaSchema();
     const limit = Number(req.query.limit) || 100;
@@ -459,9 +700,9 @@ router.get('/comments', async (req, res) => {
 });
 
 /**
- * POST /api/meta/comments/sync - manually sync comments from Meta Graph API
+ * POST /api/meta/comments/sync - Protected by requireAuth
  */
-router.post('/comments/sync', async (req, res) => {
+router.post('/comments/sync', requireAuth, async (req, res) => {
   try {
     const result = await syncMetaOmnichannel();
     res.json({ success: true, ...result });
@@ -471,9 +712,9 @@ router.post('/comments/sync', async (req, res) => {
 });
 
 /**
- * POST /api/meta/comments/reply - reply to a comment
+ * POST /api/meta/comments/reply - Protected by requireAuth
  */
-router.post('/comments/reply', async (req, res) => {
+router.post('/comments/reply', requireAuth, async (req, res) => {
   try {
     const { commentId, channel, message } = req.body || {};
     if (!commentId || !message) {
@@ -493,9 +734,9 @@ router.post('/comments/reply', async (req, res) => {
 });
 
 /**
- * POST /api/meta/comments/like - like a comment
+ * POST /api/meta/comments/like - Protected by requireAuth
  */
-router.post('/comments/like', async (req, res) => {
+router.post('/comments/like', requireAuth, async (req, res) => {
   try {
     const { commentId, channel } = req.body || {};
     if (!commentId) return res.status(400).json({ error: 'commentId is required' });
@@ -507,9 +748,9 @@ router.post('/comments/like', async (req, res) => {
 });
 
 /**
- * POST /api/meta/comments/visibility - hide or unhide a comment
+ * POST /api/meta/comments/visibility - Protected by requireAuth
  */
-router.post('/comments/visibility', async (req, res) => {
+router.post('/comments/visibility', requireAuth, async (req, res) => {
   try {
     const { commentId, hidden } = req.body || {};
     if (!commentId) return res.status(400).json({ error: 'commentId is required' });
@@ -521,10 +762,9 @@ router.post('/comments/visibility', async (req, res) => {
 });
 
 /**
- * GET /api/meta/avatar-debug - Diagnostic route for testing participant avatar fetching
- * Query: ?channel=messenger|instagram&id=<participant_id>
+ * GET /api/meta/avatar-debug - Protected by requireAdmin
  */
-router.get('/avatar-debug', async (req, res) => {
+router.get('/avatar-debug', requireAdmin, async (req, res) => {
   try {
     const rawChannel = (req.query.channel || 'messenger').toLowerCase();
     const channel = (rawChannel === 'messenger' || rawChannel === 'facebook') ? 'messenger' : 'instagram';
@@ -588,9 +828,9 @@ router.get('/avatar/:channel/:id', async (req, res) => {
 });
 
 /**
- * POST /api/meta/avatar/backfill - Trigger rate-limited avatar backfill
+ * POST /api/meta/avatar/backfill - Protected by requireAuth
  */
-router.post('/avatar/backfill', async (req, res) => {
+router.post('/avatar/backfill', requireAuth, async (req, res) => {
   try {
     const { backfillAvatars } = require('./avatar-service');
     const stats = await backfillAvatars();

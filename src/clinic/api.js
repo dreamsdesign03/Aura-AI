@@ -78,8 +78,15 @@ export const clinicApi = {
   // Audit
   audit: () => request('/audit'),
 
-  // Inbox
-  inbox: (limit) => request(`/inbox${limit ? `?limit=${limit}` : ''}`),
+  // Inbox with pagination support (before, channel, limit)
+  inbox: (limit = 100, before = null, channel = null) => {
+    const p = new URLSearchParams();
+    if (limit) p.set('limit', String(limit));
+    if (before) p.set('before', typeof before === 'string' ? before : new Date(before).toISOString());
+    if (channel && channel !== 'all') p.set('channel', String(channel));
+    const qs = p.toString();
+    return request(`/inbox${qs ? `?${qs}` : ''}`);
+  },
   inboxThread: (type, id, leadId, phone) =>
     request(`/inbox/thread?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}${leadId ? `&leadId=${encodeURIComponent(leadId)}` : ''}${phone ? `&phone=${encodeURIComponent(phone)}` : ''}`),
   inboxReply: (body) => request('/inbox/reply', { method: 'POST', body: JSON.stringify(body) }),

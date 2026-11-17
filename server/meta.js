@@ -186,6 +186,7 @@ async function ensureMetaSchema(force = false) {
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS hidden BOOLEAN DEFAULT FALSE;
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS author_avatar TEXT;
       ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS avatar_updated_at TIMESTAMPTZ;
+      ALTER TABLE meta_comments ADD COLUMN IF NOT EXISTS parent_id TEXT;
       UPDATE meta_comments SET external_id = comment_id WHERE external_id IS NULL AND comment_id IS NOT NULL;
       UPDATE meta_comments SET sender_avatar = NULL, author_avatar = NULL WHERE (sender_avatar IS NOT NULL AND sender_avatar NOT LIKE '/api/meta/avatar/%') OR (author_avatar IS NOT NULL AND author_avatar NOT LIKE '/api/meta/avatar/%');
       CREATE UNIQUE INDEX IF NOT EXISTS uq_meta_comm_ext ON meta_comments(external_id);
@@ -353,26 +354,36 @@ async function persistMetaMessage({
   await ensureMetaSchema();
   const extId = metaMessageId ? String(metaMessageId).trim() : null;
 
-  let msgRow = null;
+  // A.1: Check if this row already exists (by real Meta message ID)
+  let existingRow = null;
   if (extId) {
-    const existing = await db.query('SELECT * FROM meta_messages WHERE external_id = $1 OR meta_message_id = $1 LIMIT 1', [extId]);
-    if (existing.rows.length > 0) {
-      const updated = await db.query(
-        `UPDATE meta_messages
-            SET status = COALESCE($1, status),
-                reactions = CASE WHEN jsonb_array_length($2::jsonb) > 0 THEN $2::jsonb ELSE reactions END,
-                attachments = CASE WHEN jsonb_array_length($3::jsonb) > 0 THEN $3::jsonb ELSE attachments END,
-                shared_post = COALESCE($4::jsonb, shared_post),
-                content = COALESCE(NULLIF($5, ''), content)
-          WHERE id = $6
-          RETURNING *`,
-        [status, JSON.stringify(reactions), JSON.stringify(attachments), sharedPost ? JSON.stringify(sharedPost) : null, content, existing.rows[0].id]
-      );
-      msgRow = updated.rows[0];
-    }
+    const existing = await db.query(
+      'SELECT id FROM meta_messages WHERE external_id = $1 OR meta_message_id = $1 LIMIT 1',
+      [extId]
+    );
+    if (existing.rows.length > 0) existingRow = existing.rows[0];
   }
 
-  if (!msgRow) {
+  let msgRow = null;
+  const wasNewlyInserted = !existingRow;
+
+  if (existingRow) {
+    // UPDATE path: do NOT touch unread_count (A.1)
+    const updated = await db.query(
+      `UPDATE meta_messages
+          SET status = COALESCE($1, status),
+              reactions = CASE WHEN jsonb_array_length($2::jsonb) > 0 THEN $2::jsonb ELSE reactions END,
+              attachments = CASE WHEN jsonb_array_length($3::jsonb) > 0 THEN $3::jsonb ELSE attachments END,
+              shared_post = COALESCE($4::jsonb, shared_post),
+              content = COALESCE(NULLIF($5, ''), content)
+        WHERE id = $6
+        RETURNING *`,
+      [status, JSON.stringify(reactions), JSON.stringify(attachments),
+       sharedPost ? JSON.stringify(sharedPost) : null, content, existingRow.id]
+    );
+    msgRow = updated.rows[0];
+  } else {
+    // INSERT path — genuinely new message
     const r = await db.query(
       `INSERT INTO meta_messages (
          conversation_id, direction, channel, external_id, meta_message_id, content, media_url, attachments, shared_post, reactions, status, error_message, sent_at
@@ -390,22 +401,53 @@ async function persistMetaMessage({
         JSON.stringify(reactions),
         status,
         errorMessage,
-        sentAt
+        sentAt instanceof Date ? sentAt : new Date(sentAt)
       ]
     );
     msgRow = r.rows[0];
   }
 
-  // Update conversation's last message snippet and timestamp
-  const snippet = content || (sharedPost ? '[Shared Post/Reel]' : (mediaUrl || attachments.length ? '[Media attachment]' : ''));
+  // Build human-readable snippet for list preview
+  let snippet = content;
+  if (!snippet || (snippet.startsWith('[') && snippet.endsWith(']'))) {
+    if (sharedPost) {
+      const spType = (sharedPost.type || sharedPost.media_type || 'share').toLowerCase();
+      if (spType === 'ig_reel' || spType === 'reel') snippet = 'Shared a reel';
+      else if (spType === 'ig_post') snippet = 'Shared a post';
+      else if (spType === 'story_mention') snippet = 'Mentioned in a story';
+      else snippet = 'Shared a post';
+    } else if (attachments && attachments.length > 0) {
+      const attType = (attachments[0].type || 'attachment').toLowerCase();
+      if (attType === 'image') snippet = 'Sent an image';
+      else if (attType === 'video' || attType === 'ig_reel') snippet = 'Sent a video';
+      else if (attType === 'audio') snippet = 'Sent a voice message';
+      else snippet = 'Sent an attachment';
+    } else if (mediaUrl) {
+      snippet = 'Sent an attachment';
+    } else {
+      snippet = content || '';
+    }
+  }
+
+  // A.2: last_message_at = GREATEST(existing, sentAt). Update last_message text only if sentAt wins.
+  // A.1: unread_count + 1 ONLY on newly-inserted inbound rows.
+  const sentAtDate = sentAt instanceof Date ? sentAt : new Date(sentAt);
   await db.query(
     `UPDATE meta_conversations
-        SET last_message = COALESCE(NULLIF($1, ''), last_message),
-            last_message_at = $2,
-            unread_count = CASE WHEN $3 = 'inbound' THEN unread_count + 1 ELSE unread_count END,
+        SET last_message = CASE
+              WHEN $2::timestamptz >= COALESCE(last_message_at, 'epoch'::timestamptz)
+              THEN COALESCE(NULLIF($1, ''), last_message)
+              ELSE last_message
+            END,
+            last_message_at = GREATEST(COALESCE(last_message_at, 'epoch'::timestamptz), $2::timestamptz),
+            unread_count = CASE
+              WHEN $3 = 'inbound' AND $5 = TRUE
+              THEN unread_count + 1
+              ELSE unread_count
+            END,
             updated_at = NOW()
       WHERE id = $4`,
-    [snippet, sentAt, direction, conversationId]
+    [snippet, sentAtDate, direction, conversationId, wasNewlyInserted]
   );
 
   return msgRow;
@@ -418,6 +460,27 @@ async function sendMetaMessage({ channel, recipientId, text, conversationId }) {
   const pageToken = await getDerivedPageToken();
   if (!pageToken) throw new Error('Meta Page Access Token is unavailable');
   if (!recipientId || !text) throw new Error('Recipient ID and message text are required');
+
+  // C.1: Check 24h window expiry before sending
+  if (conversationId) {
+    const convRow = await db.query(
+      'SELECT window_expires_at FROM meta_conversations WHERE id = $1',
+      [conversationId]
+    );
+    if (convRow.rows.length > 0 && convRow.rows[0].window_expires_at) {
+      const windowExp = new Date(convRow.rows[0].window_expires_at);
+      if (windowExp < new Date()) {
+        // TODO: If HUMAN_AGENT permission is approved later via Meta App Review,
+        // attach `tag: 'HUMAN_AGENT'` allowing human agent replies up to 7 days.
+        // Do NOT enable now; enforce strict 24-hour window.
+        const expErr = new Error('24h window expired');
+        expErr.code = 'WINDOW_EXPIRED';
+        expErr.status = 409;
+        expErr.windowExpiredAt = windowExp.toISOString();
+        throw expErr;
+      }
+    }
+  }
 
   const graphVer = GRAPH_VERSION();
   const url = `https://graph.facebook.com/${graphVer}/me/messages?access_token=${encodeURIComponent(pageToken)}`;
@@ -438,8 +501,10 @@ async function sendMetaMessage({ channel, recipientId, text, conversationId }) {
 
   if (!response.ok || resJson.error) {
     const errorMsg = resJson.error?.message || 'Failed to send message via Meta API';
-    console.error(`[Meta Send] Error sending ${channel} message to ${recipientId}:`, resJson.error);
+    const metaCode = resJson.error?.code;
+    console.error(`[Meta Send] Error sending ${channel} message to ${recipientId}: code=${metaCode} ${errorMsg}`);
 
+    // C.2: Persist a visible 'failed' bubble
     if (conversationId) {
       await persistMetaMessage({
         conversationId,
@@ -451,7 +516,10 @@ async function sendMetaMessage({ channel, recipientId, text, conversationId }) {
       });
     }
 
-    throw new Error(errorMsg);
+    const err = new Error(errorMsg);
+    err.code = metaCode;
+    err.metaError = resJson.error;
+    throw err;
   }
 
   let savedMsg = null;
