@@ -44,6 +44,7 @@ const SuperAdmin = lazy(() => import("@/pages/SuperAdmin"));
 const GrowthQuestForm = lazy(() => import("@/pages/GrowthQuestForm"));
 const BulkCalling = lazy(() => import("@/pages/BulkCalling"));
 const ClinicOverview = lazy(() => import("@/pages/clinic/ClinicOverview"));
+const ClinicVisibilityAudit = lazy(() => import("@/pages/clinic/ClinicVisibilityAudit"));
 const ClinicAppointments = lazy(() => import("@/pages/clinic/ClinicAppointments"));
 const ClinicPatients = lazy(() => import("@/pages/clinic/ClinicPatients"));
 const ClinicInbox = lazy(() => import("@/pages/clinic/ClinicInbox"));
@@ -314,7 +315,8 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/leads" component={() => <Layout><Leads /></Layout>}/>
         <Route path="/leads/:id" component={() => <Layout><LeadDetail /></Layout>}/>
         <Route path="/icp" component={() => <Layout><IcpManager /></Layout>}/>
-        <Route path="/audit" component={() => <RedirectTo to="/leads"/>}/>
+        <Route path="/audit" component={() => <Layout><ClinicVisibilityAudit /></Layout>}/>
+        <Route path="/clinic/audit" component={() => <Layout><ClinicVisibilityAudit /></Layout>}/>
         <Route path="/outreach" component={() => <Layout><Outreach /></Layout>}/>
         <Route path="/pipeline" component={() => <RedirectTo to="/leads?view=board"/>}/>
         <Route path="/meetings" component={() => <RedirectTo to="/clinic/appointments"/>}/>

@@ -29,6 +29,8 @@ const PUBLIC_PATHS = ["/login", "/register", "/verify", "/invite", "/audit/share
 export const LEADER_ROUTES = [
   { path: "/leads", prefix: true },
   { path: "/clinic", exact: true },
+  { path: "/clinic/audit", prefix: true },
+  { path: "/audit", prefix: true },
   { path: "/clinic/appointments", prefix: true },
   { path: "/clinic/inbox", prefix: true },
   { path: "/clinic/dialer", prefix: true },
@@ -44,6 +46,8 @@ export const LEADER_ROUTES = [
 export const EXECUTIVE_ROUTES = [
   { path: "/leads", prefix: true },
   { path: "/clinic", exact: true },
+  { path: "/clinic/audit", prefix: true },
+  { path: "/audit", prefix: true },
   { path: "/clinic/appointments", prefix: true },
   { path: "/clinic/inbox", prefix: true },
   { path: "/clinic/dialer", prefix: true },

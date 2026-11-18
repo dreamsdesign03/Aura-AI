@@ -32,7 +32,7 @@ function usePendingEmailCountdown(expiresAt) {
     const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     return { expired: false, label, nearExpiry: totalMinutes < 10 };
 }
-import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, MessageSquare, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, PhoneOutgoing, Star, Headphones, BookOpen, Route as RouteIcon } from "lucide-react";
+import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, MessageSquare, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, PhoneOutgoing, Star, Headphones, BookOpen, Route as RouteIcon, Shield } from "lucide-react";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import MysaAssistant from "@/components/MysaAssistant";
 import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
@@ -63,6 +63,7 @@ const navGroups = [
         group: "Clinic OS",
         items: [
             { href: "/clinic", label: "Clinic Command Center", icon: Activity, accent: "#A4285E", exact: true },
+            { href: "/clinic/audit", label: "Visibility Audit", icon: Shield, accent: "#A4285E" },
             { href: "/clinic/appointments", label: "Appointments & Meetings", icon: Calendar, accent: "#A4285E" },
             { href: "/clinic/patients", label: "Patients", icon: Users, accent: "#A4285E" },
             { href: "/clinic/inbox", label: "Inbox", icon: MessageSquare, accent: "#A4285E" },
