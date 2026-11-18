@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { 
   Shield, 
   Search, 
@@ -44,6 +44,9 @@ export default function ClinicVisibilityAudit() {
   const [loading, setLoading] = useState(true);
   const [runningAudit, setRunningAudit] = useState(false);
   const [checkingKeywordId, setCheckingKeywordId] = useState(null);
+  const [isScanningAll, setIsScanningAll] = useState(false);
+  const [scanProgress, setScanProgress] = useState(null);
+  const stopScanRef = useRef(false);
   const [data, setData] = useState({
     summary: {
       networkVisibilityScore: 79,
@@ -150,6 +153,110 @@ export default function ClinicVisibilityAudit() {
       });
     } finally {
       setCheckingKeywordId(null);
+    }
+  };
+
+  // Stop scanning
+  const handleStopScanAll = () => {
+    stopScanRef.current = true;
+    setIsScanningAll(false);
+    setCheckingKeywordId(null);
+    setScanProgress(null);
+    toast({
+      title: "Live Scan Stopped",
+      description: "Batch scanning was paused by user."
+    });
+  };
+
+  // Scan all keywords live one by one (sequential live scan)
+  const handleScanAllLive = async () => {
+    const keywordsToScan = filteredKeywords.length > 0 ? filteredKeywords : data.keywords;
+    if (!keywordsToScan || keywordsToScan.length === 0) return;
+
+    setIsScanningAll(true);
+    stopScanRef.current = false;
+    toast({
+      title: "Live Sequential Scan Started",
+      description: `Scanning ${keywordsToScan.length} keywords one by one on Google...`
+    });
+
+    let completed = 0;
+    for (let i = 0; i < keywordsToScan.length; i++) {
+      if (stopScanRef.current) break;
+
+      const item = keywordsToScan[i];
+      setCheckingKeywordId(item.id);
+      setScanProgress({
+        current: i + 1,
+        total: keywordsToScan.length,
+        currentKeyword: item.keyword
+      });
+
+      try {
+        const res = await fetch("/api/visibility-audit/check-keyword", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: item.id })
+        });
+        const json = await res.json();
+        if (json.success) {
+          completed++;
+          // Update the specific keyword in local state immediately so UI updates row-by-row live!
+          setData(prev => {
+            const updatedKeywords = prev.keywords.map(k => {
+              if (k.id === item.id) {
+                return {
+                  ...k,
+                  current_rank: json.currentRank,
+                  previous_rank: json.previousRank,
+                  rank_change: json.rankChange,
+                  last_checked_at: json.lastCheckedAt
+                };
+              }
+              return k;
+            });
+
+            // Recompute counts
+            let top3 = 0, top10 = 0, sum = 0, count = 0;
+            updatedKeywords.forEach(k => {
+              if (k.current_rank) {
+                sum += k.current_rank;
+                count++;
+                if (k.current_rank <= 3) top3++;
+                if (k.current_rank <= 10) top10++;
+              }
+            });
+            const newAvg = count > 0 ? (sum / count).toFixed(1) : prev.summary.avgRank;
+            return {
+              ...prev,
+              summary: {
+                ...prev.summary,
+                top3Count: top3,
+                top10Count: top10,
+                avgRank: newAvg
+              },
+              keywords: updatedKeywords
+            };
+          });
+        }
+      } catch (e) {
+        console.error("Error scanning keyword:", item.keyword, e);
+      }
+
+      // Small gentle delay (250ms) between scans for smooth live visual effect
+      await new Promise(r => setTimeout(r, 250));
+    }
+
+    setCheckingKeywordId(null);
+    setIsScanningAll(false);
+    setScanProgress(null);
+
+    if (!stopScanRef.current) {
+      toast({
+        title: "Scan Completed!",
+        description: `Successfully scanned ${completed} of ${keywordsToScan.length} keywords on Google.`
+      });
+      loadData();
     }
   };
 
@@ -300,12 +407,15 @@ export default function ClinicVisibilityAudit() {
             </button>
 
             <button
-              onClick={handleRunAudit}
-              disabled={runningAudit}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-lg bg-gradient-to-r from-pink-600 to-rose-600 text-xs font-bold text-white shadow-sm hover:from-pink-700 hover:to-rose-700 disabled:opacity-60 transition-all"
+              onClick={isScanningAll ? handleStopScanAll : handleScanAllLive}
+              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-all ${
+                isScanningAll
+                  ? "bg-amber-600 hover:bg-amber-700 animate-pulse"
+                  : "bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700"
+              }`}
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${runningAudit ? "animate-spin" : ""}`} />
-              {runningAudit ? "Auditing SERPs…" : "Run Audit Now"}
+              <RefreshCw className={`w-3.5 h-3.5 ${isScanningAll ? "animate-spin" : ""}`} />
+              {isScanningAll ? "Pause Live Scan" : "⚡ Scan All Live (One by One)"}
             </button>
           </div>
         </div>
@@ -527,6 +637,18 @@ export default function ClinicVisibilityAudit() {
                   <option value="top10">Top 10 (Page 1)</option>
                   <option value="needsBoost">Rank &gt; 10 (Needs Boost)</option>
                 </select>
+
+                <button
+                  onClick={isScanningAll ? handleStopScanAll : handleScanAllLive}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                    isScanningAll
+                      ? "bg-amber-50 text-amber-700 border-amber-300 animate-pulse"
+                      : "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"
+                  }`}
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isScanningAll ? "animate-spin" : ""}`} />
+                  {isScanningAll ? `Scanning ${scanProgress?.current || 0}/${scanProgress?.total || 0}… (Stop)` : "Scan All Live"}
+                </button>
               </div>
             </div>
 
@@ -555,6 +677,40 @@ export default function ClinicVisibilityAudit() {
             </div>
           </div>
 
+          {/* Live Scanning Progress Banner */}
+          {isScanningAll && scanProgress && (
+            <div className="bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 border-b border-pink-200 px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-gray-900">
+                      Live Checking: <span className="text-pink-600 font-extrabold">"{scanProgress.currentKeyword}"</span>
+                    </span>
+                    <span className="text-[11px] font-semibold text-gray-500">
+                      ({scanProgress.current} of {scanProgress.total} keywords)
+                    </span>
+                  </div>
+                  <div className="w-64 sm:w-80 bg-pink-200 h-2 rounded-full overflow-hidden mt-1.5">
+                    <div 
+                      className="bg-gradient-to-r from-pink-600 to-rose-600 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${(scanProgress.current / scanProgress.total) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleStopScanAll}
+                className="px-3 py-1.5 rounded-lg border border-pink-300 bg-white text-xs font-bold text-pink-700 hover:bg-pink-100 shadow-sm self-start sm:self-auto"
+              >
+                Pause / Stop Scan
+              </button>
+            </div>
+          )}
+
           {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
@@ -566,7 +722,23 @@ export default function ClinicVisibilityAudit() {
                   <th className="py-3 px-4 text-center">Google Position</th>
                   <th className="py-3 px-4 text-center">Movement</th>
                   <th className="py-3 px-4">SERP Features</th>
-                  <th className="py-3 px-4 text-right">Actions</th>
+                  <th className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <span>Actions</span>
+                      <button
+                        onClick={isScanningAll ? handleStopScanAll : handleScanAllLive}
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold border transition-colors ${
+                          isScanningAll
+                            ? "bg-amber-100 text-amber-800 border-amber-300 animate-pulse"
+                            : "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"
+                        }`}
+                        title="Scan all keywords live one by one"
+                      >
+                        <RefreshCw className={`w-3 h-3 ${isScanningAll ? "animate-spin" : ""}`} />
+                        {isScanningAll ? "Stop" : "Scan All"}
+                      </button>
+                    </div>
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
