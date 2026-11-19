@@ -570,7 +570,7 @@ export default function ClinicVisibilityAudit() {
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top 3 on Google Maps</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-pink-600">{kpi.scanned ? kpi.top3 : "-"}</span>
-              <span className="text-xs font-medium text-gray-500">of {kpi.scanned} scanned ({kpi.total} total)</span>
+              <span className="text-xs font-medium text-gray-500">of {kpi.scanned} scanned</span>
             </div>
             <p className="mt-3 text-xs text-gray-500">{kpi.notRanked ? `${kpi.notRanked} scanned keyword(s) not in Maps results` : "Live Local Pack / Maps position"}</p>
           </div>
@@ -586,7 +586,7 @@ export default function ClinicVisibilityAudit() {
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-purple-700">{summary.aiMentions ?? "-"}</span>
             </div>
-            <p className="mt-3 text-xs text-gray-500">{summary.aiMentions ? "ChatGPT, Gemini, AI Overviews" : "Click Scan AI Visibility"}</p>
+            <p className="mt-3 text-xs text-gray-500">{summary.aiAnswered ? "Based on completed AI engine answers" : "No completed AI scans yet"}</p>
           </div>
         </div>
 
@@ -639,25 +639,7 @@ export default function ClinicVisibilityAudit() {
 
           <div className="lg:col-span-4 space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <div className="flex items-center justify-between">
-                <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><Sparkles className="w-4 h-4 text-purple-600" /> AI search visibility</h2>
-                <button onClick={() => setShowAiDetail((v) => !v)} className="text-[11px] font-semibold text-purple-700 hover:underline">{showAiDetail ? "Hide answers" : "See answers"}</button>
-              </div>
-              <p className="text-xs text-gray-500 mt-0.5 mb-3">{data.aiQuestions.length} patient questions asked to each engine</p>
-              <div className="space-y-3">
-                {engines.map((e) => (
-                  <div key={e.id} className="space-y-1">
-                    <div className="flex justify-between text-xs">
-                      <span className="font-medium text-gray-700">{e.engine}</span>
-                      {e.configured ? <span className="font-bold text-purple-700">{e.score || "not scanned"}</span> : <span className="text-[10px] font-semibold text-amber-600">API key missing</span>}
-                    </div>
-                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden"><div className="bg-purple-600 h-1.5 rounded-full" style={{ width: `${e.pct}%` }} /></div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+              <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><CheckCircle2            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
               <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Fix list</h2>
               <p className="text-xs text-gray-500 mt-0.5 mb-3">Generated from your latest scan results</p>
               <div className="space-y-2 max-h-72 overflow-y-auto">
