@@ -2507,7 +2507,11 @@ router.post('/reviews/sync-google', requireUser, async (req, res) => {
              VALUES ($1,$2,$3,'Google',$4,'new',$5,$6,$7,COALESCE($8::timestamptz,NOW()))
              ON CONFLICT (user_id, external_id) WHERE external_id IS NOT NULL
              DO UPDATE SET author=EXCLUDED.author, rating=EXCLUDED.rating, body=EXCLUDED.body,
-               branch=EXCLUDED.branch, source_url=EXCLUDED.source_url`,
+               branch=EXCLUDED.branch, source_url=EXCLUDED.source_url,
+               created_at = CASE
+                 WHEN $8::timestamptz IS NOT NULL THEN EXCLUDED.created_at
+                 ELSE clinic_reviews.created_at
+               END`,
             [uid, author, rating, String(body).trim(), location.branch, sourceUrl, externalId, isoDate]
           );
           pageImported++;
