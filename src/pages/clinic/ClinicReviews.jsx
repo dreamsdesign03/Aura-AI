@@ -149,6 +149,7 @@ export default function ClinicReviews() {
   const [replyText, setReplyText] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
   const [sourceFilter, setSourceFilter] = useState('all');
+  const [syncMessage, setSyncMessage] = useState('');
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['clinic', 'reviews'],
@@ -163,6 +164,15 @@ export default function ClinicReviews() {
   const repliedCount = reviews.filter((r) => r.status === 'replied').length;
   const avgRating = reviews.length > 0 ? (reviews.reduce((n, r) => n + (r.rating || 5), 0) / reviews.length).toFixed(1) : '—';
 
+  const syncGoogle = useMutation({
+    mutationFn: clinicApi.syncGoogleReviews,
+    onSuccess: (result) => {
+      setSyncMessage(`Synced ${result.imported} Google reviews. ${(result.branches || []).filter((b) => b.error).length ? 'Some branches need attention.' : ''}`);
+      qc.invalidateQueries({ queryKey: ['clinic', 'reviews'] });
+    },
+    onError: (error) => setSyncMessage(error.message || 'Google review sync failed.'),
+  });
+
   const reply = useMutation({
     mutationFn: ({ id, reply }) => clinicApi.replyReview(id, reply),
     onSuccess: () => { setReplyingId(null); setReplyText(''); qc.invalidateQueries({ queryKey: ['clinic', 'reviews'] }); },
@@ -176,6 +186,9 @@ export default function ClinicReviews() {
   return (
     <div className="clinic-os">
       <PageHead title="Reviews" subtitle="Monitor and reply to patient reviews across channels.">
+        <button type="button" className="co-btn co-btn-sm" onClick={() => { setSyncMessage(''); syncGoogle.mutate(); }} disabled={syncGoogle.isPending}>
+          <RefreshCw size={13} className={syncGoogle.isPending ? 'animate-spin' : ''} /> {syncGoogle.isPending ? 'Syncing Google…' : 'Sync Google reviews'}
+        </button>
         <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
         </button>
@@ -191,6 +204,7 @@ export default function ClinicReviews() {
         <Kpi label="Replied" value={repliedCount} foot="Handled" icon={CheckCircle2} />
       </div>
 
+      {syncMessage ? <div className="co-xs co-mut" style={{ marginBottom: 10 }} role="status">{syncMessage}</div> : null}
       <Card rise="co-rise-2">
         <div className="co-row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14 }}>
           <div className="co-row" style={{ gap: 8, flexWrap: 'wrap' }}>
