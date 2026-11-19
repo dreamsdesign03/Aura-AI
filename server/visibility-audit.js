@@ -540,7 +540,7 @@ const AI_ENGINES = {
   chatgpt: { label: 'ChatGPT Search', env: 'OPENAI_API_KEY' },
   perplexity: { label: 'Perplexity AI', env: 'PERPLEXITY_API_KEY' },
   gemini: { label: 'Google Gemini', env: 'GEMINI_API_KEY' },
-  google_ai: { label: 'Google AI Overviews', env: 'SERPAPI_API_KEY' },
+  google_ai: { label: 'Google AI Overviews', env: 'SERPER_API_KEY' },
 };
 
 const AURA_MENTION_RE = /aura\s+(laser|skin|cosmetic|clinic)|dr\.?\s*aditya\s*shah|auralaserclinic|skinnonest/i;
@@ -774,6 +774,7 @@ router.get(['/', ''], async (req, res) => {
       success: true,
       config: {
         google: serperConfigured(),
+        aiOverviewConfigured: googleAiOverviewConfigured(),
         serpDepth: SERP_DEPTH,
         engines: Object.fromEntries(Object.entries(AI_ENGINES).map(([id, m]) => [id, { label: m.label, configured: !!process.env[m.env], env: m.env }])),
       },
