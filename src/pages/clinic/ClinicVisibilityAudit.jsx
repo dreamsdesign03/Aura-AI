@@ -44,6 +44,8 @@ export default function ClinicVisibilityAudit() {
   const [loading, setLoading] = useState(true);
   const [runningAudit, setRunningAudit] = useState(false);
   const [checkingKeywordId, setCheckingKeywordId] = useState(null);
+  const [editingRankId, setEditingRankId] = useState(null);
+  const [editingRankVal, setEditingRankVal] = useState("");
   const [isScanningAll, setIsScanningAll] = useState(false);
   const [scanProgress, setScanProgress] = useState(null);
   const stopScanRef = useRef(false);
@@ -153,6 +155,42 @@ export default function ClinicVisibilityAudit() {
       });
     } finally {
       setCheckingKeywordId(null);
+    }
+  };
+
+  // Manual rank adjustment
+  const handleSaveRank = async (id) => {
+    const rankNum = parseInt(editingRankVal, 10);
+    if (!rankNum || rankNum < 1 || rankNum > 100) {
+      setEditingRankId(null);
+      return;
+    }
+    try {
+      const res = await fetch("/api/visibility-audit/update-rank", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, currentRank: rankNum })
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: "Rank Updated",
+          description: `Google Position updated to #${rankNum}`
+        });
+        setData(prev => ({
+          ...prev,
+          summary: {
+            ...prev.summary,
+            avgRank: json.avgRank,
+            networkVisibilityScore: json.networkVisibilityScore
+          },
+          keywords: prev.keywords.map(k => k.id === id ? { ...k, current_rank: json.currentRank, previous_rank: json.previousRank, rank_change: json.rankChange } : k)
+        }));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setEditingRankId(null);
     }
   };
 
@@ -772,15 +810,56 @@ export default function ClinicVisibilityAudit() {
                         </td>
 
                         <td className="py-3 px-4 text-center">
-                          <span className={`inline-flex items-center justify-center min-w-[32px] px-2 py-0.5 rounded-full font-bold text-xs ${
-                            isTop3 
-                              ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
-                              : isTop10 
-                              ? "bg-pink-100 text-pink-800 border border-pink-200" 
-                              : "bg-gray-100 text-gray-700"
-                          }`}>
-                            #{item.current_rank || "20+"}
-                          </span>
+                          {editingRankId === item.id ? (
+                            <div className="inline-flex items-center gap-1 justify-center">
+                              <input
+                                type="number"
+                                min="1"
+                                max="100"
+                                autoFocus
+                                value={editingRankVal}
+                                onChange={(e) => setEditingRankVal(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleSaveRank(item.id);
+                                  if (e.key === "Escape") setEditingRankId(null);
+                                }}
+                                className="w-12 px-1 py-0.5 text-center text-xs font-bold border border-pink-400 rounded focus:outline-none focus:ring-1 focus:ring-pink-500 bg-white"
+                              />
+                              <button
+                                onClick={() => handleSaveRank(item.id)}
+                                className="p-1 hover:bg-emerald-100 text-emerald-700 rounded transition-colors"
+                                title="Save Rank"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setEditingRankId(null)}
+                                className="p-1 hover:bg-rose-100 text-rose-700 rounded transition-colors"
+                                title="Cancel"
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ) : (
+                            <span 
+                              onClick={() => {
+                                setEditingRankId(item.id);
+                                setEditingRankVal(item.current_rank || "1");
+                              }}
+                              title="Click to manually edit rank"
+                              className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full font-bold text-xs cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-pink-400 transition-all ${
+                                item.current_rank === 1
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs"
+                                  : isTop3 
+                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
+                                  : isTop10 
+                                  ? "bg-pink-100 text-pink-800 border border-pink-200" 
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {item.current_rank === 1 ? "🏆 #1" : `#${item.current_rank || "20+"}`}
+                            </span>
+                          )}
                         </td>
 
                         <td className="py-3 px-4 text-center">
@@ -811,14 +890,27 @@ export default function ClinicVisibilityAudit() {
                         </td>
 
                         <td className="py-3 px-4 text-right">
-                          <button
-                            onClick={() => handleCheckKeyword(item.id, item.keyword)}
-                            disabled={isChecking}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-gray-200 hover:border-pink-300 hover:bg-pink-50 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
-                          >
-                            <RefreshCw className={`w-3 h-3 ${isChecking ? "animate-spin text-pink-600" : ""}`} />
-                            {isChecking ? "Checking…" : "Check Live"}
-                          </button>
+                          <div className="inline-flex items-center gap-1.5 justify-end">
+                            <a
+                              href={`https://www.google.com/search?q=${encodeURIComponent(item.keyword.toLowerCase().includes("vadodara") ? item.keyword : item.keyword + " Vadodara")}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:border-blue-300 hover:bg-blue-50 text-blue-700 text-xs font-medium transition-colors"
+                              title="Verify directly on Google Live SERP"
+                            >
+                              <ExternalLink className="w-3 h-3" />
+                              Google
+                            </a>
+
+                            <button
+                              onClick={() => handleCheckKeyword(item.id, item.keyword)}
+                              disabled={isChecking}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-gray-200 hover:border-pink-300 hover:bg-pink-50 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
+                            >
+                              <RefreshCw className={`w-3 h-3 ${isChecking ? "animate-spin text-pink-600" : ""}`} />
+                              {isChecking ? "Checking…" : "Check Live"}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
