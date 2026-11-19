@@ -192,6 +192,9 @@ function ensureSchema() {
       body TEXT,
       status TEXT DEFAULT 'new',
       reply TEXT,
+      branch TEXT,
+      source_url TEXT,
+      external_id TEXT,
       created_at TIMESTAMPTZ DEFAULT NOW()
     );
 
@@ -281,6 +284,10 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS clinic_visits_lead_idx ON clinic_visits (lead_id);
     ALTER TABLE clinic_packages ADD COLUMN IF NOT EXISTS paid_amount NUMERIC DEFAULT 0;
     ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS reply TEXT;
+    ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS branch TEXT;
+    ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS source_url TEXT;
+    ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS external_id TEXT;
+    CREATE UNIQUE INDEX IF NOT EXISTS clinic_reviews_external_id_idx ON clinic_reviews (user_id, external_id) WHERE external_id IS NOT NULL;
 
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'plivo';
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'outbound';
@@ -2368,19 +2375,19 @@ router.post('/playbooks/:id/test', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/reviews', requireUser, async (req, res) => {
   try {
-    const r = await db.query('SELECT * FROM clinic_reviews WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100', [req.user.id]);
+    const r = await db.query('SELECT * FROM clinic_reviews WHERE user_id = $1 ORDER BY created_at DESC LIMIT 500', [req.user.id]);
     res.json({ reviews: r.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 router.post('/reviews', requireUser, async (req, res) => {
   try {
-    const { leadId, author, rating, channel, body } = req.body || {};
+    const { leadId, author, rating, channel, body, branch, sourceUrl } = req.body || {};
     if (!author || !body) return res.status(400).json({ error: 'author and body required' });
     const r = await db.query(
-      `INSERT INTO clinic_reviews (user_id, lead_id, author, rating, channel, body)
-       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-      [req.user.id, leadId || null, author, Number(rating) || 5, channel || 'Google', body]
+      `INSERT INTO clinic_reviews (user_id, lead_id, author, rating, channel, body, branch, source_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.user.id, leadId || null, author, Number(rating) || 5, channel || 'Website', body, branch || null, sourceUrl || null]
     );
     await audit(req.user.id, 'created', 'review', r.rows[0].id, `${author}: ${String(body).slice(0, 60)}`);
     res.json({ review: r.rows[0] });
