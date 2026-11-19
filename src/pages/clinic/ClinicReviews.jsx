@@ -167,7 +167,7 @@ export default function ClinicReviews() {
   const syncGoogle = useMutation({
     mutationFn: clinicApi.syncGoogleReviews,
     onSuccess: (result) => {
-      setSyncMessage(`Synced ${result.imported} Google reviews. ${(result.branches || []).filter((b) => b.error).length ? 'Some branches need attention.' : ''}`);
+      setSyncMessage(`Synced ${result.imported} Google reviews. ${(result.branches || []).map((b) => b.error ? `${b.branch}: ${b.error}` : `${b.branch}: ${b.fetchedAndSaved} reviews${b.hasMore ? ' (more available; sync again)' : ''}`).join(' · ')}`);
       qc.invalidateQueries({ queryKey: ['clinic', 'reviews'] });
     },
     onError: (error) => setSyncMessage(error.message || 'Google review sync failed.'),
