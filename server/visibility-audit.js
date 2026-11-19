@@ -415,6 +415,47 @@ function parseSearchResponse(json, branch) {
 }
 
 // ── Network helpers ──────────────────────────────────────────────────────────
+async function getJson(url, timeoutMs = 20000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { method: 'GET', signal: ctrl.signal });
+    const body = await r.text();
+    let json = {};
+    try { json = JSON.parse(body); } catch { }
+    if (!r.ok || json.error) {
+      const err = new Error(json.error || `SerpApi request failed (HTTP ${r.status})`);
+      err.status = r.status;
+      if (r.status === 429) err.code = 'RATE_LIMITED';
+      throw err;
+    }
+    return json;
+  } finally { clearTimeout(t); }
+}
+
+async function fetchSerpApiAiOverview(query, location) {
+  const key = process.env.SERPAPI_API_KEY;
+  if (!key) {
+    const e = new Error('SERPAPI_API_KEY not configured — add it in Vercel env to enable Google AI Overview checks.');
+    e.code = 'NOT_CONFIGURED';
+    throw e;
+  }
+  const params = new URLSearchParams({
+    engine: 'google', q: query, api_key: key, gl: 'in', hl: 'en',
+    location: location || 'Vadodara, Gujarat, India',
+  });
+  const search = await getJson(`https://serpapi.com/search.json?${params.toString()}`, 25000);
+  let overview = search.ai_overview || search.aiOverview || null;
+  if (overview?.page_token) {
+    const followUp = new URLSearchParams({
+      engine: 'google_ai_overview', page_token: overview.page_token, api_key: key,
+    });
+    const full = await getJson(`https://serpapi.com/search.json?${followUp.toString()}`, 25000);
+    overview = full.ai_overview || full.aiOverview || full;
+  }
+  return overview;
+}
+
 async function postJson(url, headers, body, timeoutMs = 20000) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -437,7 +478,8 @@ async function postJson(url, headers, body, timeoutMs = 20000) {
 
 const serperHeaders = () => ({ 'X-API-KEY': process.env.SERPER_API_KEY });
 function serperConfigured() { return !!process.env.SERPER_API_KEY; }
-function googleAiOverviewConfigured() { return serperConfigured(); }
+function serpapiConfigured() { return !!process.env.SERPAPI_API_KEY; }
+function googleAiOverviewConfigured() { return serpapiConfigured(); }
 
 // Real Google check for one keyword: Maps (from branch area) + organic (city-level).
 async function checkGoogleRank(keyword, branchName) {
@@ -452,13 +494,14 @@ async function checkGoogleRank(keyword, branchName) {
     e.code = 'INVALID_BRANCH';
     throw e;
   }
-  const [maps, search] = await Promise.all([
+  const [maps, search, aiOverview] = await Promise.all([
     postJson('https://google.serper.dev/maps', serperHeaders(), { q: keyword, ll: branch.ll, gl: 'in', hl: 'en' }),
     postJson('https://google.serper.dev/search', serperHeaders(), { q: keyword, gl: 'in', hl: 'en', location: branch.location, num: SERP_DEPTH }),
+    serpapiConfigured() ? fetchSerpApiAiOverview(keyword, branch.location) : Promise.resolve(null),
   ]);
   const m = parseMapsResponse(maps, branch);
-  // Serper's Google Search response includes aiOverview/ai_overview when Google returns an AI Overview.
-  const s = parseSearchResponse(search, branch);
+  // Google AI Overview is fetched independently through SerpApi; Serper remains responsible for Maps + Organic.
+  const s = parseSearchResponse(aiOverview ? { ...search, ai_overview: aiOverview } : search, branch);
   return { maps: m, organic: s, depth: SERP_DEPTH };
 }
 
@@ -506,7 +549,7 @@ const AI_ENGINES = {
   chatgpt: { label: 'ChatGPT Search', env: 'OPENAI_API_KEY' },
   perplexity: { label: 'Perplexity AI', env: 'PERPLEXITY_API_KEY' },
   gemini: { label: 'Google Gemini', env: 'GEMINI_API_KEY' },
-  google_ai: { label: 'Google AI Overviews', env: 'SERPER_API_KEY' },
+  google_ai: { label: 'Google AI Overviews', env: 'SERPAPI_API_KEY' },
 };
 
 const AURA_MENTION_RE = /aura\s+(laser|skin|cosmetic|clinic)|dr\.?\s*aditya\s*shah|auralaserclinic|skinnonest/i;
@@ -608,13 +651,13 @@ async function askEngine(engine, question) {
     }
     return { text, citations: cites, answered: !!text };
   }
-  // google_ai: AI Overview as returned inside Google's own results.
-  const j = await postJson('https://google.serper.dev/search', serperHeaders(), { q: question, gl: 'in', hl: 'en', location: 'Vadodara, Gujarat, India' }, 20000);
-  const ov = j.aiOverview || j.ai_overview;
+  // google_ai: fetch Google's native AI Overview using SerpApi.
+  const ov = await fetchSerpApiAiOverview(question, 'Vadodara, Gujarat, India');
   if (!ov) return { text: '', citations: [], answered: false };
-  const text = typeof ov === 'string' ? ov : (ov.text || ov.snippet || JSON.stringify(ov));
-  const cites = (ov.sources || ov.references || []).map((s) => s.link || s.url).filter(Boolean);
-  return { text, citations: cites, answered: true };
+  const blocks = Array.isArray(ov.text_blocks) ? ov.text_blocks : (Array.isArray(ov.textBlocks) ? ov.textBlocks : []);
+  const text = [ov.text, ov.snippet, ...blocks.map((b) => b.snippet || b.text || (Array.isArray(b.list) ? b.list.map((x) => `${x.title || ''} ${x.snippet || ''}`).join('\n') : ''))].filter(Boolean).join('\n');
+  const cites = (ov.references || ov.sources || []).map((s) => s.link || s.url).filter(Boolean);
+  return { text: text || JSON.stringify(ov), citations: cites, answered: true };
 }
 
 // ── Auth (cookie user must exist — same cookie the rest of the app uses) ─────
