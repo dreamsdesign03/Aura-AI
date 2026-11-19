@@ -34,6 +34,7 @@ function ReviewCard({ review, onReply, replyingId, busy }) {
         <StatusChip status={review.status || 'new'} />
       </div>
       <p style={{ fontSize: 13, lineHeight: 1.6, color: '#374151', marginBottom: 12 }}>{review.body}</p>
+      {review.source_url ? <a href={review.source_url} target="_blank" rel="noreferrer" className="co-xs" style={{ color: '#2563EB' }}>View original review ↗</a> : null}
 
       {review.reply ? (
         <div style={{ background: '#F5F0FA', borderRadius: 10, padding: 12, marginBottom: 12 }}>
