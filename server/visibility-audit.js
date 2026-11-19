@@ -305,8 +305,8 @@ const AURA_NAME_RE = /aura\s+laser|dr\.?\s*aditya\s*shah|skinnonest/i;
 function isAuraPlace(p) {
   const site = String(p.website || p.link || '').toLowerCase();
   const title = String(p.title || '');
-  // Match if website is our target domain OR title contains Aura brand name
-  return (site && site.includes(TARGET_DOMAIN)) || AURA_NAME_RE.test(title);
+  // Match if website is our target domain (including .co.in / adityaskin) OR title contains Aura brand name
+  return (site && (site.includes(TARGET_DOMAIN) || site.includes('auralaser.co.in') || site.includes('adityaskin.com'))) || AURA_NAME_RE.test(title);
 }
 
 function addressHasHint(address, branch) {
