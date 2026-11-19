@@ -165,9 +165,30 @@ export default function ClinicReviews() {
   const avgRating = reviews.length > 0 ? (reviews.reduce((n, r) => n + (r.rating || 5), 0) / reviews.length).toFixed(1) : '—';
 
   const syncGoogle = useMutation({
-    mutationFn: clinicApi.syncGoogleReviews,
+    mutationFn: async ({ restart = false } = {}) => {
+      let totalImported = 0;
+      let latest = null;
+      const maxRoundsPerClick = 25;
+      for (let round = 0; round < maxRoundsPerClick; round++) {
+        latest = await clinicApi.syncGoogleReviews(restart && round === 0);
+        totalImported += Number(latest.imported || 0);
+        const progress = latest.progress || {};
+        setSyncMessage(`Google backfill running: ${progress.completedBranches || 0}/${progress.totalBranches || 5} branches complete · ${progress.reviewsFetched || 0} reviews fetched · ${progress.pagesFetched || 0} pages processed`);
+        if (!progress.hasMore) break;
+        const errors = (latest.branches || []).filter((b) => b.error);
+        if (errors.length === (latest.branches || []).length) break;
+      }
+      return { ...latest, imported: totalImported };
+    },
     onSuccess: (result) => {
-      setSyncMessage(`Synced ${result.imported} Google reviews. ${(result.branches || []).map((b) => b.error ? `${b.branch}: ${b.error}` : `${b.branch}: ${b.fetchedAndSaved} reviews${b.hasMore ? ' (more available; sync again)' : ''}`).join(' · ')}`);
+      const progress = result.progress || {};
+      const errors = (result.branches || []).filter((b) => b.error);
+      const status = progress.hasMore
+        ? `Paused safely after this batch. ${progress.completedBranches || 0}/${progress.totalBranches || 5} branches complete; click Continue Sync to resume.`
+        : errors.length
+          ? `Sync finished with errors: ${errors.map((b) => `${b.branch}: ${b.error}`).join(' · ')}`
+          : 'Google review backfill completed for all configured branches.';
+      setSyncMessage(`Imported/updated ${result.imported || 0} reviews in this batch. ${status}`);
       qc.invalidateQueries({ queryKey: ['clinic', 'reviews'] });
     },
     onError: (error) => setSyncMessage(error.message || 'Google review sync failed.'),
@@ -186,8 +207,11 @@ export default function ClinicReviews() {
   return (
     <div className="clinic-os">
       <PageHead title="Reviews" subtitle="Monitor and reply to patient reviews across channels.">
-        <button type="button" className="co-btn co-btn-sm" onClick={() => { setSyncMessage(''); syncGoogle.mutate(); }} disabled={syncGoogle.isPending}>
-          <RefreshCw size={13} className={syncGoogle.isPending ? 'animate-spin' : ''} /> {syncGoogle.isPending ? 'Syncing Google…' : 'Sync Google reviews'}
+        <button type="button" className="co-btn co-btn-primary co-btn-sm" onClick={() => { setSyncMessage('Starting resumable Google review backfill…'); syncGoogle.mutate({ restart: false }); }} disabled={syncGoogle.isPending}>
+          <RefreshCw size={13} className={syncGoogle.isPending ? 'animate-spin' : ''} /> {syncGoogle.isPending ? 'Syncing all pages…' : 'Complete Google Reviews Sync'}
+        </button>
+        <button type="button" className="co-btn co-btn-sm" onClick={() => { setSyncMessage('Restarting the full Google review backfill…'); syncGoogle.mutate({ restart: true }); }} disabled={syncGoogle.isPending}>
+          Restart full sync
         </button>
         <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
           <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
