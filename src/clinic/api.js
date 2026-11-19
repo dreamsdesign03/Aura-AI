@@ -171,10 +171,13 @@ export const timeLabel = (value) => {
 
 export const dateLabel = (value) => {
   if (!value) return '';
-  return new Date(value).toLocaleDateString('en-IN', {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-IN', {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
+    year: 'numeric',
     timeZone: 'Asia/Kolkata'
   });
 };
