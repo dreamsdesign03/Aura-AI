@@ -106,7 +106,7 @@ function RankBadge({ rank, scanned, label }) {
 }
 
 function Movement({ k }) {
-  if (!k.source || (k.source === "manual" && !k.previous_rank)) return <span className="text-gray-300">—</span>;
+  if (!k.source || (k.source === "manual" && !k.previous_rank)) return <span className="text-gray-300">-</span>;
   if (!k.previous_rank) return <span className="text-[11px] font-semibold text-sky-600">New</span>;
   if (k.rank_change > 0) return <span className="inline-flex items-center gap-0.5 text-emerald-600 font-bold text-xs"><TrendingUp className="w-3 h-3" /> Up {k.rank_change}</span>;
   if (k.rank_change < 0) return <span className="inline-flex items-center gap-0.5 text-rose-600 font-bold text-xs"><TrendingDown className="w-3 h-3" /> Down {Math.abs(k.rank_change)}</span>;
@@ -296,7 +296,7 @@ export default function ClinicVisibilityAudit() {
         failed++; consecutive++;
         if (e.code === "NOT_CONFIGURED") { fatal = e.message; break; }
         if (e.code === "RATE_LIMITED") { fatal = "Serper rate limit hit. Please wait before retrying."; break; }
-        if (consecutive >= 3) { fatal = `3 checks failed in a row — ${e.message}`; break; }
+        if (consecutive >= 3) { fatal = `3 checks failed in a row - ${e.message}`; break; }
       }
       if ((i + 1) % 5 === 0) loadData(true);
     }
@@ -412,7 +412,7 @@ export default function ClinicVisibilityAudit() {
       const json = await api("/add-keyword", "POST", newKw);
       toast({
         title: "Keyword added",
-        description: json.live ? `Live result: ${json.item.maps_rank ? `Maps #${json.item.maps_rank}` : "not in Maps results"}` : (json.checkError || "Added — scan it to get a live rank."),
+        description: json.live ? `Live result: ${json.item.maps_rank ? `Maps #${json.item.maps_rank}` : "not in Maps results"}` : (json.checkError || "Added - scan it to get a live rank."),
       });
       setNewKw({ keyword: "", category: "Suggested Keywords", branch: "Alkapuri" });
       setShowAddModal(false);
@@ -452,6 +452,11 @@ export default function ClinicVisibilityAudit() {
   }
 
   const { summary } = data;
+  const activeBranchNames = new Set([
+    ...(data.keywords || []).map((item) => item.branch).filter(Boolean),
+    ...(data.aiQuestions || []).map((item) => item.branch).filter(Boolean),
+  ]);
+  const branchScores = (summary.branchScores || []).filter((branch) => activeBranchNames.has(branch.branch));
   const engines = (summary.aiVisibility || []).filter((e) => e.id !== "perplexity");
   const lastScan = timeAgo(summary.lastAuditAt);
   const unconfigured = [
@@ -471,7 +476,7 @@ export default function ClinicVisibilityAudit() {
               <h1 className="text-xl font-bold text-gray-900 tracking-tight">Visibility Audit</h1>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              How patients find each branch on Google, Maps and AI search · {lastScan ? <>last live scan <b>{lastScan}</b></> : <b>no live scan yet — click Scan All Live</b>}
+              How patients find each branch on Google, Maps and AI search · {lastScan ? <>last live scan <b>{lastScan}</b></> : <b>no live scan yet - click Scan All Live</b>}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -499,7 +504,7 @@ export default function ClinicVisibilityAudit() {
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
             <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
             <div className="text-xs text-amber-900">
-              <b>Not connected yet:</b> {unconfigured.join(" · ")}. Rankings are never guessed — these stay “Not scanned” until the API key is added on the server.
+              <b>Not connected yet:</b> {unconfigured.join(" · ")}. Rankings are never guessed - these stay “Not scanned” until the API key is added on the server.
             </div>
           </div>
         )}
@@ -553,7 +558,7 @@ export default function ClinicVisibilityAudit() {
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Network visibility score</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-gray-900">{summary.networkVisibilityScore ?? "—"}</span>
+              <span className="text-3xl font-extrabold text-gray-900">{summary.networkVisibilityScore ?? "-"}</span>
               {summary.networkVisibilityScore !== null && <span className="text-xs font-semibold text-gray-400">/ 100</span>}
             </div>
             <div className="mt-3 w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
@@ -564,7 +569,7 @@ export default function ClinicVisibilityAudit() {
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top 3 on Google Maps</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-pink-600">{kpi.scanned ? kpi.top3 : "—"}</span>
+              <span className="text-3xl font-extrabold text-pink-600">{kpi.scanned ? kpi.top3 : "-"}</span>
               <span className="text-xs font-medium text-gray-500">of {kpi.scanned} scanned ({kpi.total} total)</span>
             </div>
             <p className="mt-3 text-xs text-gray-500">{kpi.notRanked ? `${kpi.notRanked} scanned keyword(s) not in Maps results` : "Live Local Pack / Maps position"}</p>
@@ -572,14 +577,14 @@ export default function ClinicVisibilityAudit() {
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Average rank, scanned searches</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-gray-900">{kpi.avg ?? "—"}</span>
+              <span className="text-3xl font-extrabold text-gray-900">{kpi.avg ?? "-"}</span>
             </div>
             <p className="mt-3 text-xs text-gray-500">Only keywords where Aura actually ranks</p>
           </div>
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">AI answers that mention Aura</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-purple-700">{summary.aiMentions ?? "—"}</span>
+              <span className="text-3xl font-extrabold text-purple-700">{summary.aiMentions ?? "-"}</span>
             </div>
             <p className="mt-3 text-xs text-gray-500">{summary.aiMentions ? "ChatGPT, Gemini, AI Overviews" : "Click Scan AI Visibility"}</p>
           </div>
@@ -593,7 +598,7 @@ export default function ClinicVisibilityAudit() {
                 <h2 className="text-sm font-bold text-gray-900">Branch scorecard</h2>
                 <p className="text-xs text-gray-500">Computed from live scans only · click a branch to filter keywords</p>
               </div>
-              <span className="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full">{summary.branchScores.length} branches</span>
+              <span className="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full">{branchScores.length} branches</span>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -609,7 +614,7 @@ export default function ClinicVisibilityAudit() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {summary.branchScores.map((b) => (
+                  {branchScores.map((b) => (
                     <tr key={b.branch} onClick={() => { setSelectedBranch(b.branch); explorerRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="hover:bg-gray-50/70 cursor-pointer">
                       <td className="py-3 px-3 font-bold text-gray-900"><span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-pink-600" />{b.branch}</span></td>
                       <td className="py-3 px-3">
@@ -620,10 +625,10 @@ export default function ClinicVisibilityAudit() {
                           </div>
                         )}
                       </td>
-                      <td className="py-3 px-3 text-center font-bold text-amber-600">{b.rating ? <>★ {b.rating}<span className="text-[10px] font-medium text-gray-400"> ({b.reviews})</span></> : <span className="text-gray-300 font-normal">—</span>}</td>
-                      <td className="py-3 px-3 text-center font-bold text-gray-900">{b.avgRank ? `#${b.avgRank}` : <span className="text-gray-300 font-normal">—</span>}</td>
-                      <td className="py-3 px-3 text-center text-gray-700">{b.scanned ? b.top3 : "—"}</td>
-                      <td className="py-3 px-3 text-center text-gray-700">{b.aiAnswers || "—"}</td>
+                      <td className="py-3 px-3 text-center font-bold text-amber-600">{b.rating ? <>★ {b.rating}<span className="text-[10px] font-medium text-gray-400"> ({b.reviews})</span></> : <span className="text-gray-300 font-normal">-</span>}</td>
+                      <td className="py-3 px-3 text-center font-bold text-gray-900">{b.avgRank ? `#${b.avgRank}` : <span className="text-gray-300 font-normal">-</span>}</td>
+                      <td className="py-3 px-3 text-center text-gray-700">{b.scanned ? b.top3 : "-"}</td>
+                      <td className="py-3 px-3 text-center text-gray-700">{b.aiAnswers || "-"}</td>
                       <td className="py-3 px-3 text-center text-gray-500">{b.scanned}/{b.keywords}</td>
                     </tr>
                   ))}
@@ -656,7 +661,7 @@ export default function ClinicVisibilityAudit() {
               <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Fix list</h2>
               <p className="text-xs text-gray-500 mt-0.5 mb-3">Generated from your latest scan results</p>
               <div className="space-y-2 max-h-72 overflow-y-auto">
-                {summary.openFixes.length === 0 && <p className="text-xs text-gray-400">Nothing to fix yet — run a scan.</p>}
+                {summary.openFixes.length === 0 && <p className="text-xs text-gray-400">Nothing to fix yet - run a scan.</p>}
                 {summary.openFixes.map((fix) => (
                   <div key={fix.id} onClick={() => handleToggleFix(fix.id)} className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer ${fix.done ? "bg-gray-50 border-gray-200 opacity-60" : "bg-pink-50/40 border-pink-100 hover:bg-pink-50"}`}>
                     <input type="checkbox" checked={fix.done} onChange={() => { }} className="mt-0.5 h-3.5 w-3.5 rounded text-pink-600" />
@@ -678,7 +683,7 @@ export default function ClinicVisibilityAudit() {
             <div className="p-5 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><Bot className="w-4 h-4 text-purple-600" /> AI answers by question</h2>
-                <p className="text-xs text-gray-500">✓ = Aura mentioned (#n = position in the AI's list) · ✗ = not mentioned · — = not asked yet</p>
+                <p className="text-xs text-gray-500">✓ = Aura mentioned (#n = position in the AI's list) · ✗ = not mentioned · - = not asked yet</p>
               </div>
               {isAiScanning && aiProgress && <span className="text-xs text-purple-700 font-semibold truncate max-w-xs">Asking: {aiProgress.text}</span>}
             </div>
@@ -707,7 +712,7 @@ export default function ClinicVisibilityAudit() {
                               {disabled ? (
                                 <span className="text-[10px] text-amber-600 font-semibold" title="Quota/rate limit reached">⛔</span>
                               ) : !r ? (
-                                <span className="text-gray-300">—</span>
+                                <span className="text-gray-300">-</span>
                               ) : !r.answered ? (
                                 <span className="text-[10px] text-gray-400">no overview</span>
                               ) : r.mentioned ? (
@@ -718,7 +723,7 @@ export default function ClinicVisibilityAudit() {
                             </td>
                           );
                         })}
-                        <td className="py-2.5 px-4 text-gray-500">{others.join(", ") || "—"}</td>
+                        <td className="py-2.5 px-4 text-gray-500">{others.join(", ") || "-"}</td>
                       </tr>
                     );
                   })}
@@ -826,7 +831,7 @@ export default function ClinicVisibilityAudit() {
                           ) : (() => {
                             const ai = item.ai_overview_data;
                             if (!config.aiOverviewConfigured) return <span title="Add SERPAPI_API_KEY to the server environment and redeploy" className="text-[10px] text-amber-600">Not configured</span>;
-                            if (!ai) return <span className="text-[10px] text-gray-400">—</span>;
+                            if (!ai) return <span className="text-[10px] text-gray-400">-</span>;
                             if (!ai.present) return <span className="text-[10px] text-gray-400">No AI Overview</span>;
                             if (ai.rank) return <span title={ai.rankType === "citation_position" ? "Position in Google AI Overview citations" : "Position in Google AI Overview answer"} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">#{ai.rank}</span>;
                             if (ai.mentioned) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Mentioned</span>;
@@ -835,7 +840,7 @@ export default function ClinicVisibilityAudit() {
                         </td>
                         <td className="py-3 px-4 text-center"><Movement k={item} /></td>
                         <td className="py-3 px-4 text-gray-500">
-                          {item.last_error ? <span className="text-rose-600 font-medium" title={item.last_error}>failed</span> : timeAgo(item.last_checked_at) || "—"}
+                          {item.last_error ? <span className="text-rose-600 font-medium" title={item.last_error}>failed</span> : timeAgo(item.last_checked_at) || "-"}
                         </td>
                         <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
                           <div className="inline-flex items-center gap-1.5">
@@ -871,7 +876,7 @@ export default function ClinicVisibilityAudit() {
                                       <p className="text-gray-800 font-medium">{item.matched_name}</p>
                                       <p className="text-gray-500">{item.matched_address}</p>
                                       <p className="text-amber-600 font-semibold mt-1">{item.rating ? `★ ${item.rating}` : ""} {item.reviews ? <span className="text-gray-400 font-normal">({item.reviews} reviews)</span> : null}</p>
-                                      {item.branch_exact === false && <p className="mt-1 text-amber-700 font-medium">Showing another Aura branch — {item.branch} listing not in results.</p>}
+                                      {item.branch_exact === false && <p className="mt-1 text-amber-700 font-medium">Showing another Aura branch - {item.branch} listing not in results.</p>}
                                     </>
                                   ) : <p className="text-gray-500">Aura did not appear in the Google Maps results for this search.</p>}
                                 </div>
