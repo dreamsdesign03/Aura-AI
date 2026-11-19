@@ -609,8 +609,9 @@ function buildSummary(keywords, aiQuestions, aiResults, doneFixes) {
 }
 
 // ── GET /api/visibility-audit ────────────────────────────────────────────────
-router.get('/', async (_req, res) => {
+router.get(['/', ''], async (req, res) => {
   try {
+    console.log('[Visibility Audit Server] 📡 GET /api/visibility-audit received from IP:', req.ip);
     const keywords = (await db.query(`SELECT * FROM visibility_audit_keywords
       ORDER BY (current_rank IS NULL), current_rank ASC, keyword ASC`)).rows;
     const aiQuestions = (await db.query('SELECT * FROM visibility_audit_ai_questions ORDER BY id')).rows;
@@ -650,6 +651,7 @@ router.get('/', async (_req, res) => {
 router.post('/check-keyword', async (req, res) => {
   try {
     const { id } = req.body || {};
+    console.log('[Visibility Audit Server] 🔍 check-keyword requested for id:', id);
     if (!id) return res.status(400).json({ success: false, error: 'Keyword id is required' });
     const r = await db.query('SELECT * FROM visibility_audit_keywords WHERE id = $1', [id]);
     if (!r.rows.length) return res.status(404).json({ success: false, error: 'Keyword not found' });
@@ -672,6 +674,7 @@ router.post('/check-keyword', async (req, res) => {
 router.post('/ai/check', async (req, res) => {
   try {
     const { engine, questionId } = req.body || {};
+    console.log('[Visibility Audit Server] 🤖 AI check requested:', { engine, questionId });
     if (!AI_ENGINES[engine]) return res.status(400).json({ success: false, error: 'Unknown engine' });
     const q = (await db.query('SELECT * FROM visibility_audit_ai_questions WHERE id = $1', [questionId])).rows[0];
     if (!q) return res.status(404).json({ success: false, error: 'Question not found' });

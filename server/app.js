@@ -655,6 +655,7 @@ app.post(['/api/debug-logs/clear', '/api/useClearDebugLogs'], async (req, res) =
 automationsApi.init();
 agentHubApi.init();
 app.use('/api/clinic', require('./clinic-os').router);
+app.use('/api/clinic/visibility-audit', require('./visibility-audit').router);
 app.use('/api/visibility-audit', require('./visibility-audit').router);
 app.use('/api/ai-calls', aiCallsApi.router);
 app.use('/api/sarvam/webhook', sarvamWebhookApi.router);

@@ -28,20 +28,41 @@ const ENGINE_ORDER = ["chatgpt", "gemini", "google_ai"];
 const ENGINE_SHORT = { chatgpt: "ChatGPT", gemini: "Gemini", google_ai: "AI Overview" };
 
 const api = async (path, method = "GET", body) => {
-  const res = await fetch(`/api/visibility-audit${path}`, {
-    method,
-    credentials: "include",
-    headers: body ? { "Content-Type": "application/json" } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  let json = {};
-  try { json = await res.json(); } catch { /* non-json */ }
-  if (!res.ok || json.success === false) {
-    const e = new Error(json.error || `Request failed (${res.status})`);
-    e.code = json.code;
-    throw e;
+  // Strip leading/trailing slashes for root request so it cleanly hits /api/visibility-audit (Vercel rewrite compatible)
+  const cleanPath = (!path || path === "/" || path === "") ? "" : (path.startsWith("/") ? path : `/${path}`);
+  const fullUrl = `/api/visibility-audit${cleanPath}`;
+
+  console.log(`%c[VisibilityAudit API] 📡 ${method} ${fullUrl}`, "color: #ec4899; font-weight: bold;", body || "");
+
+  try {
+    const res = await fetch(fullUrl, {
+      method,
+      credentials: "include",
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+
+    console.log(`%c[VisibilityAudit API] 📥 Status: ${res.status} for ${fullUrl}`, res.ok ? "color: #10b981;" : "color: #ef4444; font-weight: bold;");
+
+    let json = {};
+    try { json = await res.json(); } catch (parseErr) {
+      console.warn(`[VisibilityAudit API] ⚠️ Non-JSON response for ${fullUrl}:`, parseErr);
+    }
+
+    if (!res.ok || json.success === false) {
+      const errMsg = json.error || `Request failed (${res.status})`;
+      console.error(`%c[VisibilityAudit API Error] ❌ ${method} ${fullUrl} -> ${errMsg}`, "color: #dc2626; font-weight: bold;", json);
+      const e = new Error(errMsg);
+      e.code = json.code;
+      throw e;
+    }
+
+    console.log(`%c[VisibilityAudit API Success] ✅ ${method} ${fullUrl}:`, "color: #059669;", json);
+    return json;
+  } catch (err) {
+    console.error(`%c[VisibilityAudit Network Error] 💥 ${method} ${fullUrl}:`, "color: #b91c1c; font-weight: bold;", err);
+    throw err;
   }
-  return json;
 };
 
 const timeAgo = (iso) => {
@@ -113,10 +134,18 @@ export default function ClinicVisibilityAudit() {
   const explorerRef = useRef(null);
 
   const loadData = async (silent = false) => {
+    console.log("%c[VisibilityAudit] 🔄 Loading audit data from server...", "color: #8b5cf6; font-weight: bold;");
     try {
-      const json = await api("/");
+      const json = await api("");
+      console.log("%c[VisibilityAudit] 📊 Audit data loaded successfully:", "color: #10b981; font-weight: bold;", {
+        totalKeywords: json.keywords?.length,
+        config: json.config,
+        summary: json.summary,
+        branches: json.branches
+      });
       setData(json);
     } catch (err) {
+      console.error("%c[VisibilityAudit] ❌ loadData failed:", "color: #ef4444; font-weight: bold;", err);
       if (!silent) toast({ title: "Failed to load audit data", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -166,7 +195,15 @@ export default function ClinicVisibilityAudit() {
 
   // ── Single keyword LIVE check ──────────────────────────────────────────────
   const checkOne = async (item) => {
+    console.log(`%c[VisibilityAudit] 🔍 Checking keyword live: "${item.keyword}" (${item.branch})`, "color: #3b82f6;");
     const json = await api("/check-keyword", "POST", { id: item.id });
+    console.log(`%c[VisibilityAudit] 🎯 Check result for "${item.keyword}":`, "color: #10b981;", {
+      maps_rank: json.keyword?.maps_rank,
+      organic_rank: json.keyword?.organic_rank,
+      rating: json.keyword?.rating,
+      reviews: json.keyword?.reviews,
+      matched_name: json.keyword?.matched_name
+    });
     patchKeyword(json.keyword);
     setFlashId(item.id);
     setTimeout(() => setFlashId((f) => (f === item.id ? null : f)), 1800);
@@ -175,6 +212,7 @@ export default function ClinicVisibilityAudit() {
   };
 
   const handleCheckKeyword = async (item) => {
+    console.log(`%c[VisibilityAudit] Clicked Check Live for: "${item.keyword}"`, "color: #6366f1; font-weight: bold;");
     setCheckingId(item.id);
     setExpandedId(item.id);
     try {
@@ -184,6 +222,7 @@ export default function ClinicVisibilityAudit() {
         description: `"${item.keyword}" · Google organic: ${k.organic_rank ? `#${k.organic_rank}` : `not in top ${config.serpDepth || 30}`}`,
       });
     } catch (err) {
+      console.error(`%c[VisibilityAudit] Check failed for "${item.keyword}":`, "color: #ef4444;", err);
       toast({ title: err.code === "NOT_CONFIGURED" ? "Live check not configured" : "Check failed", description: err.message, variant: "destructive" });
     } finally {
       setCheckingId(null);
@@ -192,13 +231,19 @@ export default function ClinicVisibilityAudit() {
 
   // ── Scan all (sequential, row-by-row live) ─────────────────────────────────
   const handleScanAll = async () => {
-    if (isScanning) { stopRef.current = true; return; }
+    if (isScanning) {
+      console.log("%c[VisibilityAudit] ⏸️ User paused live scan", "color: #f59e0b; font-weight: bold;");
+      stopRef.current = true;
+      return;
+    }
     if (!config.google) {
+      console.warn("[VisibilityAudit] ⚠️ Google scan attempted but SERPER_API_KEY is not configured.");
       toast({ title: "Live Google check is OFF", description: "Add SERPER_API_KEY in the server environment, then redeploy.", variant: "destructive" });
       return;
     }
     const list = filteredKeywords.length ? filteredKeywords : keywords;
     if (!list.length) return;
+    console.log(`%c[VisibilityAudit] 🚀 Starting live scan for ${list.length} keywords...`, "color: #ec4899; font-weight: bold;");
     stopRef.current = false;
     setIsScanning(true);
     setLiveFeed([]);
@@ -206,14 +251,19 @@ export default function ClinicVisibilityAudit() {
 
     let done = 0, failed = 0, consecutive = 0, fatal = null;
     for (let i = 0; i < list.length; i++) {
-      if (stopRef.current) break;
+      if (stopRef.current) {
+        console.log("%c[VisibilityAudit] Scan cancelled by user.", "color: #f59e0b;");
+        break;
+      }
       const item = list[i];
+      console.log(`[VisibilityAudit] Progress [${i + 1}/${list.length}]: "${item.keyword}"`);
       setCheckingId(item.id);
       setScanProgress({ current: i + 1, total: list.length, keyword: item.keyword });
       try {
         await checkOne(item);
         done++; consecutive = 0;
       } catch (e) {
+        console.error(`[VisibilityAudit] Scan error on "${item.keyword}":`, e);
         failed++; consecutive++;
         if (e.code === "NOT_CONFIGURED") { fatal = e.message; break; }
         if (consecutive >= 3) { fatal = `3 checks failed in a row — ${e.message}`; break; }
@@ -222,6 +272,7 @@ export default function ClinicVisibilityAudit() {
     }
     setCheckingId(null); setIsScanning(false); setScanProgress(null);
     await loadData(true);
+    console.log(`%c[VisibilityAudit] 🏁 Scan finished. Done: ${done}, Failed: ${failed}`, "color: #10b981; font-weight: bold;");
     toast({
       title: fatal ? "Scan stopped" : stopRef.current ? "Scan paused" : "Scan complete",
       description: fatal || `Checked ${done} of ${list.length} keywords live on Google${failed ? ` · ${failed} failed` : ""}.`,
@@ -231,14 +282,20 @@ export default function ClinicVisibilityAudit() {
 
   // ── AI visibility scan ─────────────────────────────────────────────────────
   const handleAiScan = async () => {
-    if (isAiScanning) { stopAiRef.current = true; return; }
+    if (isAiScanning) {
+      console.log("%c[VisibilityAudit] ⏸️ User paused AI scan", "color: #f59e0b; font-weight: bold;");
+      stopAiRef.current = true;
+      return;
+    }
     const engines = ENGINE_ORDER.filter((e) => config.engines?.[e]?.configured);
     if (!engines.length) {
+      console.warn("[VisibilityAudit] ⚠️ AI scan attempted but no engine configured.");
       toast({ title: "No AI engine configured", description: "Add OPENAI_API_KEY / GEMINI_API_KEY (and SERPER_API_KEY for AI Overviews).", variant: "destructive" });
       return;
     }
     const tasks = [];
     for (const q of data.aiQuestions) for (const e of engines) tasks.push({ q, e });
+    console.log(`%c[VisibilityAudit] 🤖 Starting AI scan for ${tasks.length} checks across [${engines.join(", ")}]...`, "color: #8b5cf6; font-weight: bold;");
     stopAiRef.current = false;
     setIsAiScanning(true);
     setShowAiDetail(true);
@@ -248,9 +305,11 @@ export default function ClinicVisibilityAudit() {
         const i = idx++;
         if (i >= tasks.length) return;
         const { q, e } = tasks[i];
+        console.log(`[VisibilityAudit AI] Querying ${ENGINE_SHORT[e]} for: "${q.question}"`);
         setAiProgress({ current: Math.min(done + failed + 1, tasks.length), total: tasks.length, text: `${ENGINE_SHORT[e]} · ${q.question}` });
         try {
           const r = await api("/ai/check", "POST", { engine: e, questionId: q.id });
+          console.log(`[VisibilityAudit AI Result] ${ENGINE_SHORT[e]}:`, { answered: r.answered, mentioned: r.mentioned, competitors: r.competitors });
           done++;
           setData((prev) => ({
             ...prev,
@@ -258,24 +317,32 @@ export default function ClinicVisibilityAudit() {
               ...x, results: { ...x.results, [e]: { answered: r.answered, mentioned: r.mentioned, position: r.position, snippet: r.snippet, competitors: r.competitors, checkedAt: new Date().toISOString() } },
             } : x),
           }));
-        } catch (err) { failed++; }
+        } catch (err) {
+          console.error(`[VisibilityAudit AI Error] ${ENGINE_SHORT[e]} on "${q.question}":`, err);
+          failed++;
+        }
       }
     };
     await Promise.all([worker(), worker()]);
     setIsAiScanning(false); setAiProgress(null);
     await loadData(true);
+    console.log(`%c[VisibilityAudit] 🏁 AI scan completed. Answers checked: ${done}, Failed: ${failed}`, "color: #8b5cf6; font-weight: bold;");
     toast({ title: stopAiRef.current ? "AI scan paused" : "AI scan complete", description: `${done} answers checked${failed ? ` · ${failed} failed` : ""}.` });
   };
 
   const handleSaveRank = async (id) => {
     const n = parseInt(editingVal, 10);
+    console.log(`%c[VisibilityAudit] ✏️ Setting manual rank for id ${id} -> #${n}`, "color: #f59e0b; font-weight: bold;");
     setEditingId(null);
     if (!n || n < 1 || n > 100) return;
     try {
       const json = await api("/update-rank", "POST", { id, currentRank: n });
       patchKeyword(json.keyword);
       toast({ title: "Rank set manually", description: `Marked as #${n} (manual). Use Scan now to get the live value.` });
-    } catch (e) { toast({ title: "Update failed", description: e.message, variant: "destructive" }); }
+    } catch (e) {
+      console.error("[VisibilityAudit] Manual rank update failed:", e);
+      toast({ title: "Update failed", description: e.message, variant: "destructive" });
+    }
   };
 
   const handleAddKeyword = async (e) => {
