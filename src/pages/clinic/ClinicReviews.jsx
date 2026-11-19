@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
   Star, RefreshCw, Plus, MessageSquare, ChevronRight,
-  AlertCircle, CheckCircle2, Clock, User, Mail,
+  AlertCircle, CheckCircle2, Clock, User, Mail, MapPin, ExternalLink,
 } from 'lucide-react';
 import { clinicApi, dateLabel, datetimeLabel, fullName } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi, Modal } from '@/clinic/ui';
@@ -12,42 +12,117 @@ const RATING_STARS = [1, 2, 3, 4, 5];
 
 function ReviewCard({ review, onReply, replyingId, busy }) {
   const isReplying = replyingId === review.id;
+  const rating = Number(review.rating) || 5;
+
   return (
-    <div className="co-card">
-      <div className="co-row" style={{ justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
-        <div className="co-row" style={{ gap: 10 }}>
+    <div className="co-card" style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 18px', background: '#FFFFFF', borderRadius: 12, border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+      {/* 1. Header: Avatar + Author + Stars (Left) | Status & Date (Right) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <Avatar first={review.author?.split(' ')[0]} last={review.author?.split(' ').slice(1).join(' ')} />
-          <div>
-            <div className="co-strong" style={{ fontSize: 14 }}>{review.author}</div>
-            <div className="co-row" style={{ gap: 8, marginTop: 2 }}>
-              <div className="co-row" style={{ gap: 2 }}>
+          <div style={{ minWidth: 0 }}>
+            <div className="co-strong" style={{ fontSize: 14, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {review.author}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+              <div style={{ display: 'flex', gap: 1.5 }}>
                 {RATING_STARS.map((s) => (
-                  <Star key={s} size={12} style={{ color: s <= (review.rating || 5) ? '#FBBF24' : '#E5E7EB', fill: s <= (review.rating || 5) ? 'currentColor' : 'none' }} />
+                  <Star
+                    key={s}
+                    size={12}
+                    style={{
+                      color: s <= rating ? '#F59E0B' : '#E5E7EB',
+                      fill: s <= rating ? 'currentColor' : 'none',
+                    }}
+                  />
                 ))}
               </div>
-              <span className="co-chip co-c-n">{review.channel || 'Website'}</span>
-              {review.branch ? <span className="co-chip co-c-n">{review.branch}</span> : <span className="co-xs co-mut">Branch not specified</span>}
-              <span className="co-xs co-mut">{review.created_at ? datetimeLabel(review.created_at) : '—'}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#D97706', marginLeft: 2 }}>
+                {rating.toFixed(1)}
+              </span>
             </div>
           </div>
         </div>
-        <StatusChip status={review.status || 'new'} />
-      </div>
-      <p style={{ fontSize: 13, lineHeight: 1.6, color: '#374151', marginBottom: 12 }}>{review.body}</p>
-      {review.source_url ? <a href={review.source_url} target="_blank" rel="noreferrer" className="co-xs" style={{ color: '#2563EB' }}>View original review ↗</a> : null}
 
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4, flexShrink: 0 }}>
+          <StatusChip status={review.status || 'new'} />
+          <span style={{ fontSize: 11, color: '#6B7280', whiteSpace: 'nowrap', fontWeight: 500 }}>
+            {review.created_at ? datetimeLabel(review.created_at) : '—'}
+          </span>
+        </div>
+      </div>
+
+      {/* 2. Metadata Tags: Channel & Branch */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '2px 8px',
+            borderRadius: 6,
+            background: review.channel?.toLowerCase() === 'google' ? '#EFF6FF' : '#F3F4F6',
+            color: review.channel?.toLowerCase() === 'google' ? '#1D4ED8' : '#374151',
+            border: review.channel?.toLowerCase() === 'google' ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
+          }}
+        >
+          {review.channel || 'Website'}
+        </span>
+
+        {review.branch ? (
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              padding: '2px 8px',
+              borderRadius: 6,
+              background: '#F9FAFB',
+              color: '#4B5563',
+              border: '1px solid #E5E7EB',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+            }}
+          >
+            <MapPin size={11} style={{ color: '#9CA3AF' }} />
+            {review.branch}
+          </span>
+        ) : (
+          <span style={{ fontSize: 11, color: '#9CA3AF' }}>Branch not specified</span>
+        )}
+      </div>
+
+      {/* 3. Review Body */}
+      <p style={{ fontSize: 13, lineHeight: 1.6, color: '#374151', margin: 0, flexGrow: 1 }}>
+        {review.body}
+      </p>
+
+      {/* 4. Reply (if any) */}
       {review.reply ? (
-        <div style={{ background: '#F5F0FA', borderRadius: 10, padding: 12, marginBottom: 12 }}>
-          <div className="co-row" style={{ gap: 6, marginBottom: 6 }}>
-            <div className="co-xs" style={{ fontWeight: 600, color: '#A4285E' }}>Your reply</div>
-            <div className="co-xs co-mut">{review.updated_at ? datetimeLabel(review.updated_at) : '—'}</div>
+        <div style={{ background: '#FAF5FF', border: '1px solid #F3E8FF', borderRadius: 8, padding: '10px 12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#9333EA' }}>Clinic Reply</span>
+            <span style={{ fontSize: 11, color: '#9CA3AF' }}>{review.updated_at ? datetimeLabel(review.updated_at) : '—'}</span>
           </div>
-          <p style={{ fontSize: 13, color: '#374151', margin: 0 }}>{review.reply}</p>
+          <p style={{ fontSize: 12, color: '#4B5563', margin: 0, lineHeight: 1.5 }}>{review.reply}</p>
         </div>
       ) : null}
 
-      {!review.reply ? (
-        <div className="co-row" style={{ justifyContent: 'flex-end' }}>
+      {/* 5. Footer: View original review on left + Reply button on right */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: 6, borderTop: '1px solid #F3F4F6' }}>
+        {review.source_url ? (
+          <a
+            href={review.source_url}
+            target="_blank"
+            rel="noreferrer"
+            style={{ fontSize: 12, color: '#2563EB', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, fontWeight: 500 }}
+          >
+            View original review <ExternalLink size={11} />
+          </a>
+        ) : (
+          <span />
+        )}
+
+        {!review.reply ? (
           <button
             type="button"
             className={`co-btn co-btn-sm ${isReplying ? 'co-btn-primary' : ''}`}
@@ -56,9 +131,10 @@ function ReviewCard({ review, onReply, replyingId, busy }) {
           >
             {isReplying ? <span className="animate-spin">⟳</span> : <MessageSquare size={12} />} Reply
           </button>
-        </div>
-      ) : null}
+        ) : null}
+      </div>
 
+      {/* 6. Inline reply form when active */}
       {isReplying ? (
         <ReplyForm reviewId={review.id} onSubmit={(r) => onReply(review, r)} onCancel={() => onReply(null)} busy={busy} />
       ) : null}
@@ -250,7 +326,7 @@ export default function ClinicReviews() {
             </button>
           </EmptyState>
         ) : (
-          visibleReviews.length === 0 ? <EmptyState title="No reviews for these filters"><p className="co-sm co-mut">Try another branch or source.</p></EmptyState> : <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}>
+          visibleReviews.length === 0 ? <EmptyState title="No reviews for these filters"><p className="co-sm co-mut">Try another branch or source.</p></EmptyState> : <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))' }}>
             {visibleReviews.map((r) => (
               <ReviewCard
                 key={r.id}
