@@ -361,94 +361,48 @@ function parseSearchResponse(json, branch) {
 
   // ── AI Overview parsing (Serper returns aiOverview or ai_overview) ──
   const rawAi = json?.aiOverview || json?.ai_overview || null;
-  let aiOverviewData = {
-    present: false,
-    mentioned: false,
-    rank: null,
-    snippet: '',
-    items: [],
-    references: [],
-  };
-  if (rawAi) {
-    aiOverviewData.present = true;
-    // Extract text content
+  let aiOverviewData = { present: false, mentioned: false, rank: null, rankType: null, snippet: '', items: [], references: [] };
+  if (rawAi && rawAi.state !== 'unavailable') {
     let text = '';
-    let items = [];
-    if (typeof rawAi === 'string') {
-      text = rawAi;
-    } else if (typeof rawAi === 'object') {
-      // Serper AI Overview structure may have: text, textBlocks, list, table, items
-      text = rawAi.text || rawAi.snippet || rawAi.answer || '';
-      if (Array.isArray(rawAi.textBlocks)) {
-        // textBlocks: [{title, text, list: [...]}]
-        for (const block of rawAi.textBlocks) {
-          if (block.text) text += '\n' + block.text;
-          if (Array.isArray(block.list)) {
-            for (const item of block.list) {
-              items.push({ title: item.title || item.name || '', snippet: item.snippet || item.text || '', link: item.link || item.url || '' });
-            }
-          }
-        }
+    const items = [];
+    if (typeof rawAi === 'string') text = rawAi;
+    else if (typeof rawAi === 'object') {
+      text = rawAi.text || rawAi.snippet || rawAi.answer || rawAi.markdown || '';
+      const blocks = rawAi.textBlocks || rawAi.text_blocks || [];
+      if (Array.isArray(blocks)) for (const block of blocks) {
+        const blockText = block.text || block.snippet || block.title || '';
+        if (blockText) text += '\n' + blockText;
+        const list = block.list || block.items || [];
+        if (Array.isArray(list)) for (const item of list) items.push({
+          title: item.title || item.name || '', snippet: item.snippet || item.text || item.description || '', link: item.link || item.url || '',
+        });
       }
-      if (Array.isArray(rawAi.list)) {
-        for (const item of rawAi.list) {
-          items.push({ title: item.title || item.name || '', snippet: item.snippet || item.text || '', link: item.link || item.url || '' });
-        }
-      }
-      if (Array.isArray(rawAi.items)) {
-        for (const item of rawAi.items) {
-          items.push({ title: item.title || item.name || '', snippet: item.snippet || item.text || '', link: item.link || item.url || '' });
-        }
-      }
-      if (rawAi.table && Array.isArray(rawAi.table.rows)) {
-        for (const row of rawAi.table.rows) {
-          items.push({ title: row[0] || '', snippet: row.slice(1).join(' | ') || '', link: '' });
-        }
-      }
+      for (const list of [rawAi.list, rawAi.items]) if (Array.isArray(list)) for (const item of list) items.push({
+        title: item.title || item.name || '', snippet: item.snippet || item.text || item.description || '', link: item.link || item.url || '',
+      });
+      if (rawAi.table && Array.isArray(rawAi.table.rows)) for (const row of rawAi.table.rows) items.push({ title: row[0] || '', snippet: row.slice(1).join(' | '), link: '' });
     }
-    // Extract references/sources
-    const references = (rawAi.sources || rawAi.references || []).map((s) => s.link || s.url || s).filter(Boolean);
-
-    // Determine if Aura is mentioned and its rank in the AI Overview
+    const rawReferences = rawAi.sources || rawAi.references || [];
+    const references = Array.isArray(rawReferences) ? rawReferences.map((source, index) => ({
+      title: source.title || source.label || source.source || '',
+      url: source.link || source.url || (typeof source === 'string' ? source : ''),
+      position: Number(source.position || source.rank || index + 1),
+      snippet: source.snippet || source.description || '',
+    })).filter((source) => source.url) : [];
     const mentionRe = /aura\s+(laser|skin|cosmetic|clinic)|dr\.?\s*aditya\s*shah|auralaserclinic|skinnonest/i;
-    const fullText = text + '\n' + items.map(i => i.title + ' ' + i.snippet).join('\n');
-    const urlHit = references.some((r) => String(r).toLowerCase().includes(TARGET_DOMAIN));
-    const mentioned = mentionRe.test(fullText) || urlHit;
-    let rank = null;
-    if (mentioned) {
-      // Check items for ranked position
-      for (let i = 0; i < items.length; i++) {
-        const itemText = items[i].title + ' ' + items[i].snippet;
-        if (mentionRe.test(itemText) || (items[i].link && String(items[i].link).toLowerCase().includes(TARGET_DOMAIN))) {
-          rank = i + 1;
-          break;
-        }
-      }
-      // If not found in items, check if mentioned in opening paragraph
-      if (!rank && mentionRe.test(text)) {
-        // Try to find numbered list in text
-        const lines = text.split('\n');
-        for (const line of lines) {
-          if (mentionRe.test(line)) {
-            const n = /^\s*(?:[#*\-\s]*)(\d{1,2})[.)]\s/.exec(line);
-            if (n) { rank = parseInt(n[1], 10); break; }
-            // If no explicit number but it's the first clinic mentioned, assume #1
-            rank = 1;
-            break;
-          }
-        }
-      }
+    const fullText = text + '\n' + items.map((item) => item.title + ' ' + item.snippet).join('\n');
+    const matchingItem = items.findIndex((item) => mentionRe.test(item.title + ' ' + item.snippet) || String(item.link || '').toLowerCase().includes(TARGET_DOMAIN));
+    const matchingReference = references.find((source) => String(source.url).toLowerCase().includes(TARGET_DOMAIN) || mentionRe.test(source.title + ' ' + source.snippet));
+    const mentioned = mentionRe.test(fullText) || matchingItem >= 0 || !!matchingReference;
+    let rank = null, rankType = null;
+    if (matchingItem >= 0) { rank = matchingItem + 1; rankType = 'answer_item'; }
+    else if (matchingReference) { rank = matchingReference.position; rankType = 'citation_position'; }
+    else if (mentionRe.test(text)) {
+      const numbered = text.split('\n').map((line) => /^\s*(?:[#*\-\s]*)(\d{1,2})[.)]\s/.exec(line)).find(Boolean);
+      if (numbered) { rank = Number(numbered[1]); rankType = 'answer_list_position'; }
     }
-    aiOverviewData = {
-      present: true,
-      mentioned,
-      rank,
-      snippet: text.replace(/\s+/g, ' ').trim().slice(0, 500),
-      items,
-      references: references.slice(0, 10),
-    };
+    aiOverviewData = { present: true, mentioned, rank, rankType, snippet: text.replace(/\s+/g, ' ').trim().slice(0, 500), items, references: references.slice(0, 10) };
   }
-
   return {
     rank: idx >= 0 ? organic[idx].position || idx + 1 : null,
     url: idx >= 0 ? organic[idx].link : null,
@@ -480,8 +434,41 @@ async function postJson(url, headers, body, timeoutMs = 20000) {
   } finally { clearTimeout(t); }
 }
 
+async function getJson(url, timeoutMs = 20000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { method: 'GET', signal: ctrl.signal });
+    const raw = await response.text();
+    let json = {};
+    try { json = JSON.parse(raw); } catch { }
+    if (!response.ok || json.error) {
+      const err = new Error(json.error || `HTTP ${response.status}`);
+      err.status = response.status;
+      if (response.status === 429) err.code = 'RATE_LIMITED';
+      throw err;
+    }
+    return json;
+  } finally { clearTimeout(t); }
+}
+
 const serperHeaders = () => ({ 'X-API-KEY': process.env.SERPER_API_KEY });
 function serperConfigured() { return !!process.env.SERPER_API_KEY; }
+function googleAiOverviewConfigured() { return !!process.env.SERPAPI_API_KEY; }
+
+async function fetchGoogleAiOverview(keyword, location) {
+  const key = process.env.SERPAPI_API_KEY;
+  if (!key) return null;
+  const params = new URLSearchParams({ engine: 'google', q: keyword, api_key: key, location, gl: 'in', hl: 'en', device: 'desktop' });
+  const result = await getJson(`https://serpapi.com/search.json?${params.toString()}`, 25000);
+  let overview = result.ai_overview || result.aiOverview || null;
+  if (overview?.page_token && !overview.text && !overview.text_blocks && !overview.textBlocks) {
+    const followup = new URLSearchParams({ engine: 'google_ai_overview', page_token: overview.page_token, api_key: key });
+    const expanded = await getJson(`https://serpapi.com/search.json?${followup.toString()}`, 25000);
+    overview = expanded.ai_overview || expanded.aiOverview || overview;
+  }
+  return overview;
+}
 
 // Real Google check for one keyword: Maps (from branch area) + organic (city-level).
 async function checkGoogleRank(keyword, branchName) {
@@ -496,12 +483,16 @@ async function checkGoogleRank(keyword, branchName) {
     e.code = 'INVALID_BRANCH';
     throw e;
   }
-  const [maps, search] = await Promise.all([
+  const [maps, search, aiOverview] = await Promise.all([
     postJson('https://google.serper.dev/maps', serperHeaders(), { q: keyword, ll: branch.ll, gl: 'in', hl: 'en' }),
     postJson('https://google.serper.dev/search', serperHeaders(), { q: keyword, gl: 'in', hl: 'en', location: branch.location, num: SERP_DEPTH }),
+    googleAiOverviewConfigured() ? fetchGoogleAiOverview(keyword, branch.location).catch((error) => {
+      console.warn('[Visibility Audit] Google AI Overview provider failed:', error.message);
+      return null;
+    }) : Promise.resolve(null),
   ]);
   const m = parseMapsResponse(maps, branch);
-  const s = parseSearchResponse(search, branch);
+  const s = parseSearchResponse({ ...search, ...(aiOverview ? { ai_overview: aiOverview } : {}) }, branch);
   return { maps: m, organic: s, depth: SERP_DEPTH };
 }
 
@@ -783,6 +774,7 @@ router.get(['/', ''], async (req, res) => {
       success: true,
       config: {
         google: serperConfigured(),
+        aiOverviewConfigured: googleAiOverviewConfigured(),
         serpDepth: SERP_DEPTH,
         engines: Object.fromEntries(Object.entries(AI_ENGINES).map(([id, m]) => [id, { label: m.label, configured: !!process.env[m.env], env: m.env }])),
       },
