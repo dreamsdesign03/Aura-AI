@@ -826,7 +826,7 @@ export default function ClinicVisibilityAudit() {
                             const ai = item.ai_overview_data;
                             if (!ai) return <span className="text-[10px] text-gray-400">—</span>;
                             if (!ai.present) return <span className="text-[10px] text-gray-400">No AI Overview</span>;
-                            if (ai.rank) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">#${ai.rank}</span>;
+                            if (ai.rank) return <span title={ai.rankType === "citation_position" ? "Position in Google AI Overview citations" : "Position in Google AI Overview answer"} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">#{ai.rank}</span>;
                             if (ai.mentioned) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Mentioned</span>;
                             return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-300">Not mentioned</span>;
                           })()}
@@ -893,7 +893,7 @@ export default function ClinicVisibilityAudit() {
                                     if (!ai.present) return <p className="text-gray-500">No AI Overview shown for this search.</p>;
                                     return (
                                       <>
-                                        {ai.rank && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Ranked #${ai.rank}</span></p>}
+                                        {ai.rank && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Ranked #{ai.rank}</span></p>}
                                         {!ai.rank && ai.mentioned && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Mentioned</span></p>}
                                         {!ai.rank && !ai.mentioned && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-300">Not mentioned</span></p>}
                                         {ai.snippet && <p className="text-gray-600 mb-2 line-clamp-3">{ai.snippet}</p>}
