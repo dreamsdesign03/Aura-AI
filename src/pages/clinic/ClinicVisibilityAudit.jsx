@@ -887,8 +887,11 @@ export default function ClinicVisibilityAudit() {
                                 </div>
                                 <div>
                                   <p className="font-bold text-gray-700 mb-1.5 flex items-center gap-1.5"><Bot className="w-3.5 h-3.5 text-purple-600" /> AI Overview</p>
-                                  {(ai = item.ai_overview_data) ? (
-                                    ai.present ? (
+                                  {(() => {
+                                    const ai = item.ai_overview_data;
+                                    if (!ai) return <p className="text-gray-500">Run a live scan to fetch AI Overview data.</p>;
+                                    if (!ai.present) return <p className="text-gray-500">No AI Overview shown for this search.</p>;
+                                    return (
                                       <>
                                         {ai.rank && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Ranked #${ai.rank}</span></p>}
                                         {!ai.rank && ai.mentioned && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Mentioned</span></p>}
@@ -915,8 +918,8 @@ export default function ClinicVisibilityAudit() {
                                           </div>
                                         )}
                                       </>
-                                    ) : <p className="text-gray-500">No AI Overview shown for this search.</p>
-                                  ) : <p className="text-gray-500">Run a live scan to fetch AI Overview data.</p>}
+                                    );
+                                  })()}
                                 </div>
                               </div>
                             )}
