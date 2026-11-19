@@ -2373,6 +2373,65 @@ router.post('/playbooks/:id/test', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 // Reviews
 // ---------------------------------------------------------------------------
+
+const GOOGLE_REVIEW_BRANCHES = [
+  { branch: 'Alkapuri, Vadodara', placeId: 'ChIJJ6F-I7vIXzkRN6vZteeU53o' },
+  { branch: 'Manjalpur, Vadodara', placeId: 'ChIJ917igI7FXzkRdmda7ukJOkA' },
+  { branch: 'Vasna-Bhayli, Vadodara', placeId: 'ChIJo3WzCevHXzkRNQM_a0j-BUc' },
+  { branch: 'Waghodia Road, Vadodara', placeId: 'ChIJ34VyRrvFXzkR9uM-uaHgidA' },
+  { branch: 'Majura Gate, Surat', placeId: 'ChIJK64GThdP4DsRQ1Hp2tUmikI' },
+];
+
+router.post('/reviews/sync-google', requireUser, async (req, res) => {
+  const apiKey = process.env.SERPAPI_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'SERPAPI_API_KEY is not configured on the server.' });
+
+  const results = [];
+  let imported = 0;
+  for (const location of GOOGLE_REVIEW_BRANCHES) {
+    try {
+      const params = new URLSearchParams({
+        engine: 'google_maps_reviews',
+        place_id: location.placeId,
+        sort_by: 'newestFirst',
+        hl: 'en',
+        api_key: apiKey,
+      });
+      const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
+      const payload = await response.json();
+      if (!response.ok || payload.error) throw new Error(payload.error || `SerpApi returned HTTP ${response.status}`);
+
+      const rows = Array.isArray(payload.reviews) ? payload.reviews : [];
+      let branchImported = 0;
+      for (const item of rows) {
+        const author = item.user?.name || item.author || 'Google reviewer';
+        const body = item.snippet || item.text || '';
+        if (!body.trim()) continue;
+        const externalId = String(item.review_id || item.id || item.link || `${location.placeId}:${author}:${item.date || ''}:${body.slice(0, 80)}`);
+        const isoDate = item.iso_date && !Number.isNaN(Date.parse(item.iso_date)) ? new Date(item.iso_date).toISOString() : null;
+        const rating = Math.max(1, Math.min(5, Number(item.rating) || 5));
+        const sourceUrl = item.link || payload.place_info?.reviews_link || null;
+        await db.query(
+          `INSERT INTO clinic_reviews (user_id, author, rating, channel, body, status, branch, source_url, external_id, created_at)
+           VALUES ($1,$2,$3,'Google',$4,'new',$5,$6,$7,COALESCE($8::timestamptz,NOW()))
+           ON CONFLICT (user_id, external_id) WHERE external_id IS NOT NULL
+           DO UPDATE SET author=EXCLUDED.author, rating=EXCLUDED.rating, body=EXCLUDED.body,
+             branch=EXCLUDED.branch, source_url=EXCLUDED.source_url
+          `,
+          [req.user.id, author, rating, body.trim(), location.branch, sourceUrl, externalId, isoDate]
+        );
+        branchImported++;
+      }
+      imported += branchImported;
+      results.push({ branch: location.branch, fetched: rows.length, saved: branchImported, totalReviews: payload.place_info?.reviews || null, rating: payload.place_info?.rating || null });
+    } catch (error) {
+      results.push({ branch: location.branch, error: error.message });
+    }
+  }
+  const failed = results.filter((item) => item.error);
+  res.json({ imported, branches: results, warning: failed.length ? 'Some branches could not be synced.' : null });
+});
+
 router.get('/reviews', requireUser, async (req, res) => {
   try {
     const r = await db.query('SELECT * FROM clinic_reviews WHERE user_id = $1 ORDER BY created_at DESC LIMIT 500', [req.user.id]);
