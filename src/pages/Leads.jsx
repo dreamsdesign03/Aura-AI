@@ -1517,15 +1517,15 @@ export default function Leads() {
         </div>
 
         {/* ── Desktop table (≥ md) ───────────────────────────────── */}
-        <div className="hidden md:block">
-          <table className="w-full text-xs border-collapse" style={{ minWidth: "1200px" }}>
+        <div className="hidden md:block w-full max-w-full overflow-x-auto overscroll-x-contain">
+          <table className="w-full text-[13px] border-separate border-spacing-0" style={{ minWidth: "1580px", tableLayout: "auto" }}>
             <thead className="sticky top-0 z-10">
               <tr className="bg-white border-b border-gray-200">
                 <th className="sticky left-0 z-20 bg-white w-8 px-2 py-3 text-center">
                   <input ref={headerCheckboxRef} type="checkbox" onChange={selectPage} className="w-3.5 h-3.5 accent-violet-500 cursor-pointer" title="Select all on this page"/>
                 </th>
                 <th className="w-8 px-2 py-3 text-[10px] font-semibold text-gray-300 text-center">#</th>
-                <th className="sticky left-8 z-20 bg-white min-w-[160px] px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">Name</th>
+                <th className="sticky left-8 z-20 bg-white min-w-[230px] px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">Contact</th>
                 {[
             ["Designation", null, "130px"],
             ["Company", "company", "150px"],
@@ -1539,7 +1539,7 @@ export default function Leads() {
             ["Web Status", null, "90px"],
             ["Industry", null, "120px"],
             ["Date Added", "createdAt", "100px"],
-        ].map(([label, col, w]) => (<th key={label} style={{ minWidth: w }} className={cn("px-3 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap", col && "cursor-pointer hover:text-violet-600")} onClick={col ? () => handleSort(col) : undefined}>
+        ].map(([label, col, w]) => (<th key={label} style={{ minWidth: w, width: w }} className={cn("px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap bg-white", col && "cursor-pointer hover:text-violet-600")} onClick={col ? () => handleSort(col) : undefined}>
                     {col ? <span className="flex items-center gap-1">{label} <SortIcon col={col}/></span> : label}
                   </th>))}
                 <th className="w-16 px-2 py-3"/>
@@ -1556,32 +1556,35 @@ export default function Leads() {
             const leadNameStr = ln ? `${fn} ${ln}` : fn;
             const initials = leadNameStr.substring(0, 2).toUpperCase();
             const avatarColor = MOBILE_AVATAR_COLORS[lead.id % MOBILE_AVATAR_COLORS.length];
-            return (<tr key={lead.id} className="border-b border-gray-100 hover:bg-violet-50/30 transition-colors cursor-pointer group bg-white" onClick={() => navigate(`/leads/${lead.id}`)}>
+            return (<tr key={lead.id} className="border-b border-gray-100 hover:bg-violet-50/40 transition-colors cursor-pointer group bg-white" onClick={() => navigate(`/leads/${lead.id}`)}>
                     <td className="sticky left-0 z-10 w-8 px-2 py-2.5 bg-white group-hover:bg-violet-50/30" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selected.includes(lead.id)} onChange={() => toggleSelect(lead.id)} className="w-3.5 h-3.5 accent-violet-500"/>
                     </td>
                     <td className="w-8 px-2 py-2.5 text-center text-[10px] text-gray-300 font-mono">{rowNum}</td>
-                    <td className="sticky left-8 z-10 px-3 py-2.5 bg-white group-hover:bg-violet-50/30" style={{ minWidth: "160px" }}>
-                      <div className="flex items-center gap-2">
-                        {l.photoUrl ? <img src={l.photoUrl} alt="" className="w-7 h-7 rounded-full object-cover flex-shrink-0"/> : (<div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0" style={{ background: avatarColor }}>
+                    <td className="sticky left-8 z-10 px-4 py-3 bg-white group-hover:bg-violet-50/40 border-r border-gray-100" style={{ minWidth: "230px" }}>
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {l.photoUrl ? <img src={l.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0"/> : (<div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: avatarColor }}>
                             {initials || "?"}
                           </div>)}
-                        <span className="font-medium text-violet-700 hover:text-violet-900 hover:underline truncate text-[12px]">{leadNameStr}</span>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-violet-700 group-hover:text-violet-900 text-[13px] leading-5 break-words">{leadNameStr}</div>
+                          {cleanEmail(lead.email) && <div className="text-[11px] text-gray-500 leading-4 break-all">{cleanEmail(lead.email)}</div>}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-gray-500 truncate" style={{ maxWidth: "130px" }}>{lead.designation ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-3 py-2" style={{ maxWidth: "150px" }}>
+                    <td className="px-4 py-3 text-gray-600 whitespace-normal break-words leading-5" style={{ minWidth: "130px" }}>{lead.designation ?? <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3" style={{ minWidth: "170px" }}>
                       <div className="flex items-center gap-1.5">
                         {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0"/>}
-                        <span className="text-gray-700 font-medium truncate">{cleanCompanyName(lead.company)}</span>
+                        <span className="text-gray-800 font-medium whitespace-normal break-words leading-5">{cleanCompanyName(lead.company)}</span>
                       </div>
                     </td>
-                    <td className="px-3 py-2" style={{ maxWidth: "175px" }}>
-                      {cleanEmail(lead.email) && <a href={`mailto:${cleanEmail(lead.email)}`} className="text-blue-600 hover:underline truncate block text-[11px]" onClick={e => e.stopPropagation()}>{cleanEmail(lead.email)}</a>}
+                    <td className="px-4 py-3" style={{ minWidth: "210px" }}>
+                      {cleanEmail(lead.email) && <a href={`mailto:${cleanEmail(lead.email)}`} className="text-blue-600 hover:underline block text-[12px] whitespace-normal break-all leading-5" onClick={e => e.stopPropagation()}>{cleanEmail(lead.email)}</a>}
                     </td>
-                    <td className="px-3 py-2" style={{ maxWidth: "150px" }} onClick={e => e.stopPropagation()}>
+                    <td className="px-4 py-3" style={{ minWidth: "175px" }} onClick={e => e.stopPropagation()}>
                       {phoneDisplay ? (<div className="flex items-center gap-1">
-                          <span className="text-gray-500 truncate text-[11px]" style={{ maxWidth: "80px" }}>{phoneDisplay}</span>
+                          <span className="text-gray-600 text-[12px] whitespace-normal break-words leading-5">{phoneDisplay}</span>
                           {lead.last_ai_call_status && (
                             <span className="px-1 py-0.5 rounded bg-pink-50 text-pink-700 text-[9px] uppercase font-bold border border-pink-100" title={lead.last_ai_call_status}>
                               {lead.last_ai_call_status.substring(0, 4)}
@@ -1604,27 +1607,27 @@ export default function Leads() {
                         </div>
                       )}
                     </td>
-                    <td className="px-3 py-2 text-[11px]" style={{ maxWidth: "130px" }} onClick={e => e.stopPropagation()}>
-                      {lead.website ? (<a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline truncate block" title={lead.website}>
+                    <td className="px-4 py-3 text-[12px]" style={{ minWidth: "170px" }} onClick={e => e.stopPropagation()}>
+                      {lead.website ? (<a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline block whitespace-normal break-all leading-5" title={lead.website}>
                           {lead.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
                         </a>) : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-2">
                       {l.emailSent ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700"><Mail className="w-2.5 h-2.5"/> Email Sent</span>) : <span className="text-gray-300 text-[10px]">—</span>}
                     </td>
-                    <td className="px-3 py-2 text-gray-500 truncate text-[11px]" style={{ maxWidth: "120px" }}>
+                    <td className="px-4 py-3 text-gray-600 text-[12px] whitespace-normal break-words leading-5" style={{ minWidth: "145px" }}>
                       {lead.country || l.city
                     ? <span>{[l.city, lead.country].filter(Boolean).join(", ")}</span>
                     : <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-3 py-2"><StatusBadge status={lead.status}/></td>
-                    <td className="px-3 py-2 text-[11px]" style={{ maxWidth: "150px" }}>
+                    <td className="px-4 py-3 text-[12px]" style={{ minWidth: "150px" }}>
                       {lead.campaign_name ? (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200 truncate max-w-[140px]" title={`Bulk Campaign: ${lead.campaign_name}`}>
                           📢 {lead.campaign_name}
                         </span>
                       ) : (
-                        <span className="text-gray-400 capitalize truncate block">
+                        <span className="text-gray-600 capitalize whitespace-normal break-words block">
                           {lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}
                         </span>
                       )}
@@ -1632,8 +1635,8 @@ export default function Leads() {
                     <td className="px-3 py-2">
                       {l.websiteStatus === "live" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">✓ Live</span>) : l.websiteStatus === "down" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700"><WifiOff className="w-2.5 h-2.5"/> Dead</span>) : l.websiteStatus === "no_website" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">No URL</span>) : lead.website ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-500 border border-amber-200">? Check</span>) : (<span className="text-gray-300 text-[10px]">—</span>)}
                     </td>
-                    <td className="px-3 py-2 text-gray-500 truncate text-[11px]" style={{ maxWidth: "120px" }}>{lead.industry ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-3 py-2 text-gray-400 text-[11px]">{formatDate(lead.createdAt)}</td>
+                    <td className="px-4 py-3 text-gray-600 text-[12px] whitespace-normal break-words leading-5" style={{ minWidth: "140px" }}>{lead.industry ?? <span className="text-gray-300">—</span>}</td>
+                    <td className="px-4 py-3 text-gray-500 text-[12px] whitespace-nowrap">{formatDate(lead.createdAt)}</td>
                     <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1">
                         <button
