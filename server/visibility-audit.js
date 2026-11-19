@@ -733,7 +733,6 @@ function buildSummary(keywords, aiQuestions, aiResults, doneFixes) {
   }).filter(Boolean);
   const scoredBranches = branches.filter((b) => b.score !== null && b.scanned > 0);
   // Network score is recalculated from actual scanned keyword rows; unscanned branches/ratings cannot inflate it.
-  const scannedMaps = scanned.filter((k) => Number.isFinite(Number(k.current_rank)) && Number(k.current_rank) > 0);
   const mapsScore = scanned.length ? scanned.reduce((sum, k) => sum + rankPoints(k.current_rank), 0) / scanned.length : null;
   const aiScore = aiAnswered ? aiMentions / aiAnswered : null;
   const ratedRows = scanned.filter((k) => Number(k.rating) > 0);
