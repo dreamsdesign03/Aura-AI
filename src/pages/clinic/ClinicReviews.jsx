@@ -25,7 +25,8 @@ function ReviewCard({ review, onReply, replyingId, busy }) {
                   <Star key={s} size={12} style={{ color: s <= (review.rating || 5) ? '#FBBF24' : '#E5E7EB', fill: s <= (review.rating || 5) ? 'currentColor' : 'none' }} />
                 ))}
               </div>
-              <span className="co-chip co-c-n">{review.channel || 'Google'}</span>
+              <span className="co-chip co-c-n">{review.channel || 'Website'}</span>
+              {review.branch ? <span className="co-chip co-c-n">{review.branch}</span> : <span className="co-xs co-mut">Branch not specified</span>}
               <span className="co-xs co-mut">{review.created_at ? datetimeLabel(review.created_at) : '—'}</span>
             </div>
           </div>
@@ -83,7 +84,7 @@ function ReplyForm({ reviewId, onSubmit, onCancel, busy }) {
 }
 
 function AddReviewForm({ onSubmit, busy, onClose }) {
-  const [form, setForm] = useState({ author: '', rating: 5, channel: 'Google', body: '' });
+  const [form, setForm] = useState({ author: '', rating: 5, channel: 'Website', branch: '', sourceUrl: '', body: '' });
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (form.author.trim() && form.body.trim()) onSubmit(form); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -113,6 +114,19 @@ function AddReviewForm({ onSubmit, busy, onClose }) {
           </select>
         </div>
       </div>
+      <div className="co-form-grid">
+        <div className="co-field">
+          <label className="co-label" htmlFor="co-rbranch">Clinic branch</label>
+          <select id="co-rbranch" className="co-input" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}>
+            <option value="">Branch not specified</option>
+            {['Alkapuri, Vadodara', 'Manjalpur, Vadodara', 'Vasna-Bhayli, Vadodara', 'Waghodia Road, Vadodara', 'Majura Gate, Surat', 'Ranchi'].map((b) => <option key={b} value={b}>{b}</option>)}
+          </select>
+        </div>
+        <div className="co-field">
+          <label className="co-label" htmlFor="co-rurl">Original review URL</label>
+          <input id="co-rurl" type="url" className="co-input" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} placeholder="https://..." />
+        </div>
+      </div>
       <div className="co-field">
         <label className="co-label" htmlFor="co-rbody">Review text *</label>
         <textarea id="co-rbody" rows="3" className="co-input" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder="What did the patient say?" required />
@@ -132,6 +146,8 @@ export default function ClinicReviews() {
   const [addModal, setAddModal] = useState(false);
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState('');
+  const [branchFilter, setBranchFilter] = useState('all');
+  const [sourceFilter, setSourceFilter] = useState('all');
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['clinic', 'reviews'],
@@ -140,6 +156,8 @@ export default function ClinicReviews() {
   });
 
   const reviews = data?.reviews || [];
+  const visibleReviews = reviews.filter((r) => (branchFilter === 'all' || (r.branch || 'Unassigned') === branchFilter) && (sourceFilter === 'all' || String(r.channel || 'Website').toLowerCase() === sourceFilter.toLowerCase()));
+  const branches = [...new Set(reviews.map((r) => r.branch || 'Unassigned'))].sort();
   const newCount = reviews.filter((r) => r.status === 'new').length;
   const repliedCount = reviews.filter((r) => r.status === 'replied').length;
   const avgRating = reviews.length > 0 ? (reviews.reduce((n, r) => n + (r.rating || 5), 0) / reviews.length).toFixed(1) : '—';
@@ -173,16 +191,28 @@ export default function ClinicReviews() {
       </div>
 
       <Card rise="co-rise-2">
+        <div className="co-row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14 }}>
+          <div className="co-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+            <select className="co-input" style={{ width: 220 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
+              <option value="all">All clinic branches</option>
+              {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <select className="co-input" style={{ width: 160 }} value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
+              <option value="all">All sources</option><option value="Google">Google</option><option value="Website">Website</option><option value="Facebook">Facebook</option><option value="Practo">Practo</option><option value="JustDial">JustDial</option>
+            </select>
+          </div>
+          <span className="co-xs co-mut">Showing {visibleReviews.length} of {reviews.length} reviews</span>
+        </div>
         {isLoading ? <Spinner /> : reviews.length === 0 ? (
           <EmptyState title="No reviews yet">
-            <p className="co-sm co-mut" style={{ marginTop: 6 }}>Add reviews manually or connect your Google/Facebook business pages.</p>
+            <p className="co-sm co-mut" style={{ marginTop: 6 }}>Import website testimonials or connect each verified Google Business Profile to sync branch reviews. No external reviews are fabricated.</p>
             <button type="button" className="co-btn co-btn-primary" style={{ marginTop: 14 }} onClick={() => setAddModal(true)}>
               <Plus size={13} /> Add first review
             </button>
           </EmptyState>
         ) : (
-          <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))' }}>
-            {reviews.map((r) => (
+          visibleReviews.length === 0 ? <EmptyState title="No reviews for these filters"><p className="co-sm co-mut">Try another branch or source.</p></EmptyState> : <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 340px), 1fr))' }}>
+            {visibleReviews.map((r) => (
               <ReviewCard
                 key={r.id}
                 review={r}
