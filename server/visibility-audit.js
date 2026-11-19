@@ -21,8 +21,6 @@ const BRANCHES = [
   { name: 'Manjalpur', city: 'Vadodara', location: 'Vadodara, Gujarat, India', ll: '@22.2677,73.1890,14z', hints: ['manjalpur'] },
   { name: 'Waghodia Road', city: 'Vadodara', location: 'Vadodara, Gujarat, India', ll: '@22.3086,73.2282,14z', hints: ['waghodia'] },
   { name: 'Vasna Bhayli', city: 'Vadodara', location: 'Vadodara, Gujarat, India', ll: '@22.2760,73.1400,14z', hints: ['vasna', 'bhayli'] },
-  { name: 'Surat', city: 'Surat', location: 'Surat, Gujarat, India', ll: '@21.1702,72.8311,13z', hints: ['surat'] },
-  { name: 'Ranchi', city: 'Ranchi', location: 'Ranchi, Jharkhand, India', ll: '@23.3441,85.3096,13z', hints: ['ranchi'] },
 ];
 
 function branchByName(n) {
@@ -50,8 +48,6 @@ const DEFAULT_AI_QUESTIONS = [
   { q: 'Skin clinic near Manjalpur Vadodara?', branch: 'Manjalpur' },
   { q: 'Best dermatologist near Waghodia Road, Vadodara?', branch: 'Waghodia Road' },
   { q: 'Skin clinic in Vasna Bhayli Road, Vadodara?', branch: 'Vasna Bhayli' },
-  { q: 'Best skin clinic in Surat?', branch: 'Surat' },
-  { q: 'Best skin clinic in Ranchi?', branch: 'Ranchi' },
 ];
 
 // ── Default Keywords Dataset categorized as requested ────────────────────────
@@ -706,7 +702,10 @@ function buildSummary(keywords, aiQuestions, aiResults, doneFixes) {
   const aiAnswered = engines.reduce((s, e) => s + e.answered, 0);
   const aiMentions = engines.reduce((s, e) => s + e.mentions, 0);
 
-  const branches = BRANCHES.map((b) => {
+  const activeBranchNames = [...new Set([...keywords.map((k) => k.branch), ...aiQuestions.map((q) => q.branch)].filter(Boolean))];
+  const branches = activeBranchNames.map((branchName) => {
+    const b = branchByName(branchName);
+    if (!b) return null;
     const ks = keywords.filter((k) => k.branch === b.name);
     const sc = ks.filter((k) => k.source);
     const ranked = sc.filter((k) => k.current_rank);
@@ -731,11 +730,17 @@ function buildSummary(keywords, aiQuestions, aiResults, doneFixes) {
       rating, reviews, score,
       aiAnswers: aiRows.length ? `${aiHits}/${aiRows.length}` : null,
     };
-  });
-  const scoredBranches = branches.filter((b) => b.score !== null);
-  const networkScore = scoredBranches.length
-    ? Math.round(scoredBranches.reduce((s, b) => s + b.score * b.scanned, 0) / Math.max(1, scoredBranches.reduce((s, b) => s + b.scanned, 0)))
-    : null;
+  }).filter(Boolean);
+  const scoredBranches = branches.filter((b) => b.score !== null && b.scanned > 0);
+  // Network score is recalculated from actual scanned keyword rows; unscanned branches/ratings cannot inflate it.
+  const scannedMaps = scanned.filter((k) => Number.isFinite(Number(k.current_rank)) && Number(k.current_rank) > 0);
+  const mapsScore = scanned.length ? scanned.reduce((sum, k) => sum + rankPoints(k.current_rank), 0) / scanned.length : null;
+  const aiScore = aiAnswered ? aiMentions / aiAnswered : null;
+  const ratedRows = scanned.filter((k) => Number(k.rating) > 0);
+  const ratingScore = ratedRows.length ? ratedRows.reduce((sum, k) => sum + Math.min(1, Math.max(0, (Number(k.rating) - 3) / 2)), 0) / ratedRows.length : null;
+  const networkParts = [[mapsScore, 0.6], [aiScore, 0.25], [ratingScore, 0.15]].filter(([value]) => value !== null);
+  const networkWeight = networkParts.reduce((sum, [, weight]) => sum + weight, 0);
+  const networkScore = networkWeight ? Math.round(networkParts.reduce((sum, [value, weight]) => sum + value * weight, 0) / networkWeight * 100) : null;
 
   // Fix list is generated from real findings (never hardcoded).
   const fixes = [];
