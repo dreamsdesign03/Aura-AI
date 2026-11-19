@@ -911,12 +911,20 @@ export default function ClinicVisibilityAudit() {
                                             ))}
                                           </div>
                                         )}
-                                        {ai.references.length > 0 && (
+                                        {Array.isArray(ai.references) && ai.references.length > 0 && (
                                           <div className="mt-2 space-y-1">
                                             <p className="text-[10px] font-semibold text-gray-500 mb-1">Sources:</p>
-                                            {ai.references.slice(0, 5).map((ref, idx) => (
-                                              <a key={idx} href={ref} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-600 hover:underline truncate block" title={ref}>{ref}</a>
-                                            ))}
+                                            {ai.references.slice(0, 5).map((ref, idx) => {
+                                              const sourceUrl = typeof ref === "string" ? ref : (ref?.url || ref?.link || "");
+                                              const sourceTitle = typeof ref === "string" ? ref : (ref?.title || ref?.snippet || sourceUrl);
+                                              if (!sourceUrl) return null;
+                                              return (
+                                                <a key={sourceUrl || idx} href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-600 hover:underline truncate block" title={sourceTitle}>
+                                                  {sourceTitle || sourceUrl}
+                                                  {ref && typeof ref === "object" && Number.isFinite(Number(ref.position)) && <span className="ml-1 text-gray-400">· Citation #{Number(ref.position)}</span>}
+                                                </a>
+                                              );
+                                            })}
                                           </div>
                                         )}
                                       </>
