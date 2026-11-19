@@ -498,7 +498,7 @@ export default function ClinicVisibilityAudit() {
         </div>
       </div>
 
-      <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
+      <div className="p-6 space-y-6 w-full">
         {/* ── CONFIG WARNING ─────────────────────────────────────────────── */}
         {unconfigured.length > 0 && (
           <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
