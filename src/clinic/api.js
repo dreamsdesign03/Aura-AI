@@ -63,6 +63,7 @@ export const clinicApi = {
 
   // Reviews
   reviews: () => request('/reviews'),
+  syncGoogleReviews: () => request('/reviews/sync-google', { method: 'POST', body: '{}' }),
   createReview: (body) => request('/reviews', { method: 'POST', body: JSON.stringify(body) }),
   replyReview: (id, reply) => request(`/reviews/${id}/reply`, { method: 'PATCH', body: JSON.stringify({ reply }) }),
 
