@@ -296,15 +296,14 @@ async function _ensureAuditSchema() {
 }
 
 // ── Aura matching ────────────────────────────────────────────────────────────
-// Exact brand names only (no fuzzy "aura" substring that matches competitors)
-const AURA_NAME_RE = /\b(aura\s+laser\s+clinic|aura\s+skin\s+clinic|aura\s+cosmetic\s+clinic|dr\.?\s*aditya\s*shah|skinnonest)\b/i;
+// Match Aura brand by name (works even if GBP links to booking page/Instagram)
+const AURA_NAME_RE = /aura\s+laser|dr\.?\s*aditya\s*shah|skinnonest/i;
 
 function isAuraPlace(p) {
   const site = String(p.website || p.link || '').toLowerCase();
-  // If a website/link is present, require exact TARGET_DOMAIN match
-  if (site) return site.includes(TARGET_DOMAIN);
-  // Only fall back to name matching when NO website is present
-  return AURA_NAME_RE.test(String(p.title || ''));
+  const title = String(p.title || '');
+  // Match if website is our target domain OR title contains Aura brand name
+  return (site && site.includes(TARGET_DOMAIN)) || AURA_NAME_RE.test(title);
 }
 
 function addressHasHint(address, branch) {
@@ -312,17 +311,36 @@ function addressHasHint(address, branch) {
   return (branch.hints || []).some((h) => a.includes(h));
 }
 
+// Check if address belongs to a DIFFERENT branch in our BRANCHES list
+function belongsToOtherBranch(address, targetBranch) {
+  const a = String(address || '').toLowerCase();
+  for (const b of BRANCHES) {
+    if (b.name === targetBranch.name) continue;
+    if ((b.hints || []).some((h) => a.includes(h))) return true;
+  }
+  return false;
+}
+
 // ── Pure parsers (unit-testable, no network) ─────────────────────────────────
 function parseMapsResponse(json, branch) {
   const places = Array.isArray(json?.places) ? json.places : [];
   const top = places.slice(0, 5).map((p, i) => ({
-    position: p.position || i + 1, title: p.title, rating: p.rating ?? null,
-    reviews: p.ratingCount ?? p.reviews ?? null, aura: isAuraPlace(p),
+    position: p.position || i + 1,
+    title: p.title,
+    rating: p.rating ?? null,
+    reviews: p.ratingCount ?? p.reviews ?? null,
+    address: p.address || null,
+    aura: isAuraPlace(p) && !belongsToOtherBranch(p.address, branch),
   }));
-  // Only match if BOTH: Aura brand AND branch address hint match
+  // 1) Exact match: Aura brand + target branch address hint
   let idx = places.findIndex((p) => isAuraPlace(p) && addressHasHint(p.address, branch));
   let exact = idx >= 0;
-  // NO cross-branch fallback — if requested branch not found, return null
+  // 2) Fallback: Aura brand but address doesn't match another known branch
+  //    (e.g. Serper returns street name/PIN not in our hints)
+  if (idx < 0) {
+    idx = places.findIndex((p) => isAuraPlace(p) && !belongsToOtherBranch(p.address, branch));
+    exact = false;
+  }
   if (idx < 0) return { rank: null, top, checked: places.length, match: null, exact: false };
   const p = places[idx];
   return {
