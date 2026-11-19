@@ -1518,27 +1518,27 @@ export default function Leads() {
 
         {/* ── Desktop table (≥ md) ───────────────────────────────── */}
         <div className="hidden md:block w-full max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "1220px", tableLayout: "fixed" }}>
+          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "1380px", tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-10">
               <tr className="bg-white border-b border-gray-200">
                 <th className="sticky left-0 z-20 bg-white w-8 px-2 py-3 text-center">
                   <input ref={headerCheckboxRef} type="checkbox" onChange={selectPage} className="w-3.5 h-3.5 accent-violet-500 cursor-pointer" title="Select all on this page"/>
                 </th>
                 <th className="w-8 px-2 py-3 text-[10px] font-semibold text-gray-300 text-center">#</th>
-                <th className="sticky left-8 z-20 bg-white w-[190px] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">Contact</th>
+                <th className="sticky left-16 z-20 bg-white w-[180px] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">Contact</th>
                 {[
-            ["Designation", null, "130px"],
-            ["Company", "company", "150px"],
-            ["Email ID", null, "175px"],
-            ["Phone No", null, "150px"],
-            ["Website URL", null, "140px"],
-            ["Email Send", null, "90px"],
-            ["Location", null, "120px"],
-            ["Lead Status", null, "130px"],
-            ["Source", null, "100px"],
-            ["Web Status", null, "90px"],
-            ["Industry", null, "120px"],
-            ["Date Added", "createdAt", "100px"],
+            ["Designation", null, "90px"],
+            ["Company", "company", "110px"],
+            ["Email ID", null, "135px"],
+            ["Phone No", null, "115px"],
+            ["Website URL", null, "110px"],
+            ["Email Send", null, "70px"],
+            ["Location", null, "90px"],
+            ["Lead Status", null, "105px"],
+            ["Source", null, "85px"],
+            ["Web Status", null, "80px"],
+            ["Industry", null, "90px"],
+            ["Date Added", "createdAt", "90px"],
         ].map(([label, col, w]) => (<th key={label} style={{ minWidth: w, width: w }} className={cn("px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap bg-white", col && "cursor-pointer hover:text-violet-600")} onClick={col ? () => handleSort(col) : undefined}>
                     {col ? <span className="flex items-center gap-1">{label} <SortIcon col={col}/></span> : label}
                   </th>))}
@@ -1561,7 +1561,7 @@ export default function Leads() {
                       <input type="checkbox" checked={selected.includes(lead.id)} onChange={() => toggleSelect(lead.id)} className="w-3.5 h-3.5 accent-violet-500"/>
                     </td>
                     <td className="w-8 px-2 py-2.5 text-center text-[10px] text-gray-300 font-mono">{rowNum}</td>
-                    <td className="sticky left-8 z-10 px-4 py-3 bg-white group-hover:bg-violet-50/40 border-r border-gray-100" style={{ width: "190px", maxWidth: "190px" }}>
+                    <td className="sticky left-16 z-10 px-3 py-2 bg-white group-hover:bg-violet-50/40 border-r border-gray-100" style={{ width: "180px", maxWidth: "180px" }}>
                       <div className="flex items-center gap-2.5 min-w-0">
                         {l.photoUrl ? <img src={l.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0"/> : (<div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: avatarColor }}>
                             {initials || "?"}
