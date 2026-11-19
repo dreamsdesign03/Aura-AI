@@ -1,8 +1,54 @@
 const express = require('express');
 const router = express.Router();
 const db = require('./db');
-const https = require('https');
-const http = require('http');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Visibility Audit — REAL rank checking (no hardcoded / random ranks).
+//   • Google Maps / Local Pack + Organic rank  → Serper.dev   (SERPER_API_KEY)
+//   • AI answers: ChatGPT / Perplexity / Gemini / Google AI Overview
+//       → OPENAI_API_KEY, PERPLEXITY_API_KEY, GEMINI_API_KEY (+ SERPER for AI Overview)
+// A keyword that was never scanned has current_rank = NULL ("Not scanned yet").
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TARGET_DOMAIN = (process.env.AUDIT_TARGET_DOMAIN || 'auralaserclinic.com').toLowerCase();
+const SERP_DEPTH = Math.min(100, Math.max(10, parseInt(process.env.AUDIT_SERP_DEPTH || '30', 10)));
+
+// Branch config. `ll` = Google Maps viewport the search is "checked from".
+// Coordinates are approximate branch-area centres — adjust if a branch moves.
+// `hints` = words that appear in that branch's Google address.
+const BRANCHES = [
+  { name: 'Alkapuri', city: 'Vadodara', location: 'Vadodara, Gujarat, India', ll: '@22.3103,73.1707,14z', hints: ['alkapuri'] },
+  { name: 'Manjalpur', city: 'Vadodara', location: 'Vadodara, Gujarat, India', ll: '@22.2677,73.1890,14z', hints: ['manjalpur'] },
+  { name: 'Waghodia Road', city: 'Vadodara', location: 'Vadodara, Gujarat, India', ll: '@22.3086,73.2282,14z', hints: ['waghodia'] },
+  { name: 'Vasna Bhayli', city: 'Vadodara', location: 'Vadodara, Gujarat, India', ll: '@22.2760,73.1400,14z', hints: ['vasna', 'bhayli'] },
+  { name: 'Surat', city: 'Surat', location: 'Surat, Gujarat, India', ll: '@21.1702,72.8311,13z', hints: ['surat'] },
+  { name: 'Ranchi', city: 'Ranchi', location: 'Ranchi, Jharkhand, India', ll: '@23.3441,85.3096,13z', hints: ['ranchi'] },
+];
+const branchByName = (n) => BRANCHES.find((b) => b.name.toLowerCase() === String(n || '').toLowerCase()) || BRANCHES[0];
+
+// Default patient questions asked to AI engines (editable in DB table).
+const DEFAULT_AI_QUESTIONS = [
+  { q: 'Best skin clinic in Vadodara?', branch: null },
+  { q: 'Which is the best dermatologist in Vadodara?', branch: null },
+  { q: 'Best clinic for laser hair removal in Vadodara?', branch: null },
+  { q: 'Where can I get acne scar treatment in Vadodara?', branch: null },
+  { q: 'Best hair transplant clinic in Vadodara?', branch: null },
+  { q: 'Which clinic is good for hydrafacial in Vadodara?', branch: null },
+  { q: 'Best PRP hair treatment in Vadodara?', branch: null },
+  { q: 'Best clinic for pigmentation treatment in Vadodara?', branch: null },
+  { q: 'Bridal skin treatment clinic in Vadodara?', branch: null },
+  { q: 'Best vitiligo treatment in Vadodara?', branch: null },
+  { q: 'Best cosmetic dermatologist in Vadodara?', branch: null },
+  { q: 'Botox and fillers clinic in Vadodara?', branch: null },
+  { q: 'Best skin clinic in Alkapuri, Vadodara?', branch: 'Alkapuri' },
+  { q: 'Laser hair removal near Alkapuri Vadodara?', branch: 'Alkapuri' },
+  { q: 'Best skin doctor in Manjalpur, Vadodara?', branch: 'Manjalpur' },
+  { q: 'Skin clinic near Manjalpur Vadodara?', branch: 'Manjalpur' },
+  { q: 'Best dermatologist near Waghodia Road, Vadodara?', branch: 'Waghodia Road' },
+  { q: 'Skin clinic in Vasna Bhayli Road, Vadodara?', branch: 'Vasna Bhayli' },
+  { q: 'Best skin clinic in Surat?', branch: 'Surat' },
+  { q: 'Best skin clinic in Ranchi?', branch: 'Ranchi' },
+];
 
 // ── Default Keywords Dataset categorized as requested ────────────────────────
 const SEED_KEYWORDS = [
@@ -135,279 +181,464 @@ const SEED_KEYWORDS = [
   { keyword: "Skin Rejuvenation IV Vadodara", category: "IV Glutathione", branch: "Alkapuri" }
 ];
 
-// ── Database Schema Migration & Seeding ─────────────────────────────────────
-async function ensureAuditSchema() {
-  try {
-    await db.query(`
-      CREATE TABLE IF NOT EXISTS visibility_audit_keywords (
-        id SERIAL PRIMARY KEY,
-        keyword TEXT NOT NULL UNIQUE,
-        category TEXT NOT NULL,
-        target_city TEXT DEFAULT 'Vadodara',
-        branch TEXT DEFAULT 'Alkapuri',
-        current_rank INT,
-        previous_rank INT,
-        rank_change INT DEFAULT 0,
-        ranked_url TEXT,
-        serp_features JSONB DEFAULT '["local_pack", "maps"]'::jsonb,
-        last_checked_at TIMESTAMPTZ DEFAULT NOW(),
-        history JSONB DEFAULT '[]'::jsonb,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      );
-
-      CREATE TABLE IF NOT EXISTS visibility_audit_summary (
-        id SERIAL PRIMARY KEY,
-        network_visibility_score INT DEFAULT 78,
-        gmb_complete_pct INT DEFAULT 94,
-        avg_rank NUMERIC(4,1) DEFAULT 3.4,
-        ai_mentions TEXT DEFAULT '11 of 20',
-        last_audit_at TIMESTAMPTZ DEFAULT NOW(),
-        next_audit_at TIMESTAMPTZ,
-        branch_scores JSONB DEFAULT '[]'::jsonb,
-        ai_visibility JSONB DEFAULT '[]'::jsonb,
-        open_fixes JSONB DEFAULT '[]'::jsonb,
-        updated_at TIMESTAMPTZ DEFAULT NOW()
-      );
-    `);
-
-    // Check if initial keywords need seeding
-    const existing = await db.query('SELECT COUNT(*) as count FROM visibility_audit_keywords');
-    if (parseInt(existing.rows[0].count, 10) === 0) {
-      console.log('[Visibility Audit] Seeding initial keywords dataset...');
-      for (const item of SEED_KEYWORDS) {
-        // Generate a realistic starting position for Aura Laser Clinic in Vadodara
-        // High core services (LHR, Hydrafacial, Skin clinic) are Top 2-4
-        let baseRank = 3;
-        const kw = item.keyword.toLowerCase();
-        if (kw.includes('laser hair') || kw.includes('hydrafacial') || kw.includes('skin clinic') || kw.includes('dermatologist in vadodara')) {
-          baseRank = Math.floor(Math.random() * 3) + 2; // Rank 2-4
-        } else if (kw.includes('prp') || kw.includes('acne') || kw.includes('pigmentation') || kw.includes('botox')) {
-          baseRank = Math.floor(Math.random() * 4) + 3; // Rank 3-6
-        } else if (kw.includes('gynecology') || kw.includes('glutathione') || kw.includes('vitiligo')) {
-          baseRank = Math.floor(Math.random() * 5) + 4; // Rank 4-8
-        } else {
-          baseRank = Math.floor(Math.random() * 5) + 2;
-        }
-
-        const prevRank = baseRank + (Math.random() > 0.4 ? 1 : 0);
-        const change = prevRank - baseRank; // positive means improved
-
-        await db.query(`
-          INSERT INTO visibility_audit_keywords 
-          (keyword, category, target_city, branch, current_rank, previous_rank, rank_change, ranked_url, last_checked_at, history)
-          VALUES ($1, $2, 'Vadodara', $3, $4, $5, $6, $7, NOW(), $8)
-          ON CONFLICT (keyword) DO NOTHING
-        `, [
-          item.keyword,
-          item.category,
-          item.branch,
-          baseRank,
-          prevRank,
-          change,
-          `https://auralaserclinic.com/${item.category.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-          JSON.stringify([
-            { date: new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0], rank: prevRank },
-            { date: new Date().toISOString().split('T')[0], rank: baseRank }
-          ])
-        ]);
-      }
-      console.log(`[Visibility Audit] Seeded ${SEED_KEYWORDS.length} keywords.`);
-    }
-
-    // Ensure default summary row exists
-    const summaryCheck = await db.query('SELECT COUNT(*) as count FROM visibility_audit_summary');
-    if (parseInt(summaryCheck.rows[0].count, 10) === 0) {
-      const defaultBranches = [
-        { branch: "Alkapuri", score: 86, profile: 100, rating: 4.9, avgRank: 2.3, aiAnswers: "14/20", mobileSpeed: 82, fixes: 1 },
-        { branch: "Surat", score: 81, profile: 96, rating: 4.8, avgRank: 3.1, aiAnswers: "11/20", mobileSpeed: 78, fixes: 1 },
-        { branch: "Waghodia Road", score: 77, profile: 93, rating: 4.8, avgRank: 3.4, aiAnswers: "9/20", mobileSpeed: 75, fixes: 2 },
-        { branch: "Manjalpur", score: 75, profile: 91, rating: 4.7, avgRank: 3.8, aiAnswers: "9/20", mobileSpeed: 74, fixes: 2 },
-        { branch: "Vasna Bhayli", score: 74, profile: 89, rating: 4.7, avgRank: 4.0, aiAnswers: "8/20", mobileSpeed: 72, fixes: 2 },
-        { branch: "Ranchi", score: 71, profile: 85, rating: 4.6, avgRank: 4.2, aiAnswers: "6/20", mobileSpeed: 70, fixes: 1 }
-      ];
-
-      const defaultAi = [
-        { engine: "ChatGPT Search", score: "12/20", pct: 60 },
-        { engine: "Perplexity AI", score: "11/20", pct: 55 },
-        { engine: "Google Gemini", score: "11/20", pct: 55 },
-        { engine: "Google AI Overviews", score: "10/20", pct: 50 }
-      ];
-
-      const defaultFixes = [
-        { id: 1, branch: "Alkapuri", title: "Add 6 high-res photos of laser room & reception", impact: "High", done: false },
-        { id: 2, branch: "Manjalpur", title: "Reply to 2 pending Google reviews from this week", impact: "High", done: false },
-        { id: 3, branch: "Waghodia Road", title: "Update clinic holiday and Diwali timings on GMB", impact: "Medium", done: false },
-        { id: 4, branch: "Vasna Bhayli", title: "Add FAQ schema for Laser Hair Removal on website", impact: "Medium", done: false }
-      ];
-
-      await db.query(`
-        INSERT INTO visibility_audit_summary 
-        (network_visibility_score, gmb_complete_pct, avg_rank, ai_mentions, last_audit_at, next_audit_at, branch_scores, ai_visibility, open_fixes)
-        VALUES (79, 94, 3.2, '11 of 20', NOW(), NOW() + INTERVAL '30 days', $1, $2, $3)
-      `, [JSON.stringify(defaultBranches), JSON.stringify(defaultAi), JSON.stringify(defaultFixes)]);
-    }
-  } catch (err) {
+// ── Schema ───────────────────────────────────────────────────────────────────
+let schemaReady = null;
+function ensureAuditSchema() {
+  if (!schemaReady) schemaReady = _ensureAuditSchema().catch((err) => {
+    schemaReady = null;
     console.error('[Visibility Audit Init Error]:', err.message);
-  }
-}
-
-ensureAuditSchema();
-
-// ── Google Ranking Checker Logic ────────────────────────────────────────────
-// Accurate Google Local 3-Pack rank evaluator for Dr. Aditya Shah's Aura Laser & Cosmetic Clinic
-function getAccurateGoogleLocalRank(keyword) {
-  const kw = String(keyword || '').toLowerCase().trim();
-
-  // Core Dominance Keywords: Dr. Aditya Shah's Aura Laser & Cosmetic Clinic is #1 on Google Local 3-Pack in Vadodara (2.2k+ reviews, 4.8★)
-  const rank1Keywords = [
-    'acne', 'pimple', 'laser hair', 'hair removal', 'hydrafacial', 
-    'skin clinic', 'best dermatologist', 'best skin', 'skin doctor',
-    'skin specialist', 'chemical peel', 'carbon peel', 'co2 laser',
-    'fractional', 'q switch', 'skin glow', 'glow treatment', 'photofacial', 'laser facial',
-    'bridal', 'pre wedding', 'botox', 'filler', 'wrinkle', 'anti aging',
-    'pigmentation', 'underarm', 'melasma', 'prp hair', 'hair fall', 
-    'gfc', 'mole removal', 'wart removal', 'skin tag', 'glutathione', 
-    'vaginal', 'dermatologist near me', 'skin specialist near me', 'pediatric',
-    'general dermatology', 'best skin clinic', 'laser skin clinic', 'cosmetic dermatologist'
-  ];
-
-  for (const p of rank1Keywords) {
-    if (kw.includes(p)) {
-      return 1;
-    }
-  }
-
-  // Secondary surgical or specialized conditions: #2 on Google
-  const rank2Keywords = [
-    'transplant', 'vitiligo', 'white patch', 'excimer', 'psoriasis', 
-    'eczema', 'fungal', 'keloid', 'cyst', 'milia', 'alopecia', 
-    'thread lift', 'regrowth', 'hair loss', 'itching', 'allergy', 'nbuvb'
-  ];
-
-  for (const p of rank2Keywords) {
-    if (kw.includes(p)) {
-      return 2;
-    }
-  }
-
-  return 1;
-}
-
-// Checks actual Google ranking or uses a deterministic SERP parser with fallback
-async function fetchGoogleSerpRank(keyword, targetDomain = 'auralaserclinic') {
-  return new Promise((resolve) => {
-    try {
-      const q = encodeURIComponent(`${keyword} Vadodara`);
-      const options = {
-        hostname: 'www.google.com',
-        path: `/search?q=${q}&hl=en&gl=in&num=30`,
-        method: 'GET',
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'en-IN,en;q=0.9'
-        },
-        timeout: 4500
-      };
-
-      const req = https.request(options, (res) => {
-        let data = '';
-        res.on('data', chunk => { data += chunk; });
-        res.on('end', () => {
-          const lower = data.toLowerCase();
-          const targetLower = targetDomain.toLowerCase();
-          const auraMatches = lower.includes(targetLower) || lower.includes('aura laser') || lower.includes('dr. aditya shah');
-
-          if (auraMatches) {
-            // Find approximate position in search chunks
-            const blocks = lower.split(/class="[^"]*(?:yuRUbf|MjjYud|g\b)[^"]*"/);
-            let foundPos = -1;
-            for (let i = 1; i < blocks.length; i++) {
-              if (blocks[i].includes(targetLower) || blocks[i].includes('aura laser') || blocks[i].includes('dr. aditya shah')) {
-                foundPos = i;
-                break;
-              }
-            }
-            const rank = foundPos > 0 ? foundPos : getAccurateGoogleLocalRank(keyword);
-            resolve({ rank, isLive: true, url: `https://auralaserclinic.com` });
-          } else {
-            resolve({ rank: getAccurateGoogleLocalRank(keyword), isLive: true, url: `https://auralaserclinic.com` });
-          }
-        });
-      });
-
-      req.on('error', () => {
-        resolve({ rank: getAccurateGoogleLocalRank(keyword), isLive: false, url: 'https://auralaserclinic.com' });
-      });
-
-      req.on('timeout', () => {
-        req.destroy();
-        resolve({ rank: getAccurateGoogleLocalRank(keyword), isLive: false, url: 'https://auralaserclinic.com' });
-      });
-
-      req.end();
-    } catch {
-      resolve({ rank: getAccurateGoogleLocalRank(keyword), isLive: false, url: 'https://auralaserclinic.com' });
-    }
+    throw err;
   });
+  return schemaReady;
+}
+
+async function _ensureAuditSchema() {
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS visibility_audit_keywords (
+      id SERIAL PRIMARY KEY,
+      keyword TEXT NOT NULL UNIQUE,
+      category TEXT NOT NULL,
+      target_city TEXT DEFAULT 'Vadodara',
+      branch TEXT DEFAULT 'Alkapuri',
+      current_rank INT,
+      previous_rank INT,
+      rank_change INT DEFAULT 0,
+      ranked_url TEXT,
+      serp_features JSONB DEFAULT '[]'::jsonb,
+      last_checked_at TIMESTAMPTZ,
+      history JSONB DEFAULT '[]'::jsonb,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS visibility_audit_summary (
+      id SERIAL PRIMARY KEY,
+      open_fixes JSONB DEFAULT '[]'::jsonb,
+      last_audit_at TIMESTAMPTZ,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS visibility_audit_ai_questions (
+      id SERIAL PRIMARY KEY,
+      question TEXT NOT NULL UNIQUE,
+      branch TEXT
+    );
+    CREATE TABLE IF NOT EXISTS visibility_audit_ai_results (
+      id SERIAL PRIMARY KEY,
+      question_id INT NOT NULL REFERENCES visibility_audit_ai_questions(id) ON DELETE CASCADE,
+      engine TEXT NOT NULL,
+      answered BOOLEAN DEFAULT TRUE,
+      mentioned BOOLEAN DEFAULT FALSE,
+      position INT,
+      snippet TEXT,
+      competitors JSONB DEFAULT '[]'::jsonb,
+      citations JSONB DEFAULT '[]'::jsonb,
+      checked_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (question_id, engine)
+    );
+  `);
+
+  // New real-data columns. If `source` is missing, this DB still holds the old
+  // randomly-seeded / hardcoded ranks → wipe them so nothing fake is shown.
+  const hasSource = await db.query(
+    `SELECT 1 FROM information_schema.columns WHERE table_name = 'visibility_audit_keywords' AND column_name = 'source'`
+  );
+  await db.query(`
+    ALTER TABLE visibility_audit_keywords
+      ADD COLUMN IF NOT EXISTS maps_rank INT,
+      ADD COLUMN IF NOT EXISTS organic_rank INT,
+      ADD COLUMN IF NOT EXISTS maps_rank_prev INT,
+      ADD COLUMN IF NOT EXISTS organic_rank_prev INT,
+      ADD COLUMN IF NOT EXISTS top_results JSONB DEFAULT '[]'::jsonb,
+      ADD COLUMN IF NOT EXISTS rating NUMERIC(2,1),
+      ADD COLUMN IF NOT EXISTS reviews INT,
+      ADD COLUMN IF NOT EXISTS matched_name TEXT,
+      ADD COLUMN IF NOT EXISTS matched_address TEXT,
+      ADD COLUMN IF NOT EXISTS branch_exact BOOLEAN,
+      ADD COLUMN IF NOT EXISTS last_error TEXT,
+      ADD COLUMN IF NOT EXISTS source TEXT;
+    ALTER TABLE visibility_audit_keywords ALTER COLUMN last_checked_at DROP DEFAULT;
+    ALTER TABLE visibility_audit_keywords ALTER COLUMN serp_features SET DEFAULT '[]'::jsonb;
+  `);
+  if (hasSource.rows.length === 0) {
+    await db.query(`
+      UPDATE visibility_audit_keywords
+         SET current_rank = NULL, previous_rank = NULL, rank_change = 0,
+             history = '[]'::jsonb, serp_features = '[]'::jsonb,
+             ranked_url = NULL, last_checked_at = NULL`);
+    console.log('[Visibility Audit] Cleared old seeded (fake) ranks.');
+  }
+
+  // Seed keyword list (text only — NO ranks).
+  const kwCount = await db.query('SELECT COUNT(*)::int AS n FROM visibility_audit_keywords');
+  if (kwCount.rows[0].n === 0) {
+    for (const item of SEED_KEYWORDS) {
+      await db.query(
+        `INSERT INTO visibility_audit_keywords (keyword, category, target_city, branch)
+         VALUES ($1, $2, $3, $4) ON CONFLICT (keyword) DO NOTHING`,
+        [item.keyword, item.category, branchByName(item.branch).city, item.branch]
+      );
+    }
+  }
+  const qCount = await db.query('SELECT COUNT(*)::int AS n FROM visibility_audit_ai_questions');
+  if (qCount.rows[0].n === 0) {
+    for (const item of DEFAULT_AI_QUESTIONS) {
+      await db.query(
+        'INSERT INTO visibility_audit_ai_questions (question, branch) VALUES ($1, $2) ON CONFLICT (question) DO NOTHING',
+        [item.q, item.branch]
+      );
+    }
+  }
+  const sCount = await db.query('SELECT COUNT(*)::int AS n FROM visibility_audit_summary');
+  if (sCount.rows[0].n === 0) await db.query(`INSERT INTO visibility_audit_summary (open_fixes) VALUES ('[]'::jsonb)`);
+}
+
+// ── Aura matching ────────────────────────────────────────────────────────────
+const AURA_NAME_RE = /aura\s+(laser|skin|cosmetic|clinic)|aditya\s*shah|skinnonest/i;
+function isAuraPlace(p) {
+  const site = String(p.website || p.link || '').toLowerCase();
+  return site.includes(TARGET_DOMAIN) || AURA_NAME_RE.test(String(p.title || ''));
+}
+function addressHasHint(address, branch) {
+  const a = String(address || '').toLowerCase();
+  return (branch.hints || []).some((h) => a.includes(h));
+}
+
+// ── Pure parsers (unit-testable, no network) ─────────────────────────────────
+function parseMapsResponse(json, branch) {
+  const places = Array.isArray(json?.places) ? json.places : [];
+  const top = places.slice(0, 5).map((p, i) => ({
+    position: p.position || i + 1, title: p.title, rating: p.rating ?? null,
+    reviews: p.ratingCount ?? p.reviews ?? null, aura: isAuraPlace(p),
+  }));
+  let idx = places.findIndex((p) => isAuraPlace(p) && addressHasHint(p.address, branch));
+  let exact = idx >= 0;
+  if (idx < 0) idx = places.findIndex((p) => isAuraPlace(p));
+  if (idx < 0) return { rank: null, top, checked: places.length, match: null };
+  const p = places[idx];
+  return {
+    rank: p.position || idx + 1, top, checked: places.length, exact,
+    match: { title: p.title, address: p.address || null, rating: p.rating ?? null, reviews: p.ratingCount ?? p.reviews ?? null },
+  };
+}
+
+function parseSearchResponse(json) {
+  const organic = Array.isArray(json?.organic) ? json.organic : [];
+  const idx = organic.findIndex((o) => isAuraPlace(o));
+  const hasLocalPack = Array.isArray(json?.places) && json.places.length > 0;
+  const packIdx = hasLocalPack ? json.places.findIndex((p) => isAuraPlace(p)) : -1;
+  return {
+    rank: idx >= 0 ? organic[idx].position || idx + 1 : null,
+    url: idx >= 0 ? organic[idx].link : null,
+    localPack: hasLocalPack,
+    localPackRank: packIdx >= 0 ? packIdx + 1 : null,
+    aiOverview: !!(json?.aiOverview || json?.ai_overview),
+    checked: organic.length,
+  };
+}
+
+// ── Network helpers ──────────────────────────────────────────────────────────
+async function postJson(url, headers, body, timeoutMs = 20000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body), signal: ctrl.signal });
+    const text = await r.text();
+    let json = null;
+    try { json = JSON.parse(text); } catch { }
+    if (!r.ok) throw new Error(`${r.status} ${(json && (json.message || json.error?.message || json.error)) || text.slice(0, 160)}`);
+    return json || {};
+  } finally { clearTimeout(t); }
+}
+
+const serperHeaders = () => ({ 'X-API-KEY': process.env.SERPER_API_KEY });
+function serperConfigured() { return !!process.env.SERPER_API_KEY; }
+
+// Real Google check for one keyword: Maps (from branch area) + organic (city-level).
+async function checkGoogleRank(keyword, branchName) {
+  if (!serperConfigured()) {
+    const e = new Error('SERPER_API_KEY not configured — add it in Vercel env to enable live Google rank checks.');
+    e.code = 'NOT_CONFIGURED';
+    throw e;
+  }
+  const branch = branchByName(branchName);
+  const [maps, search] = await Promise.all([
+    postJson('https://google.serper.dev/maps', serperHeaders(), { q: keyword, ll: branch.ll, gl: 'in', hl: 'en' }),
+    postJson('https://google.serper.dev/search', serperHeaders(), { q: keyword, gl: 'in', hl: 'en', location: branch.location, num: SERP_DEPTH }),
+  ]);
+  const m = parseMapsResponse(maps, branch);
+  const s = parseSearchResponse(search);
+  return { maps: m, organic: s, depth: SERP_DEPTH };
+}
+
+// Writes a real result into the DB; returns the row.
+async function saveKeywordResult(row, res) {
+  const mapsRank = res.maps.rank;
+  const orgRank = res.organic.rank;
+  const best = mapsRank ?? orgRank ?? null;
+  const prevBest = row.current_rank ?? null;
+  const change = prevBest && best ? prevBest - best : 0;
+  const features = [];
+  if (mapsRank) features.push('maps');
+  if (res.organic.localPack) features.push('local_pack');
+  if (orgRank) features.push('organic');
+  if (res.organic.aiOverview) features.push('ai_overview');
+  let hist = Array.isArray(row.history) ? row.history : [];
+  hist.push({ date: new Date().toISOString().split('T')[0], rank: best, maps: mapsRank, organic: orgRank });
+  hist = hist.slice(-12);
+  const r = await db.query(
+    `UPDATE visibility_audit_keywords SET
+       current_rank = $1, previous_rank = $2, rank_change = $3,
+       maps_rank = $4, maps_rank_prev = $5, organic_rank = $6, organic_rank_prev = $7,
+       top_results = $8, rating = $9, reviews = $10, matched_name = $11, matched_address = $12,
+       branch_exact = $13, ranked_url = $14, serp_features = $15, history = $16,
+       last_checked_at = NOW(), last_error = NULL, source = 'serper'
+     WHERE id = $17 RETURNING *`,
+    [best, prevBest, change, mapsRank, row.maps_rank ?? null, orgRank, row.organic_rank ?? null,
+      JSON.stringify(res.maps.top), res.maps.match?.rating ?? null, res.maps.match?.reviews ?? null,
+      res.maps.match?.title ?? null, res.maps.match?.address ?? null, res.maps.exact ?? null,
+      res.organic.url, JSON.stringify(features), JSON.stringify(hist), row.id]
+  );
+  await db.query('UPDATE visibility_audit_summary SET last_audit_at = NOW(), updated_at = NOW() WHERE id = (SELECT MAX(id) FROM visibility_audit_summary)');
+  return r.rows[0];
+}
+
+// ── AI engines ───────────────────────────────────────────────────────────────
+const AI_ENGINES = {
+  chatgpt: { label: 'ChatGPT Search', env: 'OPENAI_API_KEY' },
+  perplexity: { label: 'Perplexity AI', env: 'PERPLEXITY_API_KEY' },
+  gemini: { label: 'Google Gemini', env: 'GEMINI_API_KEY' },
+  google_ai: { label: 'Google AI Overviews', env: 'SERPER_API_KEY' },
+};
+
+const AURA_MENTION_RE = /aura\s+(laser|skin|cosmetic|clinic)|dr\.?\s*aditya\s*shah|auralaserclinic|skinnonest/i;
+
+function analyseAnswer(text, citations = []) {
+  const body = String(text || '');
+  const m = AURA_MENTION_RE.exec(body);
+  const urlHit = (citations || []).some((c) => String(c).toLowerCase().includes(TARGET_DOMAIN));
+  const mentioned = !!m || urlHit;
+  // Position = number of the list item that mentions Aura (1., 2. …) when the answer is a ranked list.
+  let position = null;
+  if (m) {
+    const lines = body.split('\n');
+    for (const line of lines) {
+      if (AURA_MENTION_RE.test(line)) {
+        const n = /^\s*(?:[#*\-\s]*)(\d{1,2})[.)]\s/.exec(line);
+        if (n) position = parseInt(n[1], 10);
+        break;
+      }
+    }
+  }
+  const competitors = [];
+  const boldRe = /\*\*([^*]{3,60})\*\*/g;
+  let b;
+  while ((b = boldRe.exec(body)) && competitors.length < 6) {
+    const name = b[1].replace(/[:.]$/, '').trim();
+    if (!AURA_MENTION_RE.test(name) && !competitors.includes(name)) competitors.push(name);
+  }
+  const snippet = body.replace(/\s+/g, ' ').trim().slice(0, 320);
+  return { mentioned, position, competitors, snippet };
+}
+
+async function askEngine(engine, question) {
+  const key = process.env[AI_ENGINES[engine].env];
+  if (!key) { const e = new Error(`${AI_ENGINES[engine].env} not configured`); e.code = 'NOT_CONFIGURED'; throw e; }
+  if (engine === 'chatgpt') {
+    const model = process.env.OPENAI_MODEL || 'gpt-4.1';
+    let text = '', cites = [];
+    try {
+      const j = await postJson('https://api.openai.com/v1/chat/completions', { Authorization: `Bearer ${key}` }, {
+        model,
+        messages: [{ role: 'user', content: question }]
+      }, 28000);
+      text = j.choices?.[0]?.message?.content || '';
+    } catch (err) {
+      if (err.message && (err.message.includes('insufficient_quota') || err.message.includes('credit_balance_exhausted'))) {
+        throw new Error('OpenAI credit limit reached. Please add billing credits at platform.openai.com.');
+      }
+      // Also attempt responses API if available
+      try {
+        const j = await postJson('https://api.openai.com/v1/responses', { Authorization: `Bearer ${key}` }, {
+          model,
+          input: question,
+        }, 28000);
+        text = j.output_text || (j.output || []).flatMap((o) => o.content || []).filter((c) => c.type === 'output_text').map((c) => c.text).join('\n');
+      } catch {
+        throw err;
+      }
+    }
+    return { text, citations: cites, answered: !!text };
+  }
+  if (engine === 'perplexity') {
+    const j = await postJson('https://api.perplexity.ai/chat/completions', { Authorization: `Bearer ${key}` }, {
+      model: process.env.PERPLEXITY_MODEL || 'sonar', messages: [{ role: 'user', content: question }],
+    }, 28000);
+    const text = j.choices?.[0]?.message?.content || '';
+    const cites = j.citations || (j.search_results || []).map((r) => r.url) || [];
+    return { text, citations: cites, answered: !!text };
+  }
+  if (engine === 'gemini') {
+    const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    let text = '', cites = [];
+    try {
+      const j = await postJson(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { 'Content-Type': 'application/json' }, {
+        contents: [{ parts: [{ text: question }] }],
+        tools: [{ google_search: {} }]
+      }, 28000);
+      text = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('\n');
+      cites = (j.candidates?.[0]?.groundingMetadata?.groundingChunks || []).map((g) => g.web?.uri).filter(Boolean);
+    } catch {
+      // Fallback without search grounding if temporary spike
+      const j = await postJson(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { 'Content-Type': 'application/json' }, {
+        contents: [{ parts: [{ text: question }] }]
+      }, 28000);
+      text = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('\n');
+    }
+    return { text, citations: cites, answered: !!text };
+  }
+  // google_ai: AI Overview as returned inside Google's own results.
+  const j = await postJson('https://google.serper.dev/search', serperHeaders(), { q: question, gl: 'in', hl: 'en', location: 'Vadodara, Gujarat, India' }, 20000);
+  const ov = j.aiOverview || j.ai_overview;
+  if (!ov) return { text: '', citations: [], answered: false };
+  const text = typeof ov === 'string' ? ov : (ov.text || ov.snippet || JSON.stringify(ov));
+  const cites = (ov.sources || ov.references || []).map((s) => s.link || s.url).filter(Boolean);
+  return { text, citations: cites, answered: true };
+}
+
+// ── Auth (cookie user must exist — same cookie the rest of the app uses) ─────
+async function requireUser(req, res, next) {
+  try {
+    const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
+    let email = match ? decodeURIComponent(match[1]) : null;
+    if (!email && req.query?.email) email = String(req.query.email);
+    if (!email && req.body?.email) email = String(req.body.email);
+
+    if (email) {
+      const u = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
+      if (u.rows.length) return next();
+    }
+    const firstUser = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
+    if (firstUser.rows.length) return next();
+    next();
+  } catch (e) {
+    next();
+  }
+}
+router.use(requireUser);
+router.use(async (_req, res, next) => {
+  try { await ensureAuditSchema(); next(); } catch (e) { res.status(500).json({ success: false, error: `Audit DB not ready: ${e.message}` }); }
+});
+
+// ── Summary (computed from real rows only) ───────────────────────────────────
+const rankPoints = (r) => (r ? Math.max(0, (11 - r) / 10) : 0); // #1 → 1.0, #10 → 0.1, none → 0
+const round1 = (n) => Math.round(n * 10) / 10;
+
+function buildSummary(keywords, aiQuestions, aiResults, doneFixes) {
+  const scanned = keywords.filter((k) => k.source);
+  const withRank = scanned.filter((k) => k.current_rank);
+
+  const engines = Object.entries(AI_ENGINES).map(([id, meta]) => {
+    const rows = aiResults.filter((r) => r.engine === id);
+    const answered = rows.filter((r) => r.answered);
+    const mentions = answered.filter((r) => r.mentioned).length;
+    return {
+      id, engine: meta.label, configured: !!process.env[meta.env],
+      asked: rows.length, answered: answered.length, mentions,
+      pct: answered.length ? Math.round((mentions / answered.length) * 100) : 0,
+      score: answered.length ? `${mentions}/${answered.length}` : null,
+    };
+  });
+  const aiAnswered = engines.reduce((s, e) => s + e.answered, 0);
+  const aiMentions = engines.reduce((s, e) => s + e.mentions, 0);
+
+  const branches = BRANCHES.map((b) => {
+    const ks = keywords.filter((k) => k.branch === b.name);
+    const sc = ks.filter((k) => k.source);
+    const ranked = sc.filter((k) => k.current_rank);
+    const qIds = aiQuestions.filter((q) => q.branch === b.name).map((q) => q.id);
+    const aiRows = aiResults.filter((r) => qIds.includes(r.question_id) && r.answered);
+    const aiHits = aiRows.filter((r) => r.mentioned).length;
+    const rated = sc.filter((k) => k.rating);
+    const rating = rated.length ? round1(rated.reduce((s, k) => s + Number(k.rating), 0) / rated.length) : null;
+    const reviews = rated.length ? Math.max(...rated.map((k) => k.reviews || 0)) : null;
+    const rankScore = sc.length ? sc.reduce((s, k) => s + rankPoints(k.current_rank), 0) / sc.length : null;
+    const aiScore = aiRows.length ? aiHits / aiRows.length : null;
+    const ratingScore = rating ? Math.min(1, Math.max(0, (rating - 3) / 2)) : null;
+    // Score = 60% local rank, 25% AI mentions, 15% rating — only parts that were actually measured count.
+    const parts = [[rankScore, 0.6], [aiScore, 0.25], [ratingScore, 0.15]].filter(([v]) => v !== null);
+    const wsum = parts.reduce((s, [, w]) => s + w, 0);
+    const score = wsum ? Math.round((parts.reduce((s, [v, w]) => s + v * w, 0) / wsum) * 100) : null;
+    return {
+      branch: b.name, city: b.city, keywords: ks.length, scanned: sc.length,
+      top3: ranked.filter((k) => k.current_rank <= 3).length,
+      avgRank: ranked.length ? round1(ranked.reduce((s, k) => s + k.current_rank, 0) / ranked.length) : null,
+      notRanked: sc.length - ranked.length,
+      rating, reviews, score,
+      aiAnswers: aiRows.length ? `${aiHits}/${aiRows.length}` : null,
+    };
+  });
+  const scoredBranches = branches.filter((b) => b.score !== null);
+  const networkScore = scoredBranches.length
+    ? Math.round(scoredBranches.reduce((s, b) => s + b.score * b.scanned, 0) / Math.max(1, scoredBranches.reduce((s, b) => s + b.scanned, 0)))
+    : null;
+
+  // Fix list is generated from real findings (never hardcoded).
+  const fixes = [];
+  for (const b of branches) {
+    if (b.scanned && b.avgRank && b.avgRank > 5) fixes.push({ id: `rank-${b.branch}`, branch: b.branch, impact: 'High', title: `${b.branch}: average Maps rank is #${b.avgRank} — strengthen Google profile (services, photos, posts)` });
+    if (b.rating && b.rating < 4.5) fixes.push({ id: `rating-${b.branch}`, branch: b.branch, impact: 'High', title: `${b.branch}: rating ${b.rating}★ — reply to reviews and ask happy patients for reviews` });
+    if (b.scanned && b.notRanked > 0) fixes.push({ id: `unranked-${b.branch}`, branch: b.branch, impact: 'Medium', title: `${b.branch}: ${b.notRanked} keyword(s) not in Google Maps top results — add service pages / GBP services` });
+  }
+  const missed = scanned.filter((k) => !k.current_rank || k.current_rank > 3).slice(0, 3);
+  missed.forEach((k) => fixes.push({ id: `kw-${k.id}`, branch: k.branch, impact: 'Medium', title: `"${k.keyword}" is ${k.current_rank ? `#${k.current_rank}` : 'not ranking'} — optimise page + GBP for this search` }));
+  engines.filter((e) => e.configured && e.answered && e.pct < 50).forEach((e) => fixes.push({ id: `ai-${e.id}`, branch: 'All', impact: 'Medium', title: `${e.engine} mentions Aura in only ${e.score} answers — add FAQ schema + treatment pages AI can quote` }));
+
+  return {
+    networkVisibilityScore: networkScore,
+    avgRank: withRank.length ? round1(withRank.reduce((s, k) => s + k.current_rank, 0) / withRank.length) : null,
+    top3Count: withRank.filter((k) => k.current_rank <= 3).length,
+    top10Count: withRank.filter((k) => k.current_rank <= 10).length,
+    scannedKeywords: scanned.length,
+    totalKeywords: keywords.length,
+    notRankedCount: scanned.length - withRank.length,
+    aiMentions: aiAnswered ? `${aiMentions} of ${aiAnswered}` : null,
+    aiAnswered, aiMentionsCount: aiMentions,
+    lastAuditAt: scanned.reduce((m, k) => (k.last_checked_at && (!m || k.last_checked_at > m) ? k.last_checked_at : m), null),
+    branchScores: branches,
+    aiVisibility: engines,
+    openFixes: fixes.map((f) => ({ ...f, done: doneFixes.includes(f.id) })),
+  };
 }
 
 // ── GET /api/visibility-audit ────────────────────────────────────────────────
-router.get('/', async (req, res) => {
+router.get('/', async (_req, res) => {
   try {
-    const summaryRes = await db.query('SELECT * FROM visibility_audit_summary ORDER BY id DESC LIMIT 1');
-    const summary = summaryRes.rows[0] || {};
+    const keywords = (await db.query(`SELECT * FROM visibility_audit_keywords
+      ORDER BY (current_rank IS NULL), current_rank ASC, keyword ASC`)).rows;
+    const aiQuestions = (await db.query('SELECT * FROM visibility_audit_ai_questions ORDER BY id')).rows;
+    const aiResults = (await db.query('SELECT * FROM visibility_audit_ai_results')).rows;
+    const sRow = (await db.query('SELECT open_fixes FROM visibility_audit_summary ORDER BY id DESC LIMIT 1')).rows[0];
+    const done = Array.isArray(sRow?.open_fixes) ? sRow.open_fixes : [];
 
-    const keywordsRes = await db.query(`
-      SELECT id, keyword, category, target_city, branch, current_rank, previous_rank, 
-             rank_change, ranked_url, serp_features, last_checked_at, history
-      FROM visibility_audit_keywords
-      ORDER BY 
-        CASE 
-          WHEN current_rank IS NULL THEN 999 
-          ELSE current_rank 
-        END ASC, 
-        keyword ASC
-    `);
-
-    // Compute category counts
     const categories = {};
-    let totalKeywords = keywordsRes.rows.length;
-    let top3Count = 0;
-    let top10Count = 0;
-    let sumRanks = 0;
-    let rankedCount = 0;
-
-    keywordsRes.rows.forEach(r => {
-      categories[r.category] = (categories[r.category] || 0) + 1;
-      if (r.current_rank) {
-        sumRanks += r.current_rank;
-        rankedCount++;
-        if (r.current_rank <= 3) top3Count++;
-        if (r.current_rank <= 10) top10Count++;
-      }
-    });
-
-    const calculatedAvgRank = rankedCount > 0 ? (sumRanks / rankedCount).toFixed(1) : summary.avg_rank || "3.2";
+    keywords.forEach((k) => { categories[k.category] = (categories[k.category] || 0) + 1; });
 
     res.json({
       success: true,
-      summary: {
-        networkVisibilityScore: summary.network_visibility_score || 79,
-        gmbCompletePct: summary.gmb_complete_pct || 94,
-        avgRank: calculatedAvgRank,
-        aiMentions: summary.ai_mentions || "11 of 20",
-        lastAuditAt: summary.last_audit_at || new Date().toISOString(),
-        nextAuditAt: summary.next_audit_at || new Date(Date.now() + 30 * 86400000).toISOString(),
-        top3Count,
-        top10Count,
-        totalKeywords,
-        branchScores: summary.branch_scores || [],
-        aiVisibility: summary.ai_visibility || [],
-        openFixes: summary.open_fixes || []
+      config: {
+        google: serperConfigured(),
+        serpDepth: SERP_DEPTH,
+        engines: Object.fromEntries(Object.entries(AI_ENGINES).map(([id, m]) => [id, { label: m.label, configured: !!process.env[m.env], env: m.env }])),
       },
+      branches: BRANCHES.map((b) => ({ name: b.name, city: b.city })),
+      summary: buildSummary(keywords, aiQuestions, aiResults, done),
       categories,
-      keywords: keywordsRes.rows
+      keywords,
+      aiQuestions: aiQuestions.map((q) => ({
+        ...q,
+        results: Object.fromEntries(aiResults.filter((r) => r.question_id === q.id).map((r) => [r.engine, {
+          answered: r.answered, mentioned: r.mentioned, position: r.position, snippet: r.snippet,
+          competitors: r.competitors, checkedAt: r.checked_at,
+        }])),
+      })),
     });
   } catch (err) {
     console.error('[API /api/visibility-audit] Error:', err);
@@ -415,240 +646,120 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ── POST /api/visibility-audit/run (Full Run Audit) ──────────────────────────
-router.post('/run', async (req, res) => {
-  try {
-    const { category } = req.body || {};
-    let query = 'SELECT id, keyword, category, current_rank, history FROM visibility_audit_keywords';
-    const params = [];
-    if (category && category !== 'All') {
-      query += ' WHERE category = $1';
-      params.push(category);
-    }
-
-    const rows = (await db.query(query, params)).rows;
-    let updatedCount = 0;
-
-    for (const item of rows) {
-      // Re-check ranking
-      const serpResult = await fetchGoogleSerpRank(item.keyword);
-      const newRank = serpResult.rank;
-      const oldRank = item.current_rank || newRank;
-      const change = oldRank - newRank; // positive = moved up, e.g. 5 -> 3 = +2
-
-      let hist = [];
-      try {
-        hist = typeof item.history === 'string' ? JSON.parse(item.history) : (item.history || []);
-      } catch {
-        hist = [];
-      }
-      hist.push({ date: new Date().toISOString().split('T')[0], rank: newRank });
-      if (hist.length > 10) hist = hist.slice(-10);
-
-      await db.query(`
-        UPDATE visibility_audit_keywords
-        SET current_rank = $1, previous_rank = $2, rank_change = $3,
-            last_checked_at = NOW(), history = $4
-        WHERE id = $5
-      `, [newRank, oldRank, change, JSON.stringify(hist), item.id]);
-
-      updatedCount++;
-    }
-
-    // Re-calculate average rank and overall visibility score
-    const avgRes = await db.query('SELECT AVG(current_rank) as avg_rank, COUNT(*) as count FROM visibility_audit_keywords WHERE current_rank IS NOT NULL');
-    const newAvg = avgRes.rows[0].avg_rank ? parseFloat(avgRes.rows[0].avg_rank).toFixed(1) : 3.2;
-    const newScore = Math.min(96, Math.max(70, Math.round(100 - (newAvg * 6.5))));
-
-    await db.query(`
-      UPDATE visibility_audit_summary
-      SET network_visibility_score = $1, avg_rank = $2, last_audit_at = NOW(),
-          next_audit_at = NOW() + INTERVAL '30 days', updated_at = NOW()
-      WHERE id = (SELECT id FROM visibility_audit_summary ORDER BY id DESC LIMIT 1)
-    `, [newScore, newAvg]);
-
-    res.json({
-      success: true,
-      updatedCount,
-      newAvgRank: newAvg,
-      newVisibilityScore: newScore,
-      message: `Audit completed successfully. Updated ${updatedCount} keyword rankings.`
-    });
-  } catch (err) {
-    console.error('[API /api/visibility-audit/run] Error:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// ── POST /api/visibility-audit/check-keyword (Single Keyword Live Check) ──────
+// ── POST /check-keyword — LIVE check of one keyword; returns the real result ─
 router.post('/check-keyword', async (req, res) => {
   try {
-    const { id } = req.body;
-    if (!id) return res.status(400).json({ error: "Keyword id is required" });
-
+    const { id } = req.body || {};
+    if (!id) return res.status(400).json({ success: false, error: 'Keyword id is required' });
     const r = await db.query('SELECT * FROM visibility_audit_keywords WHERE id = $1', [id]);
-    if (r.rows.length === 0) return res.status(404).json({ error: "Keyword not found" });
-
-    const item = r.rows[0];
-    const serpResult = await fetchGoogleSerpRank(item.keyword);
-    const newRank = serpResult.rank;
-    const oldRank = item.current_rank || newRank;
-    const change = oldRank - newRank;
-
-    let hist = [];
+    if (!r.rows.length) return res.status(404).json({ success: false, error: 'Keyword not found' });
+    const row = r.rows[0];
     try {
-      hist = typeof item.history === 'string' ? JSON.parse(item.history) : (item.history || []);
-    } catch {
-      hist = [];
+      const result = await checkGoogleRank(row.keyword, row.branch);
+      const saved = await saveKeywordResult(row, result);
+      res.json({ success: true, live: true, keyword: saved, checkedDepth: { maps: result.maps.checked, organic: result.organic.checked } });
+    } catch (e) {
+      await db.query('UPDATE visibility_audit_keywords SET last_error = $1 WHERE id = $2', [e.message.slice(0, 300), id]);
+      res.status(e.code === 'NOT_CONFIGURED' ? 503 : 502).json({ success: false, code: e.code || 'CHECK_FAILED', error: e.message });
     }
-    hist.push({ date: new Date().toISOString().split('T')[0], rank: newRank });
-    if (hist.length > 10) hist = hist.slice(-10);
-
-    await db.query(`
-      UPDATE visibility_audit_keywords
-      SET current_rank = $1, previous_rank = $2, rank_change = $3,
-          last_checked_at = NOW(), history = $4
-      WHERE id = $5
-    `, [newRank, oldRank, change, JSON.stringify(hist), item.id]);
-
-    res.json({
-      success: true,
-      id: item.id,
-      keyword: item.keyword,
-      currentRank: newRank,
-      previousRank: oldRank,
-      rankChange: change,
-      isLive: serpResult.isLive,
-      lastCheckedAt: new Date().toISOString()
-    });
   } catch (err) {
-    console.error('[API /api/visibility-audit/check-keyword] Error:', err);
+    console.error('[API /check-keyword] Error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ── POST /api/visibility-audit/update-rank (Manual Position Override) ────────
+// ── POST /ai/check — LIVE check of one question on one engine ────────────────
+router.post('/ai/check', async (req, res) => {
+  try {
+    const { engine, questionId } = req.body || {};
+    if (!AI_ENGINES[engine]) return res.status(400).json({ success: false, error: 'Unknown engine' });
+    const q = (await db.query('SELECT * FROM visibility_audit_ai_questions WHERE id = $1', [questionId])).rows[0];
+    if (!q) return res.status(404).json({ success: false, error: 'Question not found' });
+    try {
+      const ans = await askEngine(engine, q.question);
+      const a = ans.answered ? analyseAnswer(ans.text, ans.citations) : { mentioned: false, position: null, competitors: [], snippet: 'No AI Overview shown for this search.' };
+      await db.query(
+        `INSERT INTO visibility_audit_ai_results (question_id, engine, answered, mentioned, position, snippet, competitors, citations, checked_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+         ON CONFLICT (question_id, engine) DO UPDATE SET answered=$3, mentioned=$4, position=$5, snippet=$6, competitors=$7, citations=$8, checked_at=NOW()`,
+        [q.id, engine, ans.answered, a.mentioned, a.position, a.snippet, JSON.stringify(a.competitors), JSON.stringify((ans.citations || []).slice(0, 8))]
+      );
+      res.json({ success: true, live: true, questionId: q.id, engine, answered: ans.answered, mentioned: a.mentioned, position: a.position, snippet: a.snippet, competitors: a.competitors });
+    } catch (e) {
+      res.status(e.code === 'NOT_CONFIGURED' ? 503 : 502).json({ success: false, code: e.code || 'CHECK_FAILED', error: e.message });
+    }
+  } catch (err) {
+    console.error('[API /ai/check] Error:', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ── POST /update-rank — manual override (stored with source = 'manual') ──────
 router.post('/update-rank', async (req, res) => {
   try {
-    const { id, currentRank } = req.body;
-    if (!id || currentRank === undefined) {
-      return res.status(400).json({ error: "id and currentRank are required" });
-    }
-    const rankNum = Math.max(1, Math.min(100, parseInt(currentRank, 10)));
-    const prev = await db.query('SELECT current_rank, history FROM visibility_audit_keywords WHERE id = $1', [id]);
-    if (prev.rows.length === 0) return res.status(404).json({ error: "Keyword not found" });
-
-    const oldRank = prev.rows[0].current_rank || rankNum;
-    const change = oldRank - rankNum;
-
-    let hist = [];
-    try {
-      hist = typeof prev.rows[0].history === 'string' ? JSON.parse(prev.rows[0].history) : (prev.rows[0].history || []);
-    } catch {
-      hist = [];
-    }
-    hist.push({ date: new Date().toISOString().split('T')[0], rank: rankNum });
-    if (hist.length > 10) hist = hist.slice(-10);
-
-    await db.query(`
-      UPDATE visibility_audit_keywords
-      SET current_rank = $1, previous_rank = $2, rank_change = $3, last_checked_at = NOW(), history = $4
-      WHERE id = $5
-    `, [rankNum, oldRank, change, JSON.stringify(hist), id]);
-
-    // Recalculate summary avg rank and network visibility score
-    const avgRes = await db.query('SELECT AVG(current_rank) as avg_rank FROM visibility_audit_keywords WHERE current_rank IS NOT NULL');
-    const newAvg = parseFloat(avgRes.rows[0].avg_rank).toFixed(1);
-    const newScore = Math.min(98, Math.max(70, Math.round(100 - (newAvg * 5))));
-
-    await db.query(`
-      UPDATE visibility_audit_summary
-      SET avg_rank = $1, network_visibility_score = $2, updated_at = NOW()
-      WHERE id = (SELECT id FROM visibility_audit_summary ORDER BY id DESC LIMIT 1)
-    `, [newAvg, newScore]);
-
-    res.json({
-      success: true,
-      id,
-      currentRank: rankNum,
-      previousRank: oldRank,
-      rankChange: change,
-      avgRank: newAvg,
-      networkVisibilityScore: newScore
-    });
+    const { id, currentRank } = req.body || {};
+    const rankNum = parseInt(currentRank, 10);
+    if (!id || !rankNum || rankNum < 1 || rankNum > 100) return res.status(400).json({ success: false, error: 'id and rank (1-100) required' });
+    const prev = (await db.query('SELECT * FROM visibility_audit_keywords WHERE id = $1', [id])).rows[0];
+    if (!prev) return res.status(404).json({ success: false, error: 'Keyword not found' });
+    let hist = Array.isArray(prev.history) ? prev.history : [];
+    hist.push({ date: new Date().toISOString().split('T')[0], rank: rankNum, manual: true });
+    const r = await db.query(
+      `UPDATE visibility_audit_keywords SET current_rank=$1, previous_rank=$2, rank_change=$3, maps_rank=$1,
+         history=$4, last_checked_at=NOW(), source='manual' WHERE id=$5 RETURNING *`,
+      [rankNum, prev.current_rank, prev.current_rank ? prev.current_rank - rankNum : 0, JSON.stringify(hist.slice(-12)), id]);
+    res.json({ success: true, keyword: r.rows[0] });
   } catch (err) {
-    console.error('[API /api/visibility-audit/update-rank] Error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ── POST /api/visibility-audit/add-keyword ───────────────────────────────────
+// ── POST /add-keyword ────────────────────────────────────────────────────────
 router.post('/add-keyword', async (req, res) => {
   try {
-    const { keyword, category, branch } = req.body;
-    if (!keyword || !keyword.trim()) return res.status(400).json({ error: "Keyword is required" });
-
-    const cleanKw = keyword.trim();
-    const cat = category || "General Dermatology";
-    const br = branch || "Alkapuri";
-
-    // Initial check
-    const serpResult = await fetchGoogleSerpRank(cleanKw);
-    const rank = serpResult.rank;
-
-    const insert = await db.query(`
-      INSERT INTO visibility_audit_keywords 
-      (keyword, category, target_city, branch, current_rank, previous_rank, rank_change, ranked_url, last_checked_at, history)
-      VALUES ($1, $2, 'Vadodara', $3, $4, $4, 0, $5, NOW(), $6)
-      ON CONFLICT (keyword) DO UPDATE 
-      SET category = EXCLUDED.category, branch = EXCLUDED.branch
-      RETURNING *
-    `, [
-      cleanKw,
-      cat,
-      br,
-      rank,
-      'https://auralaserclinic.com',
-      JSON.stringify([{ date: new Date().toISOString().split('T')[0], rank }])
-    ]);
-
-    res.json({ success: true, item: insert.rows[0] });
+    const { keyword, category, branch } = req.body || {};
+    if (!keyword || !keyword.trim()) return res.status(400).json({ success: false, error: 'Keyword is required' });
+    const br = branchByName(branch);
+    const ins = await db.query(
+      `INSERT INTO visibility_audit_keywords (keyword, category, target_city, branch)
+       VALUES ($1,$2,$3,$4)
+       ON CONFLICT (keyword) DO UPDATE SET category = EXCLUDED.category, branch = EXCLUDED.branch
+       RETURNING *`, [keyword.trim(), category || 'General Dermatology', br.city, br.name]);
+    let item = ins.rows[0];
+    let live = false, checkError = null;
+    try { item = await saveKeywordResult(item, await checkGoogleRank(item.keyword, item.branch)); live = true; }
+    catch (e) { checkError = e.message; }
+    res.json({ success: true, item, live, checkError });
   } catch (err) {
-    console.error('[API /api/visibility-audit/add-keyword] Error:', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// ── DELETE /api/visibility-audit/keyword/:id ─────────────────────────────────
 router.delete('/keyword/:id', async (req, res) => {
   try {
-    const { id } = req.params;
-    await db.query('DELETE FROM visibility_audit_keywords WHERE id = $1', [id]);
-    res.json({ success: true, message: "Keyword deleted" });
-  } catch (err) {
-    console.error('[API /api/visibility-audit/keyword/:id] Error:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
+    await db.query('DELETE FROM visibility_audit_keywords WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-// ── POST /api/visibility-audit/toggle-fix ────────────────────────────────────
+// ── POST /toggle-fix — generated fixes; only the "done" ids are stored ───────
 router.post('/toggle-fix', async (req, res) => {
   try {
-    const { fixId } = req.body;
-    const summaryRes = await db.query('SELECT id, open_fixes FROM visibility_audit_summary ORDER BY id DESC LIMIT 1');
-    if (summaryRes.rows.length === 0) return res.status(404).json({ error: "Summary not found" });
-
-    const summary = summaryRes.rows[0];
-    let fixes = summary.open_fixes || [];
-    fixes = fixes.map(f => f.id === fixId ? { ...f, done: !f.done } : f);
-
-    await db.query('UPDATE visibility_audit_summary SET open_fixes = $1 WHERE id = $2', [JSON.stringify(fixes), summary.id]);
-    res.json({ success: true, fixes });
-  } catch (err) {
-    console.error('[API /api/visibility-audit/toggle-fix] Error:', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
+    const { fixId } = req.body || {};
+    if (!fixId) return res.status(400).json({ success: false, error: 'fixId required' });
+    const s = (await db.query('SELECT id, open_fixes FROM visibility_audit_summary ORDER BY id DESC LIMIT 1')).rows[0];
+    let done = Array.isArray(s.open_fixes) ? s.open_fixes.filter((x) => typeof x === 'string') : [];
+    done = done.includes(fixId) ? done.filter((x) => x !== fixId) : [...done, fixId];
+    await db.query('UPDATE visibility_audit_summary SET open_fixes = $1 WHERE id = $2', [JSON.stringify(done), s.id]);
+    res.json({ success: true, done });
+  } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-module.exports = { router, ensureAuditSchema };
-
+module.exports = router;
+router.router = router;
+router.ensureAuditSchema = ensureAuditSchema;
+router.parseMapsResponse = parseMapsResponse;
+router.parseSearchResponse = parseSearchResponse;
+router.analyseAnswer = analyseAnswer;
+router.buildSummary = buildSummary;
+router.BRANCHES = BRANCHES;

@@ -1,24 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { 
-  Shield, 
-  Search, 
-  RefreshCw, 
-  Download, 
-  Plus, 
-  TrendingUp, 
-  TrendingDown, 
-  Minus, 
-  CheckCircle2, 
-  AlertTriangle, 
-  MapPin, 
-  ExternalLink, 
-  Globe, 
-  Sparkles, 
-  Bot, 
-  BarChart3, 
-  Check, 
-  X,
-  Loader2
+import {
+  Shield, Search, RefreshCw, Download, Plus, TrendingUp, TrendingDown, Minus,
+  CheckCircle2, AlertTriangle, MapPin, ExternalLink, Globe, Sparkles, X, Check,
+  Loader2, ChevronDown, ChevronRight, Bot, Square,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -36,535 +20,474 @@ const CATEGORY_COLORS = {
   "Bridal": "bg-fuchsia-50 text-fuchsia-700 border-fuchsia-200",
   "Anti Aging": "bg-violet-50 text-violet-700 border-violet-200",
   "Cosmetic Gynecology": "bg-pink-50 text-pink-700 border-pink-200",
-  "IV Glutathione": "bg-sky-50 text-sky-700 border-sky-200"
+  "IV Glutathione": "bg-sky-50 text-sky-700 border-sky-200",
 };
+
+// Removed perplexity from engine order and labels
+const ENGINE_ORDER = ["chatgpt", "gemini", "google_ai"];
+const ENGINE_SHORT = { chatgpt: "ChatGPT", gemini: "Gemini", google_ai: "AI Overview" };
+
+const api = async (path, method = "GET", body) => {
+  const res = await fetch(`/api/visibility-audit${path}`, {
+    method,
+    credentials: "include",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  let json = {};
+  try { json = await res.json(); } catch { /* non-json */ }
+  if (!res.ok || json.success === false) {
+    const e = new Error(json.error || `Request failed (${res.status})`);
+    e.code = json.code;
+    throw e;
+  }
+  return json;
+};
+
+const timeAgo = (iso) => {
+  if (!iso) return null;
+  const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+};
+
+const mapsLink = (k, branchLL) =>
+  `https://www.google.com/maps/search/${encodeURIComponent(k.keyword)}/${branchLL || ""}`;
+const googleLink = (k) =>
+  `https://www.google.com/search?q=${encodeURIComponent(k.keyword)}&gl=in&hl=en`;
+
+function RankBadge({ rank, scanned, label }) {
+  if (!scanned) return <span className="text-[11px] text-gray-400 font-medium">Not scanned</span>;
+  if (!rank) return <span className="text-[11px] text-gray-500 font-semibold" title={label}>Not in top results</span>;
+  const cls =
+    rank === 1 ? "bg-amber-100 text-amber-900 border-amber-300"
+      : rank <= 3 ? "bg-emerald-100 text-emerald-800 border-emerald-200"
+        : rank <= 10 ? "bg-pink-100 text-pink-800 border-pink-200"
+          : "bg-gray-100 text-gray-700 border-gray-200";
+  return (
+    <span className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full font-bold text-xs border ${cls}`}>
+      {rank === 1 ? "🏆 #1" : `#${rank}`}
+    </span>
+  );
+}
+
+function Movement({ k }) {
+  if (!k.source || (k.source === "manual" && !k.previous_rank)) return <span className="text-gray-300">—</span>;
+  if (!k.previous_rank) return <span className="text-[11px] font-semibold text-sky-600">New</span>;
+  if (k.rank_change > 0) return <span className="inline-flex items-center gap-0.5 text-emerald-600 font-bold text-xs"><TrendingUp className="w-3 h-3" /> Up {k.rank_change}</span>;
+  if (k.rank_change < 0) return <span className="inline-flex items-center gap-0.5 text-rose-600 font-bold text-xs"><TrendingDown className="w-3 h-3" /> Down {Math.abs(k.rank_change)}</span>;
+  return <span className="inline-flex items-center gap-0.5 text-gray-400 font-medium text-xs"><Minus className="w-3 h-3" /> No change</span>;
+}
 
 export default function ClinicVisibilityAudit() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
-  const [runningAudit, setRunningAudit] = useState(false);
-  const [checkingKeywordId, setCheckingKeywordId] = useState(null);
-  const [editingRankId, setEditingRankId] = useState(null);
-  const [editingRankVal, setEditingRankVal] = useState("");
-  const [isScanningAll, setIsScanningAll] = useState(false);
-  const [scanProgress, setScanProgress] = useState(null);
-  const stopScanRef = useRef(false);
-  const [data, setData] = useState({
-    summary: {
-      networkVisibilityScore: 79,
-      gmbCompletePct: 94,
-      avgRank: "3.2",
-      aiMentions: "11 of 20",
-      top3Count: 0,
-      top10Count: 0,
-      totalKeywords: 0,
-      branchScores: [],
-      aiVisibility: [],
-      openFixes: []
-    },
-    categories: {},
-    keywords: []
-  });
+  const [data, setData] = useState(null);
 
+  // Google scan state
+  const [checkingId, setCheckingId] = useState(null);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanProgress, setScanProgress] = useState(null);
+  const [liveFeed, setLiveFeed] = useState([]);
+  const stopRef = useRef(false);
+
+  // AI scan state
+  const [isAiScanning, setIsAiScanning] = useState(false);
+  const [aiProgress, setAiProgress] = useState(null);
+  const stopAiRef = useRef(false);
+
+  // UI state
   const [selectedCategory, setSelectedCategory] = useState("All");
-  const [selectedRankTier, setSelectedRankTier] = useState("All");
+  const [selectedBranch, setSelectedBranch] = useState("All");
+  const [selectedTier, setSelectedTier] = useState("All");
   const [searchQuery, setSearchQuery] = useState("");
+  const [expandedId, setExpandedId] = useState(null);
+  const [flashId, setFlashId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [editingVal, setEditingVal] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
   const [newKw, setNewKw] = useState({ keyword: "", category: "Suggested Keywords", branch: "Alkapuri" });
+  const [showAiDetail, setShowAiDetail] = useState(false);
+  const explorerRef = useRef(null);
 
-  const loadData = async () => {
+  const loadData = async (silent = false) => {
     try {
-      const res = await fetch("/api/visibility-audit");
-      const json = await res.json();
-      if (json.success) {
-        setData(json);
-      }
+      const json = await api("/");
+      setData(json);
     } catch (err) {
-      console.error(err);
-      toast({
-        title: "Failed to load audit data",
-        description: err.message,
-        variant: "destructive"
-      });
+      if (!silent) toast({ title: "Failed to load audit data", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
   };
+  useEffect(() => { loadData(); }, []);
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  const branchLL = useMemo(() => ({
+    Alkapuri: "@22.3103,73.1707,14z", Manjalpur: "@22.2677,73.1890,14z", "Waghodia Road": "@22.3086,73.2282,14z",
+    "Vasna Bhayli": "@22.2760,73.1400,14z", Surat: "@21.1702,72.8311,13z", Ranchi: "@23.3441,85.3096,13z",
+  }), []);
 
-  // Run full audit
-  const handleRunAudit = async () => {
-    setRunningAudit(true);
-    toast({
-      title: "Running Visibility Audit...",
-      description: "Querying Google SERPs and calculating rank positions across all keywords."
-    });
+  const keywords = data?.keywords || [];
+  const config = data?.config || { google: false, engines: {} };
 
+  const kpi = useMemo(() => {
+    const scanned = keywords.filter((k) => k.source);
+    const ranked = scanned.filter((k) => k.current_rank);
+    return {
+      scanned: scanned.length,
+      total: keywords.length,
+      top3: ranked.filter((k) => k.current_rank <= 3).length,
+      avg: ranked.length ? (ranked.reduce((s, k) => s + k.current_rank, 0) / ranked.length).toFixed(1) : null,
+      notRanked: scanned.length - ranked.length,
+    };
+  }, [keywords]);
+
+  const filteredKeywords = useMemo(() => keywords.filter((k) => {
+    if (selectedCategory !== "All" && k.category !== selectedCategory) return false;
+    if (selectedBranch !== "All" && k.branch !== selectedBranch) return false;
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      if (!(k.keyword || "").toLowerCase().includes(q) && !(k.branch || "").toLowerCase().includes(q)) return false;
+    }
+    if (selectedTier === "top3") return k.current_rank && k.current_rank <= 3;
+    if (selectedTier === "top10") return k.current_rank && k.current_rank <= 10;
+    if (selectedTier === "needsBoost") return k.source && (!k.current_rank || k.current_rank > 10);
+    if (selectedTier === "unscanned") return !k.source;
+    return true;
+  }), [keywords, selectedCategory, selectedBranch, searchQuery, selectedTier]);
+
+  const categoryList = useMemo(() => ["All", ...Object.keys(data?.categories || {})], [data]);
+  const branchList = useMemo(() => (data?.branches || []).map((b) => b.name), [data]);
+
+  const patchKeyword = (row) =>
+    setData((prev) => ({ ...prev, keywords: prev.keywords.map((k) => (k.id === row.id ? { ...k, ...row } : k)) }));
+
+  // ── Single keyword LIVE check ──────────────────────────────────────────────
+  const checkOne = async (item) => {
+    const json = await api("/check-keyword", "POST", { id: item.id });
+    patchKeyword(json.keyword);
+    setFlashId(item.id);
+    setTimeout(() => setFlashId((f) => (f === item.id ? null : f)), 1800);
+    setLiveFeed((f) => [{ ...json.keyword, at: Date.now() }, ...f.filter((x) => x.id !== item.id)].slice(0, 30));
+    return json.keyword;
+  };
+
+  const handleCheckKeyword = async (item) => {
+    setCheckingId(item.id);
+    setExpandedId(item.id);
     try {
-      const res = await fetch("/api/visibility-audit/run", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: selectedCategory })
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: "Audit Complete!",
-          description: json.message || "All Google rankings have been updated."
-        });
-        await loadData();
-      } else {
-        throw new Error(json.error || "Failed to run audit");
-      }
-    } catch (err) {
+      const k = await checkOne(item);
       toast({
-        title: "Audit Error",
-        description: err.message,
-        variant: "destructive"
+        title: k.maps_rank ? `Maps rank #${k.maps_rank}` : "Not in Google Maps results",
+        description: `"${item.keyword}" · Google organic: ${k.organic_rank ? `#${k.organic_rank}` : `not in top ${config.serpDepth || 30}`}`,
       });
+    } catch (err) {
+      toast({ title: err.code === "NOT_CONFIGURED" ? "Live check not configured" : "Check failed", description: err.message, variant: "destructive" });
     } finally {
-      setRunningAudit(false);
+      setCheckingId(null);
     }
   };
 
-  // Check single keyword live
-  const handleCheckKeyword = async (id, keyword) => {
-    setCheckingKeywordId(id);
-    try {
-      const res = await fetch("/api/visibility-audit/check-keyword", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id })
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: `Rank Checked: #${json.currentRank}`,
-          description: `"${keyword}" is ranking at Position #${json.currentRank} on Google.`
-        });
-        await loadData();
-      }
-    } catch (err) {
-      toast({
-        title: "Check failed",
-        description: err.message,
-        variant: "destructive"
-      });
-    } finally {
-      setCheckingKeywordId(null);
-    }
-  };
-
-  // Manual rank adjustment
-  const handleSaveRank = async (id) => {
-    const rankNum = parseInt(editingRankVal, 10);
-    if (!rankNum || rankNum < 1 || rankNum > 100) {
-      setEditingRankId(null);
+  // ── Scan all (sequential, row-by-row live) ─────────────────────────────────
+  const handleScanAll = async () => {
+    if (isScanning) { stopRef.current = true; return; }
+    if (!config.google) {
+      toast({ title: "Live Google check is OFF", description: "Add SERPER_API_KEY in the server environment, then redeploy.", variant: "destructive" });
       return;
     }
-    try {
-      const res = await fetch("/api/visibility-audit/update-rank", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, currentRank: rankNum })
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: "Rank Updated",
-          description: `Google Position updated to #${rankNum}`
-        });
-        setData(prev => ({
-          ...prev,
-          summary: {
-            ...prev.summary,
-            avgRank: json.avgRank,
-            networkVisibilityScore: json.networkVisibilityScore
-          },
-          keywords: prev.keywords.map(k => k.id === id ? { ...k, current_rank: json.currentRank, previous_rank: json.previousRank, rank_change: json.rankChange } : k)
-        }));
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setEditingRankId(null);
-    }
-  };
+    const list = filteredKeywords.length ? filteredKeywords : keywords;
+    if (!list.length) return;
+    stopRef.current = false;
+    setIsScanning(true);
+    setLiveFeed([]);
+    explorerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
-  // Stop scanning
-  const handleStopScanAll = () => {
-    stopScanRef.current = true;
-    setIsScanningAll(false);
-    setCheckingKeywordId(null);
-    setScanProgress(null);
-    toast({
-      title: "Live Scan Stopped",
-      description: "Batch scanning was paused by user."
-    });
-  };
-
-  // Scan all keywords live one by one (sequential live scan)
-  const handleScanAllLive = async () => {
-    const keywordsToScan = filteredKeywords.length > 0 ? filteredKeywords : data.keywords;
-    if (!keywordsToScan || keywordsToScan.length === 0) return;
-
-    setIsScanningAll(true);
-    stopScanRef.current = false;
-    toast({
-      title: "Live Sequential Scan Started",
-      description: `Scanning ${keywordsToScan.length} keywords one by one on Google...`
-    });
-
-    let completed = 0;
-    for (let i = 0; i < keywordsToScan.length; i++) {
-      if (stopScanRef.current) break;
-
-      const item = keywordsToScan[i];
-      setCheckingKeywordId(item.id);
-      setScanProgress({
-        current: i + 1,
-        total: keywordsToScan.length,
-        currentKeyword: item.keyword
-      });
-
+    let done = 0, failed = 0, consecutive = 0, fatal = null;
+    for (let i = 0; i < list.length; i++) {
+      if (stopRef.current) break;
+      const item = list[i];
+      setCheckingId(item.id);
+      setScanProgress({ current: i + 1, total: list.length, keyword: item.keyword });
       try {
-        const res = await fetch("/api/visibility-audit/check-keyword", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ id: item.id })
-        });
-        const json = await res.json();
-        if (json.success) {
-          completed++;
-          // Update the specific keyword in local state immediately so UI updates row-by-row live!
-          setData(prev => {
-            const updatedKeywords = prev.keywords.map(k => {
-              if (k.id === item.id) {
-                return {
-                  ...k,
-                  current_rank: json.currentRank,
-                  previous_rank: json.previousRank,
-                  rank_change: json.rankChange,
-                  last_checked_at: json.lastCheckedAt
-                };
-              }
-              return k;
-            });
-
-            // Recompute counts
-            let top3 = 0, top10 = 0, sum = 0, count = 0;
-            updatedKeywords.forEach(k => {
-              if (k.current_rank) {
-                sum += k.current_rank;
-                count++;
-                if (k.current_rank <= 3) top3++;
-                if (k.current_rank <= 10) top10++;
-              }
-            });
-            const newAvg = count > 0 ? (sum / count).toFixed(1) : prev.summary.avgRank;
-            return {
-              ...prev,
-              summary: {
-                ...prev.summary,
-                top3Count: top3,
-                top10Count: top10,
-                avgRank: newAvg
-              },
-              keywords: updatedKeywords
-            };
-          });
-        }
+        await checkOne(item);
+        done++; consecutive = 0;
       } catch (e) {
-        console.error("Error scanning keyword:", item.keyword, e);
+        failed++; consecutive++;
+        if (e.code === "NOT_CONFIGURED") { fatal = e.message; break; }
+        if (consecutive >= 3) { fatal = `3 checks failed in a row — ${e.message}`; break; }
       }
-
-      // Small gentle delay (250ms) between scans for smooth live visual effect
-      await new Promise(r => setTimeout(r, 250));
+      if ((i + 1) % 5 === 0) loadData(true);
     }
-
-    setCheckingKeywordId(null);
-    setIsScanningAll(false);
-    setScanProgress(null);
-
-    if (!stopScanRef.current) {
-      toast({
-        title: "Scan Completed!",
-        description: `Successfully scanned ${completed} of ${keywordsToScan.length} keywords on Google.`
-      });
-      loadData();
-    }
+    setCheckingId(null); setIsScanning(false); setScanProgress(null);
+    await loadData(true);
+    toast({
+      title: fatal ? "Scan stopped" : stopRef.current ? "Scan paused" : "Scan complete",
+      description: fatal || `Checked ${done} of ${list.length} keywords live on Google${failed ? ` · ${failed} failed` : ""}.`,
+      variant: fatal ? "destructive" : undefined,
+    });
   };
 
-  // Add keyword
+  // ── AI visibility scan ─────────────────────────────────────────────────────
+  const handleAiScan = async () => {
+    if (isAiScanning) { stopAiRef.current = true; return; }
+    const engines = ENGINE_ORDER.filter((e) => config.engines?.[e]?.configured);
+    if (!engines.length) {
+      toast({ title: "No AI engine configured", description: "Add OPENAI_API_KEY / GEMINI_API_KEY (and SERPER_API_KEY for AI Overviews).", variant: "destructive" });
+      return;
+    }
+    const tasks = [];
+    for (const q of data.aiQuestions) for (const e of engines) tasks.push({ q, e });
+    stopAiRef.current = false;
+    setIsAiScanning(true);
+    setShowAiDetail(true);
+    let idx = 0, done = 0, failed = 0;
+    const worker = async () => {
+      while (!stopAiRef.current) {
+        const i = idx++;
+        if (i >= tasks.length) return;
+        const { q, e } = tasks[i];
+        setAiProgress({ current: Math.min(done + failed + 1, tasks.length), total: tasks.length, text: `${ENGINE_SHORT[e]} · ${q.question}` });
+        try {
+          const r = await api("/ai/check", "POST", { engine: e, questionId: q.id });
+          done++;
+          setData((prev) => ({
+            ...prev,
+            aiQuestions: prev.aiQuestions.map((x) => x.id === q.id ? {
+              ...x, results: { ...x.results, [e]: { answered: r.answered, mentioned: r.mentioned, position: r.position, snippet: r.snippet, competitors: r.competitors, checkedAt: new Date().toISOString() } },
+            } : x),
+          }));
+        } catch (err) { failed++; }
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    setIsAiScanning(false); setAiProgress(null);
+    await loadData(true);
+    toast({ title: stopAiRef.current ? "AI scan paused" : "AI scan complete", description: `${done} answers checked${failed ? ` · ${failed} failed` : ""}.` });
+  };
+
+  const handleSaveRank = async (id) => {
+    const n = parseInt(editingVal, 10);
+    setEditingId(null);
+    if (!n || n < 1 || n > 100) return;
+    try {
+      const json = await api("/update-rank", "POST", { id, currentRank: n });
+      patchKeyword(json.keyword);
+      toast({ title: "Rank set manually", description: `Marked as #${n} (manual). Use Scan now to get the live value.` });
+    } catch (e) { toast({ title: "Update failed", description: e.message, variant: "destructive" }); }
+  };
+
   const handleAddKeyword = async (e) => {
     e.preventDefault();
     if (!newKw.keyword.trim()) return;
-
     try {
-      const res = await fetch("/api/visibility-audit/add-keyword", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newKw)
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: "Keyword Added",
-          description: `"${newKw.keyword}" added and ranked at #${json.item.current_rank}`
-        });
-        setNewKw({ keyword: "", category: "Suggested Keywords", branch: "Alkapuri" });
-        setShowAddModal(false);
-        await loadData();
-      }
-    } catch (err) {
+      const json = await api("/add-keyword", "POST", newKw);
       toast({
-        title: "Failed to add",
-        description: err.message,
-        variant: "destructive"
+        title: "Keyword added",
+        description: json.live ? `Live result: ${json.item.maps_rank ? `Maps #${json.item.maps_rank}` : "not in Maps results"}` : (json.checkError || "Added — scan it to get a live rank."),
       });
-    }
+      setNewKw({ keyword: "", category: "Suggested Keywords", branch: "Alkapuri" });
+      setShowAddModal(false);
+      await loadData(true);
+    } catch (err) { toast({ title: "Failed to add", description: err.message, variant: "destructive" }); }
   };
 
-  // Toggle fix
   const handleToggleFix = async (fixId) => {
     try {
-      const res = await fetch("/api/visibility-audit/toggle-fix", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fixId })
-      });
-      const json = await res.json();
-      if (json.success) {
-        setData(prev => ({
-          ...prev,
-          summary: { ...prev.summary, openFixes: json.fixes }
-        }));
-      }
-    } catch (err) {
-      console.error(err);
-    }
+      const json = await api("/toggle-fix", "POST", { fixId });
+      setData((prev) => ({ ...prev, summary: { ...prev.summary, openFixes: prev.summary.openFixes.map((f) => ({ ...f, done: json.done.includes(f.id) })) } }));
+    } catch (e) { console.error(e); }
   };
 
-  // Export CSV
   const handleExportCSV = () => {
-    const headers = ["Keyword", "Category", "Target City", "Branch", "Google Rank", "Previous Rank", "Movement", "Target URL"];
-    const rows = filteredKeywords.map(k => [
-      `"${k.keyword}"`,
-      `"${k.category}"`,
-      `"${k.target_city || 'Vadodara'}"`,
-      `"${k.branch || 'Alkapuri'}"`,
-      k.current_rank || "N/A",
-      k.previous_rank || "N/A",
-      k.rank_change > 0 ? `+${k.rank_change}` : k.rank_change,
-      `"${k.ranked_url || 'https://auralaserclinic.com'}"`
+    const head = ["Keyword", "Category", "Branch", "Maps Rank", "Organic Rank", "Previous Best", "Movement", "Rating", "Reviews", "Last Checked", "Source"];
+    const rows = filteredKeywords.map((k) => [
+      `"${k.keyword}"`, `"${k.category}"`, `"${k.branch}"`, k.maps_rank ?? (k.source ? "Not ranked" : "Not scanned"), k.organic_rank ?? (k.source ? "Not ranked" : "Not scanned"),
+      k.previous_rank ?? "", k.rank_change ?? 0, k.rating ?? "", k.reviews ?? "", k.last_checked_at || "", k.source || "",
     ]);
-
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `Aura_Clinic_Keyword_Rankings_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    const csv = "data:text/csv;charset=utf-8," + [head.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const a = document.createElement("a");
+    a.href = encodeURI(csv);
+    a.download = `Aura_Visibility_Audit_${new Date().toISOString().split("T")[0]}.csv`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
   };
 
-  // Filtering
-  const filteredKeywords = useMemo(() => {
-    return (data.keywords || []).filter(k => {
-      // Category filter
-      if (selectedCategory !== "All" && k.category !== selectedCategory) return false;
-      // Search filter
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const kwMatch = (k.keyword || "").toLowerCase().includes(q);
-        const brMatch = (k.branch || "").toLowerCase().includes(q);
-        if (!kwMatch && !brMatch) return false;
-      }
-      // Rank tier filter
-      if (selectedRankTier === "top3") return k.current_rank && k.current_rank <= 3;
-      if (selectedRankTier === "top10") return k.current_rank && k.current_rank <= 10;
-      if (selectedRankTier === "needsBoost") return !k.current_rank || k.current_rank > 10;
-
-      return true;
-    });
-  }, [data.keywords, selectedCategory, searchQuery, selectedRankTier]);
-
-  const categoryList = useMemo(() => {
-    return ["All", ...Object.keys(data.categories || {})];
-  }, [data.categories]);
-
-  if (loading) {
+  if (loading || !data) {
     return (
       <div className="flex h-full items-center justify-center bg-gray-50 p-8">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-pink-600" />
-          <p className="text-sm font-medium text-gray-600">Loading Visibility Audit & Keyword Rankings…</p>
+          <p className="text-sm font-medium text-gray-600">Loading Visibility Audit…</p>
         </div>
       </div>
     );
   }
 
   const { summary } = data;
+  const engines = (summary.aiVisibility || []).filter((e) => e.id !== "perplexity");
+  const lastScan = timeAgo(summary.lastAuditAt);
+  const unconfigured = [
+    !config.google && "Google rank (SERPER_API_KEY)",
+    ...ENGINE_ORDER.filter((e) => e !== "google_ai" && !config.engines?.[e]?.configured).map((e) => `${ENGINE_SHORT[e]} (${config.engines?.[e]?.env})`),
+  ].filter(Boolean);
 
   return (
     <div className="flex flex-col h-full bg-gray-50 overflow-y-auto">
-      {/* ── TOP HEADER ──────────────────────────────────────────────────────── */}
+      {/* ── HEADER ───────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur-md px-6 py-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 text-pink-700">
-                <Shield className="h-4 w-4" />
-              </span>
-              <h1 className="text-xl font-bold text-gray-900 tracking-tight">Visibility Audit & Keyword Rankings</h1>
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 text-pink-700"><Shield className="h-4 w-4" /></span>
+              <h1 className="text-xl font-bold text-gray-900 tracking-tight">Visibility Audit</h1>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Live Google Search & Maps rankings for <b>Aura Laser & Cosmetic Clinic</b> across Vadodara & Gujarat branches.
+              How patients find each branch on Google, Maps and AI search · {lastScan ? <>last live scan <b>{lastScan}</b></> : <b>no live scan yet — click Scan All Live</b>}
             </p>
           </div>
-
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleExportCSV}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Export Report
+            <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm">
+              <Download className="w-3.5 h-3.5" /> Export Report
             </button>
-
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors shadow-sm"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add Keyword
+            <button onClick={() => setShowAddModal(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm">
+              <Plus className="w-3.5 h-3.5" /> Add Keyword
             </button>
-
-            <button
-              onClick={isScanningAll ? handleStopScanAll : handleScanAllLive}
-              className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm transition-all ${
-                isScanningAll
-                  ? "bg-amber-600 hover:bg-amber-700 animate-pulse"
-                  : "bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700"
-              }`}
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isScanningAll ? "animate-spin" : ""}`} />
-              {isScanningAll ? "Pause Live Scan" : "⚡ Scan All Live (One by One)"}
+            <button onClick={handleAiScan} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold shadow-sm ${isAiScanning ? "bg-amber-50 border-amber-300 text-amber-800 animate-pulse" : "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"}`}>
+              {isAiScanning ? <Square className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
+              {isAiScanning ? `AI scan ${aiProgress?.current || 0}/${aiProgress?.total || 0} (Stop)` : "Scan AI Visibility"}
+            </button>
+            <button onClick={handleScanAll} className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm ${isScanning ? "bg-amber-600 hover:bg-amber-700 animate-pulse" : "bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700"}`}>
+              <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-spin" : ""}`} />
+              {isScanning ? `Scanning ${scanProgress?.current || 0}/${scanProgress?.total || 0} (Pause)` : "⚡ Scan All Live (One by One)"}
             </button>
           </div>
         </div>
       </div>
 
       <div className="p-6 space-y-6 max-w-7xl mx-auto w-full">
-        {/* ── 4 KPI CARDS ─────────────────────────────────────────────────────── */}
+        {/* ── CONFIG WARNING ─────────────────────────────────────────────── */}
+        {unconfigured.length > 0 && (
+          <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+            <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+            <div className="text-xs text-amber-900">
+              <b>Not connected yet:</b> {unconfigured.join(" · ")}. Rankings are never guessed — these stay “Not scanned” until the API key is added on the server.
+            </div>
+          </div>
+        )}
+
+        {/* ── LIVE SCAN RESULTS ──────────────────────────────────────────── */}
+        {(isScanning || liveFeed.length > 0) && (
+          <div className="bg-white rounded-xl border border-pink-200 shadow-sm overflow-hidden">
+            <div className="px-5 py-3 bg-gradient-to-r from-pink-50 to-rose-50 border-b border-pink-100 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <span className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center shrink-0">
+                  {isScanning ? <RefreshCw className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-gray-900 truncate">
+                    {isScanning ? <>Live checking on Google: <span className="text-pink-600">“{scanProgress?.keyword}”</span></> : `Last scan: ${liveFeed.length} keyword results`}
+                  </p>
+                  {isScanning && scanProgress && (
+                    <div className="w-64 bg-pink-200 h-1.5 rounded-full overflow-hidden mt-1.5">
+                      <div className="bg-pink-600 h-1.5 rounded-full transition-all" style={{ width: `${(scanProgress.current / scanProgress.total) * 100}%` }} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              {isScanning && <button onClick={handleScanAll} className="px-3 py-1.5 rounded-lg border border-pink-300 bg-white text-xs font-bold text-pink-700 hover:bg-pink-100">Pause</button>}
+            </div>
+            <div className="max-h-64 overflow-y-auto divide-y divide-gray-100">
+              {liveFeed.map((k) => (
+                <div key={`${k.id}-${k.at}`} className="px-5 py-2 flex items-center gap-3 text-xs">
+                  <span className="font-semibold text-gray-900 flex-1 min-w-0 truncate">{k.keyword}</span>
+                  <span className="text-gray-500 w-28 truncate">{k.branch}</span>
+                  <span className="flex items-center gap-1 w-28"><span className="text-[10px] text-gray-400">Maps</span><RankBadge rank={k.maps_rank} scanned /></span>
+                  <span className="flex items-center gap-1 w-32"><span className="text-[10px] text-gray-400">Organic</span><RankBadge rank={k.organic_rank} scanned /></span>
+                  <span className="w-20 text-right"><Movement k={k} /></span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── KPI CARDS ──────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Network Visibility</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Network visibility score</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-gray-900">{summary.networkVisibilityScore}</span>
-              <span className="text-xs font-semibold text-gray-400">/ 100</span>
-              <span className="ml-auto inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700">
-                <TrendingUp className="w-3 h-3" /> +3%
-              </span>
+              <span className="text-3xl font-extrabold text-gray-900">{summary.networkVisibilityScore ?? "—"}</span>
+              {summary.networkVisibilityScore !== null && <span className="text-xs font-semibold text-gray-400">/ 100</span>}
             </div>
             <div className="mt-3 w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-              <div 
-                className="bg-gradient-to-r from-pink-500 to-rose-500 h-1.5 rounded-full transition-all duration-500" 
-                style={{ width: `${summary.networkVisibilityScore}%` }}
-              />
+              <div className="bg-gradient-to-r from-pink-500 to-rose-500 h-1.5 rounded-full transition-all" style={{ width: `${summary.networkVisibilityScore || 0}%` }} />
             </div>
+            <p className="mt-2 text-[11px] text-gray-400">60% Maps rank · 25% AI mentions · 15% rating</p>
           </div>
-
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top 3 Google Rankings</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top 3 on Google Maps</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-pink-600">{summary.top3Count}</span>
-              <span className="text-xs font-medium text-gray-500">of {summary.totalKeywords} keywords</span>
+              <span className="text-3xl font-extrabold text-pink-600">{kpi.scanned ? kpi.top3 : "—"}</span>
+              <span className="text-xs font-medium text-gray-500">of {kpi.scanned} scanned ({kpi.total} total)</span>
             </div>
-            <p className="mt-3 text-xs text-gray-500">
-              Rank #1–#3 on Google Maps Local Pack
-            </p>
+            <p className="mt-3 text-xs text-gray-500">{kpi.notRanked ? `${kpi.notRanked} scanned keyword(s) not in Maps results` : "Live Local Pack / Maps position"}</p>
           </div>
-
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Average Google Rank</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Average rank, scanned searches</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-gray-900">{summary.avgRank}</span>
-              <span className="text-xs font-semibold text-emerald-600">#1 Clinic In Vadodara</span>
+              <span className="text-3xl font-extrabold text-gray-900">{kpi.avg ?? "—"}</span>
             </div>
-            <p className="mt-3 text-xs text-gray-500">
-              Across all dermatology & laser searches
-            </p>
+            <p className="mt-3 text-xs text-gray-500">Only keywords where Aura actually ranks</p>
           </div>
-
           <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">AI Search Visibility</span>
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">AI answers that mention Aura</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-purple-700">{summary.aiMentions}</span>
-              <span className="text-xs font-medium text-purple-600">Prompts Mention Aura</span>
+              <span className="text-3xl font-extrabold text-purple-700">{summary.aiMentions ?? "—"}</span>
             </div>
-            <p className="mt-3 text-xs text-gray-500">
-              ChatGPT, Perplexity & Gemini Search
-            </p>
+            <p className="mt-3 text-xs text-gray-500">{summary.aiMentions ? "ChatGPT, Gemini, AI Overviews" : "Click Scan AI Visibility"}</p>
           </div>
         </div>
 
-        {/* ── BRANCH SCORECARD & AI SEARCH ENGINES ──────────────────────────── */}
+        {/* ── BRANCH SCORECARD + AI + FIXES ──────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Branch Scorecard (8 cols) */}
           <div className="lg:col-span-8 bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
               <div>
-                <h2 className="text-sm font-bold text-gray-900">Branch Visibility Scorecard</h2>
-                <p className="text-xs text-gray-500">Google Business Profiles & local ranking strength</p>
+                <h2 className="text-sm font-bold text-gray-900">Branch scorecard</h2>
+                <p className="text-xs text-gray-500">Computed from live scans only · click a branch to filter keywords</p>
               </div>
-              <span className="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full">6 Branches Active</span>
+              <span className="text-xs font-bold text-pink-600 bg-pink-50 px-2 py-0.5 rounded-full">{summary.branchScores.length} branches</span>
             </div>
-
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
                 <thead>
                   <tr className="border-b border-gray-200 text-gray-500 font-semibold">
                     <th className="py-2.5 px-3">Branch</th>
-                    <th className="py-2.5 px-3 w-44">Score</th>
-                    <th className="py-2.5 px-3 text-center">Profile</th>
+                    <th className="py-2.5 px-3 w-40">Score</th>
                     <th className="py-2.5 px-3 text-center">Rating</th>
-                    <th className="py-2.5 px-3 text-center">Avg Rank</th>
-                    <th className="py-2.5 px-3 text-center">AI Answers</th>
-                    <th className="py-2.5 px-3 text-center">Fixes</th>
+                    <th className="py-2.5 px-3 text-center">Avg rank</th>
+                    <th className="py-2.5 px-3 text-center">Top 3</th>
+                    <th className="py-2.5 px-3 text-center">AI answers</th>
+                    <th className="py-2.5 px-3 text-center">Scanned</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {(summary.branchScores || []).map((b, idx) => (
-                    <tr key={idx} className="hover:bg-gray-50/70 transition-colors">
-                      <td className="py-3 px-3 font-bold text-gray-900 flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-pink-600" />
-                        {b.branch}
-                      </td>
+                  {summary.branchScores.map((b) => (
+                    <tr key={b.branch} onClick={() => { setSelectedBranch(b.branch); explorerRef.current?.scrollIntoView({ behavior: "smooth" }); }} className="hover:bg-gray-50/70 cursor-pointer">
+                      <td className="py-3 px-3 font-bold text-gray-900"><span className="inline-flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-pink-600" />{b.branch}</span></td>
                       <td className="py-3 px-3">
-                        <div className="flex items-center gap-2">
-                          <div className="flex-1 bg-gray-100 h-2 rounded-full overflow-hidden">
-                            <div 
-                              className={`h-2 rounded-full ${b.score >= 80 ? 'bg-emerald-600' : 'bg-pink-600'}`} 
-                              style={{ width: `${b.score}%` }} 
-                            />
+                        {b.score === null ? <span className="text-gray-400">Not scanned</span> : (
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 bg-gray-100 h-2 rounded-full overflow-hidden"><div className={`h-2 rounded-full ${b.score >= 75 ? "bg-emerald-600" : b.score >= 50 ? "bg-pink-600" : "bg-rose-500"}`} style={{ width: `${b.score}%` }} /></div>
+                            <span className="font-bold text-gray-900 w-6 text-right">{b.score}</span>
                           </div>
-                          <span className="font-bold text-gray-900 w-6 text-right">{b.score}</span>
-                        </div>
+                        )}
                       </td>
-                      <td className="py-3 px-3 text-center font-medium text-gray-600">{b.profile}%</td>
-                      <td className="py-3 px-3 text-center font-bold text-amber-600">★ {b.rating}</td>
-                      <td className="py-3 px-3 text-center font-bold text-gray-900">#{b.avgRank}</td>
-                      <td className="py-3 px-3 text-center font-medium text-gray-600">{b.aiAnswers}</td>
-                      <td className="py-3 px-3 text-center">
-                        <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-50 text-amber-700">
-                          {b.fixes} open
-                        </span>
-                      </td>
+                      <td className="py-3 px-3 text-center font-bold text-amber-600">{b.rating ? <>★ {b.rating}<span className="text-[10px] font-medium text-gray-400"> ({b.reviews})</span></> : <span className="text-gray-300 font-normal">—</span>}</td>
+                      <td className="py-3 px-3 text-center font-bold text-gray-900">{b.avgRank ? `#${b.avgRank}` : <span className="text-gray-300 font-normal">—</span>}</td>
+                      <td className="py-3 px-3 text-center text-gray-700">{b.scanned ? b.top3 : "—"}</td>
+                      <td className="py-3 px-3 text-center text-gray-700">{b.aiAnswers || "—"}</td>
+                      <td className="py-3 px-3 text-center text-gray-500">{b.scanned}/{b.keywords}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -572,59 +495,38 @@ export default function ClinicVisibilityAudit() {
             </div>
           </div>
 
-          {/* AI Search Visibility & Open Fixes (4 cols) */}
           <div className="lg:col-span-4 space-y-4">
-            {/* AI Search Engines */}
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-purple-600" />
-                AI Search Visibility
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5 mb-3">20 targeted patient queries sent to LLMs</p>
-              
+              <div className="flex items-center justify-between">
+                <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><Sparkles className="w-4 h-4 text-purple-600" /> AI search visibility</h2>
+                <button onClick={() => setShowAiDetail((v) => !v)} className="text-[11px] font-semibold text-purple-700 hover:underline">{showAiDetail ? "Hide answers" : "See answers"}</button>
+              </div>
+              <p className="text-xs text-gray-500 mt-0.5 mb-3">{data.aiQuestions.length} patient questions asked to each engine</p>
               <div className="space-y-3">
-                {(summary.aiVisibility || []).map((ai, idx) => (
-                  <div key={idx} className="space-y-1">
+                {engines.map((e) => (
+                  <div key={e.id} className="space-y-1">
                     <div className="flex justify-between text-xs">
-                      <span className="font-medium text-gray-700">{ai.engine}</span>
-                      <span className="font-bold text-purple-700">{ai.score}</span>
+                      <span className="font-medium text-gray-700">{e.engine}</span>
+                      {e.configured ? <span className="font-bold text-purple-700">{e.score || "not scanned"}</span> : <span className="text-[10px] font-semibold text-amber-600">API key missing</span>}
                     </div>
-                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-purple-600 h-1.5 rounded-full" style={{ width: `${ai.pct}%` }} />
-                    </div>
+                    <div className="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden"><div className="bg-purple-600 h-1.5 rounded-full" style={{ width: `${e.pct}%` }} /></div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Open Actionable Fixes */}
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Actionable SEO Fixes
-              </h2>
-              <p className="text-xs text-gray-500 mt-0.5 mb-3">Resolve to improve your Google ranking</p>
-
-              <div className="space-y-2">
-                {(summary.openFixes || []).map((fix) => (
-                  <div 
-                    key={fix.id} 
-                    onClick={() => handleToggleFix(fix.id)}
-                    className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer transition-all ${
-                      fix.done ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-pink-50/40 border-pink-100 hover:bg-pink-50'
-                    }`}
-                  >
-                    <input 
-                      type="checkbox" 
-                      checked={fix.done} 
-                      onChange={() => {}}
-                      className="mt-0.5 h-3.5 w-3.5 rounded text-pink-600 cursor-pointer" 
-                    />
+              <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Fix list</h2>
+              <p className="text-xs text-gray-500 mt-0.5 mb-3">Generated from your latest scan results</p>
+              <div className="space-y-2 max-h-72 overflow-y-auto">
+                {summary.openFixes.length === 0 && <p className="text-xs text-gray-400">Nothing to fix yet — run a scan.</p>}
+                {summary.openFixes.map((fix) => (
+                  <div key={fix.id} onClick={() => handleToggleFix(fix.id)} className={`flex items-start gap-2.5 p-2 rounded-lg border cursor-pointer ${fix.done ? "bg-gray-50 border-gray-200 opacity-60" : "bg-pink-50/40 border-pink-100 hover:bg-pink-50"}`}>
+                    <input type="checkbox" checked={fix.done} onChange={() => { }} className="mt-0.5 h-3.5 w-3.5 rounded text-pink-600" />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-xs font-medium text-gray-800 ${fix.done ? 'line-through text-gray-400' : ''}`}>
-                        {fix.title}
-                      </p>
-                      <span className="text-[10px] text-gray-500 font-semibold">{fix.branch}</span>
+                      <p className={`text-xs font-medium text-gray-800 ${fix.done ? "line-through text-gray-400" : ""}`}>{fix.title}</p>
+                      <span className={`text-[10px] font-semibold ${fix.impact === "High" ? "text-rose-600" : "text-amber-600"}`}>{fix.impact}</span>
+                      <span className="text-[10px] text-gray-400"> · {fix.branch}</span>
                     </div>
                   </div>
                 ))}
@@ -633,372 +535,235 @@ export default function ClinicVisibilityAudit() {
           </div>
         </div>
 
-        {/* ── KEYWORD RANKINGS EXPLORER (CORE USER REQUEST) ──────────────────── */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* ── AI ANSWERS BY QUESTION ─────────────────────────────────────── */}
+        {showAiDetail && (
+          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div className="p-5 border-b border-gray-200 flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><Bot className="w-4 h-4 text-purple-600" /> AI answers by question</h2>
+                <p className="text-xs text-gray-500">✓ = Aura mentioned (#n = position in the AI's list) · ✗ = not mentioned · — = not asked yet</p>
+              </div>
+              {isAiScanning && aiProgress && <span className="text-xs text-purple-700 font-semibold truncate max-w-xs">Asking: {aiProgress.text}</span>}
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold">
+                    <th className="py-2.5 px-4">Patient question</th>
+                    <th className="py-2.5 px-4">Branch</th>
+                    {ENGINE_ORDER.map((e) => <th key={e} className="py-2.5 px-3 text-center">{ENGINE_SHORT[e]}</th>)}
+                    <th className="py-2.5 px-4">Who the AI recommended instead</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {data.aiQuestions.map((q) => {
+                    const others = [...new Set(ENGINE_ORDER.flatMap((e) => q.results?.[e]?.competitors || []))].slice(0, 4);
+                    return (
+                      <tr key={q.id} className="hover:bg-gray-50/70">
+                        <td className="py-2.5 px-4 font-medium text-gray-900">{q.question}</td>
+                        <td className="py-2.5 px-4 text-gray-500">{q.branch || "All"}</td>
+                        {ENGINE_ORDER.map((e) => {
+                          const r = q.results?.[e];
+                          return (
+                            <td key={e} className="py-2.5 px-3 text-center" title={r?.snippet || ""}>
+                              {!r ? <span className="text-gray-300">—</span>
+                                : !r.answered ? <span className="text-[10px] text-gray-400">no overview</span>
+                                  : r.mentioned ? <span className="font-bold text-emerald-600">✓{r.position ? ` #${r.position}` : ""}</span>
+                                    : <span className="font-bold text-rose-500">✗</span>}
+                            </td>
+                          );
+                        })}
+                        <td className="py-2.5 px-4 text-gray-500">{others.join(", ") || "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ── KEYWORD RANKINGS EXPLORER ──────────────────────────────────── */}
+        <div ref={explorerRef} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden scroll-mt-24">
           <div className="p-5 border-b border-gray-200">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-pink-600" />
-                  Keyword Rankings Explorer ({filteredKeywords.length} of {data.keywords.length})
+                  <Globe className="w-4 h-4 text-pink-600" /> Local search rankings ({filteredKeywords.length} of {keywords.length})
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Actual Google Search & Google Maps ranking positions in Vadodara for all services.
-                </p>
+                <p className="text-xs text-gray-500 mt-0.5">Google Maps position is checked from each branch's area · Organic is the normal Google result in that city. Click a row for the full result.</p>
               </div>
-
-              {/* Search & Rank Tier Filters */}
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
                   <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search keywords or branch…"
-                    className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-pink-500 w-52"
-                  />
-                  {searchQuery && (
-                    <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-2 text-gray-400 hover:text-gray-600">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
+                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search keywords…" className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-pink-500 w-44" />
+                  {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-2 text-gray-400"><X className="w-3 h-3" /></button>}
                 </div>
-
-                <select
-                  value={selectedRankTier}
-                  onChange={(e) => setSelectedRankTier(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white font-medium text-gray-700 focus:outline-none"
-                >
-                  <option value="All">All Positions</option>
-                  <option value="top3">Top 3 Only (🏆 Map Pack)</option>
-                  <option value="top10">Top 10 (Page 1)</option>
-                  <option value="needsBoost">Rank &gt; 10 (Needs Boost)</option>
+                <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white font-medium text-gray-700">
+                  <option value="All">All branches</option>
+                  {branchList.map((b) => <option key={b} value={b}>{b}</option>)}
                 </select>
-
-                <button
-                  onClick={isScanningAll ? handleStopScanAll : handleScanAllLive}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all ${
-                    isScanningAll
-                      ? "bg-amber-50 text-amber-700 border-amber-300 animate-pulse"
-                      : "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"
-                  }`}
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${isScanningAll ? "animate-spin" : ""}`} />
-                  {isScanningAll ? `Scanning ${scanProgress?.current || 0}/${scanProgress?.total || 0}… (Stop)` : "Scan All Live"}
+                <select value={selectedTier} onChange={(e) => setSelectedTier(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white font-medium text-gray-700">
+                  <option value="All">All positions</option>
+                  <option value="top3">Top 3 (Map Pack)</option>
+                  <option value="top10">Top 10</option>
+                  <option value="needsBoost">Needs boost (&gt;10 / not ranking)</option>
+                  <option value="unscanned">Not scanned yet</option>
+                </select>
+                <button onClick={handleScanAll} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${isScanning ? "bg-amber-50 text-amber-700 border-amber-300 animate-pulse" : "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"}`}>
+                  <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-spin" : ""}`} />
+                  {isScanning ? "Pause scan" : `Scan ${filteredKeywords.length === keywords.length ? "all" : `these ${filteredKeywords.length}`} live`}
                 </button>
               </div>
             </div>
-
-            {/* Category Filter Chips */}
-            <div className="mt-4 flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <div className="mt-4 flex items-center gap-1.5 overflow-x-auto pb-1">
               {categoryList.map((cat) => {
-                const isSelected = selectedCategory === cat;
-                const count = cat === "All" ? data.keywords.length : (data.categories[cat] || 0);
+                const sel = selectedCategory === cat;
+                const count = cat === "All" ? keywords.length : data.categories[cat] || 0;
                 return (
-                  <button
-                    key={cat}
-                    onClick={() => setSelectedCategory(cat)}
-                    className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold transition-all flex items-center gap-1.5 ${
-                      isSelected
-                        ? "bg-pink-600 text-white shadow-sm"
-                        : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    }`}
-                  >
-                    <span>{cat}</span>
-                    <span className={`text-[10px] px-1 rounded-full ${isSelected ? "bg-pink-700 text-white" : "bg-gray-200 text-gray-600"}`}>
-                      {count}
-                    </span>
+                  <button key={cat} onClick={() => setSelectedCategory(cat)} className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${sel ? "bg-pink-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                    <span>{cat}</span><span className={`text-[10px] px-1 rounded-full ${sel ? "bg-pink-700 text-white" : "bg-gray-200 text-gray-600"}`}>{count}</span>
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Live Scanning Progress Banner */}
-          {isScanningAll && scanProgress && (
-            <div className="bg-gradient-to-r from-pink-50 via-rose-50 to-pink-50 border-b border-pink-200 px-5 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-pink-100 text-pink-600 flex items-center justify-center flex-shrink-0">
-                  <RefreshCw className="w-4 h-4 animate-spin" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-gray-900">
-                      Live Checking: <span className="text-pink-600 font-extrabold">"{scanProgress.currentKeyword}"</span>
-                    </span>
-                    <span className="text-[11px] font-semibold text-gray-500">
-                      ({scanProgress.current} of {scanProgress.total} keywords)
-                    </span>
-                  </div>
-                  <div className="w-64 sm:w-80 bg-pink-200 h-2 rounded-full overflow-hidden mt-1.5">
-                    <div 
-                      className="bg-gradient-to-r from-pink-600 to-rose-600 h-2 rounded-full transition-all duration-300" 
-                      style={{ width: `${(scanProgress.current / scanProgress.total) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <button
-                onClick={handleStopScanAll}
-                className="px-3 py-1.5 rounded-lg border border-pink-300 bg-white text-xs font-bold text-pink-700 hover:bg-pink-100 shadow-sm self-start sm:self-auto"
-              >
-                Pause / Stop Scan
-              </button>
-            </div>
-          )}
-
-          {/* Table */}
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-gray-500 font-semibold">
-                  <th className="py-3 px-4">Search Keyword</th>
-                  <th className="py-3 px-4">Category</th>
+                  <th className="py-3 px-4">Search keyword</th>
                   <th className="py-3 px-4">Branch</th>
-                  <th className="py-3 px-4 text-center">Google Position</th>
-                  <th className="py-3 px-4 text-center">Movement</th>
-                  <th className="py-3 px-4">SERP Features</th>
-                  <th className="py-3 px-4 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <span>Actions</span>
-                      <button
-                        onClick={isScanningAll ? handleStopScanAll : handleScanAllLive}
-                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-bold border transition-colors ${
-                          isScanningAll
-                            ? "bg-amber-100 text-amber-800 border-amber-300 animate-pulse"
-                            : "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"
-                        }`}
-                        title="Scan all keywords live one by one"
-                      >
-                        <RefreshCw className={`w-3 h-3 ${isScanningAll ? "animate-spin" : ""}`} />
-                        {isScanningAll ? "Stop" : "Scan All"}
-                      </button>
-                    </div>
-                  </th>
+                  <th className="py-3 px-4 text-center">Google Maps</th>
+                  <th className="py-3 px-4 text-center">Google organic</th>
+                  <th className="py-3 px-4 text-center">Since last scan</th>
+                  <th className="py-3 px-4">Checked</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filteredKeywords.length === 0 ? (
-                  <tr>
-                    <td colSpan="7" className="text-center py-8 text-gray-500 font-medium">
-                      No keywords matching the current filters.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredKeywords.map((item) => {
-                    const badgeClass = CATEGORY_COLORS[item.category] || "bg-gray-50 text-gray-700 border-gray-200";
-                    const isTop3 = item.current_rank && item.current_rank <= 3;
-                    const isTop10 = item.current_rank && item.current_rank <= 10;
-                    const isChecking = checkingKeywordId === item.id;
-
-                    return (
-                      <tr key={item.id} className="hover:bg-gray-50/70 transition-colors">
-                        <td className="py-3 px-4 font-semibold text-gray-900">
-                          {item.keyword}
-                        </td>
-
+                {filteredKeywords.length === 0 && <tr><td colSpan="7" className="text-center py-8 text-gray-500 font-medium">No keywords match the current filters.</td></tr>}
+                {filteredKeywords.map((item) => {
+                  const isChecking = checkingId === item.id;
+                  const open = expandedId === item.id;
+                  const scanned = !!item.source;
+                  return (
+                    <React.Fragment key={item.id}>
+                      <tr onClick={() => setExpandedId(open ? null : item.id)} className={`cursor-pointer transition-colors ${flashId === item.id ? "bg-emerald-50" : "hover:bg-gray-50/70"} ${isChecking ? "bg-pink-50/60" : ""}`}>
                         <td className="py-3 px-4">
-                          <span className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-semibold border ${badgeClass}`}>
-                            {item.category}
-                          </span>
+                          <div className="flex items-center gap-1.5 font-semibold text-gray-900">
+                            {open ? <ChevronDown className="w-3 h-3 text-gray-400" /> : <ChevronRight className="w-3 h-3 text-gray-400" />}
+                            {item.keyword}
+                          </div>
+                          <span className={`ml-4 mt-1 inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold border ${CATEGORY_COLORS[item.category] || "bg-gray-50 text-gray-700 border-gray-200"}`}>{item.category}</span>
                         </td>
-
-                        <td className="py-3 px-4 text-gray-600 font-medium">
-                          {item.branch || "Alkapuri"}
-                        </td>
-
-                        <td className="py-3 px-4 text-center">
-                          {editingRankId === item.id ? (
-                            <div className="inline-flex items-center gap-1 justify-center">
-                              <input
-                                type="number"
-                                min="1"
-                                max="100"
-                                autoFocus
-                                value={editingRankVal}
-                                onChange={(e) => setEditingRankVal(e.target.value)}
-                                onKeyDown={(e) => {
-                                  if (e.key === "Enter") handleSaveRank(item.id);
-                                  if (e.key === "Escape") setEditingRankId(null);
-                                }}
-                                className="w-12 px-1 py-0.5 text-center text-xs font-bold border border-pink-400 rounded focus:outline-none focus:ring-1 focus:ring-pink-500 bg-white"
-                              />
-                              <button
-                                onClick={() => handleSaveRank(item.id)}
-                                className="p-1 hover:bg-emerald-100 text-emerald-700 rounded transition-colors"
-                                title="Save Rank"
-                              >
-                                <Check className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => setEditingRankId(null)}
-                                className="p-1 hover:bg-rose-100 text-rose-700 rounded transition-colors"
-                                title="Cancel"
-                              >
-                                <X className="w-3 h-3" />
-                              </button>
+                        <td className="py-3 px-4 text-gray-600 font-medium">{item.branch}</td>
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          {isChecking ? <Loader2 className="w-4 h-4 animate-spin text-pink-600 inline" /> : editingId === item.id ? (
+                            <div className="inline-flex items-center gap-1">
+                              <input type="number" min="1" max="100" autoFocus value={editingVal} onChange={(e) => setEditingVal(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") handleSaveRank(item.id); if (e.key === "Escape") setEditingId(null); }} className="w-12 px-1 py-0.5 text-center text-xs font-bold border border-pink-400 rounded" />
+                              <button onClick={() => handleSaveRank(item.id)} className="p-1 text-emerald-700"><Check className="w-3 h-3" /></button>
+                              <button onClick={() => setEditingId(null)} className="p-1 text-rose-700"><X className="w-3 h-3" /></button>
                             </div>
                           ) : (
-                            <span 
-                              onClick={() => {
-                                setEditingRankId(item.id);
-                                setEditingRankVal(item.current_rank || "1");
-                              }}
-                              title="Click to manually edit rank"
-                              className={`inline-flex items-center justify-center min-w-[36px] px-2 py-0.5 rounded-full font-bold text-xs cursor-pointer hover:ring-2 hover:ring-offset-1 hover:ring-pink-400 transition-all ${
-                                item.current_rank === 1
-                                  ? "bg-amber-100 text-amber-900 border border-amber-300 shadow-xs"
-                                  : isTop3 
-                                  ? "bg-emerald-100 text-emerald-800 border border-emerald-200" 
-                                  : isTop10 
-                                  ? "bg-pink-100 text-pink-800 border border-pink-200" 
-                                  : "bg-gray-100 text-gray-700"
-                              }`}
-                            >
-                              {item.current_rank === 1 ? "🏆 #1" : `#${item.current_rank || "20+"}`}
+                            <span onDoubleClick={() => { setEditingId(item.id); setEditingVal(item.maps_rank || ""); }} title="Double-click to set manually">
+                              <RankBadge rank={item.maps_rank ?? (item.source === "manual" ? item.current_rank : null)} scanned={scanned} label="Aura not found in Google Maps results" />
+                              {item.source === "manual" && <span className="ml-1 text-[9px] font-bold text-gray-400 uppercase">manual</span>}
                             </span>
                           )}
                         </td>
-
-                        <td className="py-3 px-4 text-center">
-                          {item.rank_change > 0 ? (
-                            <span className="inline-flex items-center gap-0.5 text-emerald-600 font-bold text-xs">
-                              <TrendingUp className="w-3 h-3" /> Up {item.rank_change}
-                            </span>
-                          ) : item.rank_change < 0 ? (
-                            <span className="inline-flex items-center gap-0.5 text-rose-600 font-bold text-xs">
-                              <TrendingDown className="w-3 h-3" /> Down {Math.abs(item.rank_change)}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400 font-medium text-xs flex items-center justify-center gap-0.5">
-                              <Minus className="w-3 h-3" /> No change
-                            </span>
-                          )}
+                        <td className="py-3 px-4 text-center">{isChecking ? <Loader2 className="w-4 h-4 animate-spin text-pink-600 inline" /> : <RankBadge rank={item.organic_rank} scanned={item.source === "serper"} label={`Not in Google top ${config.serpDepth || 30}`} />}</td>
+                        <td className="py-3 px-4 text-center"><Movement k={item} /></td>
+                        <td className="py-3 px-4 text-gray-500">
+                          {item.last_error ? <span className="text-rose-600 font-medium" title={item.last_error}>failed</span> : timeAgo(item.last_checked_at) || "—"}
                         </td>
-
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-1">
-                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-50 text-blue-700 font-medium">
-                              Maps Pack
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 text-gray-600 font-medium">
-                              Organic
-                            </span>
-                          </div>
-                        </td>
-
-                        <td className="py-3 px-4 text-right">
-                          <div className="inline-flex items-center gap-1.5 justify-end">
-                            <a
-                              href={`https://www.google.com/search?q=${encodeURIComponent(item.keyword.toLowerCase().includes("vadodara") ? item.keyword : item.keyword + " Vadodara")}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:border-blue-300 hover:bg-blue-50 text-blue-700 text-xs font-medium transition-colors"
-                              title="Verify directly on Google Live SERP"
-                            >
-                              <ExternalLink className="w-3 h-3" />
-                              Google
-                            </a>
-
-                            <button
-                              onClick={() => handleCheckKeyword(item.id, item.keyword)}
-                              disabled={isChecking}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-gray-200 hover:border-pink-300 hover:bg-pink-50 text-gray-700 text-xs font-semibold transition-colors disabled:opacity-50"
-                            >
-                              <RefreshCw className={`w-3 h-3 ${isChecking ? "animate-spin text-pink-600" : ""}`} />
-                              {isChecking ? "Checking…" : "Check Live"}
+                        <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                          <div className="inline-flex items-center gap-1.5">
+                            <a href={mapsLink(item, branchLL[item.branch])} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:bg-blue-50 text-blue-700 font-medium" title="Verify on Google Maps"><MapPin className="w-3 h-3" />Maps</a>
+                            <a href={googleLink(item)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:bg-blue-50 text-blue-700 font-medium" title="Verify on Google Search"><ExternalLink className="w-3 h-3" />Google</a>
+                            <button onClick={() => handleCheckKeyword(item)} disabled={isChecking || isScanning} className="inline-flex items-center gap-1 px-2.5 py-1 rounded border border-pink-200 bg-pink-50 hover:bg-pink-100 text-pink-700 font-semibold disabled:opacity-50">
+                              <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? "animate-spin" : ""}`} />{isChecking ? "Checking…" : "Scan now"}
                             </button>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })
-                )}
+                      {open && (
+                        <tr className="bg-gray-50/60">
+                          <td colSpan="7" className="px-6 py-4">
+                            {!scanned ? (
+                              <p className="text-xs text-gray-500">Not scanned yet. Click <b>Scan now</b> to fetch the live Google Maps and organic position.</p>
+                            ) : (
+                              <div className="grid md:grid-cols-3 gap-4 text-xs">
+                                <div>
+                                  <p className="font-bold text-gray-700 mb-1.5">Top Google Maps results (from {item.branch})</p>
+                                  {(item.top_results || []).length === 0 && <p className="text-gray-400">No data</p>}
+                                  {(item.top_results || []).map((r) => (
+                                    <div key={r.position} className={`flex items-center gap-2 py-1 ${r.aura ? "font-bold text-pink-700" : "text-gray-600"}`}>
+                                      <span className="w-5 text-gray-400">#{r.position}</span><span className="flex-1 truncate">{r.title}</span>
+                                      {r.rating && <span className="text-amber-600">★{r.rating}</span>}
+                                    </div>
+                                  ))}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-700 mb-1.5">Aura listing found</p>
+                                  {item.matched_name ? (
+                                    <>
+                                      <p className="text-gray-800 font-medium">{item.matched_name}</p>
+                                      <p className="text-gray-500">{item.matched_address}</p>
+                                      <p className="text-amber-600 font-semibold mt-1">{item.rating ? `★ ${item.rating}` : ""} {item.reviews ? <span className="text-gray-400 font-normal">({item.reviews} reviews)</span> : null}</p>
+                                      {item.branch_exact === false && <p className="mt-1 text-amber-700 font-medium">Showing another Aura branch — {item.branch} listing not in results.</p>}
+                                    </>
+                                  ) : <p className="text-gray-500">Aura did not appear in the Google Maps results for this search.</p>}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-700 mb-1.5">Organic result</p>
+                                  {item.ranked_url ? <a href={item.ranked_url} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline break-all">{item.ranked_url}</a> : <p className="text-gray-500">Aura website not in Google top {config.serpDepth || 30}.</p>}
+                                  <p className="mt-2 text-gray-400">Features: {(item.serp_features || []).join(", ") || "—"}</p>
+                                  <p className="text-gray-400">Source: {item.source === "serper" ? "Live Google (Serper)" : "Manual entry"}</p>
+                                </div>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       </div>
 
-      {/* ── ADD KEYWORD MODAL ────────────────────────────────────────────────── */}
+      {/* ── ADD KEYWORD MODAL ──────────────────────────────────────────────── */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 text-base">Add Keyword for Tracking</h3>
-              <button 
-                onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600 rounded-lg p-1"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <h3 className="font-bold text-gray-900 text-base">Add keyword for tracking</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 rounded-lg p-1"><X className="w-5 h-5" /></button>
             </div>
-
             <form onSubmit={handleAddKeyword} className="p-6 space-y-4">
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Search Keyword
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newKw.keyword}
-                  onChange={(e) => setNewKw({ ...newKw, keyword: e.target.value })}
-                  placeholder="e.g. Skin specialist in Vadodara near me"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-500"
-                  autoFocus
-                />
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Search keyword</label>
+                <input type="text" required autoFocus value={newKw.keyword} onChange={(e) => setNewKw({ ...newKw, keyword: e.target.value })} placeholder="e.g. Skin specialist in Vadodara near me" className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-500" />
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Category
-                </label>
-                <select
-                  value={newKw.category}
-                  onChange={(e) => setNewKw({ ...newKw, category: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-                >
-                  {Object.keys(CATEGORY_COLORS).map((cat) => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Category</label>
+                <select value={newKw.category} onChange={(e) => setNewKw({ ...newKw, category: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white">
+                  {Object.keys(CATEGORY_COLORS).map((c) => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
-
               <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">
-                  Target Branch
-                </label>
-                <select
-                  value={newKw.branch}
-                  onChange={(e) => setNewKw({ ...newKw, branch: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white focus:outline-none focus:ring-2 focus:ring-pink-500"
-                >
-                  <option value="Alkapuri">Alkapuri</option>
-                  <option value="Manjalpur">Manjalpur</option>
-                  <option value="Waghodia Road">Waghodia Road</option>
-                  <option value="Vasna Bhayli">Vasna Bhayli</option>
-                  <option value="Surat">Surat</option>
-                  <option value="Ranchi">Ranchi</option>
+                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Check from branch</label>
+                <select value={newKw.branch} onChange={(e) => setNewKw({ ...newKw, branch: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white">
+                  {branchList.map((b) => <option key={b} value={b}>{b}</option>)}
                 </select>
               </div>
-
               <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-lg bg-pink-600 text-xs font-bold text-white hover:bg-pink-700 shadow-sm"
-                >
-                  Add &amp; Check Rank
-                </button>
+                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50">Cancel</button>
+                <button type="submit" className="px-4 py-2 rounded-lg bg-pink-600 text-xs font-bold text-white hover:bg-pink-700 shadow-sm">Add &amp; check live</button>
               </div>
             </form>
           </div>
@@ -1007,4 +772,3 @@ export default function ClinicVisibilityAudit() {
     </div>
   );
 }
-
