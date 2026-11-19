@@ -257,7 +257,10 @@ async function _ensureAuditSchema() {
       ADD COLUMN IF NOT EXISTS matched_address TEXT,
       ADD COLUMN IF NOT EXISTS branch_exact BOOLEAN,
       ADD COLUMN IF NOT EXISTS last_error TEXT,
-      ADD COLUMN IF NOT EXISTS source TEXT;
+      ADD COLUMN IF NOT EXISTS source TEXT,
+      ADD COLUMN IF NOT EXISTS ai_overview_rank INT,
+      ADD COLUMN IF NOT EXISTS ai_overview_mentioned BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS ai_overview_data JSONB;
     ALTER TABLE visibility_audit_keywords ALTER COLUMN last_checked_at DROP DEFAULT;
     ALTER TABLE visibility_audit_keywords ALTER COLUMN serp_features SET DEFAULT '[]'::jsonb;
   `);
@@ -355,12 +358,104 @@ function parseSearchResponse(json, branch) {
   const hasLocalPack = Array.isArray(json?.places) && json.places.length > 0;
   // Local Pack match must also respect branch address hints
   const packIdx = hasLocalPack ? json.places.findIndex((p) => isAuraPlace(p) && addressHasHint(p.address, branch)) : -1;
+
+  // ── AI Overview parsing (Serper returns aiOverview or ai_overview) ──
+  const rawAi = json?.aiOverview || json?.ai_overview || null;
+  let aiOverviewData = {
+    present: false,
+    mentioned: false,
+    rank: null,
+    snippet: '',
+    items: [],
+    references: [],
+  };
+  if (rawAi) {
+    aiOverviewData.present = true;
+    // Extract text content
+    let text = '';
+    let items = [];
+    if (typeof rawAi === 'string') {
+      text = rawAi;
+    } else if (typeof rawAi === 'object') {
+      // Serper AI Overview structure may have: text, textBlocks, list, table, items
+      text = rawAi.text || rawAi.snippet || rawAi.answer || '';
+      if (Array.isArray(rawAi.textBlocks)) {
+        // textBlocks: [{title, text, list: [...]}]
+        for (const block of rawAi.textBlocks) {
+          if (block.text) text += '\n' + block.text;
+          if (Array.isArray(block.list)) {
+            for (const item of block.list) {
+              items.push({ title: item.title || item.name || '', snippet: item.snippet || item.text || '', link: item.link || item.url || '' });
+            }
+          }
+        }
+      }
+      if (Array.isArray(rawAi.list)) {
+        for (const item of rawAi.list) {
+          items.push({ title: item.title || item.name || '', snippet: item.snippet || item.text || '', link: item.link || item.url || '' });
+        }
+      }
+      if (Array.isArray(rawAi.items)) {
+        for (const item of rawAi.items) {
+          items.push({ title: item.title || item.name || '', snippet: item.snippet || item.text || '', link: item.link || item.url || '' });
+        }
+      }
+      if (rawAi.table && Array.isArray(rawAi.table.rows)) {
+        for (const row of rawAi.table.rows) {
+          items.push({ title: row[0] || '', snippet: row.slice(1).join(' | ') || '', link: '' });
+        }
+      }
+    }
+    // Extract references/sources
+    const references = (rawAi.sources || rawAi.references || []).map((s) => s.link || s.url || s).filter(Boolean);
+
+    // Determine if Aura is mentioned and its rank in the AI Overview
+    const mentionRe = /aura\s+(laser|skin|cosmetic|clinic)|dr\.?\s*aditya\s*shah|auralaserclinic|skinnonest/i;
+    const fullText = text + '\n' + items.map(i => i.title + ' ' + i.snippet).join('\n');
+    const urlHit = references.some((r) => String(r).toLowerCase().includes(TARGET_DOMAIN));
+    const mentioned = mentionRe.test(fullText) || urlHit;
+    let rank = null;
+    if (mentioned) {
+      // Check items for ranked position
+      for (let i = 0; i < items.length; i++) {
+        const itemText = items[i].title + ' ' + items[i].snippet;
+        if (mentionRe.test(itemText) || (items[i].link && String(items[i].link).toLowerCase().includes(TARGET_DOMAIN))) {
+          rank = i + 1;
+          break;
+        }
+      }
+      // If not found in items, check if mentioned in opening paragraph
+      if (!rank && mentionRe.test(text)) {
+        // Try to find numbered list in text
+        const lines = text.split('\n');
+        for (const line of lines) {
+          if (mentionRe.test(line)) {
+            const n = /^\s*(?:[#*\-\s]*)(\d{1,2})[.)]\s/.exec(line);
+            if (n) { rank = parseInt(n[1], 10); break; }
+            // If no explicit number but it's the first clinic mentioned, assume #1
+            rank = 1;
+            break;
+          }
+        }
+      }
+    }
+    aiOverviewData = {
+      present: true,
+      mentioned,
+      rank,
+      snippet: text.replace(/\s+/g, ' ').trim().slice(0, 500),
+      items,
+      references: references.slice(0, 10),
+    };
+  }
+
   return {
     rank: idx >= 0 ? organic[idx].position || idx + 1 : null,
     url: idx >= 0 ? organic[idx].link : null,
     localPack: hasLocalPack,
     localPackRank: packIdx >= 0 ? packIdx + 1 : null,
-    aiOverview: !!(json?.aiOverview || json?.ai_overview),
+    aiOverview: !!rawAi,
+    aiOverviewData,
     checked: organic.length,
   };
 }
@@ -425,8 +520,10 @@ async function saveKeywordResult(row, res) {
   if (res.organic.localPack) features.push('local_pack');
   if (orgRank) features.push('organic');
   if (res.organic.aiOverview) features.push('ai_overview');
+  // AI Overview data
+  const aiOverviewData = res.organic.aiOverviewData || { present: false, mentioned: false, rank: null };
   let hist = Array.isArray(row.history) ? row.history : [];
-  hist.push({ date: new Date().toISOString().split('T')[0], rank: best, maps: mapsRank, organic: orgRank, localPack: localPackRank });
+  hist.push({ date: new Date().toISOString().split('T')[0], rank: best, maps: mapsRank, organic: orgRank, localPack: localPackRank, aiOverview: aiOverviewData.rank });
   hist = hist.slice(-12);
   const r = await db.query(
     `UPDATE visibility_audit_keywords SET
@@ -434,12 +531,14 @@ async function saveKeywordResult(row, res) {
        maps_rank = $4, maps_rank_prev = $5, organic_rank = $6, organic_rank_prev = $7,
        top_results = $8, rating = $9, reviews = $10, matched_name = $11, matched_address = $12,
        branch_exact = $13, ranked_url = $14, serp_features = $15, history = $16,
+       ai_overview_rank = $17, ai_overview_mentioned = $18, ai_overview_data = $19,
        last_checked_at = NOW(), last_error = NULL, source = 'serper'
-     WHERE id = $17 RETURNING *`,
+     WHERE id = $20 RETURNING *`,
     [best, prevBest, change, mapsRank, row.maps_rank ?? null, orgRank, row.organic_rank ?? null,
       JSON.stringify(res.maps.top), res.maps.match?.rating ?? null, res.maps.match?.reviews ?? null,
       res.maps.match?.title ?? null, res.maps.match?.address ?? null, res.maps.exact ?? null,
-      res.organic.url, JSON.stringify(features), JSON.stringify(hist), row.id]
+      res.organic.url, JSON.stringify(features), JSON.stringify(hist),
+      aiOverviewData.rank, aiOverviewData.mentioned, JSON.stringify(aiOverviewData), row.id]
   );
   await db.query('UPDATE visibility_audit_summary SET last_audit_at = NOW(), updated_at = NOW() WHERE id = (SELECT MAX(id) FROM visibility_audit_summary)');
   return r.rows[0];

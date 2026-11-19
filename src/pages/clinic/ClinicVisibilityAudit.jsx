@@ -34,6 +34,9 @@ const ENGINE_RPM_LIMIT = {
   google_ai: 10,    // Serper AI Overview ~10 RPM
 };
 
+// Regex to detect Aura mentions in AI Overview text
+const mentionRe = /aura\s+(laser|skin|cosmetic|clinic)|dr\.?\s*aditya\s*shah|auralaserclinic|skinnonest/i;
+
 const api = async (path, method = "GET", body) => {
   // Strip leading/trailing slashes for root request so it cleanly hits /api/visibility-audit (Vercel rewrite compatible)
   const cleanPath = (!path || path === "/" || path === "") ? "" : (path.startsWith("/") ? path : `/${path}`);
@@ -778,6 +781,7 @@ export default function ClinicVisibilityAudit() {
                   <th className="py-3 px-4">Branch</th>
                   <th className="py-3 px-4 text-center">Google Maps</th>
                   <th className="py-3 px-4 text-center">Google organic</th>
+                  <th className="py-3 px-4 text-center">AI Overview</th>
                   <th className="py-3 px-4 text-center">Since last scan</th>
                   <th className="py-3 px-4">Checked</th>
                   <th className="py-3 px-4 text-right">Actions</th>
@@ -815,6 +819,18 @@ export default function ClinicVisibilityAudit() {
                           )}
                         </td>
                         <td className="py-3 px-4 text-center">{isChecking ? <Loader2 className="w-4 h-4 animate-spin text-pink-600 inline" /> : <RankBadge rank={item.organic_rank} scanned={item.source === "serper"} label={`Not in Google top ${config.serpDepth || 30}`} />}</td>
+                        <td className="py-3 px-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          {isChecking ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-purple-600 inline" />
+                          ) : (() => {
+                            const ai = item.ai_overview_data;
+                            if (!ai) return <span className="text-[10px] text-gray-400">—</span>;
+                            if (!ai.present) return <span className="text-[10px] text-gray-400">No AI Overview</span>;
+                            if (ai.rank) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">#${ai.rank}</span>;
+                            if (ai.mentioned) return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Mentioned</span>;
+                            return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-300">Not mentioned</span>;
+                          })()}
+                        </td>
                         <td className="py-3 px-4 text-center"><Movement k={item} /></td>
                         <td className="py-3 px-4 text-gray-500">
                           {item.last_error ? <span className="text-rose-600 font-medium" title={item.last_error}>failed</span> : timeAgo(item.last_checked_at) || "—"}
@@ -831,11 +847,11 @@ export default function ClinicVisibilityAudit() {
                       </tr>
                       {open && (
                         <tr className="bg-gray-50/60">
-                          <td colSpan="7" className="px-6 py-4">
+                          <td colSpan="8" className="px-6 py-4">
                             {!scanned ? (
                               <p className="text-xs text-gray-500">Not scanned yet. Click <b>Scan now</b> to fetch the live Google Maps and organic position.</p>
                             ) : (
-                              <div className="grid md:grid-cols-3 gap-4 text-xs">
+                              <div className="grid md:grid-cols-4 gap-4 text-xs">
                                 <div>
                                   <p className="font-bold text-gray-700 mb-1.5">Top Google Maps results (from {item.branch})</p>
                                   {(item.top_results || []).length === 0 && <p className="text-gray-400">No data</p>}
@@ -868,6 +884,39 @@ export default function ClinicVisibilityAudit() {
                                   {item.localPackRank && (
                                     <p className="mt-1 text-pink-600 font-semibold">Also in Local Pack at #${item.localPackRank}</p>
                                   )}
+                                </div>
+                                <div>
+                                  <p className="font-bold text-gray-700 mb-1.5 flex items-center gap-1.5"><Bot className="w-3.5 h-3.5 text-purple-600" /> AI Overview</p>
+                                  {(ai = item.ai_overview_data) ? (
+                                    ai.present ? (
+                                      <>
+                                        {ai.rank && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">Ranked #${ai.rank}</span></p>}
+                                        {!ai.rank && ai.mentioned && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">Mentioned</span></p>}
+                                        {!ai.rank && !ai.mentioned && <p className="mb-1.5 inline-flex items-center gap-1.5"><span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-gray-100 text-gray-700 border border-gray-300">Not mentioned</span></p>}
+                                        {ai.snippet && <p className="text-gray-600 mb-2 line-clamp-3">{ai.snippet}</p>}
+                                        {ai.items.length > 0 && (
+                                          <div className="space-y-1 max-h-40 overflow-y-auto">
+                                            <p className="text-[10px] font-semibold text-gray-500 mb-1">Clinics listed:</p>
+                                            {ai.items.map((entry, idx) => (
+                                              <div key={idx} className={`flex items-center gap-2 py-1 px-2 rounded text-[10px] ${entry.title && mentionRe.test(entry.title) ? "bg-emerald-50 border border-emerald-200 font-bold text-emerald-800" : "text-gray-600"}`}>
+                                                <span className="w-4 text-gray-400">#{idx + 1}</span>
+                                                <span className="flex-1 truncate">{entry.title || entry.snippet || 'Unnamed'}</span>
+                                                {entry.link && <a href={entry.link} target="_blank" rel="noopener noreferrer" className="text-[9px] text-purple-600 hover:underline" title={entry.link}><ExternalLink className="w-3 h-3" /></a>}
+                                              </div>
+                                            ))}
+                                          </div>
+                                        )}
+                                        {ai.references.length > 0 && (
+                                          <div className="mt-2 space-y-1">
+                                            <p className="text-[10px] font-semibold text-gray-500 mb-1">Sources:</p>
+                                            {ai.references.slice(0, 5).map((ref, idx) => (
+                                              <a key={idx} href={ref} target="_blank" rel="noopener noreferrer" className="text-[10px] text-purple-600 hover:underline truncate block" title={ref}>{ref}</a>
+                                            ))}
+                                          </div>
+                                        )}
+                                      </>
+                                    ) : <p className="text-gray-500">No AI Overview shown for this search.</p>
+                                  ) : <p className="text-gray-500">Run a live scan to fetch AI Overview data.</p>}
                                 </div>
                               </div>
                             )}
