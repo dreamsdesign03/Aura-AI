@@ -2390,40 +2390,62 @@ router.post('/reviews/sync-google', requireUser, async (req, res) => {
   let imported = 0;
   for (const location of GOOGLE_REVIEW_BRANCHES) {
     try {
-      const params = new URLSearchParams({
-        engine: 'google_maps_reviews',
-        place_id: location.placeId,
-        sort_by: 'newestFirst',
-        hl: 'en',
-        api_key: apiKey,
-      });
-      const response = await fetch(`https://serpapi.com/search.json?${params.toString()}`);
-      const payload = await response.json();
-      if (!response.ok || payload.error) throw new Error(payload.error || `SerpApi returned HTTP ${response.status}`);
+      let dataId = null;
+      const requestReviews = async (params) => {
+        const response = await fetch(`https://serpapi.com/search.json?${new URLSearchParams(params).toString()}`);
+        const payload = await response.json();
+        if (!response.ok || payload.error || payload.search_metadata?.status === 'Error') {
+          throw new Error(payload.error || `SerpApi returned HTTP ${response.status}`);
+        }
+        return payload;
+      };
 
-      const rows = Array.isArray(payload.reviews) ? payload.reviews : [];
+      let firstPage;
+      try {
+        firstPage = await requestReviews({ engine: 'google_maps_reviews', place_id: location.placeId, sort_by: 'newestFirst', hl: 'en', api_key: apiKey });
+      } catch (placeIdError) {
+        // Resolve place_id to Google's data_id first; this also works around intermittent place_id review-engine failures.
+        const place = await requestReviews({ engine: 'google_maps', type: 'place', place_id: location.placeId, hl: 'en', api_key: apiKey });
+        dataId = place.place_results?.data_id;
+        if (!dataId) throw placeIdError;
+        firstPage = await requestReviews({ engine: 'google_maps_reviews', data_id: dataId, sort_by: 'newestFirst', hl: 'en', api_key: apiKey });
+      }
+
+      let payload = firstPage;
+      let pages = 0;
       let branchImported = 0;
-      for (const item of rows) {
-        const author = item.user?.name || item.author || 'Google reviewer';
-        const body = item.snippet || item.text || '';
-        if (!body.trim()) continue;
-        const externalId = String(item.review_id || item.id || item.link || `${location.placeId}:${author}:${item.date || ''}:${body.slice(0, 80)}`);
-        const isoDate = item.iso_date && !Number.isNaN(Date.parse(item.iso_date)) ? new Date(item.iso_date).toISOString() : null;
-        const rating = Math.max(1, Math.min(5, Number(item.rating) || 5));
-        const sourceUrl = item.link || payload.place_info?.reviews_link || null;
-        await db.query(
-          `INSERT INTO clinic_reviews (user_id, author, rating, channel, body, status, branch, source_url, external_id, created_at)
-           VALUES ($1,$2,$3,'Google',$4,'new',$5,$6,$7,COALESCE($8::timestamptz,NOW()))
-           ON CONFLICT (user_id, external_id) WHERE external_id IS NOT NULL
-           DO UPDATE SET author=EXCLUDED.author, rating=EXCLUDED.rating, body=EXCLUDED.body,
-             branch=EXCLUDED.branch, source_url=EXCLUDED.source_url
-          `,
-          [req.user.id, author, rating, body.trim(), location.branch, sourceUrl, externalId, isoDate]
-        );
-        branchImported++;
+      let hasMore = false;
+      while (payload && pages < 5) {
+        pages++;
+        const rows = Array.isArray(payload.reviews) ? payload.reviews : [];
+        for (const item of rows) {
+          const author = item.user?.name || item.user?.username || item.author || 'Google reviewer';
+          const body = item.snippet || item.translated_snippet || item.text || '';
+          if (!String(body).trim()) continue;
+          const externalId = String(item.review_id || item.id || item.link || `${location.placeId}:${author}:${item.iso_date || item.date || ''}:${String(body).slice(0, 80)}`);
+          const isoDate = item.iso_date && !Number.isNaN(Date.parse(item.iso_date)) ? new Date(item.iso_date).toISOString() : null;
+          const rating = Math.max(1, Math.min(5, Number(item.rating) || 5));
+          const sourceUrl = item.link || payload.place_info?.reviews_link || null;
+          await db.query(
+            `INSERT INTO clinic_reviews (user_id, author, rating, channel, body, status, branch, source_url, external_id, created_at)
+             VALUES ($1,$2,$3,'Google',$4,'new',$5,$6,$7,COALESCE($8::timestamptz,NOW()))
+             ON CONFLICT (user_id, external_id) WHERE external_id IS NOT NULL
+             DO UPDATE SET author=EXCLUDED.author, rating=EXCLUDED.rating, body=EXCLUDED.body,
+               branch=EXCLUDED.branch, source_url=EXCLUDED.source_url`,
+            [req.user.id, author, rating, String(body).trim(), location.branch, sourceUrl, externalId, isoDate]
+          );
+          branchImported++;
+        }
+        const nextToken = payload.serpapi_pagination?.next_page_token;
+        if (!nextToken) { hasMore = false; break; }
+        if (pages === 5) { hasMore = true; break; }
+        const pagingParams = { engine: 'google_maps_reviews', sort_by: 'newestFirst', hl: 'en', api_key: apiKey, next_page_token: nextToken };
+        if (dataId) pagingParams.data_id = dataId;
+        else pagingParams.place_id = location.placeId;
+        payload = await requestReviews(pagingParams);
       }
       imported += branchImported;
-      results.push({ branch: location.branch, fetched: rows.length, saved: branchImported, totalReviews: payload.place_info?.reviews || null, rating: payload.place_info?.rating || null });
+      results.push({ branch: location.branch, pages, fetchedAndSaved: branchImported, hasMore, totalReviews: firstPage.place_info?.reviews || null, rating: firstPage.place_info?.rating || null });
     } catch (error) {
       results.push({ branch: location.branch, error: error.message });
     }
