@@ -434,41 +434,10 @@ async function postJson(url, headers, body, timeoutMs = 20000) {
   } finally { clearTimeout(t); }
 }
 
-async function getJson(url, timeoutMs = 20000) {
-  const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, { method: 'GET', signal: ctrl.signal });
-    const raw = await response.text();
-    let json = {};
-    try { json = JSON.parse(raw); } catch { }
-    if (!response.ok || json.error) {
-      const err = new Error(json.error || `HTTP ${response.status}`);
-      err.status = response.status;
-      if (response.status === 429) err.code = 'RATE_LIMITED';
-      throw err;
-    }
-    return json;
-  } finally { clearTimeout(t); }
-}
 
 const serperHeaders = () => ({ 'X-API-KEY': process.env.SERPER_API_KEY });
 function serperConfigured() { return !!process.env.SERPER_API_KEY; }
-function googleAiOverviewConfigured() { return !!process.env.SERPAPI_API_KEY; }
-
-async function fetchGoogleAiOverview(keyword, location) {
-  const key = process.env.SERPAPI_API_KEY;
-  if (!key) return null;
-  const params = new URLSearchParams({ engine: 'google', q: keyword, api_key: key, location, gl: 'in', hl: 'en', device: 'desktop' });
-  const result = await getJson(`https://serpapi.com/search.json?${params.toString()}`, 25000);
-  let overview = result.ai_overview || result.aiOverview || null;
-  if (overview?.page_token && !overview.text && !overview.text_blocks && !overview.textBlocks) {
-    const followup = new URLSearchParams({ engine: 'google_ai_overview', page_token: overview.page_token, api_key: key });
-    const expanded = await getJson(`https://serpapi.com/search.json?${followup.toString()}`, 25000);
-    overview = expanded.ai_overview || expanded.aiOverview || overview;
-  }
-  return overview;
-}
+function googleAiOverviewConfigured() { return serperConfigured(); }
 
 // Real Google check for one keyword: Maps (from branch area) + organic (city-level).
 async function checkGoogleRank(keyword, branchName) {
@@ -483,16 +452,13 @@ async function checkGoogleRank(keyword, branchName) {
     e.code = 'INVALID_BRANCH';
     throw e;
   }
-  const [maps, search, aiOverview] = await Promise.all([
+  const [maps, search] = await Promise.all([
     postJson('https://google.serper.dev/maps', serperHeaders(), { q: keyword, ll: branch.ll, gl: 'in', hl: 'en' }),
     postJson('https://google.serper.dev/search', serperHeaders(), { q: keyword, gl: 'in', hl: 'en', location: branch.location, num: SERP_DEPTH }),
-    googleAiOverviewConfigured() ? fetchGoogleAiOverview(keyword, branch.location).catch((error) => {
-      console.warn('[Visibility Audit] Google AI Overview provider failed:', error.message);
-      return null;
-    }) : Promise.resolve(null),
   ]);
   const m = parseMapsResponse(maps, branch);
-  const s = parseSearchResponse({ ...search, ...(aiOverview ? { ai_overview: aiOverview } : {}) }, branch);
+  // Serper's Google Search response includes aiOverview/ai_overview when Google returns an AI Overview.
+  const s = parseSearchResponse(search, branch);
   return { maps: m, organic: s, depth: SERP_DEPTH };
 }
 
