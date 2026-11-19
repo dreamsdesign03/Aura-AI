@@ -289,6 +289,25 @@ function ensureSchema() {
     ALTER TABLE clinic_reviews ADD COLUMN IF NOT EXISTS external_id TEXT;
     CREATE UNIQUE INDEX IF NOT EXISTS clinic_reviews_external_id_idx ON clinic_reviews (user_id, external_id) WHERE external_id IS NOT NULL;
 
+    -- Durable per-user/per-branch cursor so Google review backfills can resume
+    -- across short Vercel serverless requests without losing pagination progress.
+    CREATE TABLE IF NOT EXISTS clinic_review_sync_state (
+      id SERIAL PRIMARY KEY,
+      user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      branch TEXT NOT NULL,
+      place_id TEXT NOT NULL,
+      data_id TEXT,
+      next_page_token TEXT,
+      completed BOOLEAN DEFAULT FALSE,
+      pages_fetched INT DEFAULT 0,
+      reviews_fetched INT DEFAULT 0,
+      total_reviews INT,
+      rating NUMERIC,
+      last_error TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE (user_id, branch)
+    );
+
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS provider TEXT DEFAULT 'plivo';
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS direction TEXT DEFAULT 'outbound';
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS from_phone TEXT;
@@ -2386,44 +2405,101 @@ router.post('/reviews/sync-google', requireUser, async (req, res) => {
   const apiKey = process.env.SERPAPI_API_KEY;
   if (!apiKey) return res.status(503).json({ error: 'SERPAPI_API_KEY is not configured on the server.' });
 
-  const results = [];
-  let imported = 0;
-  for (const location of GOOGLE_REVIEW_BRANCHES) {
-    try {
-      let dataId = null;
-      const requestReviews = async (params) => {
-        const response = await fetch(`https://serpapi.com/search.json?${new URLSearchParams(params).toString()}`);
-        const payload = await response.json();
-        if (!response.ok || payload.error || payload.search_metadata?.status === 'Error') {
-          throw new Error(payload.error || `SerpApi returned HTTP ${response.status}`);
-        }
-        return payload;
-      };
+  const uid = req.user.id;
+  const restart = req.body?.restart === true;
+  const PAGE_SIZE = 1; // One page per branch per request keeps Vercel execution bounded.
+  try {
+    if (restart) {
+      await db.query('DELETE FROM clinic_review_sync_state WHERE user_id = $1', [uid]);
+    }
 
-      let firstPage;
-      try {
-        firstPage = await requestReviews({ engine: 'google_maps_reviews', place_id: location.placeId, sort_by: 'newestFirst', hl: 'en', api_key: apiKey });
-      } catch (placeIdError) {
-        // Resolve place_id to Google's data_id first; this also works around intermittent place_id review-engine failures.
-        const place = await requestReviews({ engine: 'google_maps', type: 'place', place_id: location.placeId, hl: 'en', api_key: apiKey });
-        dataId = place.place_results?.data_id;
-        if (!dataId) throw placeIdError;
-        firstPage = await requestReviews({ engine: 'google_maps_reviews', data_id: dataId, sort_by: 'newestFirst', hl: 'en', api_key: apiKey });
+    for (const location of GOOGLE_REVIEW_BRANCHES) {
+      await db.query(
+        `INSERT INTO clinic_review_sync_state (user_id, branch, place_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, branch) DO NOTHING`,
+        [uid, location.branch, location.placeId]
+      );
+    }
+
+    const results = [];
+    let imported = 0;
+    for (const location of GOOGLE_REVIEW_BRANCHES) {
+      const stateResult = await db.query(
+        'SELECT * FROM clinic_review_sync_state WHERE user_id = $1 AND branch = $2',
+        [uid, location.branch]
+      );
+      const state = stateResult.rows[0];
+      if (!state || state.completed) {
+        results.push({
+          branch: location.branch,
+          pages: state?.pages_fetched || 0,
+          fetchedAndSaved: 0,
+          totalFetched: state?.reviews_fetched || 0,
+          hasMore: false,
+          completed: true,
+          totalReviews: state?.total_reviews ?? null,
+          rating: state?.rating ?? null,
+        });
+        continue;
       }
 
-      let payload = firstPage;
-      let pages = 0;
-      let branchImported = 0;
-      let hasMore = false;
-      while (payload && pages < 5) {
-        pages++;
+      try {
+        const requestReviews = async (params) => {
+          const response = await fetch(`https://serpapi.com/search.json?${new URLSearchParams(params).toString()}`);
+          const payload = await response.json();
+          if (!response.ok || payload.error || payload.search_metadata?.status === 'Error') {
+            throw new Error(payload.error || `SerpApi returned HTTP ${response.status}`);
+          }
+          return payload;
+        };
+
+        let dataId = state.data_id || null;
+        const params = {
+          engine: 'google_maps_reviews',
+          sort_by: 'newestFirst',
+          hl: 'en',
+          api_key: apiKey,
+        };
+        if (state.next_page_token) params.next_page_token = state.next_page_token;
+        if (dataId) params.data_id = dataId;
+        else params.place_id = location.placeId;
+
+        let payload;
+        try {
+          payload = await requestReviews(params);
+        } catch (firstError) {
+          // Resolve place_id to data_id once if the review engine rejects the place id.
+          if (state.next_page_token || dataId) throw firstError;
+          const place = await requestReviews({
+            engine: 'google_maps',
+            type: 'place',
+            place_id: location.placeId,
+            hl: 'en',
+            api_key: apiKey,
+          });
+          dataId = place.place_results?.data_id;
+          if (!dataId) throw firstError;
+          payload = await requestReviews({
+            engine: 'google_maps_reviews',
+            data_id: dataId,
+            sort_by: 'newestFirst',
+            hl: 'en',
+            api_key: apiKey,
+          });
+        }
+
+        let pageImported = 0;
         const rows = Array.isArray(payload.reviews) ? payload.reviews : [];
         for (const item of rows) {
           const author = item.user?.name || item.user?.username || item.author || 'Google reviewer';
-          const body = item.snippet || item.translated_snippet || item.text || '';
+          const body = item.snippet || item.translated_snippet || item.extracted_snippet?.original || item.extracted_snippet?.translated || item.text || '';
           if (!String(body).trim()) continue;
+
           const externalId = String(item.review_id || item.id || item.link || `${location.placeId}:${author}:${item.iso_date || item.date || ''}:${String(body).slice(0, 80)}`);
-          const isoDate = item.iso_date && !Number.isNaN(Date.parse(item.iso_date)) ? new Date(item.iso_date).toISOString() : null;
+          const isoDate = item.iso_date && !Number.isNaN(Date.parse(item.iso_date))
+            ? new Date(item.iso_date).toISOString()
+            : null;
           const rating = Math.max(1, Math.min(5, Number(item.rating) || 5));
           const sourceUrl = item.link || payload.place_info?.reviews_link || null;
           await db.query(
@@ -2432,31 +2508,96 @@ router.post('/reviews/sync-google', requireUser, async (req, res) => {
              ON CONFLICT (user_id, external_id) WHERE external_id IS NOT NULL
              DO UPDATE SET author=EXCLUDED.author, rating=EXCLUDED.rating, body=EXCLUDED.body,
                branch=EXCLUDED.branch, source_url=EXCLUDED.source_url`,
-            [req.user.id, author, rating, String(body).trim(), location.branch, sourceUrl, externalId, isoDate]
+            [uid, author, rating, String(body).trim(), location.branch, sourceUrl, externalId, isoDate]
           );
-          branchImported++;
+          pageImported++;
         }
-        const nextToken = payload.serpapi_pagination?.next_page_token;
-        if (!nextToken) { hasMore = false; break; }
-        if (pages === 5) { hasMore = true; break; }
-        const pagingParams = { engine: 'google_maps_reviews', sort_by: 'newestFirst', hl: 'en', api_key: apiKey, next_page_token: nextToken };
-        if (dataId) pagingParams.data_id = dataId;
-        else pagingParams.place_id = location.placeId;
-        payload = await requestReviews(pagingParams);
+
+        const nextToken = payload.serpapi_pagination?.next_page_token || null;
+        const completed = !nextToken;
+        const totalFetched = Number(state.reviews_fetched || 0) + pageImported;
+        const pagesFetched = Number(state.pages_fetched || 0) + 1;
+        const totalReviews = Number.isFinite(Number(payload.place_info?.reviews))
+          ? Number(payload.place_info.reviews)
+          : state.total_reviews;
+        const placeRating = Number.isFinite(Number(payload.place_info?.rating))
+          ? Number(payload.place_info.rating)
+          : state.rating;
+
+        await db.query(
+          `UPDATE clinic_review_sync_state
+              SET data_id = $1,
+                  next_page_token = $2,
+                  completed = $3,
+                  pages_fetched = $4,
+                  reviews_fetched = $5,
+                  total_reviews = $6,
+                  rating = $7,
+                  last_error = NULL,
+                  updated_at = NOW()
+            WHERE user_id = $8 AND branch = $9`,
+          [dataId, nextToken, completed, pagesFetched, totalFetched, totalReviews ?? null, placeRating ?? null, uid, location.branch]
+        );
+
+        imported += pageImported;
+        results.push({
+          branch: location.branch,
+          pages: pagesFetched,
+          fetchedAndSaved: pageImported,
+          totalFetched,
+          hasMore: !completed,
+          completed,
+          totalReviews: totalReviews ?? null,
+          rating: placeRating ?? null,
+        });
+      } catch (error) {
+        await db.query(
+          'UPDATE clinic_review_sync_state SET last_error = $1, updated_at = NOW() WHERE user_id = $2 AND branch = $3',
+          [String(error.message || error).slice(0, 500), uid, location.branch]
+        );
+        results.push({
+          branch: location.branch,
+          pages: state.pages_fetched || 0,
+          fetchedAndSaved: 0,
+          totalFetched: state.reviews_fetched || 0,
+          hasMore: !state.completed,
+          completed: Boolean(state.completed),
+          error: error.message || 'Google review sync failed',
+        });
       }
-      imported += branchImported;
-      results.push({ branch: location.branch, pages, fetchedAndSaved: branchImported, hasMore, totalReviews: firstPage.place_info?.reviews || null, rating: firstPage.place_info?.rating || null });
-    } catch (error) {
-      results.push({ branch: location.branch, error: error.message });
     }
+
+    const progress = await db.query(
+      `SELECT COUNT(*) FILTER (WHERE completed)::int AS completed_branches,
+              COUNT(*)::int AS total_branches,
+              COALESCE(SUM(reviews_fetched), 0)::int AS reviews_fetched,
+              COALESCE(SUM(pages_fetched), 0)::int AS pages_fetched
+         FROM clinic_review_sync_state WHERE user_id = $1`,
+      [uid]
+    );
+    const summary = progress.rows[0] || {};
+    const hasMore = Number(summary.completed_branches || 0) < GOOGLE_REVIEW_BRANCHES.length;
+    res.json({
+      imported,
+      branches: results,
+      progress: {
+        completedBranches: Number(summary.completed_branches || 0),
+        totalBranches: GOOGLE_REVIEW_BRANCHES.length,
+        reviewsFetched: Number(summary.reviews_fetched || 0),
+        pagesFetched: Number(summary.pages_fetched || 0),
+        hasMore,
+      },
+      warning: results.some((item) => item.error) ? 'Some branches could not be synced. Retry to resume failed branches.' : null,
+    });
+  } catch (error) {
+    console.error('[clinic-os] Google review sync error:', error);
+    res.status(500).json({ error: error.message || 'Google review sync failed' });
   }
-  const failed = results.filter((item) => item.error);
-  res.json({ imported, branches: results, warning: failed.length ? 'Some branches could not be synced.' : null });
 });
 
 router.get('/reviews', requireUser, async (req, res) => {
   try {
-    const r = await db.query('SELECT * FROM clinic_reviews WHERE user_id = $1 ORDER BY created_at DESC LIMIT 500', [req.user.id]);
+    const r = await db.query('SELECT * FROM clinic_reviews WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5000', [req.user.id]);
     res.json({ reviews: r.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
