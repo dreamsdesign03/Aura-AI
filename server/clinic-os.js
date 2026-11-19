@@ -2497,8 +2497,13 @@ router.post('/reviews/sync-google', requireUser, async (req, res) => {
           if (!String(body).trim()) continue;
 
           const externalId = String(item.review_id || item.id || item.link || `${location.placeId}:${author}:${item.iso_date || item.date || ''}:${String(body).slice(0, 80)}`);
-          const isoDate = item.iso_date && !Number.isNaN(Date.parse(item.iso_date))
-            ? new Date(item.iso_date).toISOString()
+          // Prefer SerpApi's absolute ISO timestamp; fall back to its date field
+          // when that field is an absolute date (relative labels like "2 days ago"
+          // are intentionally not parsed as real timestamps).
+          const reviewDateValue = item.iso_date || item.date || null;
+          const parsedReviewDate = reviewDateValue ? new Date(reviewDateValue) : null;
+          const isoDate = parsedReviewDate && !Number.isNaN(parsedReviewDate.getTime())
+            ? parsedReviewDate.toISOString()
             : null;
           const rating = Math.max(1, Math.min(5, Number(item.rating) || 5));
           const sourceUrl = item.link || payload.place_info?.reviews_link || null;
