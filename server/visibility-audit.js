@@ -24,7 +24,11 @@ const BRANCHES = [
   { name: 'Surat', city: 'Surat', location: 'Surat, Gujarat, India', ll: '@21.1702,72.8311,13z', hints: ['surat'] },
   { name: 'Ranchi', city: 'Ranchi', location: 'Ranchi, Jharkhand, India', ll: '@23.3441,85.3096,13z', hints: ['ranchi'] },
 ];
-const branchByName = (n) => BRANCHES.find((b) => b.name.toLowerCase() === String(n || '').toLowerCase()) || BRANCHES[0];
+
+function branchByName(n) {
+  const b = BRANCHES.find((b) => b.name.toLowerCase() === String(n || '').toLowerCase());
+  return b || null; // null = unknown branch
+}
 
 // Default patient questions asked to AI engines (editable in DB table).
 const DEFAULT_AI_QUESTIONS = [
@@ -270,10 +274,11 @@ async function _ensureAuditSchema() {
   const kwCount = await db.query('SELECT COUNT(*)::int AS n FROM visibility_audit_keywords');
   if (kwCount.rows[0].n === 0) {
     for (const item of SEED_KEYWORDS) {
+      const b = branchByName(item.branch);
       await db.query(
         `INSERT INTO visibility_audit_keywords (keyword, category, target_city, branch)
          VALUES ($1, $2, $3, $4) ON CONFLICT (keyword) DO NOTHING`,
-        [item.keyword, item.category, branchByName(item.branch).city, item.branch]
+        [item.keyword, item.category, b ? b.city : 'Vadodara', item.branch]
       );
     }
   }
@@ -291,11 +296,17 @@ async function _ensureAuditSchema() {
 }
 
 // ── Aura matching ────────────────────────────────────────────────────────────
-const AURA_NAME_RE = /aura\s+(laser|skin|cosmetic|clinic)|aditya\s*shah|skinnonest/i;
+// Exact brand names only (no fuzzy "aura" substring that matches competitors)
+const AURA_NAME_RE = /\b(aura\s+laser\s+clinic|aura\s+skin\s+clinic|aura\s+cosmetic\s+clinic|dr\.?\s*aditya\s*shah|skinnonest)\b/i;
+
 function isAuraPlace(p) {
   const site = String(p.website || p.link || '').toLowerCase();
-  return site.includes(TARGET_DOMAIN) || AURA_NAME_RE.test(String(p.title || ''));
+  // If a website/link is present, require exact TARGET_DOMAIN match
+  if (site) return site.includes(TARGET_DOMAIN);
+  // Only fall back to name matching when NO website is present
+  return AURA_NAME_RE.test(String(p.title || ''));
 }
+
 function addressHasHint(address, branch) {
   const a = String(address || '').toLowerCase();
   return (branch.hints || []).some((h) => a.includes(h));
@@ -308,10 +319,11 @@ function parseMapsResponse(json, branch) {
     position: p.position || i + 1, title: p.title, rating: p.rating ?? null,
     reviews: p.ratingCount ?? p.reviews ?? null, aura: isAuraPlace(p),
   }));
+  // Only match if BOTH: Aura brand AND branch address hint match
   let idx = places.findIndex((p) => isAuraPlace(p) && addressHasHint(p.address, branch));
   let exact = idx >= 0;
-  if (idx < 0) idx = places.findIndex((p) => isAuraPlace(p));
-  if (idx < 0) return { rank: null, top, checked: places.length, match: null };
+  // NO cross-branch fallback — if requested branch not found, return null
+  if (idx < 0) return { rank: null, top, checked: places.length, match: null, exact: false };
   const p = places[idx];
   return {
     rank: p.position || idx + 1, top, checked: places.length, exact,
@@ -319,11 +331,12 @@ function parseMapsResponse(json, branch) {
   };
 }
 
-function parseSearchResponse(json) {
+function parseSearchResponse(json, branch) {
   const organic = Array.isArray(json?.organic) ? json.organic : [];
   const idx = organic.findIndex((o) => isAuraPlace(o));
   const hasLocalPack = Array.isArray(json?.places) && json.places.length > 0;
-  const packIdx = hasLocalPack ? json.places.findIndex((p) => isAuraPlace(p)) : -1;
+  // Local Pack match must also respect branch address hints
+  const packIdx = hasLocalPack ? json.places.findIndex((p) => isAuraPlace(p) && addressHasHint(p.address, branch)) : -1;
   return {
     rank: idx >= 0 ? organic[idx].position || idx + 1 : null,
     url: idx >= 0 ? organic[idx].link : null,
@@ -343,7 +356,13 @@ async function postJson(url, headers, body, timeoutMs = 20000) {
     const text = await r.text();
     let json = null;
     try { json = JSON.parse(text); } catch { }
-    if (!r.ok) throw new Error(`${r.status} ${(json && (json.message || json.error?.message || json.error)) || text.slice(0, 160)}`);
+    if (!r.ok) {
+      const err = new Error(`${r.status} ${(json && (json.message || json.error?.message || json.error)) || text.slice(0, 160)}`);
+      err.status = r.status;
+      // Preserve upstream 429 for rate limiting / quota
+      if (r.status === 429) err.code = 'RATE_LIMITED';
+      throw err;
+    }
     return json || {};
   } finally { clearTimeout(t); }
 }
@@ -359,12 +378,17 @@ async function checkGoogleRank(keyword, branchName) {
     throw e;
   }
   const branch = branchByName(branchName);
+  if (!branch) {
+    const e = new Error(`Unknown branch: ${branchName}`);
+    e.code = 'INVALID_BRANCH';
+    throw e;
+  }
   const [maps, search] = await Promise.all([
     postJson('https://google.serper.dev/maps', serperHeaders(), { q: keyword, ll: branch.ll, gl: 'in', hl: 'en' }),
     postJson('https://google.serper.dev/search', serperHeaders(), { q: keyword, gl: 'in', hl: 'en', location: branch.location, num: SERP_DEPTH }),
   ]);
   const m = parseMapsResponse(maps, branch);
-  const s = parseSearchResponse(search);
+  const s = parseSearchResponse(search, branch);
   return { maps: m, organic: s, depth: SERP_DEPTH };
 }
 
@@ -372,7 +396,10 @@ async function checkGoogleRank(keyword, branchName) {
 async function saveKeywordResult(row, res) {
   const mapsRank = res.maps.rank;
   const orgRank = res.organic.rank;
-  const best = mapsRank ?? orgRank ?? null;
+  const localPackRank = res.organic.localPackRank;
+  // Best rank = minimum positive rank across all sources
+  const ranks = [mapsRank, orgRank, localPackRank].filter((r) => r && r > 0);
+  const best = ranks.length ? Math.min(...ranks) : null;
   const prevBest = row.current_rank ?? null;
   const change = prevBest && best ? prevBest - best : 0;
   const features = [];
@@ -381,7 +408,7 @@ async function saveKeywordResult(row, res) {
   if (orgRank) features.push('organic');
   if (res.organic.aiOverview) features.push('ai_overview');
   let hist = Array.isArray(row.history) ? row.history : [];
-  hist.push({ date: new Date().toISOString().split('T')[0], rank: best, maps: mapsRank, organic: orgRank });
+  hist.push({ date: new Date().toISOString().split('T')[0], rank: best, maps: mapsRank, organic: orgRank, localPack: localPackRank });
   hist = hist.slice(-12);
   const r = await db.query(
     `UPDATE visibility_audit_keywords SET
@@ -452,8 +479,11 @@ async function askEngine(engine, question) {
       text = j.choices?.[0]?.message?.content || '';
     } catch (err) {
       if (err.message && (err.message.includes('insufficient_quota') || err.message.includes('credit_balance_exhausted'))) {
-        throw new Error('OpenAI credit limit reached. Please add billing credits at platform.openai.com.');
+        const e = new Error('OpenAI credit limit reached. Please add billing credits at platform.openai.com.');
+        e.code = 'INSUFFICIENT_CREDITS';
+        throw e;
       }
+      if (err.code === 'RATE_LIMITED') throw err;
       // Also attempt responses API if available
       try {
         const j = await postJson('https://api.openai.com/v1/responses', { Authorization: `Bearer ${key}` }, {
@@ -485,12 +515,22 @@ async function askEngine(engine, question) {
       }, 28000);
       text = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('\n');
       cites = (j.candidates?.[0]?.groundingMetadata?.groundingChunks || []).map((g) => g.web?.uri).filter(Boolean);
-    } catch {
+    } catch (err) {
+      if (err.code === 'RATE_LIMITED') throw err;
+      if (err.status === 429 || (err.message && err.message.includes('quota'))) {
+        const e = new Error('Gemini daily quota exceeded or rate limited.');
+        e.code = 'INSUFFICIENT_CREDITS';
+        throw e;
+      }
       // Fallback without search grounding if temporary spike
-      const j = await postJson(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { 'Content-Type': 'application/json' }, {
-        contents: [{ parts: [{ text: question }] }]
-      }, 28000);
-      text = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('\n');
+      try {
+        const j = await postJson(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { 'Content-Type': 'application/json' }, {
+          contents: [{ parts: [{ text: question }] }]
+        }, 28000);
+        text = (j.candidates?.[0]?.content?.parts || []).map((p) => p.text || '').join('\n');
+      } catch {
+        throw err;
+      }
     }
     return { text, citations: cites, answered: !!text };
   }
@@ -508,18 +548,18 @@ async function requireUser(req, res, next) {
   try {
     const match = /(?:^|;\s*)aura_user_email=([^;]+)/.exec(req.headers.cookie || '');
     let email = match ? decodeURIComponent(match[1]) : null;
-    if (!email && req.query?.email) email = String(req.query.email);
-    if (!email && req.body?.email) email = String(req.body.email);
-
-    if (email) {
-      const u = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email.trim()]);
-      if (u.rows.length) return next();
+    // Do NOT trust req.query.email or req.body.email — require real cookie session
+    if (!email) {
+      return res.status(401).json({ success: false, error: 'Unauthenticated', code: 'UNAUTHENTICATED' });
     }
-    const firstUser = await db.query('SELECT id FROM users ORDER BY id ASC LIMIT 1');
-    if (firstUser.rows.length) return next();
+    const u = await db.query('SELECT id FROM users WHERE LOWER(email) = LOWER($1) AND is_active = true', [email.trim()]);
+    if (!u.rows.length) {
+      return res.status(401).json({ success: false, error: 'User not found or inactive', code: 'USER_NOT_FOUND' });
+    }
+    req.userId = u.rows[0].id;
     next();
   } catch (e) {
-    next();
+    return res.status(500).json({ success: false, error: 'Auth error', code: 'AUTH_ERROR' });
   }
 }
 router.use(requireUser);
@@ -662,7 +702,8 @@ router.post('/check-keyword', async (req, res) => {
       res.json({ success: true, live: true, keyword: saved, checkedDepth: { maps: result.maps.checked, organic: result.organic.checked } });
     } catch (e) {
       await db.query('UPDATE visibility_audit_keywords SET last_error = $1 WHERE id = $2', [e.message.slice(0, 300), id]);
-      res.status(e.code === 'NOT_CONFIGURED' ? 503 : 502).json({ success: false, code: e.code || 'CHECK_FAILED', error: e.message });
+      const status = e.code === 'NOT_CONFIGURED' ? 503 : e.code === 'INVALID_BRANCH' ? 400 : e.code === 'RATE_LIMITED' ? 429 : 502;
+      res.status(status).json({ success: false, code: e.code || 'CHECK_FAILED', error: e.message });
     }
   } catch (err) {
     console.error('[API /check-keyword] Error:', err);
@@ -689,7 +730,8 @@ router.post('/ai/check', async (req, res) => {
       );
       res.json({ success: true, live: true, questionId: q.id, engine, answered: ans.answered, mentioned: a.mentioned, position: a.position, snippet: a.snippet, competitors: a.competitors });
     } catch (e) {
-      res.status(e.code === 'NOT_CONFIGURED' ? 503 : 502).json({ success: false, code: e.code || 'CHECK_FAILED', error: e.message });
+      const status = e.code === 'NOT_CONFIGURED' ? 503 : e.code === 'RATE_LIMITED' ? 429 : e.code === 'INSUFFICIENT_CREDITS' ? 429 : 502;
+      res.status(status).json({ success: false, code: e.code || 'CHECK_FAILED', error: e.message });
     }
   } catch (err) {
     console.error('[API /ai/check] Error:', err);
@@ -723,6 +765,7 @@ router.post('/add-keyword', async (req, res) => {
     const { keyword, category, branch } = req.body || {};
     if (!keyword || !keyword.trim()) return res.status(400).json({ success: false, error: 'Keyword is required' });
     const br = branchByName(branch);
+    if (!br) return res.status(400).json({ success: false, error: `Unknown branch: ${branch}` });
     const ins = await db.query(
       `INSERT INTO visibility_audit_keywords (keyword, category, target_city, branch)
        VALUES ($1,$2,$3,$4)
@@ -751,18 +794,17 @@ router.post('/toggle-fix', async (req, res) => {
     const { fixId } = req.body || {};
     if (!fixId) return res.status(400).json({ success: false, error: 'fixId required' });
     const s = (await db.query('SELECT id, open_fixes FROM visibility_audit_summary ORDER BY id DESC LIMIT 1')).rows[0];
-    let done = Array.isArray(s.open_fixes) ? s.open_fixes.filter((x) => typeof x === 'string') : [];
-    done = done.includes(fixId) ? done.filter((x) => x !== fixId) : [...done, fixId];
-    await db.query('UPDATE visibility_audit_summary SET open_fixes = $1 WHERE id = $2', [JSON.stringify(done), s.id]);
-    res.json({ success: true, done });
+    // Guard against missing/empty row
+    const done = Array.isArray(s?.open_fixes) ? s.open_fixes.filter((x) => typeof x === 'string') : [];
+    const updated = done.includes(fixId) ? done.filter((x) => x !== fixId) : [...done, fixId];
+    const rowId = s?.id;
+    if (!rowId) return res.status(500).json({ success: false, error: 'Summary row missing' });
+    await db.query('UPDATE visibility_audit_summary SET open_fixes = $1 WHERE id = $2', [JSON.stringify(updated), rowId]);
+    res.json({ success: true, done: updated });
   } catch (err) { res.status(500).json({ success: false, error: err.message }); }
 });
 
-module.exports = router;
+// Backward compatibility: server/app.js uses require('./visibility-audit').router
 router.router = router;
-router.ensureAuditSchema = ensureAuditSchema;
-router.parseMapsResponse = parseMapsResponse;
-router.parseSearchResponse = parseSearchResponse;
-router.analyseAnswer = analyseAnswer;
-router.buildSummary = buildSummary;
-router.BRANCHES = BRANCHES;
+
+module.exports = router;

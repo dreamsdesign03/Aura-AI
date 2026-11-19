@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import {
   Shield, Search, RefreshCw, Download, Plus, TrendingUp, TrendingDown, Minus,
   CheckCircle2, AlertTriangle, MapPin, ExternalLink, Globe, Sparkles, X, Check,
-  Loader2, ChevronDown, ChevronRight, Bot, Square,
+  Loader2, ChevronDown, ChevronRight, Bot, Square, PauseCircle, Clock,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -23,9 +23,16 @@ const CATEGORY_COLORS = {
   "IV Glutathione": "bg-sky-50 text-sky-700 border-sky-200",
 };
 
-// Removed perplexity from engine order and labels
+// Engine order for AI checks
 const ENGINE_ORDER = ["chatgpt", "gemini", "google_ai"];
 const ENGINE_SHORT = { chatgpt: "ChatGPT", gemini: "Gemini", google_ai: "AI Overview" };
+
+// Free-tier RPM limits (requests per minute)
+const ENGINE_RPM_LIMIT = {
+  chatgpt: 30,      // OpenAI free tier ~30 RPM
+  gemini: 5,        // Gemini 2.5 Flash free tier ~5 RPM
+  google_ai: 10,    // Serper AI Overview ~10 RPM
+};
 
 const api = async (path, method = "GET", body) => {
   // Strip leading/trailing slashes for root request so it cleanly hits /api/visibility-audit (Vercel rewrite compatible)
@@ -54,6 +61,7 @@ const api = async (path, method = "GET", body) => {
       console.error(`%c[VisibilityAudit API Error] ❌ ${method} ${fullUrl} -> ${errMsg}`, "color: #dc2626; font-weight: bold;", json);
       const e = new Error(errMsg);
       e.code = json.code;
+      e.status = res.status;
       throw e;
     }
 
@@ -102,6 +110,20 @@ function Movement({ k }) {
   return <span className="inline-flex items-center gap-0.5 text-gray-400 font-medium text-xs"><Minus className="w-3 h-3" /> No change</span>;
 }
 
+function AiEngineBanner({ engine, message, onDismiss }) {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs text-amber-900">
+      <AlertTriangle className="w-3.5 h-3.5 text-amber-600 mt-0.5 shrink-0" />
+      <div className="flex-1 min-w-0">
+        <span className="font-semibold">{ENGINE_SHORT[engine] || engine}:</span> {message}
+      </div>
+      <button onClick={onDismiss} className="p-1 rounded hover:bg-amber-100 text-amber-500 hover:text-amber-700 transition-colors flex-shrink-0">
+        <X className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
+}
+
 export default function ClinicVisibilityAudit() {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
@@ -118,6 +140,10 @@ export default function ClinicVisibilityAudit() {
   const [isAiScanning, setIsAiScanning] = useState(false);
   const [aiProgress, setAiProgress] = useState(null);
   const stopAiRef = useRef(false);
+  // Track engines that have hit quota/rate limits
+  const [disabledEngines, setDisabledEngines] = useState(new Set());
+  // Track per-engine banners
+  const [engineWarnings, setEngineWarnings] = useState({});
 
   // UI state
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -266,6 +292,7 @@ export default function ClinicVisibilityAudit() {
         console.error(`[VisibilityAudit] Scan error on "${item.keyword}":`, e);
         failed++; consecutive++;
         if (e.code === "NOT_CONFIGURED") { fatal = e.message; break; }
+        if (e.code === "RATE_LIMITED") { fatal = "Serper rate limit hit. Please wait before retrying."; break; }
         if (consecutive >= 3) { fatal = `3 checks failed in a row — ${e.message}`; break; }
       }
       if ((i + 1) % 5 === 0) loadData(true);
@@ -280,26 +307,29 @@ export default function ClinicVisibilityAudit() {
     });
   };
 
-  // ── AI visibility scan ─────────────────────────────────────────────────────
+  // ── AI visibility scan (sequential per engine, respects RPM limits) ─────────────────────────────────────
   const handleAiScan = async () => {
     if (isAiScanning) {
       console.log("%c[VisibilityAudit] ⏸️ User paused AI scan", "color: #f59e0b; font-weight: bold;");
       stopAiRef.current = true;
       return;
     }
-    const engines = ENGINE_ORDER.filter((e) => config.engines?.[e]?.configured);
-    if (!engines.length) {
-      console.warn("[VisibilityAudit] ⚠️ AI scan attempted but no engine configured.");
-      toast({ title: "No AI engine configured", description: "Add OPENAI_API_KEY / GEMINI_API_KEY (and SERPER_API_KEY for AI Overviews).", variant: "destructive" });
+    const availableEngines = ENGINE_ORDER.filter((e) => config.engines?.[e]?.configured && !disabledEngines.has(e));
+    if (!availableEngines.length) {
+      console.warn("[VisibilityAudit] ⚠️ AI scan attempted but no engine configured or all disabled.");
+      toast({ title: "No AI engine available", description: "All configured engines have hit quota limits. Check back later or add credits.", variant: "destructive" });
       return;
     }
     const tasks = [];
-    for (const q of data.aiQuestions) for (const e of engines) tasks.push({ q, e });
-    console.log(`%c[VisibilityAudit] 🤖 Starting AI scan for ${tasks.length} checks across [${engines.join(", ")}]...`, "color: #8b5cf6; font-weight: bold;");
+    for (const q of data.aiQuestions) for (const e of availableEngines) tasks.push({ q, e });
+    console.log(`%c[VisibilityAudit] 🤖 Starting AI scan for ${tasks.length} checks across [${availableEngines.join(", ")}]...`, "color: #8b5cf6; font-weight: bold;");
     stopAiRef.current = false;
     setIsAiScanning(true);
     setShowAiDetail(true);
     let idx = 0, done = 0, failed = 0;
+    let lastRequestTime = 0;
+
+    // Sequential worker - ONE at a time, with per-engine rate limiting
     const worker = async () => {
       while (!stopAiRef.current) {
         const i = idx++;
@@ -307,6 +337,18 @@ export default function ClinicVisibilityAudit() {
         const { q, e } = tasks[i];
         console.log(`[VisibilityAudit AI] Querying ${ENGINE_SHORT[e]} for: "${q.question}"`);
         setAiProgress({ current: Math.min(done + failed + 1, tasks.length), total: tasks.length, text: `${ENGINE_SHORT[e]} · ${q.question}` });
+
+        // Per-engine rate limiting
+        const rpm = ENGINE_RPM_LIMIT[e] || 10;
+        const minInterval = 60000 / rpm; // ms between requests
+        const now = Date.now();
+        const wait = Math.max(0, minInterval - (now - lastRequestTime));
+        if (wait > 0) {
+          console.log(`[VisibilityAudit AI] ⏳ Rate limiting ${ENGINE_SHORT[e]}: waiting ${wait}ms`);
+          await new Promise(r => setTimeout(r, wait));
+        }
+        lastRequestTime = Date.now();
+
         try {
           const r = await api("/ai/check", "POST", { engine: e, questionId: q.id });
           console.log(`[VisibilityAudit AI Result] ${ENGINE_SHORT[e]}:`, { answered: r.answered, mentioned: r.mentioned, competitors: r.competitors });
@@ -320,14 +362,29 @@ export default function ClinicVisibilityAudit() {
         } catch (err) {
           console.error(`[VisibilityAudit AI Error] ${ENGINE_SHORT[e]} on "${q.question}":`, err);
           failed++;
+          // If quota/credits exhausted, disable this engine for the rest of this scan
+          if (err.code === 'INSUFFICIENT_CREDITS' || err.code === 'RATE_LIMITED') {
+            console.warn(`[VisibilityAudit AI] 🚫 Disabling ${ENGINE_SHORT[e]} for this session: ${err.message}`);
+            setDisabledEngines(prev => new Set([...prev, e]));
+            setEngineWarnings(prev => ({
+              ...prev,
+              [e]: err.code === 'INSUFFICIENT_CREDITS'
+                ? `${ENGINE_SHORT[e]}: daily quota / credits exhausted. Add billing credits or wait for reset.`
+                : `${ENGINE_SHORT[e]}: rate limited. Please wait before retrying.`
+            }));
+            // Skip remaining tasks for this engine
+            while (idx < tasks.length && tasks[idx].e === e) idx++;
+          }
         }
       }
     };
-    await Promise.all([worker(), worker()]);
+
+    await worker();
     setIsAiScanning(false); setAiProgress(null);
     await loadData(true);
     console.log(`%c[VisibilityAudit] 🏁 AI scan completed. Answers checked: ${done}, Failed: ${failed}`, "color: #8b5cf6; font-weight: bold;");
-    toast({ title: stopAiRef.current ? "AI scan paused" : "AI scan complete", description: `${done} answers checked${failed ? ` · ${failed} failed` : ""}.` });
+    const msg = stopAiRef.current ? "AI scan paused" : failed ? `AI scan complete · ${done} checked, ${failed} failed` : `AI scan complete · ${done} answers checked`;
+    toast({ title: stopAiRef.current ? "AI scan paused" : "AI scan complete", description: msg, variant: failed && !stopAiRef.current ? "destructive" : undefined });
   };
 
   const handleSaveRank = async (id) => {
@@ -440,6 +497,15 @@ export default function ClinicVisibilityAudit() {
             <div className="text-xs text-amber-900">
               <b>Not connected yet:</b> {unconfigured.join(" · ")}. Rankings are never guessed — these stay “Not scanned” until the API key is added on the server.
             </div>
+          </div>
+        )}
+
+        {/* ── ENGINE QUOTA WARNINGS ───────────────────────────────────────── */}
+        {Object.keys(engineWarnings).length > 0 && (
+          <div className="space-y-2">
+            {Object.entries(engineWarnings).map(([engine, message]) => (
+              <AiEngineBanner key={engine} engine={engine} message={message} onDismiss={() => setEngineWarnings(prev => { const n = {...prev}; delete n[engine]; return n; })} />
+            ))}
           </div>
         )}
 
@@ -631,12 +697,20 @@ export default function ClinicVisibilityAudit() {
                         <td className="py-2.5 px-4 text-gray-500">{q.branch || "All"}</td>
                         {ENGINE_ORDER.map((e) => {
                           const r = q.results?.[e];
+                          const disabled = disabledEngines.has(e);
                           return (
                             <td key={e} className="py-2.5 px-3 text-center" title={r?.snippet || ""}>
-                              {!r ? <span className="text-gray-300">—</span>
-                                : !r.answered ? <span className="text-[10px] text-gray-400">no overview</span>
-                                  : r.mentioned ? <span className="font-bold text-emerald-600">✓{r.position ? ` #${r.position}` : ""}</span>
-                                    : <span className="font-bold text-rose-500">✗</span>}
+                              {disabled ? (
+                                <span className="text-[10px] text-amber-600 font-semibold" title="Quota/rate limit reached">⛔</span>
+                              ) : !r ? (
+                                <span className="text-gray-300">—</span>
+                              ) : !r.answered ? (
+                                <span className="text-[10px] text-gray-400">no overview</span>
+                              ) : r.mentioned ? (
+                                <span className="font-bold text-emerald-600">✓{r.position ? ` #${r.position}` : ""}</span>
+                              ) : (
+                                <span className="font-bold text-rose-500">✗</span>
+                              )}
                             </td>
                           );
                         })}
@@ -674,7 +748,7 @@ export default function ClinicVisibilityAudit() {
                   <option value="All">All positions</option>
                   <option value="top3">Top 3 (Map Pack)</option>
                   <option value="top10">Top 10</option>
-                  <option value="needsBoost">Needs boost (&gt;10 / not ranking)</option>
+                  <option value="needsBoost">Needs boost (&#62;10 / not ranking)</option>
                   <option value="unscanned">Not scanned yet</option>
                 </select>
                 <button onClick={handleScanAll} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${isScanning ? "bg-amber-50 text-amber-700 border-amber-300 animate-pulse" : "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"}`}>
@@ -785,9 +859,15 @@ export default function ClinicVisibilityAudit() {
                                 </div>
                                 <div>
                                   <p className="font-bold text-gray-700 mb-1.5">Organic result</p>
-                                  {item.ranked_url ? <a href={item.ranked_url} target="_blank" rel="noopener noreferrer" className="text-blue-700 underline break-all">{item.ranked_url}</a> : <p className="text-gray-500">Aura website not in Google top {config.serpDepth || 30}.</p>}
-                                  <p className="mt-2 text-gray-400">Features: {(item.serp_features || []).join(", ") || "—"}</p>
-                                  <p className="text-gray-400">Source: {item.source === "serper" ? "Live Google (Serper)" : "Manual entry"}</p>
+                                  {item.ranked_url ? (
+                                    <>
+                                      <p className="text-gray-800 truncate">{item.ranked_url}</p>
+                                      <p className="text-gray-500">Rank #{item.organic_rank}</p>
+                                    </>
+                                  ) : <p className="text-gray-500">No organic result in top {config.serpDepth || 30}.</p>}
+                                  {item.localPackRank && (
+                                    <p className="mt-1 text-pink-600 font-semibold">Also in Local Pack at #${item.localPackRank}</p>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -801,41 +881,40 @@ export default function ClinicVisibilityAudit() {
             </table>
           </div>
         </div>
-      </div>
 
-      {/* ── ADD KEYWORD MODAL ──────────────────────────────────────────────── */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl border border-gray-200 overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="font-bold text-gray-900 text-base">Add keyword for tracking</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600 rounded-lg p-1"><X className="w-5 h-5" /></button>
+        {/* ── ADD KEYWORD MODAL ──────────────────────────────────────────── */}
+        {showAddModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setShowAddModal(false)}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Add Keyword</h3>
+              <form onSubmit={handleAddKeyword} className="space-y-4">
+                <div>
+                  <label className="text-xs font-semibold text-gray-600 block mb-1">Keyword *</label>
+                  <input type="text" value={newKw.keyword} onChange={(e) => setNewKw({...newKw, keyword: e.target.value})} placeholder="e.g. best dermatologist in Vadodara" className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500" autoFocus />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1">Category</label>
+                    <select value={newKw.category} onChange={(e) => setNewKw({...newKw, category: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
+                      {Object.keys(CATEGORY_COLORS).map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-gray-600 block mb-1">Branch</label>
+                    <select value={newKw.branch} onChange={(e) => setNewKw({...newKw, branch: e.target.value})} className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500">
+                      {branchList.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-2">
+                  <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-sm font-semibold text-gray-700 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                  <button type="submit" className="px-4 py-2 text-sm font-semibold text-white bg-pink-600 rounded-lg hover:bg-pink-700">Add & Scan</button>
+                </div>
+              </form>
             </div>
-            <form onSubmit={handleAddKeyword} className="p-6 space-y-4">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Search keyword</label>
-                <input type="text" required autoFocus value={newKw.keyword} onChange={(e) => setNewKw({ ...newKw, keyword: e.target.value })} placeholder="e.g. Skin specialist in Vadodara near me" className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-500" />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Category</label>
-                <select value={newKw.category} onChange={(e) => setNewKw({ ...newKw, category: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white">
-                  {Object.keys(CATEGORY_COLORS).map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-gray-700 uppercase mb-1">Check from branch</label>
-                <select value={newKw.branch} onChange={(e) => setNewKw({ ...newKw, branch: e.target.value })} className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white">
-                  {branchList.map((b) => <option key={b} value={b}>{b}</option>)}
-                </select>
-              </div>
-              <div className="pt-2 flex justify-end gap-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="px-4 py-2 rounded-lg border border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50">Cancel</button>
-                <button type="submit" className="px-4 py-2 rounded-lg bg-pink-600 text-xs font-bold text-white hover:bg-pink-700 shadow-sm">Add &amp; check live</button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
