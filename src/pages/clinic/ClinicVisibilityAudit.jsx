@@ -639,7 +639,6 @@ export default function ClinicVisibilityAudit() {
 
           <div className="lg:col-span-4 space-y-4">
             <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
-              <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><CheckCircle2            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
               <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Fix list</h2>
               <p className="text-xs text-gray-500 mt-0.5 mb-3">Generated from your latest scan results</p>
               <div className="space-y-2 max-h-72 overflow-y-auto">
