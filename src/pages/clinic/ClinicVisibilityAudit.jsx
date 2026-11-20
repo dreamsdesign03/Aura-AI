@@ -722,7 +722,6 @@ export default function ClinicVisibilityAudit() {
                 <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
                   <Globe className="w-4 h-4 text-[#CB3273]" /> Local search rankings ({filteredKeywords.length} of {keywords.length})
                 </h2>
-                <p className="text-xs text-gray-500 mt-0.5">Google Maps position is checked from each branch's area · Organic is the normal Google result in that city. Click a row for the full result.</p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
