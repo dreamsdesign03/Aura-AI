@@ -2326,12 +2326,6 @@ export default function ClinicInbox() {
             })}
           </div>
 
-          <style>{`
-            .aura-inbox-channel-scroll::-webkit-scrollbar { height: 7px; }
-            .aura-inbox-channel-scroll::-webkit-scrollbar-track { background: #FCE7F3; border-radius: 99px; }
-            .aura-inbox-channel-scroll::-webkit-scrollbar-thumb { background: #CB3273; border-radius: 99px; }
-            .aura-inbox-channel-scroll::-webkit-scrollbar-thumb:hover { background: #A4285E; }
-          `}</style>
           {/* Search, Reply-state, Sort Controls & Live Sync */}
           <div
             style={{
