@@ -3070,83 +3070,46 @@ app.post('/api/ai-call', async (req, res) => {
 });
 
 // GET /api/ai-calls?leadId=...
+// Sarvam is the active voice provider. Read the centralized call log table
+// directly; do not query the legacy ElevenLabs API for Sarvam conversation IDs.
 app.get('/api/ai-calls', async (req, res) => {
   try {
-    const { leadId } = req.query;
-    const apiKey = process.env.ELEVENLABS_API_KEY;
-
-    let queryText = 'SELECT * FROM ai_calls';
-    const queryParams = [];
-
-    if (leadId) {
-      queryText += ' WHERE lead_id = $1';
-      queryParams.push(parseInt(leadId, 10));
+    const leadId = req.query.leadId != null ? Number.parseInt(req.query.leadId, 10) : null;
+    if (req.query.leadId != null && (!Number.isInteger(leadId) || leadId <= 0)) {
+      return res.status(400).json({ error: 'Invalid leadId' });
     }
-    queryText += ' ORDER BY started_at DESC LIMIT 50';
 
-    const dbRes = await db.query(queryText, queryParams);
-    const calls = dbRes.rows;
-
-    if (apiKey && calls.length > 0) {
-      for (const call of calls) {
-        if (call.status === 'in-progress' || call.status === 'processing') {
-          try {
-            const elRes = await fetch(`https://api.elevenlabs.io/v1/convai/conversations/${call.conversation_id}`, {
-              headers: { 'xi-api-key': apiKey }
-            });
-            if (elRes.ok) {
-              const elData = await elRes.json();
-              const rawStatus = (elData.status || '').toLowerCase();
-
-              let mappedStatus = 'in-progress';
-              if (rawStatus === 'done' || rawStatus === 'completed') {
-                mappedStatus = 'completed';
-              } else if (rawStatus === 'failed') {
-                mappedStatus = 'failed';
-              } else if (rawStatus === 'processing' || rawStatus === 'in-progress') {
-                mappedStatus = 'in-progress';
-              } else if (rawStatus) {
-                mappedStatus = rawStatus;
-              }
-
-              const durationSecs = elData.metadata?.call_duration_secs || elData.duration_secs || 0;
-              const summary = elData.analysis?.transcript_summary || elData.analysis?.call_summary || call.transcript_summary || '';
-              const transcript = elData.transcript || call.transcript || [];
-
-              await db.query(
-                `UPDATE ai_calls
-                 SET status = $1, duration_secs = $2, transcript_summary = $3, transcript = $4, updated_at = NOW()
-                 WHERE conversation_id = $5`,
-                [mappedStatus, durationSecs, summary, JSON.stringify(transcript), call.conversation_id]
-              );
-
-              call.status = mappedStatus;
-              call.duration_secs = durationSecs;
-              call.transcript_summary = summary;
-              call.transcript = transcript;
-            }
-          } catch (err) {
-            console.error(`[AI Call Sync] Error syncing conversation ${call.conversation_id}:`, err.message);
-          }
-        }
+    const queryText = leadId
+      ? 'SELECT * FROM ai_calls WHERE lead_id = $1 ORDER BY started_at DESC NULLS LAST, created_at DESC LIMIT 100'
+      : 'SELECT * FROM ai_calls ORDER BY started_at DESC NULLS LAST, created_at DESC LIMIT 100';
+    const dbRes = await db.query(queryText, leadId ? [leadId] : []);
+    const formatted = dbRes.rows.map((c) => {
+      let transcript = c.transcript || [];
+      if (typeof transcript === 'string') {
+        try { transcript = JSON.parse(transcript || '[]'); } catch { transcript = []; }
       }
-    }
-
-    const formatted = calls.map(c => ({
-      id: c.id,
-      leadId: c.lead_id,
-      conversation_id: c.conversation_id,
-      callSid: c.call_sid,
-      to: c.to_phone,
-      leadName: c.lead_name,
-      companyName: c.company_name,
-      status: c.status,
-      bookingType: c.booking_type || 'proposal_call',
-      startedAt: c.started_at,
-      duration: c.duration_secs || 0,
-      transcriptSummary: c.transcript_summary || '',
-      transcript: typeof c.transcript === 'string' ? JSON.parse(c.transcript || '[]') : (c.transcript || [])
-    }));
+      return {
+        id: c.id,
+        leadId: c.lead_id,
+        conversation_id: c.conversation_id,
+        callSid: c.call_sid,
+        to: c.to_phone,
+        from: c.from_phone,
+        leadName: c.lead_name,
+        companyName: c.company_name,
+        status: c.status,
+        bookingType: c.booking_type || 'proposal_call',
+        direction: c.direction || 'outbound',
+        startedAt: c.started_at || c.created_at,
+        duration: c.duration_secs || 0,
+        transcriptSummary: c.transcript_summary || '',
+        transcript,
+        recordingUrl: c.recording_url || '',
+        outcome: c.outcome || '',
+        sentiment: c.sentiment || '',
+        updatedAt: c.updated_at
+      };
+    });
 
     return res.json(formatted);
   } catch (err) {
