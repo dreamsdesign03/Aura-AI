@@ -474,7 +474,7 @@ export default function ClinicCallReview({ id }) {
           </Card>
         </div>
 
-        <Card rise="co-rise-2">
+        <Card flush rise="co-rise-2">
           {/* Filter Bar & Search */}
           <div
             style={{
@@ -483,8 +483,9 @@ export default function ClinicCallReview({ id }) {
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 12,
-              padding: '14px 16px',
+              padding: '14px 18px',
               borderBottom: '1px solid #F3D9E5',
+              background: '#FFFFFF',
             }}
           >
             {/* Consistent Aura Pill Tabs for Telephony Filter */}
@@ -564,7 +565,9 @@ export default function ClinicCallReview({ id }) {
           </div>
 
           {listQuery.isLoading ? (
-            <Spinner label="Loading telephony call transactions…" />
+            <div style={{ padding: '40px 20px' }}>
+              <Spinner label="Loading telephony call transactions…" />
+            </div>
           ) : filteredCalls.length === 0 ? (
             <EmptyState title="No calls matched filter">
               <p className="co-sm co-mut" style={{ marginTop: 6 }}>
@@ -579,47 +582,52 @@ export default function ClinicCallReview({ id }) {
               </Link>
             </EmptyState>
           ) : (
-            <div className="co-table-wrap">
-              <table className="co-table">
+            <div className="co-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', paddingBottom: 6 }}>
+              <table className="co-table" style={{ minWidth: 1140, width: '100%' }}>
                 <thead>
                   <tr>
-                    <th>Provider & Direction</th>
-                    <th>Patient / Caller</th>
-                    <th>Telephony Route</th>
-                    <th>Transaction Ref / SID</th>
-                    <th>Started At</th>
-                    <th>Duration</th>
-                    <th>Status & Outcome</th>
-                    <th></th>
+                    <th style={{ width: 155, minWidth: 155, paddingLeft: 18 }}>Provider & Direction</th>
+                    <th style={{ width: 210, minWidth: 210 }}>Patient / Caller</th>
+                    <th style={{ width: 175, minWidth: 175 }}>Telephony Route</th>
+                    <th style={{ width: 175, minWidth: 175 }}>Transaction Ref / SID</th>
+                    <th style={{ width: 165, minWidth: 165 }}>Started At</th>
+                    <th style={{ width: 85, minWidth: 85 }}>Duration</th>
+                    <th style={{ minWidth: 260 }}>Status & Outcome</th>
+                    <th style={{ width: 115, minWidth: 115, textAlign: 'right', paddingRight: 20 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCalls.map((c) => {
                     const patientName = getContactDisplayName(c);
-                    const sidShort = c.call_sid ? (c.call_sid.length > 18 ? `${c.call_sid.slice(0, 16)}…` : c.call_sid) : (c.conversation_id ? `${c.conversation_id.slice(0, 16)}…` : '—');
+                    const sidRaw = c.call_sid || c.conversation_id || c.interaction_id || '—';
+                    const sidShort = sidRaw !== '—' && sidRaw.length > 20 ? `${sidRaw.slice(0, 18)}…` : sidRaw;
 
                     return (
                       <tr key={c.id}>
-                        <td>
+                        <td style={{ paddingLeft: 18 }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 4, alignItems: 'flex-start' }}>
                             <ProviderBadge provider={c.provider} />
                             <DirectionBadge direction={c.direction} />
                           </div>
                         </td>
                         <td>
-                          <div className="co-row">
+                          <div className="co-row" style={{ gap: 10, alignItems: 'center' }}>
                             <Avatar name={patientName} first={c.first_name} last={c.last_name} />
-                            <div>
-                              <div className="co-strong">{patientName}</div>
-                              <div className="co-xs co-mut">{c.display_company || c.company || 'Aura Clinic'}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="co-strong" title={patientName} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+                                {patientName}
+                              </div>
+                              <div className="co-xs co-mut" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 160 }}>
+                                {c.display_company || c.company || 'Aura Clinic'}
+                              </div>
                               <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
                                 {Number(c.turn_count) > 0 && (
-                                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', padding: '1px 5px', borderRadius: 4, border: '1px solid #C7D2FE' }}>
+                                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#4F46E5', background: '#EEF2FF', padding: '1px 5px', borderRadius: 4, border: '1px solid #C7D2FE', whiteSpace: 'nowrap' }}>
                                     {c.turn_count} turns
                                   </span>
                                 )}
                                 {c.recording_url && (
-                                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#A4285E', background: '#FCE7F3', padding: '1px 5px', borderRadius: 4, border: '1px solid #FBCFE8', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                                  <span style={{ fontSize: 9.5, fontWeight: 700, color: '#A4285E', background: '#FCE7F3', padding: '1px 5px', borderRadius: 4, border: '1px solid #FBCFE8', display: 'inline-flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap' }}>
                                     <Volume2 size={9} /> Audio
                                   </span>
                                 )}
@@ -628,7 +636,7 @@ export default function ClinicCallReview({ id }) {
                           </div>
                         </td>
                         <td>
-                          <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                          <div style={{ fontSize: 12, display: 'flex', flexDirection: 'column', gap: 2, whiteSpace: 'nowrap' }}>
                             {c.from_phone && (
                               <span style={{ color: '#64748B', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                                 <Phone size={10} /> From: {c.from_phone}
@@ -640,7 +648,19 @@ export default function ClinicCallReview({ id }) {
                           </div>
                         </td>
                         <td>
-                          <code style={{ fontSize: 11, background: '#F1F5F9', padding: '2px 6px', borderRadius: 4, color: '#334155' }}>
+                          <code
+                            title={sidRaw}
+                            style={{
+                              fontSize: 11,
+                              background: '#F1F5F9',
+                              padding: '3px 7px',
+                              borderRadius: 5,
+                              color: '#334155',
+                              display: 'inline-block',
+                              whiteSpace: 'nowrap',
+                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
+                            }}
+                          >
                             {sidShort}
                           </code>
                         </td>
@@ -655,7 +675,7 @@ export default function ClinicCallReview({ id }) {
                             <StatusChip status={c.status} />
                             {c.sentiment && <SentimentBadge sentiment={c.sentiment} />}
                             {c.outcome && (
-                              <span style={{ fontSize: 10, fontWeight: 600, color: '#059669', background: '#ECFDF5', padding: '1px 5px', borderRadius: 4 }}>
+                              <span style={{ fontSize: 10, fontWeight: 600, color: '#059669', background: '#ECFDF5', padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>
                                 {c.outcome}
                               </span>
                             )}
@@ -666,13 +686,28 @@ export default function ClinicCallReview({ id }) {
                             )}
                           </div>
                           {c.transcript_summary && (
-                            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4, maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.5, paddingBottom: 2 }}>
+                            <div
+                              title={c.transcript_summary}
+                              style={{
+                                fontSize: 11.5,
+                                color: '#64748B',
+                                marginTop: 4,
+                                lineHeight: 1.45,
+                                maxWidth: 360,
+                                whiteSpace: 'normal',
+                                wordBreak: 'break-word',
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                              }}
+                            >
                               {c.transcript_summary}
                             </div>
                           )}
                         </td>
-                        <td style={{ textAlign: 'right' }}>
-                          <Link href={`/clinic/call-review/${c.id}`} className="co-btn co-btn-sm co-btn-primary">
+                        <td style={{ textAlign: 'right', paddingRight: 20 }}>
+                          <Link href={`/clinic/call-review/${c.id}`} className="co-btn co-btn-sm co-btn-primary" style={{ whiteSpace: 'nowrap' }}>
                             Review <ArrowUpRight size={12} />
                           </Link>
                         </td>
