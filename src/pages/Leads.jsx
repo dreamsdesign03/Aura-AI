@@ -1673,8 +1673,8 @@ export default function Leads() {
 
                 {/* 7. Source / Campaign */}
                 <th
-                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "180px", minWidth: "180px" }}
+                  className="px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "220px", minWidth: "220px" }}
                 >
                   Source / Campaign
                 </th>
@@ -1942,21 +1942,27 @@ export default function Leads() {
                       })()}
                     </td>
 
-                    {/* 7. Source / Campaign */}
+                    {/* 7. Source / Campaign — wrap the full value instead of clipping it */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-center"
-                      style={{ width: "180px", minWidth: "180px", maxWidth: "180px" }}
+                      className="px-3 py-2.5 border-r border-b border-gray-100 text-[12px] text-center align-middle"
+                      style={{ width: "220px", minWidth: "220px", maxWidth: "220px" }}
                     >
-                      <div className="flex items-center justify-center min-w-0">
+                      <div className="flex w-full items-center justify-center min-w-0">
                         {lead.campaign_name ? (
                           <span
-                            className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1 rounded-md text-[10.5px] font-semibold bg-violet-50 text-violet-700 border border-violet-200 truncate max-w-full"
+                            className="inline-flex max-w-full items-center justify-center gap-1 px-2.5 py-1 rounded-md text-[10.5px] font-semibold leading-snug whitespace-normal break-words text-center bg-violet-50 text-violet-700 border border-violet-200"
+                            style={{ overflowWrap: "anywhere" }}
                             title={`Bulk Campaign: ${lead.campaign_name}`}
                           >
-                            📢 {lead.campaign_name}
+                            <span className="shrink-0" aria-hidden="true">📢</span>
+                            <span className="min-w-0">{lead.campaign_name}</span>
                           </span>
                         ) : (
-                          <span className="text-gray-600 capitalize block truncate text-center" title={lead.source || ""}>
+                          <span
+                            className="block w-full min-w-0 text-gray-600 capitalize whitespace-normal break-words text-center leading-snug"
+                            style={{ overflowWrap: "anywhere" }}
+                            title={lead.source || ""}
+                          >
                             {lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}
                           </span>
                         )}
