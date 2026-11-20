@@ -466,6 +466,12 @@ export default function ClinicVisibilityAudit() {
   ].filter(Boolean);
 
   return (
+    <style>{`
+      .aura-visibility-category-scroll::-webkit-scrollbar { height: 7px; }
+      .aura-visibility-category-scroll::-webkit-scrollbar-track { background: #FCE7F3; border-radius: 99px; }
+      .aura-visibility-category-scroll::-webkit-scrollbar-thumb { background: #CB3273; border-radius: 99px; }
+      .aura-visibility-category-scroll::-webkit-scrollbar-thumb:hover { background: #A4285E; }
+    `}</style>
     <div className="flex flex-col h-full bg-gray-50 overflow-y-auto">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b border-[#F3D9E5] bg-white/95 backdrop-blur-md px-6 py-4">
@@ -767,7 +773,21 @@ export default function ClinicVisibilityAudit() {
             </div>
 
             {/* Consistent Aura Pill Tabs for Categories */}
-            <div className="mt-4 co-pill-tabs">
+            <div
+              className="mt-4 co-pill-tabs aura-visibility-category-scroll"
+              role="group"
+              aria-label="Filter keywords by category"
+              style={{
+                display: 'flex', alignItems: 'center', flexWrap: 'nowrap',
+                gap: 8, width: '100%', minWidth: 0, maxWidth: '100%',
+                overflowX: 'scroll', overflowY: 'hidden',
+                padding: '3px 2px 10px',
+                scrollbarWidth: 'thin', scrollbarColor: '#CB3273 #FCE7F3',
+                msOverflowStyle: 'auto', WebkitOverflowScrolling: 'touch',
+                overscrollBehaviorX: 'contain', scrollSnapType: 'x proximity',
+                boxSizing: 'border-box',
+              }}
+            >
               {categoryList.map((cat) => {
                 const sel = selectedCategory === cat;
                 const count = cat === "All" ? keywords.length : data.categories[cat] || 0;
@@ -777,6 +797,7 @@ export default function ClinicVisibilityAudit() {
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
                     className={`co-pill-tab ${sel ? "active" : ""}`}
+                    style={{ flex: "0 0 auto", flexShrink: 0, whiteSpace: "nowrap", scrollSnapAlign: "start" }}
                   >
                     <span>{cat}</span>
                     <span className="co-pill-badge">{count}</span>
