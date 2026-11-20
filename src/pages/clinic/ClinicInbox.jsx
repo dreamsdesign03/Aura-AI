@@ -2008,12 +2008,13 @@ export default function ClinicInbox() {
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: 12,
-            padding: '14px 16px',
-            borderBottom: '1px solid #F3D9E5',
+            padding: '16px 18px',
+            borderBottom: '1px solid #F1E5EB',
+            background: 'linear-gradient(180deg, #FFFCFD 0%, #FFFFFF 100%)',
           }}
         >
           {/* Channel Tabs */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
             {[
               { id: 'all', label: 'All messages', count: counts.all },
               { id: 'facebook', label: 'Messenger', count: counts.facebook },
@@ -2034,13 +2035,14 @@ export default function ClinicInbox() {
                   type="button"
                   onClick={() => setActiveChannel(tab.id)}
                   style={{
-                    padding: '6px 12px',
-                    borderRadius: 999,
+                    padding: '7px 12px',
+                    borderRadius: 8,
                     fontSize: 12,
                     fontWeight: active ? 600 : 500,
-                    background: active ? '#A4285E' : '#F8FAFC',
+                    background: active ? '#A4285E' : '#FFFFFF',
                     color: active ? '#FFFFFF' : '#475569',
-                    border: active ? '1px solid #A4285E' : '1px solid #E2E8F0',
+                    border: active ? '1px solid #A4285E' : '1px solid #E9E1E5',
+                    boxShadow: active ? '0 2px 7px rgba(164,40,94,.16)' : '0 1px 2px rgba(15,23,42,.03)',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -2053,7 +2055,7 @@ export default function ClinicInbox() {
                     style={{
                       fontSize: 10,
                       fontWeight: 700,
-                      background: active ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
+                      background: active ? 'rgba(255,255,255,0.2)' : '#F1EDF0',
                       color: active ? '#FFFFFF' : '#64748B',
                       padding: '1px 5px',
                       borderRadius: 999,
@@ -2072,21 +2074,27 @@ export default function ClinicInbox() {
               <span style={{ width: 7, height: 7, borderRadius: 999, background: '#10B981', display: 'inline-block' }} />
               Auto-sync · {timeLabel(lastSyncedAt)}
             </div>
-            <select aria-label="Filter conversations by reply status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="co-input" style={{ height: 36, minWidth: 142, borderRadius: 8, fontSize: 12, padding: '0 10px' }}>
-              <option value="all">All statuses</option>
-              <option value="unread">Unread only</option>
-              <option value="needs_reply">Needs reply</option>
-              <option value="replied">Replied</option>
-            </select>
-            <select aria-label="Sort conversations" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="co-input" style={{ height: 36, minWidth: 130, borderRadius: 8, fontSize: 12, padding: '0 10px' }}>
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-            </select>
-            <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
-              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none' }} />
-              <input type="text" className="co-input" placeholder="Search name, phone or message" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, paddingRight: searchQuery ? 28 : 12, fontSize: 12, height: 36, borderRadius: 8 }} />
-              {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 2 }}><X size={12} /></button>}
+            <div style={{ position: 'relative', width: 270, maxWidth: '100%', flex: '0 1 270px' }}>
+              <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none' }} />
+              <input type="text" className="co-input" placeholder="Search conversations…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', paddingLeft: 36, paddingRight: searchQuery ? 30 : 12, fontSize: 12.5, height: 38, borderRadius: 9, border: '1px solid #E6D5DE', background: '#FFFFFF', transition: 'border-color .18s ease, box-shadow .18s ease' }} />
+              {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search" style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 3 }}><X size={13} /></button>}
             </div>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 10px', height: 38, border: '1px solid #E6D5DE', borderRadius: 9, background: '#FFFFFF' }}>
+              <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Status</span>
+              <select aria-label="Filter conversations by reply status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: 112, maxWidth: 112, minWidth: 0, height: 34, border: 0, outline: 0, background: 'transparent', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <option value="all">All</option>
+                <option value="unread">Unread</option>
+                <option value="needs_reply">Needs reply</option>
+                <option value="replied">Replied</option>
+              </select>
+            </label>
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 10px', height: 38, border: '1px solid #E6D5DE', borderRadius: 9, background: '#FFFFFF' }}>
+              <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Sort</span>
+              <select aria-label="Sort conversations" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ width: 105, maxWidth: 105, minWidth: 0, height: 34, border: 0, outline: 0, background: 'transparent', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <option value="newest">Newest</option>
+                <option value="oldest">Oldest</option>
+              </select>
+            </label>
             {(statusFilter !== 'all' || searchQuery || sortOrder !== 'newest' || activeChannel !== 'all') && (
               <button type="button" onClick={() => { setActiveChannel('all'); setStatusFilter('all'); setSearchQuery(''); setSortOrder('newest'); }} className="co-btn co-btn-sm" style={{ height: 36, fontSize: 11 }}>Clear filters</button>
             )}
