@@ -31,7 +31,7 @@
   --co-spring: cubic-bezier(.32, 1.36, .5, 1);
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--co-ink);
-  font-size: 14px;
+  font-size: 15px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -202,12 +202,12 @@
 
 /* ---------- tables ---------- */
 .co-table-wrap { overflow-x: auto; }
-.co-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.co-table { width: 100%; border-collapse: collapse; font-size: 14px; }
 .co-table thead th {
-  text-align: left; padding: 10px 14px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
-  color: var(--co-mute); background: #FCFAFB; border-bottom: 1px solid var(--co-line); white-space: nowrap;
+  text-align: left; padding: 11px 14px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #334155; background: #FCFAFB; border-bottom: 1px solid var(--co-line); white-space: nowrap;
 }
-.co-table tbody td { padding: 11px 14px; border-bottom: 1px solid #F7EDF2; color: var(--co-body); vertical-align: middle; }
+.co-table tbody td { padding: 12px 14px; border-bottom: 1px solid #F7EDF2; color: var(--co-body); vertical-align: middle; font-size: 14px; }
 .co-table tbody tr { transition: background .16s; }
 .co-table tbody tr:hover { background: #FFF9FC; }
 .co-table tbody tr:last-child td { border-bottom: 0; }
@@ -215,17 +215,17 @@
 
 /* ---------- forms ---------- */
 .co-field { display: flex; flex-direction: column; gap: 6px; }
-.co-label { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #475569; }
+.co-label { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #334155; }
 .co-input,
 .clinic-os select {
   width: 100%; height: 36px; border: 1px solid #CBD5E1; border-radius: 10px; background: #fff;
-  padding: 0 12px; font: 500 13px Inter, sans-serif; color: #0F172A; outline: none;
+  padding: 0 12px; font: 500 13.5px Inter, sans-serif; color: #0F172A; outline: none;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: border-color .18s, box-shadow .18s;
 }
 .clinic-os textarea {
   width: 100%; border: 1px solid #CBD5E1; border-radius: 10px; background: #fff;
-  padding: 10px 12px; font: 500 13px Inter, sans-serif; color: #0F172A; outline: none;
+  padding: 10px 12px; font: 500 13.5px Inter, sans-serif; color: #0F172A; outline: none;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: border-color .18s, box-shadow .18s;
 }
@@ -244,14 +244,14 @@
   width: 36px; height: 36px; border-radius: 50%; flex: none;
   background: var(--co-soft); color: var(--co-brand);
   display: inline-flex; align-items: center; justify-content: center;
-  font: 600 12.5px Poppins, sans-serif;
+  font: 600 13px Poppins, sans-serif;
 }
-.co-avatar-lg { width: 56px; height: 56px; font-size: 18px; }
+.co-avatar-lg { width: 56px; height: 56px; font-size: 19px; }
 .co-row { display: flex; align-items: center; gap: 10px; }
 .co-spread { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .co-mut { color: var(--co-mute); }
-.co-sm { font-size: 12px; }
-.co-xs { font-size: 11.5px; }
+.co-sm { font-size: 13px; }
+.co-xs { font-size: 12px; }
 .co-empty { text-align: center; padding: 34px 18px; color: var(--co-mute); font-size: 13px; }
 .co-empty .co-empty-title { font: 600 15px Poppins, sans-serif; color: var(--co-ink); margin-bottom: 4px; }
 

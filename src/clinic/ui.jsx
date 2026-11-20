@@ -84,14 +84,14 @@ export function Kpi({ label, value, foot, icon: Icon, badge, color = '#A4285E', 
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-        <span style={{ fontSize: 11.5, fontWeight: 600, color: '#64748B' }}>
+        <span style={{ fontSize: 12.5, fontWeight: 700, color: '#334155' }}>
           {label}
         </span>
         {Icon ? (
           <div
             style={{
-              width: 28,
-              height: 28,
+              width: 30,
+              height: 30,
               borderRadius: 8,
               background: bg,
               border: `1px solid ${border}`,
@@ -101,7 +101,7 @@ export function Kpi({ label, value, foot, icon: Icon, badge, color = '#A4285E', 
               color: color,
             }}
           >
-            <Icon size={14} color={color} />
+            <Icon size={15} color={color} />
           </div>
         ) : null}
       </div>
@@ -109,7 +109,7 @@ export function Kpi({ label, value, foot, icon: Icon, badge, color = '#A4285E', 
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
         <span
           style={{
-            fontSize: 24,
+            fontSize: 26,
             fontWeight: 800,
             letterSpacing: '-0.02em',
             color: '#0F172A',
@@ -121,12 +121,12 @@ export function Kpi({ label, value, foot, icon: Icon, badge, color = '#A4285E', 
         {badge ? (
           <span
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 700,
               color: '#A4285E',
               background: '#FDF2F8',
               border: '1px solid #FBCFE8',
-              padding: '2px 6px',
+              padding: '2px 7px',
               borderRadius: 999,
             }}
           >
@@ -136,7 +136,7 @@ export function Kpi({ label, value, foot, icon: Icon, badge, color = '#A4285E', 
       </div>
 
       {foot ? (
-        <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 12, color: '#475569', fontWeight: 500, marginTop: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {foot}
         </div>
       ) : null}

@@ -215,16 +215,16 @@ export default function Dashboard() {
       {/* Daily Rhythm Checklist */}
       <div className="rounded-xl border border-[#CBD5E1] p-4 bg-white shadow-xs">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">Daily Rhythm Checklist</div>
-          <div className="text-[11px] text-[#475569] font-bold">{checked.size}/{DAILY_CHECKLIST.length} done</div>
+          <div className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wider">Daily Rhythm Checklist</div>
+          <div className="text-[12px] text-[#334155] font-bold">{checked.size}/{DAILY_CHECKLIST.length} done</div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           {DAILY_CHECKLIST.map((item) => (<button key={item.id} onClick={() => toggleChecked(item.id)} className={cn("flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg border transition-all h-[42px]", checked.has(item.id) ? "border-[#A4285E]/30 bg-[#FDF2F8]" : "border-[#CBD5E1] hover:border-[#94A3B8] bg-white")}>
               {checked.has(item.id) ? (<CheckCircle2 className="w-4 h-4 text-[#A4285E] flex-shrink-0"/>) : (<Circle className="w-4 h-4 text-[#94A3B8] flex-shrink-0"/>)}
-              <span className={cn("text-[12px] font-medium leading-tight", checked.has(item.id) ? "line-through text-[#94A3B8]" : "text-[#0F172A]")}>{item.label}</span>
+              <span className={cn("text-[13px] font-semibold leading-tight", checked.has(item.id) ? "line-through text-[#94A3B8]" : "text-[#0F172A]")}>{item.label}</span>
             </button>))}
         </div>
-        {checked.size === DAILY_CHECKLIST.length && (<div className="mt-3 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-[11.5px] font-bold text-amber-800 text-center">
+        {checked.size === DAILY_CHECKLIST.length && (<div className="mt-3 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-[12px] font-bold text-amber-800 text-center">
             🎯 All done! Great sales rhythm today.
           </div>)}
       </div>
@@ -232,12 +232,12 @@ export default function Dashboard() {
       {/* Pipeline Funnel + Activity — stack on mobile, side-by-side on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pipeline Funnel */}
-        <div className="md:col-span-2 rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
-          <div className="text-xs font-semibold text-foreground mb-4 uppercase tracking-wider">Pipeline Funnel</div>
+        <div className="md:col-span-2 rounded-xl border border-[#CBD5E1] p-4 bg-white shadow-xs">
+          <div className="text-[13px] font-bold text-[#0F172A] mb-4 uppercase tracking-wider">Pipeline Funnel</div>
           {funnel?.stages && funnel.stages.length > 0 ? (<ResponsiveContainer width="100%" height={200}>
               <BarChart data={funnel.stages} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
-                <XAxis dataKey="stage" tick={{ fontSize: 10, fill: "#9CA3AF" }} axisLine={false} tickLine={false}/>
-                <YAxis tick={{ fontSize: 10, fill: "#9CA3AF" }} axisLine={false} tickLine={false}/>
+                <XAxis dataKey="stage" tick={{ fontSize: 11.5, fill: "#334155", fontWeight: 600 }} axisLine={false} tickLine={false}/>
+                <YAxis tick={{ fontSize: 11.5, fill: "#334155", fontWeight: 600 }} axisLine={false} tickLine={false}/>
                 <Tooltip contentStyle={{ background: "#ffffff", border: "1px solid #E5E7EB", borderRadius: "6px", fontSize: "11px", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} labelStyle={{ color: "#374151" }} itemStyle={{ color: "#111827" }}/>
                 <Bar dataKey="count" radius={[3, 3, 0, 0]}>
                   {funnel.stages.map((entry) => (<Cell key={entry.stage} fill={stageColors[entry.stage] ?? "#1A7A45"}/>))}

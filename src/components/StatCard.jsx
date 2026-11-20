@@ -19,16 +19,16 @@ export default function StatCard({ label, value, icon: Icon, trend, color = "tea
       >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <div className="text-[11.5px] font-bold uppercase tracking-wider mb-2 text-[#475569]">
+            <div className="text-[12.5px] font-bold uppercase tracking-wider mb-2 text-[#334155]">
               {label}
             </div>
             {loading ? (
               <div className="h-7 w-16 rounded animate-pulse bg-gray-100" />
             ) : (
-              <div className="text-2xl font-extrabold text-[#0F172A] tracking-tight">{value}</div>
+              <div className="text-[26px] font-extrabold text-[#0F172A] tracking-tight">{value}</div>
             )}
             {trend && !loading && (
-              <div className="text-[11.5px] mt-1.5 font-semibold" style={{ color: c.badge }}>
+              <div className="text-[12px] mt-1.5 font-bold" style={{ color: c.badge }}>
                 {trend}
               </div>
             )}
