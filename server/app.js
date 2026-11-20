@@ -3105,6 +3105,7 @@ app.get('/api/ai-calls', async (req, res) => {
         transcriptSummary: c.transcript_summary || '',
         transcript,
         recordingUrl: c.recording_url || '',
+        recording_url: c.recording_url || '',
         outcome: c.outcome || '',
         sentiment: c.sentiment || '',
         updatedAt: c.updated_at
