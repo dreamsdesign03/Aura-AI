@@ -1614,7 +1614,7 @@ export default function Leads() {
 
         {/* ── Desktop table (≥ md) ───────────────────────────────── */}
         <div className="hidden md:block w-full max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "2200px", tableLayout: "fixed" }}>
+          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "1790px", tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-[#F9FAFB] border-b border-gray-200">
                 {/* 1. Checkbox (Sticky Left 0) */}
@@ -1634,45 +1634,36 @@ export default function Leads() {
                 {/* 2. Contact Name (Sticky Left 46px) */}
                 <th
                   className="sticky left-[46px] z-30 bg-[#F9FAFB] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 shadow-[2px_0_5px_rgba(0,0,0,0.04)]"
-                  style={{ width: "230px", minWidth: "230px" }}
+                  style={{ width: "220px", minWidth: "220px" }}
                 >
                   Contact Name
                 </th>
 
-                {/* 3. Company */}
-                <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
-                  style={{ width: "170px", minWidth: "170px" }}
-                  onClick={() => handleSort("company")}
-                >
-                  <span className="flex items-center gap-1">Company <SortIcon col="company"/></span>
-                </th>
-
-                {/* 4. Phone Number */}
+                {/* 3. Phone Number */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "160px", minWidth: "160px" }}
+                  style={{ width: "150px", minWidth: "150px" }}
                 >
                   Phone Number
                 </th>
 
-                {/* 5. Call Status */}
+                {/* 4. Call Status */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "160px", minWidth: "160px" }}
+                  style={{ width: "150px", minWidth: "150px" }}
                 >
                   Call Status
                 </th>
 
-                {/* 6. Message Status */}
+                {/* 5. Message Status */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "160px", minWidth: "160px" }}
+                  style={{ width: "150px", minWidth: "150px" }}
                 >
                   Message Status
                 </th>
 
-                {/* 7. Lead Status */}
+                {/* 6. Lead Status */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "160px", minWidth: "160px" }}
@@ -1680,12 +1671,21 @@ export default function Leads() {
                   Lead Status
                 </th>
 
-                {/* 8. Source / Campaign */}
+                {/* 7. Source / Campaign */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "180px", minWidth: "180px" }}
                 >
                   Source / Campaign
+                </th>
+
+                {/* 8. Company */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
+                  style={{ width: "160px", minWidth: "160px" }}
+                  onClick={() => handleSort("company")}
+                >
+                  <span className="flex items-center gap-1">Company <SortIcon col="company"/></span>
                 </th>
 
                 {/* 9. Designation */}
@@ -1704,7 +1704,7 @@ export default function Leads() {
                   Location
                 </th>
 
-                {/* 11. Website URL */}
+                {/* 11. Website */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
@@ -1712,31 +1712,7 @@ export default function Leads() {
                   Website
                 </th>
 
-                {/* 12. Email Status */}
-                <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "120px", minWidth: "120px" }}
-                >
-                  Email Status
-                </th>
-
-                {/* 13. Web Status */}
-                <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "110px", minWidth: "110px" }}
-                >
-                  Web Status
-                </th>
-
-                {/* 14. Industry */}
-                <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "140px", minWidth: "140px" }}
-                >
-                  Industry
-                </th>
-
-                {/* 15. Date Added */}
+                {/* 12. Date Added */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
                   style={{ width: "120px", minWidth: "120px" }}
@@ -1745,10 +1721,10 @@ export default function Leads() {
                   <span className="flex items-center gap-1">Date Added <SortIcon col="createdAt"/></span>
                 </th>
 
-                {/* 16. Actions (Sticky Right 0) */}
+                {/* 13. Actions */}
                 <th
-                  className="sticky right-0 z-30 bg-[#F9FAFB] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-l border-b border-gray-200 shadow-[-2px_0_5px_rgba(0,0,0,0.04)]"
-                  style={{ width: "100px", minWidth: "100px" }}
+                  className="px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200"
+                  style={{ width: "110px", minWidth: "110px" }}
                 >
                   Actions
                 </th>
@@ -1758,14 +1734,14 @@ export default function Leads() {
               {isLoading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    <td colSpan={16} className="px-4 py-3">
+                    <td colSpan={13} className="px-4 py-3">
                       <div className="h-4 rounded bg-gray-100 animate-pulse" style={{ width: `${55 + i * 4}%` }}/>
                     </td>
                   </tr>
                 ))
               ) : pagedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={16} className="text-center py-16 text-gray-400">
+                  <td colSpan={13} className="text-center py-16 text-gray-400">
                     No contacts match your filters
                   </td>
                 </tr>
@@ -1802,7 +1778,7 @@ export default function Leads() {
                     {/* 2. Contact Name */}
                     <td
                       className="sticky left-[46px] z-10 bg-white group-hover:bg-[#F8FAFC] px-4 py-2.5 border-r border-b border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.04)]"
-                      style={{ width: "230px", minWidth: "230px", maxWidth: "230px" }}
+                      style={{ width: "220px", minWidth: "220px", maxWidth: "220px" }}
                     >
                       <div className="flex items-center gap-2.5 min-w-0">
                         {l.photoUrl ? (
@@ -1822,76 +1798,58 @@ export default function Leads() {
                           >
                             {leadNameStr}
                           </div>
-                          {cleanEmail(lead.email) ? (
+                          {cleanEmail(lead.email) && (
                             <div className="text-[11px] text-gray-500 leading-tight truncate mt-0.5" title={cleanEmail(lead.email)}>
                               {cleanEmail(lead.email)}
                             </div>
-                          ) : cleanPhone ? (
-                            <div className="text-[11px] text-gray-400 leading-tight truncate mt-0.5">
-                              {cleanPhone}
-                            </div>
-                          ) : null}
+                          )}
                         </div>
                       </div>
                     </td>
 
-                    {/* 3. Company */}
-                    <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-800"
-                      style={{ width: "170px", minWidth: "170px", maxWidth: "170px" }}
-                    >
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />}
-                        <span className="font-medium truncate block" title={lead.company || ""}>
-                          {cleanCompanyName(lead.company) || <span className="text-gray-300 font-normal">—</span>}
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* 4. Phone */}
+                    {/* 3. Phone */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
-                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {cleanPhone ? (
-                        <div className="flex items-center justify-between gap-1 min-w-0">
-                          <span className="text-gray-800 font-medium text-[12px] truncate block" title={cleanPhone}>
-                            {cleanPhone}
-                          </span>
-                        </div>
+                        <span className="text-gray-800 font-medium text-[12px] truncate block" title={cleanPhone}>
+                          {cleanPhone}
+                        </span>
                       ) : (
                         <span className="text-gray-300">—</span>
                       )}
                     </td>
 
-                    {/* 5. Call Status */}
+                    {/* 4. Call Status */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
-                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall ? (
-                        <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
                           <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 truncate"
-                            title={`Call placed: ${lead.last_ai_call_status || "Completed"}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            title={`AI call placed: ${lead.last_ai_call_status || "Completed"}`}
                           >
-                            <PhoneOutgoing className="w-2.5 h-2.5 shrink-0 text-emerald-600" />
-                            ✓ {lead.last_ai_call_status ? lead.last_ai_call_status.toUpperCase() : "CALLED"}
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            Called
                           </span>
                           <button
                             type="button"
                             onClick={() => setViewCallsLead(lead)}
-                            className="px-1.5 py-0.5 text-[10px] font-semibold text-pink-600 hover:text-pink-800 hover:underline shrink-0"
-                            title="View AI call details & recordings"
+                            className="text-[11px] text-pink-600 hover:text-pink-800 font-semibold hover:underline"
+                            title="View AI call recording and logs"
                           >
                             Logs
                           </button>
                         </div>
                       ) : cleanPhone ? (
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             Not Called
                           </span>
                           <button
@@ -1912,28 +1870,27 @@ export default function Leads() {
                       )}
                     </td>
 
-                    {/* 6. Message Status */}
+                    {/* 5. Message Status */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
-                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {lead.whatsappSent || lead.whatsapp_sent || lead.emailSent || lead.last_contacted_at ? (
-                        <div className="flex items-center justify-between gap-1.5">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
                           <span
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 truncate"
+                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
                             title="Outreach message already sent. Duplicate send prevented."
                           >
-                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
-                            ✓ {lead.whatsappSent || lead.whatsapp_sent ? "WA SENT" : "SENT"}
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
+                            {lead.whatsappSent || lead.whatsapp_sent ? "WA Sent" : "Sent"}
                           </span>
-                          <span className="text-[10px] text-gray-400 font-medium shrink-0" title="Already messaged">
-                            Done
-                          </span>
+                          <span className="text-[10.5px] text-gray-400 font-medium">Done</span>
                         </div>
                       ) : cleanPhone ? (
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             Not Sent
                           </span>
                           <button
@@ -1952,15 +1909,38 @@ export default function Leads() {
                       )}
                     </td>
 
-                    {/* 5. Lead Status */}
+                    {/* 6. Lead Status */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap"
                       style={{ width: "160px", minWidth: "160px" }}
                     >
-                      <StatusBadge status={lead.status} />
+                      {(() => {
+                        const statusKey = (lead.status || "new").toLowerCase();
+                        const STATUS_CONFIG = {
+                          new: { label: "New Lead", dot: "#3B82F6", bg: "bg-blue-50 text-blue-700 border-blue-200" },
+                          new_enquiry: { label: "New Enquiry", dot: "#3B82F6", bg: "bg-blue-50 text-blue-700 border-blue-200" },
+                          enquiry_qualified: { label: "Qualified", dot: "#CB3273", bg: "bg-pink-50 text-pink-700 border-pink-200" },
+                          discovery_call: { label: "Discovery Call", dot: "#0D9488", bg: "bg-teal-50 text-teal-700 border-teal-200" },
+                          quote_sent: { label: "Quote Sent", dot: "#DE377C", bg: "bg-amber-50 text-amber-700 border-amber-200" },
+                          follow_up: { label: "Follow Up", dot: "#F97316", bg: "bg-orange-50 text-orange-700 border-orange-200" },
+                          project_won: { label: "Won", dot: "#16A34A", bg: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                          project_lost: { label: "Lost", dot: "#EF4444", bg: "bg-red-50 text-red-700 border-red-200" },
+                        };
+                        const cfg = STATUS_CONFIG[statusKey] || {
+                          label: statusKey.replace(/_/g, " "),
+                          dot: "#6B7280",
+                          bg: "bg-gray-50 text-gray-700 border-gray-200",
+                        };
+                        return (
+                          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap capitalize", cfg.bg)}>
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.dot }} />
+                            {cfg.label}
+                          </span>
+                        );
+                      })()}
                     </td>
 
-                    {/* 6. Source / Campaign */}
+                    {/* 7. Source / Campaign */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px]"
                       style={{ width: "180px", minWidth: "180px", maxWidth: "180px" }}
@@ -1979,7 +1959,20 @@ export default function Leads() {
                       )}
                     </td>
 
-                    {/* 7. Designation */}
+                    {/* 8. Company */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-800"
+                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />}
+                        <span className="font-medium truncate block" title={lead.company || ""}>
+                          {cleanCompanyName(lead.company) || <span className="text-gray-300 font-normal">—</span>}
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* 9. Designation */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
                       style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
@@ -1988,7 +1981,7 @@ export default function Leads() {
                       {lead.designation || <span className="text-gray-300">—</span>}
                     </td>
 
-                    {/* 8. Location */}
+                    {/* 10. Location */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
                       style={{ width: "130px", minWidth: "130px", maxWidth: "130px" }}
@@ -1997,7 +1990,7 @@ export default function Leads() {
                       {[l.city, lead.country].filter(Boolean).join(", ") || <span className="text-gray-300">—</span>}
                     </td>
 
-                    {/* 9. Website */}
+                    {/* 11. Website */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px]"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
@@ -2019,56 +2012,7 @@ export default function Leads() {
                       )}
                     </td>
 
-                    {/* 10. Email Status */}
-                    <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[12px]"
-                      style={{ width: "120px", minWidth: "120px" }}
-                    >
-                      {l.emailSent ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <Mail className="w-2.5 h-2.5" /> Email Sent
-                        </span>
-                      ) : (
-                        <span className="text-gray-300 text-[11px]">—</span>
-                      )}
-                    </td>
-
-                    {/* 11. Web Status */}
-                    <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[12px]"
-                      style={{ width: "110px", minWidth: "110px" }}
-                    >
-                      {l.websiteStatus === "live" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          ✓ Live
-                        </span>
-                      ) : l.websiteStatus === "down" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
-                          <WifiOff className="w-2.5 h-2.5" /> Dead
-                        </span>
-                      ) : l.websiteStatus === "no_website" ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">
-                          No URL
-                        </span>
-                      ) : lead.website ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-                          ? Check
-                        </span>
-                      ) : (
-                        <span className="text-gray-300 text-[11px]">—</span>
-                      )}
-                    </td>
-
-                    {/* 12. Industry */}
-                    <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
-                      style={{ width: "140px", minWidth: "140px", maxWidth: "140px" }}
-                      title={lead.industry || ""}
-                    >
-                      {lead.industry || <span className="text-gray-300">—</span>}
-                    </td>
-
-                    {/* 13. Date Added */}
+                    {/* 12. Date Added */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[11px] text-gray-500"
                       style={{ width: "120px", minWidth: "120px" }}
@@ -2076,10 +2020,10 @@ export default function Leads() {
                       {formatDate(lead.createdAt)}
                     </td>
 
-                    {/* 14. Actions (Sticky Right 0) */}
+                    {/* 13. Actions */}
                     <td
-                      className="sticky right-0 z-10 bg-white group-hover:bg-[#F8FAFC] px-3 py-2.5 text-center border-l border-b border-gray-200 shadow-[-2px_0_5px_rgba(0,0,0,0.04)]"
-                      style={{ width: "100px", minWidth: "100px" }}
+                      className="px-3 py-2.5 text-center border-r border-b border-gray-200"
+                      style={{ width: "110px", minWidth: "110px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-center gap-1">
