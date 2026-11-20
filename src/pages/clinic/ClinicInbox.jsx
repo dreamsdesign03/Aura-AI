@@ -1740,6 +1740,8 @@ export default function ClinicInbox() {
 
   const [activeChannel, setActiveChannel] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest');
   const [openThread, setOpenThread] = useState(null);
   const [lastSyncedAt, setLastSyncedAt] = useState(() => new Date());
   const [paginatedThreads, setPaginatedThreads] = useState([]);
@@ -1851,7 +1853,7 @@ export default function ClinicInbox() {
     };
   }, [threads]);
 
-  // Filtered Threads
+  // Meta-style inbox filters: channel, reply state, search and sort.
   const filteredThreads = useMemo(() => {
     let list = threads;
 
@@ -1867,21 +1869,28 @@ export default function ClinicInbox() {
       list = list.filter((t) => t.type === activeChannel);
     }
 
+    if (statusFilter === 'unread') {
+      list = list.filter((t) => (t.unread || 0) > 0);
+    } else if (statusFilter === 'replied') {
+      list = list.filter((t) => t.status === 'replied');
+    } else if (statusFilter === 'needs_reply') {
+      list = list.filter((t) => t.status !== 'replied' && t.type !== 'note' && !t.isDraft);
+    }
+
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      list = list.filter(
-        (t) =>
-          (t.name && t.name.toLowerCase().includes(q)) ||
-          (t.email && t.email.toLowerCase().includes(q)) ||
-          (t.phone && t.phone.toLowerCase().includes(q)) ||
-          (t.preview && t.preview.toLowerCase().includes(q)) ||
-          (t.subject && t.subject.toLowerCase().includes(q)) ||
-          (t.postTitle && t.postTitle.toLowerCase().includes(q))
+      list = list.filter((t) =>
+        [t.name, t.senderUsername, t.email, t.phone, t.preview, t.subject, t.postTitle]
+          .some((value) => value && String(value).toLowerCase().includes(q))
       );
     }
 
-    return list;
-  }, [threads, activeChannel, searchQuery]);
+    return [...list].sort((a, b) => {
+      const aTime = new Date(a.lastAt || a.createdAt || 0).getTime() || 0;
+      const bTime = new Date(b.lastAt || b.createdAt || 0).getTime() || 0;
+      return sortOrder === 'oldest' ? aTime - bTime : bTime - aTime;
+    });
+  }, [threads, activeChannel, statusFilter, searchQuery, sortOrder]);
 
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return;
@@ -1968,71 +1977,22 @@ export default function ClinicInbox() {
         </div>
       )}
 
-      {/* KPI Cards across Channels */}
-      <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
-        <Card>
-          <div className="co-kpi-label">
-            <Filter size={13} /> All Messages
-          </div>
-          <div className="co-kpi-value">{counts.all}</div>
-          <div className="co-kpi-foot">{counts.unread} unread</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <FacebookIcon size={16} color="#1877F2" /> Messenger
-          </div>
-          <div className="co-kpi-value">{counts.facebook}</div>
-          <div className="co-kpi-foot">Facebook Page</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <InstagramIcon size={13} color="#E1306C" /> Instagram
-          </div>
-          <div className="co-kpi-value">{counts.instagram}</div>
-          <div className="co-kpi-foot">Direct Messages</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <MessageSquare size={13} style={{ color: '#10B981' }} /> WhatsApp
-          </div>
-          <div className="co-kpi-value">{counts.whatsapp}</div>
-          <div className="co-kpi-foot">Live Chats</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <FacebookIcon size={13} color="#1877F2" /> FB Comments
-          </div>
-          <div className="co-kpi-value">{counts.comment_fb}</div>
-          <div className="co-kpi-foot">Page Posts</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <InstagramIcon size={13} color="#E1306C" /> IG Comments
-          </div>
-          <div className="co-kpi-value">{counts.comment_ig}</div>
-          <div className="co-kpi-foot">Posts &amp; Reels</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <Mail size={13} style={{ color: '#2563EB' }} /> Emails
-          </div>
-          <div className="co-kpi-value">{counts.email}</div>
-          <div className="co-kpi-foot">{counts.drafts} draft{counts.drafts === 1 ? '' : 's'} pending</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <PhoneCall size={13} style={{ color: '#A4285E' }} /> AI Calls
-          </div>
-          <div className="co-kpi-value">{counts.call}</div>
-          <div className="co-kpi-foot">Audio &amp; Transcripts</div>
-        </Card>
-        <Card>
-          <div className="co-kpi-label">
-            <StickyNote size={13} style={{ color: '#D97706' }} /> Clinic Notes
-          </div>
-          <div className="co-kpi-value">{counts.note}</div>
-          <div className="co-kpi-foot">Consultation logs</div>
-        </Card>
+      {/* Compact channel overview — keep conversations as the main focus */}
+      <div className="co-rise-1" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: '10px 14px', marginBottom: 14, background: '#FFFFFF', border: '1px solid #E8EAF0', borderRadius: 12 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginRight: 4 }}>Inbox overview</span>
+        {[
+          { label: 'All', value: counts.all, color: '#475569' },
+          { label: 'Unread', value: counts.unread, color: '#A4285E' },
+          { label: 'Messenger', value: counts.facebook, color: '#1877F2' },
+          { label: 'Instagram', value: counts.instagram, color: '#E1306C' },
+          { label: 'WhatsApp', value: counts.whatsapp, color: '#059669' },
+          { label: 'Comments', value: counts.comment_fb + counts.comment_ig, color: '#7C3AED' },
+        ].map((item) => (
+          <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', borderRadius: 7, background: '#F8FAFC', color: '#64748B', fontSize: 11 }}>
+            <strong style={{ color: item.color, fontSize: 12 }}>{item.value}</strong>{item.label}
+          </span>
+        ))}
+        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#64748B' }}>{isFetching ? 'Updating…' : 'Live inbox'}</span>
       </div>
 
       <Card rise="co-rise-2">
@@ -2102,58 +2062,30 @@ export default function ClinicInbox() {
             })}
           </div>
 
-          {/* Search Box + auto-sync status */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748B' }}>
+          {/* Search, reply-state and sort controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748B', marginRight: 'auto' }}>
               <span style={{ width: 7, height: 7, borderRadius: 999, background: '#10B981', display: 'inline-block' }} />
               Auto-sync · {timeLabel(lastSyncedAt)}
             </div>
-            <div style={{ position: 'relative', width: 280, maxWidth: '100%' }}>
-              <Search
-                size={14}
-                style={{
-                  position: 'absolute',
-                  left: 10,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: '#94A3B8',
-                  pointerEvents: 'none',
-                }}
-              />
-              <input
-                type="text"
-                className="co-input"
-                placeholder="Search conversations..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                style={{
-                  paddingLeft: 32,
-                  paddingRight: searchQuery ? 28 : 12,
-                  fontSize: 12,
-                  height: 34,
-                  borderRadius: 999,
-                }}
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery('')}
-                  style={{
-                    position: 'absolute',
-                    right: 8,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    color: '#94A3B8',
-                    cursor: 'pointer',
-                    padding: 2,
-                  }}
-                >
-                  <X size={12} />
-                </button>
-              )}
+            <select aria-label="Filter conversations by reply status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="co-input" style={{ height: 36, minWidth: 142, borderRadius: 8, fontSize: 12, padding: '0 10px' }}>
+              <option value="all">All statuses</option>
+              <option value="unread">Unread only</option>
+              <option value="needs_reply">Needs reply</option>
+              <option value="replied">Replied</option>
+            </select>
+            <select aria-label="Sort conversations" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} className="co-input" style={{ height: 36, minWidth: 130, borderRadius: 8, fontSize: 12, padding: '0 10px' }}>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+            <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
+              <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none' }} />
+              <input type="text" className="co-input" placeholder="Search name, phone or message" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ paddingLeft: 32, paddingRight: searchQuery ? 28 : 12, fontSize: 12, height: 36, borderRadius: 8 }} />
+              {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search" style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 2 }}><X size={12} /></button>}
             </div>
+            {(statusFilter !== 'all' || searchQuery || sortOrder !== 'newest' || activeChannel !== 'all') && (
+              <button type="button" onClick={() => { setActiveChannel('all'); setStatusFilter('all'); setSearchQuery(''); setSortOrder('newest'); }} className="co-btn co-btn-sm" style={{ height: 36, fontSize: 11 }}>Clear filters</button>
+            )}
           </div>
         </div>
 
