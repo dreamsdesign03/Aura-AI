@@ -47,7 +47,7 @@ export default function BulkCalling() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#FCE7F3]">
+    <div className="flex flex-col h-full bg-[#FCF7F4]">
       <div className="flex-shrink-0 px-6 py-5 border-b border-[#CBD5E1] bg-white flex items-center justify-between">
         <div>
           <h1 className="text-xl font-extrabold text-[#0F172A] flex items-center gap-2">
@@ -343,7 +343,7 @@ function BulkCallDetail({ id, onBack }) {
   });
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 relative">
+    <div className="flex flex-col h-full bg-[#FCF7F4] relative">
       <div className="flex-shrink-0 px-6 py-4 border-b border-gray-200 bg-white flex items-center justify-between">
         <div className="flex items-center gap-4">
           <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">

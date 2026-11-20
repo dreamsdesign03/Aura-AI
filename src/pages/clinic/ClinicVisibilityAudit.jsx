@@ -466,7 +466,7 @@ export default function ClinicVisibilityAudit() {
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-col h-full bg-[#FCE7F3] overflow-y-auto">
+    <div className="flex flex-col h-full bg-[#FCF7F4] overflow-y-auto">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b border-[#F3D9E5] bg-white/95 backdrop-blur-md px-6 py-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -775,7 +775,7 @@ export default function ClinicVisibilityAudit() {
                 gap: 8, width: '100%', minWidth: 0, maxWidth: '100%',
                 overflowX: 'scroll', overflowY: 'hidden',
                 padding: '3px 2px 10px',
-                scrollbarWidth: 'thin', scrollbarColor: '#CB3273 #FCE7F3',
+                scrollbarWidth: 'thin', scrollbarColor: '#CB3273 #FCF7F4',
                 msOverflowStyle: 'auto', WebkitOverflowScrolling: 'touch',
                 overscrollBehaviorX: 'contain', scrollSnapType: 'x proximity',
                 boxSizing: 'border-box',

@@ -2226,7 +2226,7 @@ export default function ClinicInbox() {
               overflowY: 'hidden',
               padding: '2px 2px 10px',
               scrollbarWidth: 'thin',
-              scrollbarColor: '#CB3273 #FCE7F3',
+              scrollbarColor: '#CB3273 #FCF7F4',
               msOverflowStyle: 'auto',
               WebkitOverflowScrolling: 'touch',
               overscrollBehaviorX: 'contain',

@@ -293,7 +293,7 @@ export default function IcpManager() {
             setImporting(false);
         }
     };
-    return (<div className="p-3 md:p-6 space-y-4 md:space-y-5 bg-[#FCE7F3] min-h-full">
+    return (<div className="p-3 md:p-6 space-y-4 md:space-y-5 bg-[#FCF7F4] min-h-full">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-extrabold text-[#0F172A] tracking-tight">ICP Manager</h1>

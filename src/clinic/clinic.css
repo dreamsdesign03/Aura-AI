@@ -14,7 +14,7 @@
   --co-soft-2: #FDF3F8;
   --co-line: #CBD5E1;
   --co-line-2: #E2E8F0;
-  --co-page: #FCE7F3;
+  --co-page: #FCF7F4;
   --co-ink: #0F172A;
   --co-body: #1E293B;
   --co-mute: #475569;
@@ -110,7 +110,7 @@
 }
 .aura-inbox-channel-scroll::-webkit-scrollbar-track,
 .aura-visibility-category-scroll::-webkit-scrollbar-track {
-  background: #FCE7F3;
+  background: #FCF7F4;
   border-radius: 99px;
 }
 .aura-inbox-channel-scroll::-webkit-scrollbar-thumb,
@@ -225,7 +225,7 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   width: 100%;
-  scrollbar-color: #CB3273 #FDF2F8;
+  scrollbar-color: #CB3273 #FCF7F4;
   scrollbar-width: thin;
 }
 .co-table-wrap::-webkit-scrollbar {
@@ -233,7 +233,7 @@
   width: 8px;
 }
 .co-table-wrap::-webkit-scrollbar-track {
-  background: #FDF2F8;
+  background: #FCF7F4;
   border-radius: 6px;
 }
 .co-table-wrap::-webkit-scrollbar-thumb {

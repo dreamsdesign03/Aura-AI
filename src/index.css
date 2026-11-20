@@ -154,7 +154,7 @@
 }
 
 body {
-  background-color: #FCE7F3;
+  background-color: #FCF7F4;
   color: hsl(var(--foreground));
   font-family: 'Inter', sans-serif;
   font-size: 14px;
@@ -165,7 +165,7 @@ body {
 /* Clear, accessible, visible scrollbar styling — bright Aura theme & comfortable width */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #CB3273 #FCE7F3;
+  scrollbar-color: #CB3273 #FCF7F4;
 }
 
 ::-webkit-scrollbar {
@@ -173,13 +173,13 @@ body {
   height: 9px;
 }
 ::-webkit-scrollbar-track {
-  background: #FDF2F8;
+  background: #FCF7F4;
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb {
   background: #CB3273;
   border-radius: 99px;
-  border: 1.5px solid #FDF2F8;
+  border: 1.5px solid #FCF7F4;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #A4285E;

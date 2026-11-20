@@ -94,7 +94,7 @@ export default function Dashboard() {
         New: "#3B82F6", Audited: "#EAB308", Qualified: "#1A7A45",
         Meeting: "#A855F7", Proposal: "#DE377C", Closed: "#22C55E",
     };
-    return (<div className="p-4 md:p-6 space-y-4 md:space-y-5 bg-[#FCE7F3] min-h-full">
+    return (<div className="p-4 md:p-6 space-y-4 md:space-y-5 bg-[#FCF7F4] min-h-full">
       {/* Header */}
       <div>
         <h1 className="text-base md:text-xl font-extrabold text-[#0F172A] tracking-tight">Command Center</h1>
