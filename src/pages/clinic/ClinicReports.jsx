@@ -53,28 +53,28 @@ export default function ClinicReports() {
         title="Reports"
         subtitle={`Performance for the last ${range.days} days`}
       >
-        <div className="co-row" style={{ gap: 8 }}>
+        <div className="co-pill-tabs">
           {rangeOptions.map((r) => (
             <button
               key={r.days}
               type="button"
-              className={`co-btn co-btn-sm ${range.days === r.days ? 'co-btn-primary' : ''}`}
+              className={`co-pill-tab ${range.days === r.days ? 'active on' : ''}`}
               onClick={() => setRange({ days: r.days })}
             >
               {r.label}
             </button>
           ))}
-          <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
+          <button type="button" className="co-pill-tab" onClick={() => refetch()} disabled={isFetching} title="Refresh">
             <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />
           </button>
         </div>
       </PageHead>
 
       <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' }}>
-        <StatCard label="Appointments" value={apptTotal} foot={`${completedAppts} completed, ${noShows} no-shows`} icon={CalendarDays} />
-        <StatCard label="Packages Sold" value={pkgTotal} foot={money(Number(rev.sold))} icon={Package} />
-        <StatCard label="Revenue Collected" value={money(Number(rev.collected))} foot={`${rev.sold > 0 ? Math.round((Number(rev.collected) / Number(rev.sold)) * 100) : 0}% of sold`} icon={IndianRupee} />
-        <StatCard label="AI Calls" value={calls.calls} foot={`${calls.completed} completed · ${conversionRate}%`} icon={PhoneCall} />
+        <Kpi label="Appointments" value={apptTotal} foot={`${completedAppts} completed, ${noShows} no-shows`} icon={CalendarDays} />
+        <Kpi label="Packages Sold" value={pkgTotal} foot={money(Number(rev.sold))} icon={Package} />
+        <Kpi label="Revenue Collected" value={money(Number(rev.collected))} foot={`${rev.sold > 0 ? Math.round((Number(rev.collected) / Number(rev.sold)) * 100) : 0}% of sold`} icon={IndianRupee} />
+        <Kpi label="AI Calls" value={calls.calls} foot={`${calls.completed} completed · ${conversionRate}%`} icon={PhoneCall} />
       </div>
 
       <div className="co-split co-rise-2">

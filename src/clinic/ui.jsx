@@ -251,21 +251,28 @@ export function Drawer({ title, subtitle, onClose, children, actions }) {
   );
 }
 
-export function Tabs({ value, onChange, items }) {
+export function Tabs({ value, onChange, items, className = '' }) {
   return (
-    <div className="co-tabs" role="tablist">
-      {items.map((item) => (
-        <button
-          key={item.value}
-          type="button"
-          role="tab"
-          aria-selected={value === item.value}
-          className={`co-tab ${value === item.value ? 'on' : ''}`}
-          onClick={() => onChange(item.value)}
-        >
-          {item.label}
-        </button>
-      ))}
+    <div className={`co-pill-tabs ${className}`} role="tablist">
+      {items.map((item) => {
+        const isActive = value === item.value;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            className={`co-pill-tab ${isActive ? 'active on' : ''}`}
+            onClick={() => onChange(item.value)}
+          >
+            {item.icon && <span style={{ display: 'inline-flex', alignItems: 'center' }}>{item.icon}</span>}
+            <span>{item.label}</span>
+            {item.badge !== undefined && (
+              <span className="co-pill-badge">{item.badge}</span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
