@@ -101,13 +101,6 @@ export default function Dashboard() {
         <p className="text-xs text-[#475569] font-medium mt-0.5">Your AI-powered autonomous B2B sales command centre</p>
       </div>
 
-      {/* WHY Banner */}
-      <div style={{ background: "#FDF2F8", borderLeft: "3.5px solid #CB3273", borderTop: "1px solid #F3D9E5", borderRight: "1px solid #F3D9E5", borderBottom: "1px solid #F3D9E5", borderRadius: "0 8px 8px 0", padding: "12px 16px" }}>
-        <p className="text-xs font-semibold italic text-[#831843]">
-          "We believe every B2B founder deserves a sales engine that works as hard as they do."
-        </p>
-      </div>
-
       {/* Profile completion nudge */}
       {showProfileBanner && (<ProfileCompletionBanner onDismiss={() => setBannerDismissed(true)}/>)}
 
