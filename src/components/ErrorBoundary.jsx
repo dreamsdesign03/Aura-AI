@@ -5,7 +5,22 @@ export class ErrorBoundary extends Component {
         this.state = { hasError: false, errorMsg: "", errorStack: "" };
     }
     static getDerivedStateFromError(error) {
-        return { hasError: true, errorMsg: error?.message ?? String(error), errorStack: error?.stack ?? "" };
+        const errorMsg = error?.message ?? String(error);
+        // Automatically recover from stale Vite chunk hashes after a new deployment
+        if (
+            errorMsg.includes("Failed to fetch dynamically imported module") ||
+            errorMsg.includes("Importing a module script failed") ||
+            errorMsg.includes("error loading dynamically imported module")
+        ) {
+            const lastReload = sessionStorage.getItem("chunk_fail_reload");
+            const now = Date.now();
+            if (!lastReload || now - parseInt(lastReload, 10) > 10000) {
+                sessionStorage.setItem("chunk_fail_reload", String(now));
+                window.location.reload();
+                return { hasError: false, errorMsg: "", errorStack: "" };
+            }
+        }
+        return { hasError: true, errorMsg, errorStack: error?.stack ?? "" };
     }
     componentDidCatch(error, info) {
         const body = {
