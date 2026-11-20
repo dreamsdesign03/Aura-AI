@@ -878,22 +878,20 @@ export default function ClinicAppointments() {
         subtitle="Live online bookings, clinical consultations & schedule without demo data."
       >
         {/* View Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: 3, borderRadius: 10, border: '1px solid #E2E8F0' }}>
+        <div className="co-pill-tabs">
           <button
             type="button"
             onClick={() => handleViewChange('calendar')}
-            className={`co-btn co-btn-sm ${viewMode === 'calendar' ? 'co-btn-primary' : ''}`}
-            style={viewMode === 'calendar' ? { boxShadow: '0 2px 6px rgba(164,40,94,0.3)' } : { background: 'transparent', border: 'none', color: '#64748B' }}
+            className={`co-pill-tab ${viewMode === 'calendar' ? 'active' : ''}`}
           >
             <CalendarDays size={13} /> Calendar View
           </button>
           <button
             type="button"
             onClick={() => handleViewChange('list')}
-            className={`co-btn co-btn-sm ${viewMode === 'list' ? 'co-btn-primary' : ''}`}
-            style={viewMode === 'list' ? { boxShadow: '0 2px 6px rgba(164,40,94,0.3)' } : { background: 'transparent', border: 'none', color: '#64748B' }}
+            className={`co-pill-tab ${viewMode === 'list' ? 'active' : ''}`}
           >
-            <List size={13} /> List View ({allRows.length})
+            <List size={13} /> List View <span className="co-pill-badge">{allRows.length}</span>
           </button>
         </div>
 
@@ -1056,21 +1054,22 @@ export default function ClinicAppointments() {
               />
             </div>
 
-            {/* Status pills */}
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {/* Status pills — Consistent Aura Pill Tabs */}
+            <div className="co-pill-tabs">
               {[
-                ['all', `All (${allRows.length})`],
-                ['confirmed', `Confirmed (${allRows.filter((r) => r.status === 'confirmed').length})`],
-                ['completed', `Completed (${allRows.filter((r) => r.status === 'completed').length})`],
-                ['cancelled', `Cancelled (${allRows.filter((r) => r.status === 'cancelled').length})`],
-              ].map(([st, label]) => (
+                ['all', 'All', allRows.length],
+                ['confirmed', 'Confirmed', allRows.filter((r) => r.status === 'confirmed').length],
+                ['completed', 'Completed', allRows.filter((r) => r.status === 'completed').length],
+                ['cancelled', 'Cancelled', allRows.filter((r) => r.status === 'cancelled').length],
+              ].map(([st, label, count]) => (
                 <button
                   key={st}
                   type="button"
                   onClick={() => setStatusFilter(st)}
-                  className={`co-btn co-btn-sm ${statusFilter === st ? 'co-btn-primary' : ''}`}
+                  className={`co-pill-tab ${statusFilter === st ? 'active' : ''}`}
                 >
-                  {label}
+                  <span>{label}</span>
+                  <span className="co-pill-badge">{count}</span>
                 </button>
               ))}
             </div>

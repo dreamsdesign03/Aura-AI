@@ -443,34 +443,35 @@ export default function ClinicDialer() {
         subtitle="Click-to-call your patients or dial directly with AI voice agents. Answered calls are recorded and analyzed."
       >
         <div className="co-row" style={{ gap: 8 }}>
-          <div className="co-tabs">
+          {/* Consistent Aura Pill Tabs for Dialer Navigation */}
+          <div className="co-pill-tabs">
             <button
               type="button"
-              className={`co-tab ${activeTab === 'keypad' ? 'on' : ''}`}
+              className={`co-pill-tab ${activeTab === 'keypad' ? 'active' : ''}`}
               onClick={() => setActiveTab('keypad')}
             >
-              <Phone size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: -1 }} /> Dial Keypad
+              <Phone size={13} /> Dial Keypad
             </button>
             <button
               type="button"
-              className={`co-tab ${activeTab === 'leads' ? 'on' : ''}`}
+              className={`co-pill-tab ${activeTab === 'leads' ? 'active' : ''}`}
               onClick={() => setActiveTab('leads')}
             >
-              <User size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: -1 }} /> Leads Directory ({leads.length})
+              <User size={13} /> Leads Directory <span className="co-pill-badge">{leads.length}</span>
             </button>
             <button
               type="button"
-              className={`co-tab ${activeTab === 'history' ? 'on' : ''}`}
+              className={`co-pill-tab ${activeTab === 'history' ? 'active' : ''}`}
               onClick={() => setActiveTab('history')}
             >
-              <Clock size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: -1 }} /> Call History
+              <Clock size={13} /> Call History
             </button>
             <button
               type="button"
-              className={`co-tab ${activeTab === 'settings' ? 'on' : ''}`}
+              className={`co-pill-tab ${activeTab === 'settings' ? 'active' : ''}`}
               onClick={() => setActiveTab('settings')}
             >
-              <Sliders size={13} style={{ display: 'inline', marginRight: 5, verticalAlign: -1 }} /> Dialer Settings
+              <Sliders size={13} /> Dialer Settings
             </button>
           </div>
 

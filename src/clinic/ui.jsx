@@ -58,15 +58,88 @@ export function StatusChip({ status }) {
   return <span className={`co-chip ${cls}`}>{label}</span>;
 }
 
-export function Kpi({ label, value, foot, icon: Icon }) {
+export function Kpi({ label, value, foot, icon: Icon, badge, color = '#A4285E', bg = '#FDF2F8', border = '#FBCFE8', onClick }) {
   return (
-    <div className="co-card co-kpi">
-      <div className="co-kpi-label">
-        {Icon ? <Icon size={13} /> : null}
-        {label}
+    <div
+      className="co-card co-kpi"
+      style={{
+        cursor: onClick ? 'pointer' : undefined,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+        position: 'relative',
+        padding: '14px 16px',
+      }}
+      onClick={onClick}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = '#CB3273';
+        e.currentTarget.style.boxShadow = '0 6px 18px -4px rgba(203, 50, 115, 0.12)';
+        e.currentTarget.style.transform = 'translateY(-1px)';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = '#F3D9E5';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)';
+        e.currentTarget.style.transform = 'translateY(0)';
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+        <span style={{ fontSize: 11.5, fontWeight: 600, color: '#64748B' }}>
+          {label}
+        </span>
+        {Icon ? (
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: bg,
+              border: `1px solid ${border}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: color,
+            }}
+          >
+            <Icon size={14} color={color} />
+          </div>
+        ) : null}
       </div>
-      <div className="co-kpi-value">{value}</div>
-      {foot ? <div className="co-kpi-foot">{foot}</div> : null}
+
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
+        <span
+          style={{
+            fontSize: 24,
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            color: '#0F172A',
+            lineHeight: 1,
+          }}
+        >
+          {value}
+        </span>
+        {badge ? (
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              color: '#A4285E',
+              background: '#FDF2F8',
+              border: '1px solid #FBCFE8',
+              padding: '2px 6px',
+              borderRadius: 999,
+            }}
+          >
+            {badge}
+          </span>
+        ) : null}
+      </div>
+
+      {foot ? (
+        <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {foot}
+        </div>
+      ) : null}
     </div>
   );
 }

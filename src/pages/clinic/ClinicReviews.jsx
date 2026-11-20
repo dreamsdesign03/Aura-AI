@@ -306,17 +306,42 @@ export default function ClinicReviews() {
 
       {syncMessage ? <div className="co-xs co-mut" style={{ marginBottom: 10 }} role="status">{syncMessage}</div> : null}
       <Card rise="co-rise-2">
-        <div className="co-row" style={{ justifyContent: 'space-between', flexWrap: 'wrap', marginBottom: 14 }}>
-          <div className="co-row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            <select className="co-input" style={{ width: 220 }} value={branchFilter} onChange={(e) => setBranchFilter(e.target.value)}>
-              <option value="all">All clinic branches</option>
-              {branches.map((b) => <option key={b} value={b}>{b}</option>)}
-            </select>
-            <select className="co-input" style={{ width: 160 }} value={sourceFilter} onChange={(e) => setSourceFilter(e.target.value)}>
-              <option value="all">All sources</option><option value="Google">Google</option><option value="Website">Website</option><option value="Facebook">Facebook</option><option value="Practo">Practo</option><option value="JustDial">JustDial</option>
-            </select>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            {/* Consistent Aura Pill Tabs for Review Sources */}
+            <div className="co-pill-tabs">
+              {['all', 'Google', 'Website', 'Facebook', 'Practo', 'JustDial'].map((src) => {
+                const isSel = sourceFilter.toLowerCase() === src.toLowerCase();
+                const c = src === 'all' ? reviews.length : reviews.filter((r) => (r.channel || '').toLowerCase() === src.toLowerCase()).length;
+                return (
+                  <button
+                    key={src}
+                    type="button"
+                    onClick={() => setSourceFilter(src)}
+                    className={`co-pill-tab ${isSel ? 'active' : ''}`}
+                  >
+                    <span>{src === 'all' ? 'All Sources' : src}</span>
+                    <span className="co-pill-badge">{c}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+              <select
+                className="co-input"
+                style={{ width: 200, height: 38, borderRadius: 10, border: '1px solid #F3D9E5', fontWeight: 600, fontSize: 12 }}
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+              >
+                <option value="all">All clinic branches</option>
+                {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+              </select>
+              <span className="co-xs co-mut" style={{ whiteSpace: 'nowrap' }}>
+                Showing {visibleReviews.length} of {reviews.length}
+              </span>
+            </div>
           </div>
-          <span className="co-xs co-mut">Showing {visibleReviews.length} of {reviews.length} reviews</span>
         </div>
         {isLoading ? <Spinner /> : reviews.length === 0 ? (
           <EmptyState title="No reviews yet">

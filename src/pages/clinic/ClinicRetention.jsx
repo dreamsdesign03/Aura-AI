@@ -60,9 +60,16 @@ export default function ClinicRetention() {
   return (
     <div className="clinic-os">
       <PageHead title="Retention" subtitle={`Patients who haven't visited in ${days}+ days`}>
-        <div className="co-row" style={{ gap: 8, flexWrap: 'wrap' }}>
+        <div className="co-pill-tabs">
           {dayOptions.map((d) => (
-            <button key={d.days} type="button" className={`co-btn co-btn-sm ${days === d.days ? 'co-btn-primary' : ''}`} onClick={() => setDays(d.days)}>{d.label}</button>
+            <button
+              key={d.days}
+              type="button"
+              className={`co-pill-tab ${days === d.days ? 'active' : ''}`}
+              onClick={() => setDays(d.days)}
+            >
+              <Clock size={12} /> {d.label}
+            </button>
           ))}
           <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
             <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} />

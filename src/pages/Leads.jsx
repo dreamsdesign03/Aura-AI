@@ -1034,30 +1034,30 @@ export default function Leads() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setShowFetch(true)} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-md border border-violet-200 text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">
+            <button onClick={() => setShowFetch(true)} className="hidden md:flex co-btn co-btn-sm" style={{ color: '#A4285E', borderColor: '#F3D9E5', background: '#FDF2F8' }}>
               <Zap className="w-3.5 h-3.5"/> Fetch Contacts
             </button>
-            <button onClick={() => setShowImport(true)} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors">
+            <button onClick={() => setShowImport(true)} className="hidden md:flex co-btn co-btn-sm">
               <Upload className="w-3.5 h-3.5"/> Import
             </button>
-            <button onClick={() => setShowExportModal(true)} className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-md border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 transition-colors">
+            <button onClick={() => setShowExportModal(true)} className="hidden md:flex co-btn co-btn-sm">
               <Download className="w-3.5 h-3.5"/> Export
             </button>
             <button onClick={() => { if (!whcStatus?.running && !whcStarting)
         startWebsiteCheck();
     else
-        fetchWhcStatus(); }} disabled={whcStarting} title={whcStatus?.running ? `Checking… ${whcStatus.checked}/${whcStatus.total}` : "Check all lead websites for dead domains"} className={cn("hidden md:flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-medium rounded-md border transition-colors", whcStatus?.running
+        fetchWhcStatus(); }} disabled={whcStarting} title={whcStatus?.running ? `Checking… ${whcStatus.checked}/${whcStatus.total}` : "Check all lead websites for dead domains"} className={cn("hidden md:flex co-btn co-btn-sm", whcStatus?.running
             ? "border-amber-300 bg-amber-50 text-amber-700 cursor-default"
-            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50")}>
+            : "")}>
               {(whcStatus?.running || whcStarting) ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Activity className="w-3.5 h-3.5"/>}
               {whcStatus?.running ? `Checking ${whcStatus.checked}/${whcStatus.total}` : "Check Websites"}
             </button>
             {selected.length >= 1 && (
-              <button onClick={() => setShowBulkCallModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-md text-pink-700 bg-pink-100 border border-pink-200 hover:bg-pink-200 transition-colors shadow-sm">
+              <button onClick={() => setShowBulkCallModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-10px text-pink-700 bg-pink-100 border border-pink-200 hover:bg-pink-200 transition-colors shadow-xs">
                 <PhoneOutgoing className="w-3.5 h-3.5"/> Bulk AI Call ({selected.length})
               </button>
             )}
-            <button onClick={() => setShowAdd(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-md text-white bg-orange-500 hover:bg-orange-600 transition-colors shadow-sm">
+            <button onClick={() => setShowAdd(true)} className="co-btn co-btn-primary co-btn-sm">
               <Plus className="w-3.5 h-3.5"/> Add Contact
             </button>
           </div>
@@ -1228,12 +1228,22 @@ export default function Leads() {
               </button>)}
           </div>
         </div>
-        {/* Row 2: status tabs */}
-        <div className="px-5 py-2 flex gap-1.5 items-center overflow-x-auto" style={{ scrollbarWidth: "none" }}>
-          {STATUSES.map((s) => (<button key={s} onClick={() => { setStatus(s); setPage(1); }} className={cn("flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border whitespace-nowrap transition-all font-medium", s === status ? "border-violet-500 text-violet-700 bg-violet-50 shadow-sm" : "border-gray-200 text-gray-500 hover:text-gray-700 hover:border-gray-300 bg-white")}>
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: STATUS_DOT[s] ?? "#9CA3AF" }}/>
-              {STATUS_DISPLAY[s] ?? s}
-            </button>))}
+        {/* Row 2: Consistent Aura Pill Tabs for stage filters */}
+        <div className="px-5 py-2 co-pill-tabs">
+          {STATUSES.map((s) => {
+            const isSel = s === status;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => { setStatus(s); setPage(1); }}
+                className={`co-pill-tab ${isSel ? 'active' : ''}`}
+              >
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: isSel ? '#FFFFFF' : (STATUS_DOT[s] ?? '#9CA3AF') }}/>
+                <span>{STATUS_DISPLAY[s] ?? s}</span>
+              </button>
+            );
+          })}
           {(whcStatus?.counts?.dead ?? 0) > 0 && (<button onClick={() => { setViewTab("dead-pool"); loadDeadPool(); }} className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] rounded-full border whitespace-nowrap transition-all font-medium border-red-300 text-red-600 bg-red-50 hover:bg-red-100">
               <WifiOff className="w-3 h-3"/>
               Dead Websites

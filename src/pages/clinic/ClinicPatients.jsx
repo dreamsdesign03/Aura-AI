@@ -565,22 +565,20 @@ export default function ClinicPatients() {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {/* Toggle Switcher: Patient Journey / Patients List */}
-          <div style={{ display: 'flex', alignItems: 'center', background: '#F1F5F9', padding: 3, borderRadius: 8, border: '1px solid #E2E8F0' }}>
+          <div className="co-pill-tabs">
             <button
               type="button"
               onClick={() => handleViewChange('journey')}
-              className={`co-btn co-btn-sm ${viewMode === 'journey' ? 'co-btn-primary' : ''}`}
-              style={viewMode === 'journey' ? { boxShadow: '0 2px 6px rgba(164,40,94,0.3)' } : { background: 'transparent', border: 'none', color: '#64748B' }}
+              className={`co-pill-tab ${viewMode === 'journey' ? 'active' : ''}`}
             >
               <Compass size={13} /> Patient Journey
             </button>
             <button
               type="button"
               onClick={() => handleViewChange('list')}
-              className={`co-btn co-btn-sm ${viewMode === 'list' ? 'co-btn-primary' : ''}`}
-              style={viewMode === 'list' ? { boxShadow: '0 2px 6px rgba(164,40,94,0.3)' } : { background: 'transparent', border: 'none', color: '#64748B' }}
+              className={`co-pill-tab ${viewMode === 'list' ? 'active' : ''}`}
             >
-              <Users size={13} /> Patients List ({totals.count})
+              <Users size={13} /> Patients List <span className="co-pill-badge">{totals.count}</span>
             </button>
           </div>
 

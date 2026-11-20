@@ -72,10 +72,10 @@ export default function ClinicOverview() {
       {!isLoading && data ? (
         <>
           <div className="co-kpis co-rise-1">
-            <Kpi label="Patients" value={data.kpis.patients} foot="Registered clinic patients" icon={Users} />
-            <Kpi label="Today's appointments" value={data.kpis.appointmentsToday} foot={`${data.today.filter((a) => a.status === 'arrived').length} arrived`} icon={CalendarDays} />
-            <Kpi label="Calls today" value={data.kpis.callsToday} foot="AI + bulk calling" icon={PhoneCall} />
-            <Kpi label="Collected" value={money(data.kpis.revenueCollected)} foot={`${money(data.kpis.revenueSold)} in packages`} icon={IndianRupee} />
+            <Kpi label="Patients" value={data.kpis.patients} foot="Registered clinic patients" icon={Users} color="#A4285E" bg="#FBE9F1" border="#F7D6E4" />
+            <Kpi label="Today's Appointments" value={data.kpis.appointmentsToday} foot={`${data.today.filter((a) => a.status === 'arrived').length} arrived`} icon={CalendarDays} color="#CB3273" bg="#FDF2F8" border="#FBCFE8" />
+            <Kpi label="Calls Today" value={data.kpis.callsToday} foot="AI + bulk calling" icon={PhoneCall} color="#7C3AED" bg="#F5F3FF" border="#DDD6FE" />
+            <Kpi label="Revenue Collected" value={money(data.kpis.revenueCollected)} foot={`${money(data.kpis.revenueSold)} in packages`} icon={IndianRupee} color="#10B981" bg="#ECFDF5" border="#A7F3D0" />
           </div>
 
           <div className="co-split co-rise-2">

@@ -487,7 +487,8 @@ export default function ClinicCallReview({ id }) {
               borderBottom: '1px solid #F3D9E5',
             }}
           >
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            {/* Consistent Aura Pill Tabs for Telephony Filter */}
+            <div className="co-pill-tabs">
               {[
                 { id: 'all', label: 'All Transactions', count: stats.total },
                 { id: 'inbound', label: 'Inbound', count: stats.inbound },
@@ -503,34 +504,10 @@ export default function ClinicCallReview({ id }) {
                     key={f.id}
                     type="button"
                     onClick={() => setActiveFilter(f.id)}
-                    style={{
-                      padding: '6px 12px',
-                      borderRadius: 999,
-                      fontSize: 12,
-                      fontWeight: active ? 600 : 500,
-                      background: active ? '#A4285E' : '#F8FAFC',
-                      color: active ? '#FFFFFF' : '#475569',
-                      border: active ? '1px solid #A4285E' : '1px solid #E2E8F0',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      transition: 'all 0.15s ease',
-                    }}
+                    className={`co-pill-tab ${active ? 'active' : ''}`}
                   >
                     <span>{f.label}</span>
-                    <span
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        background: active ? 'rgba(255,255,255,0.25)' : '#E2E8F0',
-                        color: active ? '#FFFFFF' : '#64748B',
-                        padding: '1px 5px',
-                        borderRadius: 999,
-                      }}
-                    >
-                      {f.count}
-                    </span>
+                    <span className="co-pill-badge">{f.count}</span>
                   </button>
                 );
               })}
@@ -541,10 +518,10 @@ export default function ClinicCallReview({ id }) {
                 size={14}
                 style={{
                   position: 'absolute',
-                  left: 10,
+                  left: 12,
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#94A3B8',
+                  color: '#CB3273',
                   pointerEvents: 'none',
                 }}
               />
@@ -555,11 +532,13 @@ export default function ClinicCallReview({ id }) {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 style={{
-                  paddingLeft: 32,
+                  paddingLeft: 34,
                   paddingRight: searchQuery ? 28 : 12,
-                  fontSize: 12,
-                  height: 34,
-                  borderRadius: 999,
+                  fontSize: 12.5,
+                  height: 38,
+                  borderRadius: 10,
+                  border: '1px solid #F3D9E5',
+                  outline: 'none',
                 }}
               />
               {searchQuery && (

@@ -468,11 +468,11 @@ export default function ClinicVisibilityAudit() {
   return (
     <div className="flex flex-col h-full bg-gray-50 overflow-y-auto">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 border-b border-gray-200 bg-white/90 backdrop-blur-md px-6 py-4">
+      <div className="sticky top-0 z-20 border-b border-[#F3D9E5] bg-white/95 backdrop-blur-md px-6 py-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-pink-100 text-pink-700"><Shield className="h-4 w-4" /></span>
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-pink-100 text-[#CB3273] border border-[#F3D9E5] shadow-xs"><Shield className="h-4 w-4" /></span>
               <h1 className="text-xl font-bold text-gray-900 tracking-tight">Visibility Audit</h1>
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -480,17 +480,17 @@ export default function ClinicVisibilityAudit() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <button onClick={handleExportCSV} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm">
+            <button onClick={handleExportCSV} className="co-btn co-btn-sm">
               <Download className="w-3.5 h-3.5" /> Export Report
             </button>
-            <button onClick={() => setShowAddModal(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm">
+            <button onClick={() => setShowAddModal(true)} className="co-btn co-btn-sm">
               <Plus className="w-3.5 h-3.5" /> Add Keyword
             </button>
-            <button onClick={handleAiScan} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold shadow-sm ${isAiScanning ? "bg-amber-50 border-amber-300 text-amber-800 animate-pulse" : "bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"}`}>
+            <button onClick={handleAiScan} className={`co-btn co-btn-sm ${isAiScanning ? "animate-pulse" : ""}`} style={{ color: '#7C3AED', borderColor: '#DDD6FE', background: '#F5F3FF' }}>
               {isAiScanning ? <Square className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
               {isAiScanning ? `AI scan ${aiProgress?.current || 0}/${aiProgress?.total || 0} (Stop)` : "Scan AI Visibility"}
             </button>
-            <button onClick={handleScanAll} className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm ${isScanning ? "bg-amber-600 hover:bg-amber-700 animate-pulse" : "bg-gradient-to-r from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700"}`}>
+            <button onClick={handleScanAll} className={`co-btn co-btn-primary co-btn-sm ${isScanning ? "animate-pulse" : ""}`}>
               <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-spin" : ""}`} />
               {isScanning ? `Scanning ${scanProgress?.current || 0}/${scanProgress?.total || 0} (Pause)` : "⚡ Scan All Live (One by One)"}
             </button>
@@ -555,33 +555,33 @@ export default function ClinicVisibilityAudit() {
 
         {/* ── KPI CARDS ──────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Network visibility score</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-gray-900">{summary.networkVisibilityScore ?? "-"}</span>
               {summary.networkVisibilityScore !== null && <span className="text-xs font-semibold text-gray-400">/ 100</span>}
             </div>
             <div className="mt-3 w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-gradient-to-r from-pink-500 to-rose-500 h-1.5 rounded-full transition-all" style={{ width: `${summary.networkVisibilityScore || 0}%` }} />
+              <div className="bg-gradient-to-r from-[#A4285E] to-[#CB3273] h-1.5 rounded-full transition-all" style={{ width: `${summary.networkVisibilityScore || 0}%` }} />
             </div>
             <p className="mt-2 text-[11px] text-gray-400">60% Maps rank · 25% AI mentions · 15% rating</p>
           </div>
-          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top 3 on Google Maps</span>
             <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-3xl font-extrabold text-pink-600">{kpi.scanned ? kpi.top3 : "-"}</span>
+              <span className="text-3xl font-extrabold text-[#CB3273]">{kpi.scanned ? kpi.top3 : "-"}</span>
               <span className="text-xs font-medium text-gray-500">of {kpi.scanned} scanned</span>
             </div>
             <p className="mt-3 text-xs text-gray-500">{kpi.notRanked ? `${kpi.notRanked} scanned keyword(s) not in Maps results` : "Live Local Pack / Maps position"}</p>
           </div>
-          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Average rank, scanned searches</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-gray-900">{kpi.avg ?? "-"}</span>
             </div>
             <p className="mt-3 text-xs text-gray-500">Only keywords where Aura actually ranks</p>
           </div>
-          <div className="bg-white rounded-xl p-5 border border-gray-200 shadow-sm">
+          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">AI answers that mention Aura</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-purple-700">{summary.aiMentions ?? "-"}</span>
@@ -592,7 +592,7 @@ export default function ClinicVisibilityAudit() {
 
         {/* ── BRANCH SCORECARD + AI + FIXES ──────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+          <div className="lg:col-span-8 bg-white rounded-xl border border-[#F3D9E5] p-5 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
               <div>
                 <h2 className="text-sm font-bold text-gray-900">Branch scorecard</h2>
@@ -715,45 +715,71 @@ export default function ClinicVisibilityAudit() {
         )}
 
         {/* ── KEYWORD RANKINGS EXPLORER ──────────────────────────────────── */}
-        <div ref={explorerRef} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden scroll-mt-24">
-          <div className="p-5 border-b border-gray-200">
+        <div ref={explorerRef} className="bg-white rounded-xl border border-[#F3D9E5] shadow-xs overflow-hidden scroll-mt-24">
+          <div className="p-5 border-b border-[#F3D9E5]">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-                  <Globe className="w-4 h-4 text-pink-600" /> Local search rankings ({filteredKeywords.length} of {keywords.length})
+                  <Globe className="w-4 h-4 text-[#CB3273]" /> Local search rankings ({filteredKeywords.length} of {keywords.length})
                 </h2>
                 <p className="text-xs text-gray-500 mt-0.5">Google Maps position is checked from each branch's area · Organic is the normal Google result in that city. Click a row for the full result.</p>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 <div className="relative">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-gray-400" />
-                  <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search keywords…" className="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-pink-500 w-44" />
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-[#CB3273]" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search keywords…"
+                    className="pl-8 pr-3 py-1.5 text-xs rounded-10px border border-[#F3D9E5] focus:outline-none focus:ring-2 focus:ring-[#CB3273]/20 focus:border-[#CB3273] w-48 transition-all"
+                  />
                   {searchQuery && <button onClick={() => setSearchQuery("")} className="absolute right-2.5 top-2 text-gray-400"><X className="w-3 h-3" /></button>}
                 </div>
-                <select value={selectedBranch} onChange={(e) => setSelectedBranch(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white font-medium text-gray-700">
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="px-3 py-1.5 text-xs rounded-10px border border-[#F3D9E5] bg-white font-semibold text-gray-700 outline-none focus:border-[#CB3273]"
+                >
                   <option value="All">All branches</option>
                   {branchList.map((b) => <option key={b} value={b}>{b}</option>)}
                 </select>
-                <select value={selectedTier} onChange={(e) => setSelectedTier(e.target.value)} className="px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white font-medium text-gray-700">
+                <select
+                  value={selectedTier}
+                  onChange={(e) => setSelectedTier(e.target.value)}
+                  className="px-3 py-1.5 text-xs rounded-10px border border-[#F3D9E5] bg-white font-semibold text-gray-700 outline-none focus:border-[#CB3273]"
+                >
                   <option value="All">All positions</option>
                   <option value="top3">Top 3 (Map Pack)</option>
                   <option value="top10">Top 10</option>
-                  <option value="needsBoost">Needs boost (&#62;10 / not ranking)</option>
+                  <option value="needsBoost">Needs boost (&gt;10 / not ranking)</option>
                   <option value="unscanned">Not scanned yet</option>
                 </select>
-                <button onClick={handleScanAll} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border ${isScanning ? "bg-amber-50 text-amber-700 border-amber-300 animate-pulse" : "bg-pink-50 text-pink-700 border-pink-200 hover:bg-pink-100"}`}>
+                <button
+                  onClick={handleScanAll}
+                  className={`co-btn co-btn-sm ${isScanning ? "animate-pulse" : ""}`}
+                  style={{ color: '#A4285E', borderColor: '#F3D9E5', background: '#FDF2F8' }}
+                >
                   <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-spin" : ""}`} />
                   {isScanning ? "Pause scan" : `Scan ${filteredKeywords.length === keywords.length ? "all" : `these ${filteredKeywords.length}`} live`}
                 </button>
               </div>
             </div>
-            <div className="mt-4 flex items-center gap-1.5 overflow-x-auto pb-1">
+
+            {/* Consistent Aura Pill Tabs for Categories */}
+            <div className="mt-4 co-pill-tabs">
               {categoryList.map((cat) => {
                 const sel = selectedCategory === cat;
                 const count = cat === "All" ? keywords.length : data.categories[cat] || 0;
                 return (
-                  <button key={cat} onClick={() => setSelectedCategory(cat)} className={`whitespace-nowrap px-3 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5 ${sel ? "bg-pink-600 text-white shadow-sm" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                    <span>{cat}</span><span className={`text-[10px] px-1 rounded-full ${sel ? "bg-pink-700 text-white" : "bg-gray-200 text-gray-600"}`}>{count}</span>
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    className={`co-pill-tab ${sel ? "active" : ""}`}
+                  >
+                    <span>{cat}</span>
+                    <span className="co-pill-badge">{count}</span>
                   </button>
                 );
               })}
