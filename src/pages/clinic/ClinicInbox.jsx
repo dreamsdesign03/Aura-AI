@@ -1895,7 +1895,11 @@ export default function ClinicInbox() {
   const handleLoadMore = async () => {
     if (isLoadingMore || !hasMore) return;
     const currentList = filteredThreads;
-    const oldest = currentList[currentList.length - 1];
+    const oldest = currentList.reduce((earliest, thread) => {
+      if (!thread?.lastAt) return earliest;
+      if (!earliest?.lastAt) return thread;
+      return new Date(thread.lastAt).getTime() < new Date(earliest.lastAt).getTime() ? thread : earliest;
+    }, null);
     if (!oldest?.lastAt) {
       setHasMore(false);
       return;
