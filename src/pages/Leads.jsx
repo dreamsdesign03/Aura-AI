@@ -1500,7 +1500,7 @@ export default function Leads() {
                           ✓ {lead.whatsappSent || lead.whatsapp_sent ? "WA Sent" : "Messaged"}
                         </span>
                       )}
-                      {lead.campaign_name && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-semibold border border-violet-200">📢 {lead.campaign_name}</span>)}
+                      {lead.campaign_name && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-semibold border border-violet-200">{lead.campaign_name}</span>)}
                       {lead.industry && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{lead.industry}</span>)}
                       {l.annualRevenue && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{l.annualRevenue}</span>)}
                     </div>
@@ -1954,7 +1954,6 @@ export default function Leads() {
                             style={{ overflowWrap: "anywhere" }}
                             title={`Bulk Campaign: ${lead.campaign_name}`}
                           >
-                            <span className="shrink-0" aria-hidden="true">📢</span>
                             <span className="min-w-0">{lead.campaign_name}</span>
                           </span>
                         ) : (
