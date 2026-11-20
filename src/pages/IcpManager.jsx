@@ -293,40 +293,40 @@ export default function IcpManager() {
             setImporting(false);
         }
     };
-    return (<div className="p-3 md:p-6 space-y-4 md:space-y-5">
+    return (<div className="p-3 md:p-6 space-y-4 md:space-y-5 bg-[#FDF7FA] min-h-full">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold text-foreground">ICP Manager</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">Define your Ideal Customer Profiles to filter and score leads</p>
+          <h1 className="text-xl font-extrabold text-[#0F172A] tracking-tight">ICP Manager</h1>
+          <p className="text-xs text-[#475569] font-medium mt-0.5">Define your Ideal Customer Profiles to filter and score leads</p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowFindIcp(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium border border-purple-300 text-purple-700 bg-purple-50 hover:bg-purple-100 transition-colors">
-            <Sparkles className="w-3.5 h-3.5"/> Find ICP
+          <button onClick={() => setShowFindIcp(true)} className="co-btn">
+            <Sparkles className="w-3.5 h-3.5 text-[#CB3273]"/> Find ICP with AI
           </button>
-          <button onClick={() => setShowCreate(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-medium text-white" style={{ background: "#1A7A45" }}>
+          <button onClick={() => setShowCreate(true)} className="co-btn co-btn-primary">
             <Plus className="w-3.5 h-3.5"/> New ICP
           </button>
         </div>
       </div>
 
       {isLoading ? (<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (<div key={i} className="rounded-xl border border-gray-200 p-4 animate-pulse bg-white shadow-sm" style={{ height: "180px" }}/>))}
-        </div>) : icps.length === 0 ? (<div className="rounded-xl border border-gray-200 p-12 text-center bg-white shadow-sm">
-          <TargetIcon className="w-8 h-8 text-muted-foreground mx-auto mb-3"/>
-          <div className="text-sm text-muted-foreground">No ICPs defined yet</div>
-          <div className="flex items-center justify-center gap-3 mt-3">
-            <button onClick={() => setShowFindIcp(true)} className="text-xs text-purple-600 hover:text-purple-700 underline flex items-center gap-1"><Sparkles className="w-3 h-3"/> Find ICP with AI</button>
-            <span className="text-muted-foreground text-xs">or</span>
-            <button onClick={() => setShowCreate(true)} className="text-xs text-teal-600 hover:text-teal-700 underline">Create manually</button>
+          {[1, 2, 3].map((i) => (<div key={i} className="rounded-xl border border-[#CBD5E1] p-4 animate-pulse bg-white shadow-xs" style={{ height: "180px" }}/>))}
+        </div>) : icps.length === 0 ? (<div className="rounded-xl border border-[#CBD5E1] p-12 text-center bg-white shadow-xs">
+          <TargetIcon className="w-8 h-8 text-[#475569] mx-auto mb-3"/>
+          <div className="text-sm font-semibold text-[#0F172A]">No ICPs defined yet</div>
+          <div className="flex items-center justify-center gap-3 mt-4">
+            <button onClick={() => setShowFindIcp(true)} className="co-btn"><Sparkles className="w-3.5 h-3.5 text-[#CB3273]"/> Find ICP with AI</button>
+            <span className="text-[#64748B] text-xs font-medium">or</span>
+            <button onClick={() => setShowCreate(true)} className="co-btn co-btn-primary"><Plus className="w-3.5 h-3.5"/> Create manually</button>
           </div>
         </div>) : (<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {icps.map((icp) => (<div key={icp.id} className="rounded-xl border border-gray-200 p-4 hover:border-teal-200 transition-colors bg-white shadow-sm">
+          {icps.map((icp) => (<div key={icp.id} className="rounded-xl border border-[#CBD5E1] p-4 hover:border-[#CB3273] transition-all bg-white shadow-xs hover:shadow-sm">
               <div className="flex items-start justify-between mb-3">
                 <div>
-                  <div className="text-sm font-semibold text-foreground">{icp.name}</div>
+                  <div className="text-sm font-bold text-[#0F172A]">{icp.name}</div>
                   <div className="flex items-center gap-1.5 mt-1">
-                    <span className={`w-2 h-2 rounded-full ${icp.active ? "bg-teal-400" : "bg-gray-400"}`}/>
-                    <span className="text-[11px] text-muted-foreground">{icp.active ? "Active" : "Inactive"}</span>
+                    <span className={`w-2 h-2 rounded-full ${icp.active ? "bg-emerald-500" : "bg-gray-400"}`}/>
+                    <span className="text-[11.5px] font-semibold text-[#475569]">{icp.active ? "Active" : "Inactive"}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1.5">

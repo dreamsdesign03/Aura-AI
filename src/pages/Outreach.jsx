@@ -627,26 +627,26 @@ export default function Outreach() {
     return (<div className="flex flex-col h-full overflow-hidden" style={{ background: "#F8F9FA" }}>
 
       {/* Header */}
-      <div className="px-3 md:px-6 py-3 md:py-4 border-b border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
+      <div className="px-3 md:px-6 py-3 md:py-4 border-b border-[#CBD5E1] bg-white flex items-center justify-between flex-shrink-0">
         <div>
-          <h1 className="text-base font-bold text-gray-900">AI Outreach Engine</h1>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <h1 className="text-xl font-extrabold text-[#0F172A] tracking-tight">AI Outreach Engine</h1>
+          <p className="text-xs text-[#475569] font-medium mt-0.5">
             {draftCount} drafts · {sentCount} sent · {failedCount} failed · {replies.length} replies
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => refetch()} className="p-1.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100">
+          <button onClick={() => refetch()} className="co-btn" title="Refresh">
             <RefreshCw className="w-3.5 h-3.5"/>
           </button>
-          <button onClick={checkReplies} disabled={replyPolling} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-60">
+          <button onClick={checkReplies} disabled={replyPolling} className="co-btn">
             <RefreshCw className={cn("w-3.5 h-3.5", replyPolling && "animate-spin")}/>
             {replyPolling ? "Checking…" : "Check Replies"}
           </button>
-          <button onClick={() => setComposeOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition-all hover:bg-[#A4285E]" style={{ background: "#CB3273" }}>
+          <button onClick={() => setComposeOpen(true)} className="co-btn co-btn-primary">
             <Pencil className="w-3.5 h-3.5"/>
             Create New
           </button>
-          <button onClick={generateAll} disabled={bulkStatus === "running"} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white disabled:opacity-60 transition-all hover:bg-[#A4285E]" style={{ background: bulkStatus === "running" ? "#4A7C5E" : "#CB3273" }}>
+          <button onClick={generateAll} disabled={bulkStatus === "running"} className="co-btn co-btn-primary">
             <Zap className="w-3.5 h-3.5"/>
             {bulkStatus === "running" ? "Generating…" : "Generate All"}
           </button>
@@ -668,21 +668,26 @@ export default function Outreach() {
         <div className={cn("flex-col border-r border-gray-200 bg-white flex-shrink-0 md:flex md:w-80", selectedId ? "hidden md:flex" : "flex w-full")}>
 
           {/* Tabs */}
-          <div className="flex border-b border-gray-200">
+          <div className="p-2 co-pill-tabs border-b border-[#CBD5E1] bg-white">
             {tabs.map((t) => {
-            const count = t.count !== undefined ? t.count : byTab(t.key).length;
-            return (<button key={t.key} onClick={() => { setActiveTab(t.key); setSelectedId(null); }} className={cn("flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors", activeTab === t.key
-                    ? "border-b-2 text-gray-900"
-                    : "text-gray-400 hover:text-[#CB3273] hover:bg-[#FBE9F1]")} style={activeTab === t.key ? { borderBottomColor: "#CB3273", color: "#CB3273" } : {}}>
+              const count = t.count !== undefined ? t.count : byTab(t.key).length;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  onClick={() => { setActiveTab(t.key); setSelectedId(null); }}
+                  className={`co-pill-tab ${activeTab === t.key ? "active" : ""}`}
+                >
                   {t.icon}
-                  {t.label}
-                  {count > 0 && (<span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={activeTab === t.key
-                        ? { background: "#CB3273", color: "#fff" }
-                        : { background: "#E5E7EB", color: "#6B7280" }}>
+                  <span>{t.label}</span>
+                  {count > 0 && (
+                    <span className="co-pill-badge">
                       {count}
-                    </span>)}
-                </button>);
-        })}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
 
           {/* Email list */}

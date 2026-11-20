@@ -1625,7 +1625,7 @@ export default function Leads() {
 
         {/* ── Desktop table (≥ md) ───────────────────────────────── */}
         <div className="hidden md:block w-full max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full text-[13.5px] border-separate border-spacing-0" style={{ minWidth: "1790px", tableLayout: "fixed" }}>
+          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "1790px", tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-[#F9FAFB] border-b border-gray-200">
                 {/* 1. Checkbox (Sticky Left 0) */}
@@ -1644,7 +1644,7 @@ export default function Leads() {
 
                 {/* 2. Contact Name (Sticky Left 46px) */}
                 <th
-                  className="sticky left-[46px] z-30 bg-[#F9FAFB] px-4 py-3 text-left text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 shadow-[2px_0_5px_rgba(0,0,0,0.04)]"
+                  className="sticky left-[46px] z-30 bg-[#F9FAFB] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 shadow-[2px_0_5px_rgba(0,0,0,0.04)]"
                   style={{ width: "220px", minWidth: "220px" }}
                 >
                   Contact Name
@@ -1652,7 +1652,7 @@ export default function Leads() {
 
                 {/* 3. Phone Number */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Phone Number
@@ -1660,7 +1660,7 @@ export default function Leads() {
 
                 {/* 4. Call Status */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Call Status
@@ -1668,7 +1668,7 @@ export default function Leads() {
 
                 {/* 5. Message Status */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Message Status
@@ -1676,7 +1676,7 @@ export default function Leads() {
 
                 {/* 6. Lead Status */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "160px", minWidth: "160px" }}
                 >
                   Lead Status
@@ -1684,7 +1684,7 @@ export default function Leads() {
 
                 {/* 7. Source / Campaign */}
                 <th
-                  className="px-3 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "220px", minWidth: "220px" }}
                 >
                   Source / Campaign
@@ -1692,7 +1692,7 @@ export default function Leads() {
 
                 {/* 8. Company */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-[#A4285E]"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
                   style={{ width: "160px", minWidth: "160px" }}
                   onClick={() => handleSort("company")}
                 >
@@ -1701,7 +1701,7 @@ export default function Leads() {
 
                 {/* 9. Designation */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "160px", minWidth: "160px" }}
                 >
                   Designation
@@ -1709,7 +1709,7 @@ export default function Leads() {
 
                 {/* 10. Location */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "130px", minWidth: "130px" }}
                 >
                   Location
@@ -1717,7 +1717,7 @@ export default function Leads() {
 
                 {/* 11. Website */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Website
@@ -1725,7 +1725,7 @@ export default function Leads() {
 
                 {/* 12. Date Added */}
                 <th
-                  className="px-4 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-[#A4285E]"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
                   style={{ width: "120px", minWidth: "120px" }}
                   onClick={() => handleSort("createdAt")}
                 >
@@ -1734,7 +1734,7 @@ export default function Leads() {
 
                 {/* 13. Actions */}
                 <th
-                  className="px-3 py-3 text-center text-[12px] font-extrabold uppercase tracking-wider text-[#334155] border-r border-b border-gray-200"
+                  className="px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200"
                   style={{ width: "110px", minWidth: "110px" }}
                 >
                   Actions
@@ -1804,13 +1804,13 @@ export default function Leads() {
                         )}
                         <div className="min-w-0 flex-1">
                           <div
-                            className="font-bold text-[#0F172A] group-hover:text-[#A4285E] text-[14px] leading-tight truncate"
+                            className="font-semibold text-gray-900 group-hover:text-violet-600 text-[13px] leading-tight truncate"
                             title={leadNameStr}
                           >
                             {leadNameStr}
                           </div>
                           {cleanEmail(lead.email) && (
-                            <div className="text-[12px] text-[#475569] leading-tight truncate mt-0.5" title={cleanEmail(lead.email)}>
+                            <div className="text-[11px] text-gray-500 leading-tight truncate mt-0.5" title={cleanEmail(lead.email)}>
                               {cleanEmail(lead.email)}
                             </div>
                           )}
@@ -1820,29 +1820,29 @@ export default function Leads() {
 
                     {/* 3. Phone */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[13px] text-center"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {cleanPhone ? (
-                        <span className="text-[#0F172A] font-semibold text-[13px] truncate block text-center" title={cleanPhone}>
+                        <span className="text-gray-800 font-medium text-[12px] truncate block text-center" title={cleanPhone}>
                           {cleanPhone}
                         </span>
                       ) : (
-                        <span className="text-gray-400 font-medium">—</span>
+                        <span className="text-gray-300">—</span>
                       )}
                     </td>
 
                     {/* 4. Call Status */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[13px] text-center"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall ? (
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                           <span
-                            className="inline-flex items-center justify-center leading-none gap-1 px-3 py-1.5 rounded-full text-[12px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
                             title={`AI call placed: ${lead.last_ai_call_status || "Completed"}`}
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -1851,7 +1851,7 @@ export default function Leads() {
                           <button
                             type="button"
                             onClick={() => setViewCallsLead(lead)}
-                            className="text-[12px] text-[#CB3273] hover:text-[#A4285E] font-bold hover:underline inline-flex items-center leading-none"
+                            className="text-[11px] text-pink-600 hover:text-pink-800 font-semibold hover:underline inline-flex items-center leading-none"
                             title="View AI call recording and logs"
                           >
                             Logs
@@ -1859,7 +1859,7 @@ export default function Leads() {
                         </div>
                       ) : cleanPhone ? (
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <span className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1.5 rounded-full text-[11.5px] font-semibold bg-gray-50 text-[#475569] border border-gray-200">
+                          <span className="inline-flex items-center justify-center leading-none gap-1 px-2 py-1 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             Not Called
                           </span>
@@ -1868,39 +1868,39 @@ export default function Leads() {
                             disabled={lead.do_not_call}
                             onClick={() => setConfirmCallLead(lead)}
                             className={cn(
-                              "px-2.5 py-1 rounded text-[11.5px] font-bold bg-pink-50 text-[#A4285E] hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center leading-none gap-1 transition-colors shrink-0",
+                              "px-2 py-1 rounded text-[10.5px] font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center leading-none gap-1 transition-colors shrink-0",
                               lead.do_not_call && "opacity-30 cursor-not-allowed"
                             )}
                             title={`Start AI Call to ${leadNameStr}`}
                           >
-                            <Phone className="w-3 h-3" /> Call
+                            <Phone className="w-2.5 h-2.5" /> Call
                           </button>
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-[12px]">—</span>
+                        <span className="text-gray-300 text-[11px]">—</span>
                       )}
                     </td>
 
                     {/* 5. Message Status */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[13px] text-center"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {lead.whatsappSent || lead.whatsapp_sent || lead.emailSent || lead.last_contacted_at ? (
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                           <span
-                            className="inline-flex items-center justify-center leading-none gap-1 px-3 py-1.5 rounded-full text-[12px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
                             title="Outreach message already sent. Duplicate send prevented."
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                             {lead.whatsappSent || lead.whatsapp_sent ? "WA Sent" : "Sent"}
                           </span>
-                          <span className="text-[11.5px] text-[#475569] font-bold leading-none">Done</span>
+                          <span className="text-[10.5px] text-gray-400 font-medium leading-none">Done</span>
                         </div>
                       ) : cleanPhone ? (
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
-                          <span className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1.5 rounded-full text-[11.5px] font-semibold bg-gray-50 text-[#475569] border border-gray-200">
+                          <span className="inline-flex items-center justify-center leading-none gap-1 px-2 py-1 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             Not Sent
                           </span>
@@ -1909,14 +1909,14 @@ export default function Leads() {
                             onClick={() => {
                               if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
                             }}
-                            className="px-2.5 py-1 rounded text-[11.5px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center leading-none gap-1 transition-colors shrink-0"
+                            className="px-2 py-1 rounded text-[10.5px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center leading-none gap-1 transition-colors shrink-0"
                             title={`Send WhatsApp message to ${leadNameStr}`}
                           >
-                            <MessageCircle className="w-3 h-3" /> Send
+                            <MessageCircle className="w-2.5 h-2.5" /> Send
                           </button>
                         </div>
                       ) : (
-                        <span className="text-gray-400 text-[12px]">—</span>
+                        <span className="text-gray-300 text-[11px]">—</span>
                       )}
                     </td>
 
@@ -1940,11 +1940,11 @@ export default function Leads() {
                         const cfg = STATUS_CONFIG[statusKey] || {
                           label: statusKey.replace(/_/g, " "),
                           dot: "#6B7280",
-                          bg: "bg-gray-50 text-[#0F172A] border-gray-200",
+                          bg: "bg-gray-50 text-gray-700 border-gray-200",
                         };
                         return (
                           <div className="flex items-center justify-center">
-                            <span className={cn("inline-flex items-center justify-center leading-none gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-bold border whitespace-nowrap capitalize", cfg.bg)}>
+                            <span className={cn("inline-flex items-center justify-center leading-none gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap capitalize", cfg.bg)}>
                               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.dot }} />
                               {cfg.label}
                             </span>
@@ -1955,13 +1955,13 @@ export default function Leads() {
 
                     {/* 7. Source / Campaign — wrap the full value instead of clipping it */}
                     <td
-                      className="px-3 py-2.5 border-r border-b border-gray-100 text-[12.5px] text-center align-middle"
+                      className="px-3 py-2.5 border-r border-b border-gray-100 text-[12px] text-center align-middle"
                       style={{ width: "220px", minWidth: "220px", maxWidth: "220px" }}
                     >
                       <div className="flex w-full items-center justify-center min-w-0">
                         {lead.campaign_name ? (
                           <span
-                            className="inline-flex max-w-full items-center justify-center gap-1 px-3 py-1 rounded-md text-[12px] font-bold leading-snug whitespace-normal break-words text-center bg-pink-50 text-[#A4285E] border border-pink-200"
+                            className="inline-flex max-w-full items-center justify-center gap-1 px-2.5 py-1 rounded-md text-[10.5px] font-semibold leading-snug whitespace-normal break-words text-center bg-violet-50 text-violet-700 border border-violet-200"
                             style={{ overflowWrap: "anywhere" }}
                             title={`Bulk Campaign: ${lead.campaign_name}`}
                           >
@@ -1981,42 +1981,42 @@ export default function Leads() {
 
                     {/* 8. Company */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[13px] text-[#0F172A] text-center"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-800 text-center"
                       style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
                     >
                       <div className="flex items-center justify-center gap-1.5 min-w-0">
                         {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />}
-                        <span className="font-semibold truncate block text-center" title={lead.company || ""}>
-                          {cleanCompanyName(lead.company) || <span className="text-gray-400 font-normal">—</span>}
+                        <span className="font-medium truncate block text-center" title={lead.company || ""}>
+                          {cleanCompanyName(lead.company) || <span className="text-gray-300 font-normal">—</span>}
                         </span>
                       </div>
                     </td>
 
                     {/* 9. Designation */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[13px] text-[#1E293B] text-center font-medium"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700 text-center"
                       style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
                       title={lead.designation || ""}
                     >
                       <span className="truncate block text-center">
-                        {lead.designation || <span className="text-gray-400">—</span>}
+                        {lead.designation || <span className="text-gray-300">—</span>}
                       </span>
                     </td>
 
                     {/* 10. Location */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[13px] text-[#1E293B] text-center font-medium"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700 text-center"
                       style={{ width: "130px", minWidth: "130px", maxWidth: "130px" }}
                       title={[l.city, lead.country].filter(Boolean).join(", ")}
                     >
                       <span className="truncate block text-center">
-                        {[l.city, lead.country].filter(Boolean).join(", ") || <span className="text-gray-400">—</span>}
+                        {[l.city, lead.country].filter(Boolean).join(", ") || <span className="text-gray-300">—</span>}
                       </span>
                     </td>
 
                     {/* 11. Website */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[13px] text-center"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
