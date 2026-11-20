@@ -1641,7 +1641,7 @@ export default function Leads() {
 
                 {/* 3. Phone Number */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Phone Number
@@ -1649,7 +1649,7 @@ export default function Leads() {
 
                 {/* 4. Call Status */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Call Status
@@ -1657,7 +1657,7 @@ export default function Leads() {
 
                 {/* 5. Message Status */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Message Status
@@ -1665,7 +1665,7 @@ export default function Leads() {
 
                 {/* 6. Lead Status */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "160px", minWidth: "160px" }}
                 >
                   Lead Status
@@ -1673,7 +1673,7 @@ export default function Leads() {
 
                 {/* 7. Source / Campaign */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "180px", minWidth: "180px" }}
                 >
                   Source / Campaign
@@ -1681,16 +1681,16 @@ export default function Leads() {
 
                 {/* 8. Company */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
                   style={{ width: "160px", minWidth: "160px" }}
                   onClick={() => handleSort("company")}
                 >
-                  <span className="flex items-center gap-1">Company <SortIcon col="company"/></span>
+                  <span className="inline-flex items-center justify-center gap-1">Company <SortIcon col="company"/></span>
                 </th>
 
                 {/* 9. Designation */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "160px", minWidth: "160px" }}
                 >
                   Designation
@@ -1698,7 +1698,7 @@ export default function Leads() {
 
                 {/* 10. Location */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "130px", minWidth: "130px" }}
                 >
                   Location
@@ -1706,7 +1706,7 @@ export default function Leads() {
 
                 {/* 11. Website */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
                 >
                   Website
@@ -1714,11 +1714,11 @@ export default function Leads() {
 
                 {/* 12. Date Added */}
                 <th
-                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
                   style={{ width: "120px", minWidth: "120px" }}
                   onClick={() => handleSort("createdAt")}
                 >
-                  <span className="flex items-center gap-1">Date Added <SortIcon col="createdAt"/></span>
+                  <span className="inline-flex items-center justify-center gap-1">Date Added <SortIcon col="createdAt"/></span>
                 </th>
 
                 {/* 13. Actions */}
@@ -1809,12 +1809,12 @@ export default function Leads() {
 
                     {/* 3. Phone */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {cleanPhone ? (
-                        <span className="text-gray-800 font-medium text-[12px] truncate block" title={cleanPhone}>
+                        <span className="text-gray-800 font-medium text-[12px] truncate block text-center" title={cleanPhone}>
                           {cleanPhone}
                         </span>
                       ) : (
@@ -1824,14 +1824,14 @@ export default function Leads() {
 
                     {/* 4. Call Status */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall ? (
-                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                           <span
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
                             title={`AI call placed: ${lead.last_ai_call_status || "Completed"}`}
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
@@ -1840,15 +1840,15 @@ export default function Leads() {
                           <button
                             type="button"
                             onClick={() => setViewCallsLead(lead)}
-                            className="text-[11px] text-pink-600 hover:text-pink-800 font-semibold hover:underline"
+                            className="text-[11px] text-pink-600 hover:text-pink-800 font-semibold hover:underline inline-flex items-center leading-none"
                             title="View AI call recording and logs"
                           >
                             Logs
                           </button>
                         </div>
                       ) : cleanPhone ? (
-                        <div className="flex items-center gap-1.5 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                          <span className="inline-flex items-center justify-center leading-none gap-1 px-2 py-1 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             Not Called
                           </span>
@@ -1857,7 +1857,7 @@ export default function Leads() {
                             disabled={lead.do_not_call}
                             onClick={() => setConfirmCallLead(lead)}
                             className={cn(
-                              "px-2 py-0.5 rounded text-[10.5px] font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center gap-1 transition-colors shrink-0",
+                              "px-2 py-1 rounded text-[10.5px] font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center leading-none gap-1 transition-colors shrink-0",
                               lead.do_not_call && "opacity-30 cursor-not-allowed"
                             )}
                             title={`Start AI Call to ${leadNameStr}`}
@@ -1872,24 +1872,24 @@ export default function Leads() {
 
                     {/* 5. Message Status */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {lead.whatsappSent || lead.whatsapp_sent || lead.emailSent || lead.last_contacted_at ? (
-                        <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
                           <span
-                            className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200"
                             title="Outreach message already sent. Duplicate send prevented."
                           >
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                             {lead.whatsappSent || lead.whatsapp_sent ? "WA Sent" : "Sent"}
                           </span>
-                          <span className="text-[10.5px] text-gray-400 font-medium">Done</span>
+                          <span className="text-[10.5px] text-gray-400 font-medium leading-none">Done</span>
                         </div>
                       ) : cleanPhone ? (
-                        <div className="flex items-center gap-1.5 whitespace-nowrap">
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                          <span className="inline-flex items-center justify-center leading-none gap-1 px-2 py-1 rounded-full text-[10.5px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             Not Sent
                           </span>
@@ -1898,7 +1898,7 @@ export default function Leads() {
                             onClick={() => {
                               if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
                             }}
-                            className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center gap-1 transition-colors shrink-0"
+                            className="px-2 py-1 rounded text-[10.5px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center leading-none gap-1 transition-colors shrink-0"
                             title={`Send WhatsApp message to ${leadNameStr}`}
                           >
                             <MessageCircle className="w-2.5 h-2.5" /> Send
@@ -1911,7 +1911,7 @@ export default function Leads() {
 
                     {/* 6. Lead Status */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-center"
                       style={{ width: "160px", minWidth: "160px" }}
                     >
                       {(() => {
@@ -1932,41 +1932,45 @@ export default function Leads() {
                           bg: "bg-gray-50 text-gray-700 border-gray-200",
                         };
                         return (
-                          <span className={cn("inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border whitespace-nowrap capitalize", cfg.bg)}>
-                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.dot }} />
-                            {cfg.label}
-                          </span>
+                          <div className="flex items-center justify-center">
+                            <span className={cn("inline-flex items-center justify-center leading-none gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap capitalize", cfg.bg)}>
+                              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: cfg.dot }} />
+                              {cfg.label}
+                            </span>
+                          </div>
                         );
                       })()}
                     </td>
 
                     {/* 7. Source / Campaign */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px]"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-center"
                       style={{ width: "180px", minWidth: "180px", maxWidth: "180px" }}
                     >
-                      {lead.campaign_name ? (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-violet-50 text-violet-700 border border-violet-200 truncate max-w-full"
-                          title={`Bulk Campaign: ${lead.campaign_name}`}
-                        >
-                          📢 {lead.campaign_name}
-                        </span>
-                      ) : (
-                        <span className="text-gray-600 capitalize block truncate" title={lead.source || ""}>
-                          {lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}
-                        </span>
-                      )}
+                      <div className="flex items-center justify-center min-w-0">
+                        {lead.campaign_name ? (
+                          <span
+                            className="inline-flex items-center justify-center leading-none gap-1 px-2.5 py-1 rounded-md text-[10.5px] font-semibold bg-violet-50 text-violet-700 border border-violet-200 truncate max-w-full"
+                            title={`Bulk Campaign: ${lead.campaign_name}`}
+                          >
+                            📢 {lead.campaign_name}
+                          </span>
+                        ) : (
+                          <span className="text-gray-600 capitalize block truncate text-center" title={lead.source || ""}>
+                            {lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* 8. Company */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-800"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-800 text-center"
                       style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
                     >
-                      <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="flex items-center justify-center gap-1.5 min-w-0">
                         {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />}
-                        <span className="font-medium truncate block" title={lead.company || ""}>
+                        <span className="font-medium truncate block text-center" title={lead.company || ""}>
                           {cleanCompanyName(lead.company) || <span className="text-gray-300 font-normal">—</span>}
                         </span>
                       </div>
@@ -1974,47 +1978,53 @@ export default function Leads() {
 
                     {/* 9. Designation */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700 text-center"
                       style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
                       title={lead.designation || ""}
                     >
-                      {lead.designation || <span className="text-gray-300">—</span>}
+                      <span className="truncate block text-center">
+                        {lead.designation || <span className="text-gray-300">—</span>}
+                      </span>
                     </td>
 
                     {/* 10. Location */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700 text-center"
                       style={{ width: "130px", minWidth: "130px", maxWidth: "130px" }}
                       title={[l.city, lead.country].filter(Boolean).join(", ")}
                     >
-                      {[l.city, lead.country].filter(Boolean).join(", ") || <span className="text-gray-300">—</span>}
+                      <span className="truncate block text-center">
+                        {[l.city, lead.country].filter(Boolean).join(", ") || <span className="text-gray-300">—</span>}
+                      </span>
                     </td>
 
                     {/* 11. Website */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px]"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {lead.website ? (
-                        <a
-                          href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline inline-flex items-center gap-1 font-medium truncate"
-                          title={lead.website}
-                        >
-                          <Globe className="w-3 h-3 text-gray-400 shrink-0" />
-                          <span className="truncate">{lead.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</span>
-                        </a>
-                      ) : (
-                        <span className="text-gray-300">—</span>
-                      )}
+                      <div className="flex items-center justify-center">
+                        {lead.website ? (
+                          <a
+                            href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 hover:underline inline-flex items-center justify-center gap-1 font-medium truncate"
+                            title={lead.website}
+                          >
+                            <Globe className="w-3 h-3 text-gray-400 shrink-0" />
+                            <span className="truncate">{lead.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</span>
+                          </a>
+                        ) : (
+                          <span className="text-gray-300">—</span>
+                        )}
+                      </div>
                     </td>
 
                     {/* 12. Date Added */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[11px] text-gray-500"
+                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[11px] text-gray-500 text-center"
                       style={{ width: "120px", minWidth: "120px" }}
                     >
                       {formatDate(lead.createdAt)}
