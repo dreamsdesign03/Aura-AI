@@ -1321,12 +1321,29 @@ export default function Leads() {
           </button>
           {reportsMsg && <span className="text-[11px] text-emerald-700 font-medium">{reportsMsg}</span>}
           <button disabled={waInitiating} onClick={() => {
-                if (!confirm(`Send WhatsApp hook to ${selected.length} lead(s)?`))
+                const targetLeads = filteredLeads.filter((l) => selected.includes(l.id));
+                const freshLeads = targetLeads.filter((l) => !(l.whatsappSent || l.whatsapp_sent || l.emailSent || l.last_contacted_at));
+                const alreadySentCount = targetLeads.length - freshLeads.length;
+
+                if (freshLeads.length === 0) {
+                  toast({
+                    title: "Duplicate outreach prevented",
+                    description: "All selected contacts have already received messages. No new messages will be sent.",
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
+                const confirmPrompt = alreadySentCount > 0
+                  ? `Send WhatsApp hook to ${freshLeads.length} new contact(s)?\n\n(${alreadySentCount} already-contacted person(s) will be skipped to prevent duplicates)`
+                  : `Send WhatsApp hook to ${freshLeads.length} contact(s)?`;
+
+                if (!confirm(confirmPrompt))
                     return;
                 setWaInitiating(true);
                 setWaMsg(null);
-                initiateWaBulk.mutate({ data: { leadIds: selected } }, {
-                    onSuccess: (res) => { const s = res.succeeded ?? selected.length; const f = res.failed ?? 0; setWaMsg(f > 0 ? `✓ ${s} sent, ${f} failed` : `✓ ${s} sent`); setSelected([]); },
+                initiateWaBulk.mutate({ data: { leadIds: freshLeads.map((l) => l.id) } }, {
+                    onSuccess: (res) => { const s = res.succeeded ?? freshLeads.length; const f = res.failed ?? 0; setWaMsg(f > 0 ? `✓ ${s} sent, ${f} failed` : `✓ ${s} sent`); setSelected([]); },
                     onError: () => setWaMsg("✕ Failed"),
                     onSettled: () => setWaInitiating(false),
                 });
@@ -1335,7 +1352,26 @@ export default function Leads() {
             {waInitiating ? "Sending…" : "WA Hook"}
           </button>
           {waMsg && <span className="text-[11px] text-green-700 font-medium">{waMsg}</span>}
-          <button onClick={() => setTplLeads(filterOwnWhatsAppLeads(filteredLeads.filter((l) => selected.includes(l.id))))} className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 underline">
+          <button onClick={() => {
+            const rawLeads = filterOwnWhatsAppLeads(filteredLeads.filter((l) => selected.includes(l.id)));
+            const freshLeads = rawLeads.filter((l) => !(l.whatsappSent || l.whatsapp_sent || l.emailSent || l.last_contacted_at));
+            const skipped = rawLeads.length - freshLeads.length;
+            if (skipped > 0) {
+              toast({
+                title: "Duplicate protection",
+                description: `Skipped ${skipped} contact(s) that were already messaged.`,
+              });
+            }
+            if (freshLeads.length > 0) {
+              setTplLeads(freshLeads);
+            } else if (rawLeads.length > 0) {
+              toast({
+                title: "Already messaged",
+                description: "All selected contacts have already received messages.",
+                variant: "destructive"
+              });
+            }
+          }} className="flex items-center gap-1 text-[11px] text-green-700 hover:text-green-800 underline">
             <Send className="w-3 h-3"/> Send Template
           </button>
           <button onClick={() => setShowListModal(true)} className="flex items-center gap-1 text-[11px] text-indigo-700 hover:text-indigo-800 underline">
@@ -1454,6 +1490,16 @@ export default function Leads() {
                     {/* Row 3: Badge chips */}
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       <StatusBadge status={lead.status}/>
+                      {(lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall) && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                          ✓ Call: {lead.last_ai_call_status ? lead.last_ai_call_status.toUpperCase() : "CALLED"}
+                        </span>
+                      )}
+                      {(lead.whatsappSent || lead.whatsapp_sent || lead.emailSent || lead.last_contacted_at) && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-bold border border-emerald-200">
+                          ✓ {lead.whatsappSent || lead.whatsapp_sent ? "WA Sent" : "Messaged"}
+                        </span>
+                      )}
                       {lead.campaign_name && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-100 text-violet-800 font-semibold border border-violet-200">📢 {lead.campaign_name}</span>)}
                       {lead.industry && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{lead.industry}</span>)}
                       {l.annualRevenue && (<span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-medium">{l.annualRevenue}</span>)}
@@ -1480,12 +1526,62 @@ export default function Leads() {
                       {/* Action column */}
                       <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                         <div className="flex items-center gap-1.5">
-                          {phoneNum && (<a href={`tel:${phoneNum}`} className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200" onClick={(e) => e.stopPropagation()}>
-                              <Phone className="w-3 h-3"/> Call
-                            </a>)}
-                          {waNum && (<a href={`https://wa.me/${waNum}`} target="_blank" rel="noreferrer" className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-green-50 text-green-700 border border-green-200" onClick={(e) => e.stopPropagation()}>
-                              <MessageCircle className="w-3 h-3"/> WhatsApp
-                            </a>)}
+                          {phoneNum && (
+                            lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setViewCallsLead(lead);
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200"
+                                title="Already called — Click to view recording/logs"
+                              >
+                                <Phone className="w-3 h-3 text-emerald-600"/> Called
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                disabled={lead.do_not_call}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setConfirmCallLead(lead);
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200"
+                              >
+                                <Phone className="w-3 h-3"/> Call
+                              </button>
+                            )
+                          )}
+                          {waNum && (
+                            lead.whatsappSent || lead.whatsapp_sent || lead.emailSent || lead.last_contacted_at ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toast({
+                                    title: "Already Messaged",
+                                    description: `Message already sent to ${leadNameStrMobile}. Duplicate messaging prevented.`,
+                                  });
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed"
+                                title="Message already sent"
+                              >
+                                <CheckCircle2 className="w-3 h-3 text-emerald-600"/> Sent
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
+                                }}
+                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-green-50 text-green-700 border border-green-200"
+                              >
+                                <MessageCircle className="w-3 h-3"/> WhatsApp
+                              </button>
+                            )
+                          )}
                         </div>
                         {/* Stage dropdown */}
                         <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -1518,7 +1614,7 @@ export default function Leads() {
 
         {/* ── Desktop table (≥ md) ───────────────────────────────── */}
         <div className="hidden md:block w-full max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "1960px", tableLayout: "fixed" }}>
+          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "2200px", tableLayout: "fixed" }}>
             <thead className="sticky top-0 z-20">
               <tr className="bg-[#F9FAFB] border-b border-gray-200">
                 {/* 1. Checkbox (Sticky Left 0) */}
@@ -1555,12 +1651,28 @@ export default function Leads() {
                 {/* 4. Phone Number */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "200px", minWidth: "200px" }}
+                  style={{ width: "160px", minWidth: "160px" }}
                 >
                   Phone Number
                 </th>
 
-                {/* 5. Lead Status */}
+                {/* 5. Call Status */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "160px", minWidth: "160px" }}
+                >
+                  Call Status
+                </th>
+
+                {/* 6. Message Status */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "160px", minWidth: "160px" }}
+                >
+                  Message Status
+                </th>
+
+                {/* 7. Lead Status */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "160px", minWidth: "160px" }}
@@ -1568,7 +1680,7 @@ export default function Leads() {
                   Lead Status
                 </th>
 
-                {/* 6. Source / Campaign */}
+                {/* 8. Source / Campaign */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "180px", minWidth: "180px" }}
@@ -1576,7 +1688,7 @@ export default function Leads() {
                   Source / Campaign
                 </th>
 
-                {/* 7. Designation */}
+                {/* 9. Designation */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "160px", minWidth: "160px" }}
@@ -1584,7 +1696,7 @@ export default function Leads() {
                   Designation
                 </th>
 
-                {/* 8. Location */}
+                {/* 10. Location */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "130px", minWidth: "130px" }}
@@ -1592,7 +1704,7 @@ export default function Leads() {
                   Location
                 </th>
 
-                {/* 9. Website URL */}
+                {/* 11. Website URL */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
@@ -1600,7 +1712,7 @@ export default function Leads() {
                   Website
                 </th>
 
-                {/* 10. Email Status */}
+                {/* 12. Email Status */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "120px", minWidth: "120px" }}
@@ -1608,7 +1720,7 @@ export default function Leads() {
                   Email Status
                 </th>
 
-                {/* 11. Web Status */}
+                {/* 13. Web Status */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "110px", minWidth: "110px" }}
@@ -1616,7 +1728,7 @@ export default function Leads() {
                   Web Status
                 </th>
 
-                {/* 12. Industry */}
+                {/* 14. Industry */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "140px", minWidth: "140px" }}
@@ -1624,7 +1736,7 @@ export default function Leads() {
                   Industry
                 </th>
 
-                {/* 13. Date Added */}
+                {/* 15. Date Added */}
                 <th
                   className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
                   style={{ width: "120px", minWidth: "120px" }}
@@ -1633,7 +1745,7 @@ export default function Leads() {
                   <span className="flex items-center gap-1">Date Added <SortIcon col="createdAt"/></span>
                 </th>
 
-                {/* 14. Actions (Sticky Right 0) */}
+                {/* 16. Actions (Sticky Right 0) */}
                 <th
                   className="sticky right-0 z-30 bg-[#F9FAFB] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-l border-b border-gray-200 shadow-[-2px_0_5px_rgba(0,0,0,0.04)]"
                   style={{ width: "100px", minWidth: "100px" }}
@@ -1646,14 +1758,14 @@ export default function Leads() {
               {isLoading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    <td colSpan={14} className="px-4 py-3">
+                    <td colSpan={16} className="px-4 py-3">
                       <div className="h-4 rounded bg-gray-100 animate-pulse" style={{ width: `${55 + i * 4}%` }}/>
                     </td>
                   </tr>
                 ))
               ) : pagedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="text-center py-16 text-gray-400">
+                  <td colSpan={16} className="text-center py-16 text-gray-400">
                     No contacts match your filters
                   </td>
                 </tr>
@@ -1739,55 +1851,104 @@ export default function Leads() {
                     {/* 4. Phone */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
-                      style={{ width: "200px", minWidth: "200px", maxWidth: "200px" }}
+                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {cleanPhone ? (
-                        <div className="flex items-center justify-between gap-1.5">
-                          <div className="min-w-0 flex-1">
-                            <span className="text-gray-800 font-medium text-[12px] truncate block" title={cleanPhone}>
-                              {cleanPhone}
-                            </span>
-                            {lead.last_ai_call_status && (
-                              <span
-                                className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] uppercase font-bold tracking-wide bg-pink-50 text-pink-700 border border-pink-200"
-                                title={`Last AI Call: ${lead.last_ai_call_status}`}
-                              >
-                                AI {lead.last_ai_call_status}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1 shrink-0">
-                            <button
-                              type="button"
-                              disabled={lead.do_not_call}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setConfirmCallLead(lead);
-                              }}
-                              className={cn(
-                                "w-6 h-6 flex items-center justify-center rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-[11px]",
-                                lead.do_not_call && "opacity-30 cursor-not-allowed"
-                              )}
-                              title={`Call ${leadNameStr}`}
-                            >
-                              <Phone className="w-3 h-3" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
-                              }}
-                              className="w-6 h-6 flex items-center justify-center rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-[11px]"
-                              title="Send WhatsApp"
-                            >
-                              <MessageCircle className="w-3 h-3" />
-                            </button>
-                          </div>
+                        <div className="flex items-center justify-between gap-1 min-w-0">
+                          <span className="text-gray-800 font-medium text-[12px] truncate block" title={cleanPhone}>
+                            {cleanPhone}
+                          </span>
                         </div>
                       ) : (
                         <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+
+                    {/* 5. Call Status */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
+                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall ? (
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 truncate"
+                            title={`Call placed: ${lead.last_ai_call_status || "Completed"}`}
+                          >
+                            <PhoneOutgoing className="w-2.5 h-2.5 shrink-0 text-emerald-600" />
+                            ✓ {lead.last_ai_call_status ? lead.last_ai_call_status.toUpperCase() : "CALLED"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setViewCallsLead(lead)}
+                            className="px-1.5 py-0.5 text-[10px] font-semibold text-pink-600 hover:text-pink-800 hover:underline shrink-0"
+                            title="View AI call details & recordings"
+                          >
+                            Logs
+                          </button>
+                        </div>
+                      ) : cleanPhone ? (
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                            Not Called
+                          </span>
+                          <button
+                            type="button"
+                            disabled={lead.do_not_call}
+                            onClick={() => setConfirmCallLead(lead)}
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[10.5px] font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center gap-1 transition-colors shrink-0",
+                              lead.do_not_call && "opacity-30 cursor-not-allowed"
+                            )}
+                            title={`Start AI Call to ${leadNameStr}`}
+                          >
+                            <Phone className="w-2.5 h-2.5" /> Call
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 text-[11px]">—</span>
+                      )}
+                    </td>
+
+                    {/* 6. Message Status */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
+                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {lead.whatsappSent || lead.whatsapp_sent || lead.emailSent || lead.last_contacted_at ? (
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 truncate"
+                            title="Outreach message already sent. Duplicate send prevented."
+                          >
+                            <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600 shrink-0" />
+                            ✓ {lead.whatsappSent || lead.whatsapp_sent ? "WA SENT" : "SENT"}
+                          </span>
+                          <span className="text-[10px] text-gray-400 font-medium shrink-0" title="Already messaged">
+                            Done
+                          </span>
+                        </div>
+                      ) : cleanPhone ? (
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-gray-50 text-gray-500 border border-gray-200">
+                            Not Sent
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
+                            }}
+                            className="px-2 py-0.5 rounded text-[10.5px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center gap-1 transition-colors shrink-0"
+                            title={`Send WhatsApp message to ${leadNameStr}`}
+                          >
+                            <MessageCircle className="w-2.5 h-2.5" /> Send
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="text-gray-300 text-[11px]">—</span>
                       )}
                     </td>
 
@@ -3351,6 +3512,8 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
   const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || lead.name || "Lead";
   const phone = lead.phone || lead.whatsapp || "No phone";
   const company = lead.company || "—";
+  const alreadyCalled = Boolean(lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall);
+  const [allowDuplicate, setAllowDuplicate] = useState(false);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150" onClick={onCancel}>
@@ -3373,6 +3536,29 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
 
         {/* Content */}
         <div className="p-6 space-y-4 text-xs">
+          {alreadyCalled && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-amber-900">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="text-[11.5px] leading-relaxed">
+                <p className="font-bold text-amber-900">
+                  ⚠️ Contact Already Called ({lead.last_ai_call_status ? lead.last_ai_call_status.toUpperCase() : "COMPLETED"})
+                </p>
+                <p className="text-amber-800 mt-0.5">
+                  An AI outreach call has already been placed to this person. Duplicate calls are blocked to prevent spamming.
+                </p>
+                <label className="flex items-center gap-2 mt-2.5 cursor-pointer font-semibold text-amber-950 select-none">
+                  <input
+                    type="checkbox"
+                    checked={allowDuplicate}
+                    onChange={(e) => setAllowDuplicate(e.target.checked)}
+                    className="w-3.5 h-3.5 accent-pink-600 rounded cursor-pointer"
+                  />
+                  <span>Allow repeat call (override duplicate block)</span>
+                </label>
+              </div>
+            </div>
+          )}
+
           <p className="text-gray-700 leading-relaxed">
             Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong> with Ketki (AI)?
           </p>
@@ -3410,9 +3596,10 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
           <button
             type="button"
             onClick={onConfirm}
-            disabled={isCalling}
-            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-sm disabled:opacity-50"
+            disabled={isCalling || (alreadyCalled && !allowDuplicate)}
+            className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
             style={{ background: "#CB3273" }}
+            title={alreadyCalled && !allowDuplicate ? "Duplicate call blocked" : "Place AI call"}
           >
             {isCalling ? (
               <>
@@ -3422,7 +3609,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             ) : (
               <>
                 <Phone className="w-3.5 h-3.5" />
-                Start AI Call
+                {alreadyCalled && !allowDuplicate ? "Already Called (Blocked)" : "Start AI Call"}
               </>
             )}
           </button>

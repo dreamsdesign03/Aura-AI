@@ -1648,7 +1648,31 @@ app.get('/api/leads', async (req, res) => {
               EXISTS (
                 SELECT 1 FROM outreach_emails oe
                 WHERE oe.lead_id = leads.id AND oe.status = 'sent' AND oe.user_id = leads.user_id
-              ) AS email_sent
+              ) AS email_sent,
+              EXISTS (
+                SELECT 1 FROM whatsapp_conversations wc
+                WHERE (wc.lead_id = leads.id 
+                   OR (wc.phone IS NOT NULL AND leads.phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(wc.phone, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(leads.phone, '+', ''), '-', ''), ' ', ''))
+                   OR (wc.wa_phone_number IS NOT NULL AND leads.phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(wc.wa_phone_number, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(leads.phone, '+', ''), '-', ''), ' ', '')))
+              ) AS whatsapp_sent,
+              (
+                SELECT wc.state FROM whatsapp_conversations wc
+                WHERE (wc.lead_id = leads.id 
+                   OR (wc.phone IS NOT NULL AND leads.phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(wc.phone, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(leads.phone, '+', ''), '-', ''), ' ', ''))
+                   OR (wc.wa_phone_number IS NOT NULL AND leads.phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(wc.wa_phone_number, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(leads.phone, '+', ''), '-', ''), ' ', '')))
+                ORDER BY wc.updated_at DESC LIMIT 1
+              ) AS whatsapp_state,
+              (
+                SELECT wc.last_message_at FROM whatsapp_conversations wc
+                WHERE (wc.lead_id = leads.id 
+                   OR (wc.phone IS NOT NULL AND leads.phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(wc.phone, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(leads.phone, '+', ''), '-', ''), ' ', ''))
+                   OR (wc.wa_phone_number IS NOT NULL AND leads.phone IS NOT NULL AND REPLACE(REPLACE(REPLACE(wc.wa_phone_number, '+', ''), '-', ''), ' ', '') = REPLACE(REPLACE(REPLACE(leads.phone, '+', ''), '-', ''), ' ', '')))
+                ORDER BY wc.updated_at DESC LIMIT 1
+              ) AS last_whatsapp_at,
+              EXISTS (
+                SELECT 1 FROM ai_calls ac
+                WHERE ac.lead_id = leads.id
+              ) AS has_ai_call
        FROM leads ${whereString} ORDER BY id DESC LIMIT $${limitIndex} OFFSET $${offsetIndex}`,
       queryParams
     );
@@ -1664,6 +1688,12 @@ app.get('/api/leads', async (req, res) => {
           first_name: fn,
           last_name: ln,
           emailSent: !!r.email_sent,
+          whatsappSent: !!r.whatsapp_sent,
+          whatsappState: r.whatsapp_state || null,
+          lastWhatsappAt: r.last_whatsapp_at || null,
+          hasAiCall: !!r.has_ai_call || !!r.last_ai_call_status || !!r.last_ai_call_at,
+          lastAiCallStatus: r.last_ai_call_status || null,
+          lastAiCallAt: r.last_ai_call_at || null,
         };
       }),
       total: totalCount,
