@@ -193,10 +193,12 @@
 .co-card-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
 .co-card-hd .co-hint { font-size: 12px; color: var(--co-mute); }
 
-.co-grid { display: grid; gap: 14px; }
+.co-grid { display: grid; gap: 14px; min-width: 0; }
 .co-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
 .co-split { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, 1fr); gap: 14px; align-items: start; }
+.co-split > * { min-width: 0; }
 .co-two { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.co-two > * { min-width: 0; }
 
 .co-kpi { position: relative; overflow: hidden; }
 .co-kpi .co-kpi-label { font-size: 12px; font-weight: 600; color: var(--co-mute); display: flex; align-items: center; gap: 6px; }
@@ -243,7 +245,8 @@
 .co-table-wrap::-webkit-scrollbar-thumb:hover {
   background: #A4285E;
 }
-.co-table { width: 100%; min-width: 960px; border-collapse: collapse; font-size: 13px; }
+.co-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.co-table-wide { min-width: 960px; }
 .co-table thead th {
   text-align: left; padding: 11px 14px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: #334155; background: #FCFAFB; border-bottom: 1px solid var(--co-line); white-space: nowrap;
