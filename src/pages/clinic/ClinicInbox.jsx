@@ -2209,17 +2209,29 @@ export default function ClinicInbox() {
             background: 'linear-gradient(180deg, #FFFCFD 0%, #FFFFFF 100%)',
           }}
         >
-          {/* Channel Tabs — Smooth single-line horizontal scroller (No awkward wrapping) */}
+          {/* Channel tabs: horizontally scrollable with a visible scrollbar on smaller screens */}
           <div
+            role="group"
+            aria-label="Filter conversations by channel"
+            className="aura-inbox-channel-scroll"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              overflowX: 'auto',
-              paddingBottom: 4,
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
+              width: '100%',
+              minWidth: 0,
+              maxWidth: '100%',
+              flexWrap: 'nowrap',
+              overflowX: 'scroll',
+              overflowY: 'hidden',
+              padding: '2px 2px 10px',
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#CB3273 #FCE7F3',
+              msOverflowStyle: 'auto',
               WebkitOverflowScrolling: 'touch',
+              overscrollBehaviorX: 'contain',
+              scrollSnapType: 'x proximity',
+              boxSizing: 'border-box',
             }}
           >
             {[
@@ -2266,7 +2278,9 @@ export default function ClinicInbox() {
                     alignItems: 'center',
                     gap: 7,
                     whiteSpace: 'nowrap',
+                    flex: '0 0 auto',
                     flexShrink: 0,
+                    scrollSnapAlign: 'start',
                     transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
                   onMouseEnter={(e) => {
@@ -2312,6 +2326,12 @@ export default function ClinicInbox() {
             })}
           </div>
 
+          <style>{`
+            .aura-inbox-channel-scroll::-webkit-scrollbar { height: 7px; }
+            .aura-inbox-channel-scroll::-webkit-scrollbar-track { background: #FCE7F3; border-radius: 99px; }
+            .aura-inbox-channel-scroll::-webkit-scrollbar-thumb { background: #CB3273; border-radius: 99px; }
+            .aura-inbox-channel-scroll::-webkit-scrollbar-thumb:hover { background: #A4285E; }
+          `}</style>
           {/* Search, Reply-state, Sort Controls & Live Sync */}
           <div
             style={{
