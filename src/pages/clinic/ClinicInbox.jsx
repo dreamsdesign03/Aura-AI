@@ -283,7 +283,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
     ? (thread.channel === 'facebook' ? 'comment_fb' : 'comment_ig')
     : thread.type;
   const config = CHANNEL_CONFIG[configKey] || CHANNEL_CONFIG[thread.type] || CHANNEL_CONFIG.whatsapp;
-  const Icon = config.icon;
+  const isUnread = (thread.unread || 0) > 0;
 
   return (
     <button
@@ -293,11 +293,22 @@ function ThreadRow({ thread, isSelected, onClick }) {
         alignItems: 'flex-start',
         textAlign: 'left',
         cursor: 'pointer',
-        padding: '12px 16px',
-        borderLeft: isSelected ? `3px solid ${config.color}` : '3px solid transparent',
-        background: isSelected ? '#FAF5F8' : undefined,
-        transition: 'background 0.15s ease',
+        padding: '14px 18px',
+        borderLeft: isSelected ? '4px solid #CB3273' : isUnread ? '4px solid #F472B6' : '4px solid transparent',
+        background: isSelected ? '#FFF5F9' : isUnread ? '#FFFDFE' : '#FFFFFF',
+        transition: 'all 0.15s ease',
         width: '100%',
+        position: 'relative',
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.background = '#FDF7FA';
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.background = isUnread ? '#FFFDFE' : '#FFFFFF';
+        }
       }}
       onClick={onClick}
     >
@@ -307,17 +318,18 @@ function ThreadRow({ thread, isSelected, onClick }) {
           username={thread.senderUsername}
           avatarUrl={thread.senderAvatar || thread.participantAvatar}
           channel={isComment ? (thread.channel === 'facebook' ? 'comment_fb' : 'comment_ig') : thread.type}
-          size={40}
+          size={42}
         />
-        {thread.unread > 0 ? (
+        {isUnread ? (
           <span
             style={{
-              fontSize: 9,
-              fontWeight: 700,
-              color: '#A4285E',
-              background: '#FBE9F1',
-              padding: '1px 5px',
+              fontSize: 9.5,
+              fontWeight: 800,
+              color: '#FFFFFF',
+              background: 'linear-gradient(135deg, #A4285E 0%, #CB3273 100%)',
+              padding: '1px 6px',
               borderRadius: 999,
+              boxShadow: '0 2px 6px rgba(203, 50, 115, 0.35)',
             }}
           >
             {thread.unread}
@@ -325,13 +337,35 @@ function ThreadRow({ thread, isSelected, onClick }) {
         ) : null}
       </div>
 
-      <div style={{ flex: 1, minWidth: 0, marginLeft: 12 }}>
-        <div className="co-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 4, alignItems: 'center' }}>
-          <span className="co-strong" style={{ fontSize: 13.5, color: '#111827' }}>
+      <div style={{ flex: 1, minWidth: 0, marginLeft: 14 }}>
+        <div className="co-row" style={{ flexWrap: 'wrap', gap: 8, marginBottom: 5, alignItems: 'center' }}>
+          <span
+            className="co-strong"
+            style={{
+              fontSize: 14,
+              fontWeight: isUnread ? 800 : 600,
+              color: isUnread ? '#0F172A' : '#1E293B',
+              letterSpacing: '-0.01em',
+            }}
+          >
             {thread.name && thread.name !== 'Instagram User' && thread.name !== 'Facebook User'
               ? thread.name
               : (thread.senderUsername ? `@${thread.senderUsername}` : (isComment ? 'Name hidden by Meta' : 'Patient'))}
           </span>
+
+          {isUnread && (
+            <span
+              style={{
+                width: 6,
+                height: 6,
+                borderRadius: 999,
+                background: '#CB3273',
+                display: 'inline-block',
+                boxShadow: '0 0 0 2px rgba(203, 50, 115, 0.25)',
+              }}
+            />
+          )}
+
           {Array.isArray(thread.labels) && thread.labels.map((lbl) => (
             <span
               key={lbl}
@@ -350,7 +384,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
           ))}
           <span
             className={`co-chip ${isComment ? (thread.channel === 'facebook' ? 'co-c-m' : 'co-c-p') : config.chip}`}
-            style={{ fontSize: 10, padding: '1px 6px' }}
+            style={{ fontSize: 10, padding: '1px 7px' }}
           >
             {isComment
               ? (thread.channel === 'facebook' ? 'Facebook Comment' : 'Instagram Comment')
@@ -363,6 +397,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
                 fontWeight: 600,
                 color: '#059669',
                 background: '#ECFDF5',
+                border: '1px solid #A7F3D0',
                 padding: '1px 6px',
                 borderRadius: 4,
                 display: 'inline-flex',
@@ -379,6 +414,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
                 fontWeight: 600,
                 color: '#7C3AED',
                 background: '#EDE9FE',
+                border: '1px solid #DDD6FE',
                 padding: '1px 6px',
                 borderRadius: 4,
                 display: 'inline-flex',
@@ -396,6 +432,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
                 fontWeight: 600,
                 color: '#92400E',
                 background: '#FEF3C7',
+                border: '1px solid #FDE68A',
                 padding: '1px 6px',
                 borderRadius: 4,
                 display: 'inline-flex',
@@ -1981,22 +2018,172 @@ export default function ClinicInbox() {
         </div>
       )}
 
-      {/* Compact channel overview — keep conversations as the main focus */}
-      <div className="co-rise-1" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 8, padding: '10px 14px', marginBottom: 14, background: '#FFFFFF', border: '1px solid #E8EAF0', borderRadius: 12 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, color: '#334155', marginRight: 4 }}>Inbox overview</span>
+      {/* Executive KPI Summary Cards — Instant Clinic Overview */}
+      <div
+        className="co-rise-1"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+          gap: 12,
+          marginBottom: 16,
+        }}
+      >
         {[
-          { label: 'All', value: counts.all, color: '#475569' },
-          { label: 'Unread', value: counts.unread, color: '#A4285E' },
-          { label: 'Messenger', value: counts.facebook, color: '#1877F2' },
-          { label: 'Instagram', value: counts.instagram, color: '#E1306C' },
-          { label: 'WhatsApp', value: counts.whatsapp, color: '#059669' },
-          { label: 'Comments', value: counts.comment_fb + counts.comment_ig, color: '#7C3AED' },
-        ].map((item) => (
-          <span key={item.label} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 9px', borderRadius: 7, background: '#F8FAFC', color: '#64748B', fontSize: 11 }}>
-            <strong style={{ color: item.color, fontSize: 12 }}>{item.value}</strong>{item.label}
-          </span>
-        ))}
-        <span style={{ marginLeft: 'auto', fontSize: 11, color: '#64748B' }}>{isFetching ? 'Updating…' : 'Live inbox'}</span>
+          {
+            id: 'all',
+            label: 'All Conversations',
+            count: counts.all,
+            sub: 'Across all patient channels',
+            icon: MessageSquare,
+            color: '#CB3273',
+            bg: '#FDF2F8',
+            border: '#FBCFE8',
+            active: activeChannel === 'all',
+          },
+          {
+            id: 'unread',
+            label: 'Unread & Pending',
+            count: counts.unread,
+            sub: 'Awaiting clinic response',
+            icon: Sparkles,
+            color: '#A4285E',
+            bg: '#FBE9F1',
+            border: '#F7D6E4',
+            badge: counts.unread > 0 ? 'Needs Attention' : null,
+            badgeColor: '#A4285E',
+            badgeBg: '#FDF2F8',
+            active: activeChannel === 'unread',
+          },
+          {
+            id: 'whatsapp',
+            label: 'WhatsApp Business',
+            count: counts.whatsapp,
+            sub: '+91 84900 33711 (Official)',
+            icon: MessageSquare,
+            color: '#10B981',
+            bg: '#ECFDF5',
+            border: '#A7F3D0',
+            active: activeChannel === 'whatsapp',
+          },
+          {
+            id: 'instagram',
+            label: 'Social & Meta',
+            count: counts.instagram + counts.facebook + counts.comment_ig + counts.comment_fb,
+            sub: 'Instagram & Messenger',
+            icon: InstagramIcon,
+            color: '#E1306C',
+            bg: '#FDF2F8',
+            border: '#FCE7F3',
+            active: activeChannel === 'instagram' || activeChannel === 'facebook' || activeChannel === 'comment_ig' || activeChannel === 'comment_fb',
+          },
+          {
+            id: 'call',
+            label: 'AI Voice Calls',
+            count: counts.call,
+            sub: 'Sarvam AI Voice Agent',
+            icon: PhoneCall,
+            color: '#7C3AED',
+            bg: '#F5F3FF',
+            border: '#DDD6FE',
+            active: activeChannel === 'call',
+          },
+        ].map((card) => {
+          const Icon = card.icon;
+          const isCardActive = card.active;
+          return (
+            <button
+              key={card.id}
+              type="button"
+              onClick={() => setActiveChannel(card.id)}
+              style={{
+                background: isCardActive ? '#FFF8FB' : '#FFFFFF',
+                border: isCardActive ? `2px solid #CB3273` : '1px solid #F3D9E5',
+                borderRadius: 14,
+                padding: '14px 16px',
+                textAlign: 'left',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: 8,
+                transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+                boxShadow: isCardActive
+                  ? '0 6px 20px -4px rgba(203, 50, 115, 0.18)'
+                  : '0 1px 3px rgba(15, 23, 42, 0.03)',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+              onMouseEnter={(e) => {
+                if (!isCardActive) {
+                  e.currentTarget.style.borderColor = '#CB3273';
+                  e.currentTarget.style.boxShadow = '0 4px 14px -2px rgba(203, 50, 115, 0.12)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!isCardActive) {
+                  e.currentTarget.style.borderColor = '#F3D9E5';
+                  e.currentTarget.style.boxShadow = '0 1px 3px rgba(15, 23, 42, 0.03)';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                <span style={{ fontSize: 11.5, fontWeight: 600, color: '#64748B' }}>
+                  {card.label}
+                </span>
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: 8,
+                    background: card.bg,
+                    border: `1px solid ${card.border}`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: card.color,
+                  }}
+                >
+                  <Icon size={14} color={card.color} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 2 }}>
+                <span
+                  style={{
+                    fontSize: 24,
+                    fontWeight: 800,
+                    letterSpacing: '-0.02em',
+                    color: isCardActive ? '#A4285E' : '#0F172A',
+                    lineHeight: 1,
+                  }}
+                >
+                  {card.count}
+                </span>
+                {card.badge && (
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: card.badgeColor,
+                      background: card.badgeBg,
+                      border: '1px solid #FBCFE8',
+                      padding: '2px 6px',
+                      borderRadius: 999,
+                    }}
+                  >
+                    {card.badge}
+                  </span>
+                )}
+              </div>
+
+              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: -2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {card.sub}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       <Card rise="co-rise-2">
@@ -2004,61 +2191,107 @@ export default function ClinicInbox() {
         <div
           style={{
             display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            justifyContent: 'space-between',
+            flexDirection: 'column',
             gap: 12,
             padding: '16px 18px',
-            borderBottom: '1px solid #F1E5EB',
+            borderBottom: '1px solid #F3D9E5',
             background: 'linear-gradient(180deg, #FFFCFD 0%, #FFFFFF 100%)',
           }}
         >
-          {/* Channel Tabs */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+          {/* Channel Tabs — Smooth single-line horizontal scroller (No awkward wrapping) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              overflowX: 'auto',
+              paddingBottom: 4,
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch',
+            }}
+          >
             {[
-              { id: 'all', label: 'All messages', count: counts.all },
-              { id: 'facebook', label: 'Messenger', count: counts.facebook },
-              { id: 'instagram', label: 'Instagram', count: counts.instagram },
-              { id: 'whatsapp', label: 'WhatsApp', count: counts.whatsapp },
-              { id: 'comment_fb', label: 'Facebook comments', count: counts.comment_fb },
-              { id: 'comment_ig', label: 'Instagram comments', count: counts.comment_ig },
-              { id: 'email', label: 'Emails', count: counts.email },
-              { id: 'drafts', label: 'Drafts', count: counts.drafts },
-              { id: 'call', label: 'AI Calls', count: counts.call },
-              { id: 'note', label: 'Notes', count: counts.note },
-              { id: 'unread', label: 'Unread', count: counts.unread },
+              { id: 'all', label: 'All Messages', icon: Filter, count: counts.all },
+              { id: 'unread', label: 'Unread', icon: Sparkles, count: counts.unread, highlight: counts.unread > 0 },
+              { id: 'whatsapp', label: 'WhatsApp', icon: MessageSquare, count: counts.whatsapp, brandColor: '#10B981' },
+              { id: 'instagram', label: 'Instagram', icon: InstagramIcon, count: counts.instagram, brandColor: '#E1306C' },
+              { id: 'facebook', label: 'Messenger', icon: FacebookIcon, count: counts.facebook, brandColor: '#1877F2' },
+              { id: 'comment_ig', label: 'IG Comments', icon: InstagramIcon, count: counts.comment_ig },
+              { id: 'comment_fb', label: 'FB Comments', icon: FacebookIcon, count: counts.comment_fb },
+              { id: 'call', label: 'AI Calls', icon: PhoneCall, count: counts.call, brandColor: '#7C3AED' },
+              { id: 'email', label: 'Emails', icon: Mail, count: counts.email },
+              { id: 'drafts', label: 'Drafts', icon: Mail, count: counts.drafts },
+              { id: 'note', label: 'Clinical Notes', icon: StickyNote, count: counts.note },
             ].map((tab) => {
               const active = activeChannel === tab.id;
+              const TabIcon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   type="button"
                   onClick={() => setActiveChannel(tab.id)}
                   style={{
-                    padding: '7px 12px',
-                    borderRadius: 8,
+                    padding: '8px 14px',
+                    borderRadius: 10,
                     fontSize: 12,
-                    fontWeight: active ? 600 : 500,
-                    background: active ? '#A4285E' : '#FFFFFF',
-                    color: active ? '#FFFFFF' : '#475569',
-                    border: active ? '1px solid #A4285E' : '1px solid #E9E1E5',
-                    boxShadow: active ? '0 2px 7px rgba(164,40,94,.16)' : '0 1px 2px rgba(15,23,42,.03)',
+                    fontWeight: active ? 700 : 500,
+                    background: active
+                      ? 'linear-gradient(135deg, #A4285E 0%, #CB3273 100%)'
+                      : tab.highlight
+                      ? '#FFF1F6'
+                      : '#FFFFFF',
+                    color: active ? '#FFFFFF' : tab.highlight ? '#A4285E' : '#475569',
+                    border: active
+                      ? '1px solid #A4285E'
+                      : tab.highlight
+                      ? '1px solid #FBCFE8'
+                      : '1px solid #F3D9E5',
+                    boxShadow: active
+                      ? '0 3px 10px rgba(164, 40, 94, 0.22)'
+                      : '0 1px 2px rgba(15, 23, 42, 0.02)',
                     cursor: 'pointer',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: 6,
-                    transition: 'all 0.15s ease',
+                    gap: 7,
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0,
+                    transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.background = '#FDF2F8';
+                      e.currentTarget.style.borderColor = '#CB3273';
+                      e.currentTarget.style.color = '#A4285E';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.background = tab.highlight ? '#FFF1F6' : '#FFFFFF';
+                      e.currentTarget.style.borderColor = tab.highlight ? '#FBCFE8' : '#F3D9E5';
+                      e.currentTarget.style.color = tab.highlight ? '#A4285E' : '#475569';
+                    }
                   }}
                 >
+                  <TabIcon
+                    size={13}
+                    color={active ? '#FFFFFF' : tab.brandColor || (tab.highlight ? '#A4285E' : '#64748B')}
+                  />
                   <span>{tab.label}</span>
                   <span
                     style={{
-                      fontSize: 10,
+                      fontSize: 10.5,
                       fontWeight: 700,
-                      background: active ? 'rgba(255,255,255,0.2)' : '#F1EDF0',
-                      color: active ? '#FFFFFF' : '#64748B',
-                      padding: '1px 5px',
+                      background: active
+                        ? 'rgba(255, 255, 255, 0.25)'
+                        : tab.highlight
+                        ? '#FBCFE8'
+                        : '#FDF2F8',
+                      color: active ? '#FFFFFF' : '#A4285E',
+                      border: active ? 'none' : '1px solid #F3D9E5',
+                      padding: '1px 6px',
                       borderRadius: 999,
+                      lineHeight: 1.3,
                     }}
                   >
                     {tab.count}
@@ -2068,36 +2301,208 @@ export default function ClinicInbox() {
             })}
           </div>
 
-          {/* Search, reply-state and sort controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#64748B', marginRight: 'auto' }}>
-              <span style={{ width: 7, height: 7, borderRadius: 999, background: '#10B981', display: 'inline-block' }} />
-              Auto-sync · {timeLabel(lastSyncedAt)}
+          {/* Search, Reply-state, Sort Controls & Live Sync */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              flexWrap: 'wrap',
+              width: '100%',
+              paddingTop: 4,
+            }}
+          >
+            {/* Search Input */}
+            <div style={{ position: 'relative', flex: '1 1 320px', minWidth: 240, maxWidth: 440 }}>
+              <Search
+                size={15}
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#CB3273',
+                  pointerEvents: 'none',
+                }}
+              />
+              <input
+                type="text"
+                className="co-input"
+                placeholder="Search patient name, phone, handle, or message…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  paddingLeft: 36,
+                  paddingRight: searchQuery ? 32 : 12,
+                  fontSize: 12.5,
+                  height: 38,
+                  borderRadius: 10,
+                  border: '1px solid #F3D9E5',
+                  background: '#FFFFFF',
+                  outline: 'none',
+                  transition: 'border-color .18s ease, box-shadow .18s ease',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#CB3273';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(203, 50, 115, 0.12)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#F3D9E5';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  aria-label="Clear search"
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    color: '#94A3B8',
+                    cursor: 'pointer',
+                    padding: 4,
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  <X size={13} />
+                </button>
+              )}
             </div>
-            <div style={{ position: 'relative', width: 270, maxWidth: '100%', flex: '0 1 270px' }}>
-              <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8', pointerEvents: 'none' }} />
-              <input type="text" className="co-input" placeholder="Search conversations…" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} style={{ width: '100%', boxSizing: 'border-box', paddingLeft: 36, paddingRight: searchQuery ? 30 : 12, fontSize: 12.5, height: 38, borderRadius: 9, border: '1px solid #E6D5DE', background: '#FFFFFF', transition: 'border-color .18s ease, box-shadow .18s ease' }} />
-              {searchQuery && <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search" style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94A3B8', cursor: 'pointer', padding: 3 }}><X size={13} /></button>}
+
+            {/* Filter Dropdowns and Actions */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginLeft: 'auto' }}>
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '0 10px',
+                  height: 38,
+                  border: '1px solid #F3D9E5',
+                  borderRadius: 10,
+                  background: '#FFFFFF',
+                  fontSize: 12,
+                }}
+              >
+                <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, whiteSpace: 'nowrap' }}>Status:</span>
+                <select
+                  aria-label="Filter conversations by reply status"
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  style={{
+                    height: 34,
+                    border: 0,
+                    outline: 0,
+                    background: 'transparent',
+                    color: '#1E293B',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="all">All</option>
+                  <option value="unread">Unread</option>
+                  <option value="needs_reply">Needs reply</option>
+                  <option value="replied">Replied</option>
+                </select>
+              </label>
+
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '0 10px',
+                  height: 38,
+                  border: '1px solid #F3D9E5',
+                  borderRadius: 10,
+                  background: '#FFFFFF',
+                  fontSize: 12,
+                }}
+              >
+                <span style={{ fontSize: 11, color: '#94A3B8', fontWeight: 600, whiteSpace: 'nowrap' }}>Sort:</span>
+                <select
+                  aria-label="Sort conversations"
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  style={{
+                    height: 34,
+                    border: 0,
+                    outline: 0,
+                    background: 'transparent',
+                    color: '#1E293B',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="newest">Newest</option>
+                  <option value="oldest">Oldest</option>
+                </select>
+              </label>
+
+              {(statusFilter !== 'all' || searchQuery || sortOrder !== 'newest' || activeChannel !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveChannel('all');
+                    setStatusFilter('all');
+                    setSearchQuery('');
+                    setSortOrder('newest');
+                  }}
+                  className="co-btn co-btn-sm"
+                  style={{
+                    height: 38,
+                    fontSize: 11.5,
+                    color: '#A4285E',
+                    borderColor: '#F3D9E5',
+                    background: '#FDF2F8',
+                    fontWeight: 600,
+                  }}
+                >
+                  <X size={12} /> Clear filters
+                </button>
+              )}
+
+              {/* Live Auto-sync indicator badge */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '0 12px',
+                  height: 38,
+                  borderRadius: 10,
+                  background: '#F8FAFC',
+                  border: '1px solid #E2E8F0',
+                  fontSize: 11.5,
+                  color: '#475569',
+                  fontWeight: 500,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: 999,
+                    background: '#10B981',
+                    display: 'inline-block',
+                    boxShadow: '0 0 0 2px rgba(16, 185, 129, 0.2)',
+                  }}
+                />
+                <span>Live Sync · {timeLabel(lastSyncedAt)}</span>
+              </div>
             </div>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 10px', height: 38, border: '1px solid #E6D5DE', borderRadius: 9, background: '#FFFFFF' }}>
-              <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Status</span>
-              <select aria-label="Filter conversations by reply status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ width: 112, maxWidth: 112, minWidth: 0, height: 34, border: 0, outline: 0, background: 'transparent', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                <option value="all">All</option>
-                <option value="unread">Unread</option>
-                <option value="needs_reply">Needs reply</option>
-                <option value="replied">Replied</option>
-              </select>
-            </label>
-            <label style={{ display: 'inline-flex', alignItems: 'center', gap: 7, padding: '0 10px', height: 38, border: '1px solid #E6D5DE', borderRadius: 9, background: '#FFFFFF' }}>
-              <span style={{ fontSize: 11, color: '#64748B', whiteSpace: 'nowrap' }}>Sort</span>
-              <select aria-label="Sort conversations" value={sortOrder} onChange={(e) => setSortOrder(e.target.value)} style={{ width: 105, maxWidth: 105, minWidth: 0, height: 34, border: 0, outline: 0, background: 'transparent', color: '#334155', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-                <option value="newest">Newest</option>
-                <option value="oldest">Oldest</option>
-              </select>
-            </label>
-            {(statusFilter !== 'all' || searchQuery || sortOrder !== 'newest' || activeChannel !== 'all') && (
-              <button type="button" onClick={() => { setActiveChannel('all'); setStatusFilter('all'); setSearchQuery(''); setSortOrder('newest'); }} className="co-btn co-btn-sm" style={{ height: 36, fontSize: 11 }}>Clear filters</button>
-            )}
           </div>
         </div>
 
