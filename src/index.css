@@ -157,25 +157,31 @@ body {
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-family: 'Inter', sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Scrollbar styling */
+/* Clear, accessible, visible scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 #F8FAFC;
+}
+
 ::-webkit-scrollbar {
-  width: 4px;
-  height: 4px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: hsl(var(--background));
+  background: #F8FAFC;
 }
 ::-webkit-scrollbar-thumb {
-  background: #FBCFE8;
-  border-radius: 2px;
+  background: #CBD5E1;
+  border-radius: 6px;
+  border: 1px solid #F1F5F9;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #F9A8D4;
+  background: #94A3B8;
 }
 
 /* Card utility */
@@ -202,13 +208,12 @@ input:focus, textarea:focus, select:focus {
   box-shadow: 0 0 0 2px rgba(203, 50, 115, 0.2) !important;
 }
 
-/* Global button height & styling consistency — unified 36px across tool */
+/* Global button height & styling consistency — unified without clipping */
 .co-btn,
 .co-btn-sm {
-  height: 36px !important;
   min-height: 36px !important;
-  max-height: 36px !important;
-  padding: 0 14px !important;
+  height: auto;
+  padding: 6px 14px !important;
   font-size: 13px !important;
   font-weight: 600 !important;
   border-radius: 10px !important;
@@ -229,11 +234,10 @@ input:focus, textarea:focus, select:focus {
 }
 
 .co-pill-tab {
-  height: 36px !important;
   min-height: 36px !important;
-  max-height: 36px !important;
-  padding: 0 14px !important;
-  font-size: 13px !important;
+  height: auto;
+  padding: 6px 14px !important;
+  font-size: 12.5px !important;
   font-weight: 600 !important;
   border-radius: 10px !important;
   box-sizing: border-box !important;
@@ -242,6 +246,7 @@ input:focus, textarea:focus, select:focus {
   gap: 7px !important;
   border: 1px solid #CBD5E1 !important;
   color: #1E293B !important;
+  white-space: nowrap !important;
 }
 
 .co-pill-tab.active,
@@ -251,4 +256,15 @@ input:focus, textarea:focus, select:focus {
   color: #FFFFFF !important;
   font-weight: 700 !important;
   box-shadow: 0 3px 10px rgba(164, 40, 94, 0.25) !important;
+}
+
+.co-pill-badge {
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  padding: 2px 7px !important;
+  border-radius: 999px !important;
+  line-height: 1.2 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }

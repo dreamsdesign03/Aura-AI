@@ -846,7 +846,7 @@ function ThreadDrawer({ thread, onClose }) {
                               </span>
                             </div>
                           )}
-                          <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                          <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                             {displayContent}
                           </div>
                           <div
@@ -978,7 +978,7 @@ function ThreadDrawer({ thread, onClose }) {
                             </div>
                           )}
                           {m.content && !m.content.startsWith('[') && (
-                            <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45 }}>
+                            <div style={{ fontSize: 13, whiteSpace: 'pre-wrap', lineHeight: 1.45, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                               {m.content}
                             </div>
                           )}
@@ -1329,6 +1329,8 @@ function ThreadDrawer({ thread, onClose }) {
                               lineHeight: 1.5,
                               color: '#334155',
                               whiteSpace: 'pre-wrap',
+                              wordBreak: 'break-word',
+                              overflowWrap: 'anywhere',
                               maxHeight: 240,
                               overflowY: 'auto',
                             }}
@@ -1406,12 +1408,14 @@ function ThreadDrawer({ thread, onClose }) {
                       border: '1px solid #E2E8F0',
                       borderRadius: 8,
                       padding: 12,
-                      maxHeight: 250,
+                      maxHeight: 280,
                       overflowY: 'auto',
                       fontSize: 12,
                       lineHeight: 1.5,
                       color: '#334155',
                       whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                      overflowWrap: 'anywhere',
                       fontFamily: 'monospace',
                     }}
                   >

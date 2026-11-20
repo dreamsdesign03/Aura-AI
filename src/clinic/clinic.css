@@ -31,7 +31,7 @@
   --co-spring: cubic-bezier(.32, 1.36, .5, 1);
   font-family: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
   color: var(--co-ink);
-  font-size: 15px;
+  font-size: 14px;
   display: flex;
   flex-direction: column;
   gap: 24px;
@@ -202,12 +202,12 @@
 
 /* ---------- tables ---------- */
 .co-table-wrap { overflow-x: auto; }
-.co-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.co-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .co-table thead th {
-  text-align: left; padding: 11px 14px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  text-align: left; padding: 10px 14px; font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
   color: #334155; background: #FCFAFB; border-bottom: 1px solid var(--co-line); white-space: nowrap;
 }
-.co-table tbody td { padding: 12px 14px; border-bottom: 1px solid #F7EDF2; color: var(--co-body); vertical-align: middle; font-size: 14px; }
+.co-table tbody td { padding: 11px 14px; border-bottom: 1px solid #F7EDF2; color: var(--co-body); vertical-align: middle; font-size: 13px; }
 .co-table tbody tr { transition: background .16s; }
 .co-table tbody tr:hover { background: #FFF9FC; }
 .co-table tbody tr:last-child td { border-bottom: 0; }
