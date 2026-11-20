@@ -48,7 +48,7 @@ const navGroups = [
         items: [
             { href: "/", label: "Command Center", icon: LayoutDashboard },
             { href: "/icp", label: "ICP Manager", icon: Target },
-            { href: "/leads", label: "Leads", icon: Users },
+            { href: "/leads", label: "Contacts", icon: Users },
         ],
     },
     {
@@ -100,12 +100,12 @@ function LockedFeatureNavBadge({ href }) {
 const mobileBottomNav = [
     { href: "/", label: "Home", icon: LayoutDashboard },
     { href: "/icp", label: "ICP", icon: Target },
-    { href: "/leads", label: "Leads", icon: Users },
+    { href: "/leads", label: "Contacts", icon: Users },
     { href: "/qualify", label: "BANT", icon: CheckSquare },
 ];
 // Leader gets Bulk Calling + restricted clinic modules
 const leaderMobileBottomNav = [
-    { href: "/leads", label: "Leads", icon: Users },
+    { href: "/leads", label: "Contacts", icon: Users },
     { href: "/bulk-calling", label: "Bulk Calling", icon: PhoneOutgoing },
     { href: "/clinic", label: "Clinic", icon: Activity },
     { href: "/clinic/appointments", label: "Appts", icon: Calendar },
@@ -113,7 +113,7 @@ const leaderMobileBottomNav = [
 ];
 // Executive only gets the restricted clinic modules (no Bulk Calling)
 const executiveMobileBottomNav = [
-    { href: "/leads", label: "Leads", icon: Users },
+    { href: "/leads", label: "Contacts", icon: Users },
     { href: "/clinic", label: "Clinic", icon: Activity },
     { href: "/clinic/appointments", label: "Appts", icon: Calendar },
     { href: "/clinic/dialer", label: "Dialer", icon: PhoneOutgoing },
