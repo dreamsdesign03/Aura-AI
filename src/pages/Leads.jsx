@@ -3578,6 +3578,42 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
   );
 }
 
+function normalizeCallTranscript(rawTranscript) {
+  let value = rawTranscript;
+  if (typeof value === "string") {
+    try { value = JSON.parse(value); } catch { return value.trim() ? [{ role: "Transcript", text: value }] : []; }
+  }
+  if (value && !Array.isArray(value) && typeof value === "object") {
+    value = value.turns || value.messages || value.transcript || value.interaction_transcript || value.events || [];
+  }
+  if (!Array.isArray(value)) return [];
+
+  const readText = (item) => {
+    if (typeof item === "string") return item;
+    if (item == null) return "";
+    if (Array.isArray(item)) return item.map(readText).filter(Boolean).join(" ");
+    if (typeof item !== "object") return String(item);
+    const candidates = [item.text, item.message, item.content, item.transcript, item.utterance, item.text_content, item.sentence, item.value];
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+      if (Array.isArray(candidate)) {
+        const nested = candidate.map(readText).filter(Boolean).join(" ");
+        if (nested) return nested;
+      }
+      if (candidate && typeof candidate === "object") {
+        const nested = readText(candidate);
+        if (nested) return nested;
+      }
+    }
+    return "";
+  };
+
+  return value.map((item) => ({
+    role: (item && typeof item === "object" && (item.role || item.speaker || item.speaker_name || item.participant || item.sender || item.type)) || "Transcript",
+    text: readText(item)
+  })).filter((turn) => turn.text);
+}
+
 function AiCallHistoryView({ leadId }) {
   const [calls, setCalls] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -3589,7 +3625,7 @@ function AiCallHistoryView({ leadId }) {
       const res = await fetch(`/api/ai-calls?leadId=${leadId}`);
       if (res.ok) {
         const data = await res.json();
-        setCalls(data);
+        setCalls(Array.isArray(data) ? data.map((call) => ({ ...call, transcript: normalizeCallTranscript(call.transcript) })) : []);
         return data;
       }
     } catch (err) {
@@ -3728,9 +3764,9 @@ function AiCallHistoryView({ leadId }) {
                 {isExpanded && (
                   <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto p-2.5 rounded-lg bg-gray-50 border border-gray-200 text-[11px]">
                     {call.transcript.map((t, idx) => (
-                      <div key={idx} className={cn("p-2 rounded-lg", t.role === "user" ? "bg-white text-gray-800 border border-gray-200 ml-4" : "bg-pink-50 text-pink-900 border border-pink-100 mr-4")}>
-                        <span className="font-bold text-[10px] block opacity-70 uppercase mb-0.5">{t.role || t.speaker || "Agent"}</span>
-                        <span>{t.message || t.text || t.content}</span>
+                      <div key={idx} className={cn("p-2 rounded-lg", /user|customer|caller/i.test(String(t.role)) ? "bg-white text-gray-800 border border-gray-200 ml-4" : "bg-pink-50 text-pink-900 border border-pink-100 mr-4")}>
+                        <span className="font-bold text-[10px] block opacity-70 uppercase mb-0.5">{t.role || "Transcript"}</span>
+                        <span>{t.text}</span>
                       </div>
                     ))}
                   </div>
