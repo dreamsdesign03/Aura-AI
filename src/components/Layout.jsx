@@ -656,7 +656,7 @@ export default function Layout({ children }) {
         return href === "/" ? location === "/" : location.startsWith(href);
     }
     return (<>
-      <div className="flex h-screen overflow-hidden" style={{ background: "hsl(138 25% 96%)" }}>
+      <div className="flex h-screen overflow-hidden" style={{ background: "#FCE7F3" }}>
 
         {/* ── Desktop Sidebar (hidden on mobile) ──────────────────────── */}
         <aside className="hidden md:flex w-56 flex-shrink-0 flex-col" style={{
@@ -837,7 +837,7 @@ export default function Layout({ children }) {
 
 
           {/* Page content — padded bottom on mobile so content clears the fixed nav */}
-          <main className="flex-1 overflow-y-auto pb-[60px] md:pb-0 relative">
+          <main className="flex-1 overflow-y-auto pb-[60px] md:pb-0 relative" style={{ background: "#FCE7F3" }}>
             {children}
             <UpgradeWall />
           </main>

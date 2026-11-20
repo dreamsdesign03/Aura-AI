@@ -47,7 +47,7 @@ export default function BulkCalling() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#FDF7FA]">
+    <div className="flex flex-col h-full bg-[#FCE7F3]">
       <div className="flex-shrink-0 px-6 py-5 border-b border-[#CBD5E1] bg-white flex items-center justify-between">
         <div>
           <h1 className="text-xl font-extrabold text-[#0F172A] flex items-center gap-2">

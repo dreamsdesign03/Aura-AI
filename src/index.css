@@ -154,7 +154,7 @@
 }
 
 body {
-  background-color: hsl(var(--background));
+  background-color: #FCE7F3;
   color: hsl(var(--foreground));
   font-family: 'Inter', sans-serif;
   font-size: 14px;

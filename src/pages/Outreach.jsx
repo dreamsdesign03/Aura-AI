@@ -624,7 +624,7 @@ export default function Outreach() {
     const draftCount = byTab("draft").length;
     const sentCount = byTab("sent").length;
     const failedCount = byTab("failed").length;
-    return (<div className="flex flex-col h-full overflow-hidden" style={{ background: "#F8F9FA" }}>
+    return (<div className="flex flex-col h-full overflow-hidden" style={{ background: "#FCE7F3" }}>
 
       {/* Header */}
       <div className="px-3 md:px-6 py-3 md:py-4 border-b border-[#CBD5E1] bg-white flex items-center justify-between flex-shrink-0">

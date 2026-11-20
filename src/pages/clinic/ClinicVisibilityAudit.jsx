@@ -466,7 +466,7 @@ export default function ClinicVisibilityAudit() {
   ].filter(Boolean);
 
   return (
-    <div className="flex flex-col h-full bg-gray-50 overflow-y-auto">
+    <div className="flex flex-col h-full bg-[#FCE7F3] overflow-y-auto">
       {/* ── HEADER ───────────────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 border-b border-[#F3D9E5] bg-white/95 backdrop-blur-md px-6 py-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
