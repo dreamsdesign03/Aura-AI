@@ -97,13 +97,13 @@ export default function Dashboard() {
     return (<div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-base md:text-lg font-bold text-foreground">Command Center</h1>
-        <p className="text-xs text-muted-foreground mt-0.5">Your AI-powered autonomous B2B sales command centre</p>
+        <h1 className="text-base md:text-xl font-extrabold text-[#0F172A] tracking-tight">Command Center</h1>
+        <p className="text-xs text-[#475569] font-medium mt-0.5">Your AI-powered autonomous B2B sales command centre</p>
       </div>
 
       {/* WHY Banner */}
-      <div style={{ background: "#FBE9F1", borderLeft: "3px solid #CB3273", borderRadius: "0 8px 8px 0", padding: "12px 16px" }}>
-        <p className="text-xs italic" style={{ color: "#0F766E" }}>
+      <div style={{ background: "#FDF2F8", borderLeft: "3.5px solid #CB3273", borderTop: "1px solid #F3D9E5", borderRight: "1px solid #F3D9E5", borderBottom: "1px solid #F3D9E5", borderRadius: "0 8px 8px 0", padding: "12px 16px" }}>
+        <p className="text-xs font-semibold italic text-[#831843]">
           "We believe every B2B founder deserves a sales engine that works as hard as they do."
         </p>
       </div>
@@ -119,18 +119,18 @@ export default function Dashboard() {
                 { label: "Audits", used: planData.usage.audits?.used ?? 0, max: planData.usage.audits?.max ?? 0, color: "#CB3273" },
                 { label: "Emails", used: planData.usage.emails?.used ?? 0, max: planData.usage.emails?.max ?? 0, color: "#2563EB" },
             ];
-            return (<div className="rounded-xl border border-gray-200 bg-white shadow-sm p-4">
+            return (<div className="rounded-xl border border-[#CBD5E1] bg-white shadow-xs p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <CreditCard className="w-3.5 h-3.5 text-gray-400"/>
-                <span className="text-xs font-semibold text-foreground uppercase tracking-wider">Monthly Usage</span>
+                <CreditCard className="w-4 h-4 text-[#475569]"/>
+                <span className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">Monthly Usage</span>
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: badge.bg, color: badge.text, border: `1px solid ${badge.border}` }}>
                   {planLabel(planData.plan)}
                 </span>
               </div>
               <Link href="/billing">
-                <button className="flex items-center gap-1 text-[11px] font-semibold text-violet-600 hover:text-violet-700">
-                  <Zap className="w-3 h-3"/> Upgrade
+                <button className="flex items-center gap-1.5 h-[32px] px-3 text-[12px] font-semibold text-white bg-[#CB3273] hover:bg-[#A4285E] rounded-lg shadow-xs transition-colors">
+                  <Zap className="w-3.5 h-3.5"/> Upgrade
                 </button>
               </Link>
             </div>
@@ -141,24 +141,24 @@ export default function Dashboard() {
                     const warn = !unlimited && pct >= 80;
                     return (<div key={item.label} className="space-y-1">
                     <div className="flex justify-between items-baseline">
-                      <span className="text-[10px] font-semibold text-gray-500">{item.label}</span>
-                      <span className="text-[10px] font-bold tabular-nums" style={{ color: warn ? "#EF4444" : "#374151" }}>
+                      <span className="text-[11px] font-bold text-[#475569]">{item.label}</span>
+                      <span className="text-[11px] font-extrabold tabular-nums" style={{ color: warn ? "#EF4444" : "#0F172A" }}>
                         {unlimited ? "∞" : `${item.used}/${item.max}`}
                       </span>
                     </div>
-                    {!unlimited && (<div className="h-1 rounded-full bg-gray-100 overflow-hidden">
+                    {!unlimited && (<div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
                         <div className="h-full rounded-full" style={{ width: `${pct}%`, background: warn ? "#EF4444" : item.color }}/>
                       </div>)}
                   </div>);
                 })}
             </div>
-            {planData.plan === "trial" && !planData.trialExpired && planData.trialDaysLeft <= 3 && (<div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
-                <span className="text-[11px] text-amber-600 font-medium">
+            {planData.plan === "trial" && !planData.trialExpired && planData.trialDaysLeft <= 3 && (<div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+                <span className="text-[11px] text-amber-700 font-semibold">
                   {planData.trialDaysLeft === 0 ? "Trial ends today" : `${planData.trialDaysLeft} trial day${planData.trialDaysLeft !== 1 ? "s" : ""} left`}
                 </span>
                 <Link href="/billing">
-                  <button className="text-[11px] font-bold px-2.5 py-1 rounded-lg text-white" style={{ background: "#CB3273" }}>
-                    Upgrade now <ArrowRight className="inline w-3 h-3"/>
+                  <button className="h-[32px] px-3 text-[11.5px] font-bold rounded-lg text-white shadow-xs" style={{ background: "#CB3273" }}>
+                    Upgrade now <ArrowRight className="inline w-3 h-3 ml-1"/>
                   </button>
                 </Link>
               </div>)}
@@ -166,7 +166,7 @@ export default function Dashboard() {
         })()}
 
       {/* KPI Grid — 2 cols mobile, 3 cols desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-2.5 md:gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <StatCard label="Total Leads" value={summary?.totalLeads ?? summary?.totalLeadsThisMonth ?? 0} icon={Users} color="teal" loading={isLoading} trend="All prospects"/>
         <StatCard label="Qualified" value={summary?.qualifiedLeads ?? 0} icon={Award} color="green" loading={isLoading} trend="Ready to close"/>
         <StatCard label="Meetings This Week" value={summary?.meetingsThisWeek ?? 0} icon={Calendar} color="purple" loading={isLoading} trend="Scheduled"/>
@@ -176,12 +176,12 @@ export default function Dashboard() {
       </div>
 
       {/* Autonomous Sales Agent Status Bar */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm space-y-3">
+      <div className="rounded-xl border border-[#CBD5E1] bg-white p-4 shadow-xs space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-pink-600" />
-            <span className="text-xs font-bold text-gray-900 uppercase tracking-wider">Autonomous Sales Agents</span>
-            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={hub?.orchestrator?.brainActive ? { background: "#ECFDF5", color: "#047857", border: "1px solid #A7F3D0" } : { background: "#F9FAFB", color: "#6B7280", border: "1px solid #E5E7EB" }}>
+            <span className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">Autonomous Sales Agents</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={hub?.orchestrator?.brainActive ? { background: "#ECFDF5", color: "#047857", border: "1px solid #A7F3D0" } : { background: "#F1F5F9", color: "#475569", border: "1px solid #CBD5E1" }}>
               {hub?.orchestrator?.brainActive ? "● Active" : "● Paused"}
             </span>
           </div>
@@ -197,13 +197,13 @@ export default function Dashboard() {
             { name: "Lead Hunter", role: "ICP Prospecting", color: "#DE377C", path: "/lead-hunter", active: !!hub?.leadHunter?.active },
           ].map(agent => (
             <Link key={agent.name} href={agent.path}>
-              <div className="p-3 rounded-lg border border-gray-100 bg-gray-50 hover:bg-white hover:border-gray-200 transition-all cursor-pointer space-y-1">
+              <div className="p-3 rounded-lg border border-[#CBD5E1] bg-[#FAFAFA] hover:bg-white hover:border-[#CB3273] transition-all cursor-pointer space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-900">{agent.name}</span>
-                  <span className="w-2 h-2 rounded-full" style={{ background: agent.active ? "#22C55E" : "#D1D5DB" }} />
+                  <span className="text-xs font-bold text-[#0F172A]">{agent.name}</span>
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: agent.active ? "#16A34A" : "#94A3B8" }} />
                 </div>
-                <p className="text-[10px] text-gray-500">{agent.role}</p>
-                <div className="text-[9px] font-bold" style={{ color: agent.active ? "#059669" : "#9CA3AF" }}>
+                <p className="text-[11px] font-medium text-[#475569]">{agent.role}</p>
+                <div className="text-[10px] font-bold" style={{ color: agent.active ? "#15803D" : "#64748B" }}>
                   {agent.active ? "● Active" : "● Paused"}
                 </div>
               </div>
@@ -213,18 +213,18 @@ export default function Dashboard() {
       </div>
 
       {/* Daily Rhythm Checklist */}
-      <div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
+      <div className="rounded-xl border border-[#CBD5E1] p-4 bg-white shadow-xs">
         <div className="flex items-center justify-between mb-3">
-          <div className="text-xs font-semibold text-foreground uppercase tracking-wider">Daily Rhythm Checklist</div>
-          <div className="text-[11px] text-muted-foreground">{checked.size}/{DAILY_CHECKLIST.length} done</div>
+          <div className="text-xs font-bold text-[#0F172A] uppercase tracking-wider">Daily Rhythm Checklist</div>
+          <div className="text-[11px] text-[#475569] font-bold">{checked.size}/{DAILY_CHECKLIST.length} done</div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
-          {DAILY_CHECKLIST.map((item) => (<button key={item.id} onClick={() => toggleChecked(item.id)} className={cn("flex items-center gap-2.5 text-left px-3 py-2.5 md:py-2 rounded border transition-all", checked.has(item.id) ? "border-teal-200 bg-teal-50" : "border-gray-200 hover:border-gray-200/60 hover:bg-gray-50")}>
-              {checked.has(item.id) ? (<CheckCircle2 className="w-4 h-4 md:w-3.5 md:h-3.5 text-teal-600 flex-shrink-0"/>) : (<Circle className="w-4 h-4 md:w-3.5 md:h-3.5 text-gray-400 flex-shrink-0"/>)}
-              <span className={cn("text-[12px] md:text-[11px] leading-tight", checked.has(item.id) ? "line-through text-gray-400" : "text-gray-700")}>{item.label}</span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          {DAILY_CHECKLIST.map((item) => (<button key={item.id} onClick={() => toggleChecked(item.id)} className={cn("flex items-center gap-2.5 text-left px-3 py-2.5 rounded-lg border transition-all h-[42px]", checked.has(item.id) ? "border-[#A4285E]/30 bg-[#FDF2F8]" : "border-[#CBD5E1] hover:border-[#94A3B8] bg-white")}>
+              {checked.has(item.id) ? (<CheckCircle2 className="w-4 h-4 text-[#A4285E] flex-shrink-0"/>) : (<Circle className="w-4 h-4 text-[#94A3B8] flex-shrink-0"/>)}
+              <span className={cn("text-[12px] font-medium leading-tight", checked.has(item.id) ? "line-through text-[#94A3B8]" : "text-[#0F172A]")}>{item.label}</span>
             </button>))}
         </div>
-        {checked.size === DAILY_CHECKLIST.length && (<div className="mt-3 px-3 py-2 rounded border border-amber-200 bg-amber-50 text-[11px] text-amber-600 text-center">
+        {checked.size === DAILY_CHECKLIST.length && (<div className="mt-3 px-3 py-2 rounded-lg border border-amber-300 bg-amber-50 text-[11.5px] font-bold text-amber-800 text-center">
             🎯 All done! Great sales rhythm today.
           </div>)}
       </div>

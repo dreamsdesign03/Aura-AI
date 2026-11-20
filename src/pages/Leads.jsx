@@ -1053,7 +1053,7 @@ export default function Leads() {
               {whcStatus?.running ? `Checking ${whcStatus.checked}/${whcStatus.total}` : "Check Websites"}
             </button>
             {selected.length >= 1 && (
-              <button onClick={() => setShowBulkCallModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 text-[12px] font-semibold rounded-10px text-pink-700 bg-pink-100 border border-pink-200 hover:bg-pink-200 transition-colors shadow-xs">
+              <button onClick={() => setShowBulkCallModal(true)} className="co-btn co-btn-sm" style={{ color: '#A4285E', borderColor: '#F3D9E5', background: '#FDF2F8' }}>
                 <PhoneOutgoing className="w-3.5 h-3.5"/> Bulk AI Call ({selected.length})
               </button>
             )}
@@ -1062,28 +1062,29 @@ export default function Leads() {
             </button>
           </div>
         </div>
-        {/* Underline tabs */}
+        {/* Pill tabs */}
         {viewMode === "list" && (
-          <div className="px-5 pt-1 flex items-center gap-1">
-            <button onClick={() => setViewTab("leads")} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "leads" ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
+          <div className="px-5 py-2 co-pill-tabs border-b border-gray-100">
+            <button onClick={() => setViewTab("leads")} className={`co-pill-tab ${viewTab === "leads" ? "active" : ""}`}>
               <Layers className="w-3.5 h-3.5"/>
-              All Contacts
-              <span className={cn("px-1.5 py-0.5 rounded text-[10px] font-semibold", viewTab === "leads" ? "bg-violet-100 text-violet-700" : "bg-gray-100 text-gray-500")}>
+              <span>All Contacts</span>
+              <span className="co-pill-badge">
                 {filteredLeads.length.toLocaleString()}
               </span>
             </button>
-            <button onClick={() => setViewTab("lists")} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "lists" ? "border-violet-600 text-violet-700" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
-              <ListPlus className="w-3.5 h-3.5"/> My Contacts
+            <button onClick={() => setViewTab("lists")} className={`co-pill-tab ${viewTab === "lists" ? "active" : ""}`}>
+              <ListPlus className="w-3.5 h-3.5"/>
+              <span>My Contacts</span>
             </button>
-            <button onClick={() => { setViewTab("unqualified"); loadUnqualifiedLeads(); }} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "unqualified" ? "border-orange-500 text-orange-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
+            <button onClick={() => { setViewTab("unqualified"); loadUnqualifiedLeads(); }} className={`co-pill-tab ${viewTab === "unqualified" ? "active" : ""}`}>
               <ShieldAlert className="w-3.5 h-3.5"/>
-              Unqualified
-              {unqualifiedTotal > 0 && <span className="px-1.5 py-0.5 rounded bg-orange-100 text-orange-600 text-[10px] font-semibold">{unqualifiedTotal}</span>}
+              <span>Unqualified</span>
+              {unqualifiedTotal > 0 && <span className="co-pill-badge">{unqualifiedTotal}</span>}
             </button>
-            <button onClick={() => { setViewTab("dead-pool"); loadDeadPool(); }} className={cn("flex items-center gap-1.5 px-3 pb-2.5 pt-1 text-[12px] font-medium border-b-2 transition-colors whitespace-nowrap", viewTab === "dead-pool" ? "border-red-500 text-red-600" : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300")}>
+            <button onClick={() => { setViewTab("dead-pool"); loadDeadPool(); }} className={`co-pill-tab ${viewTab === "dead-pool" ? "active" : ""}`}>
               <WifiOff className="w-3.5 h-3.5"/>
-              Dead Websites
-              {whcStatus?.counts?.dead != null && whcStatus.counts.dead > 0 && (<span className="px-1.5 py-0.5 rounded bg-red-100 text-red-600 text-[10px] font-semibold">{whcStatus.counts.dead}</span>)}
+              <span>Dead Websites</span>
+              {whcStatus?.counts?.dead != null && whcStatus.counts.dead > 0 && (<span className="co-pill-badge">{whcStatus.counts.dead}</span>)}
             </button>
           </div>
         )}
@@ -1175,28 +1176,28 @@ export default function Leads() {
         </div>)}
 
       {/* ── Filters row (desktop only) ─────────────────────────── */}
-      <div className="flex-shrink-0 border-b border-gray-200 bg-white hidden md:block" style={{ display: viewTab === "leads" ? undefined : "none" }}>
+      <div className="flex-shrink-0 border-b border-[#CBD5E1] bg-white hidden md:block" style={{ display: viewTab === "leads" ? undefined : "none" }}>
         {/* Row 1: search + filter dropdowns */}
         <div className="px-5 py-2.5 flex items-center gap-2 border-b border-gray-100 flex-nowrap overflow-x-auto" style={{ scrollbarWidth: "none" }}>
           {/* Search */}
-          <div className="relative w-60 flex-shrink-0">
-            {isFetching && search ? (<Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-violet-500 animate-spin"/>) : (<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"/>)}
-            <input type="text" placeholder="Search name, company, email…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full pl-9 pr-7 py-1.5 text-[12px] rounded-md border border-gray-300 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 transition-all"/>
-            {search && (<button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <X className="w-3 h-3"/>
+          <div className="relative w-64 flex-shrink-0">
+            {isFetching && search ? (<Loader2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#A4285E] animate-spin"/>) : (<Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#475569]"/>)}
+            <input type="text" placeholder="Search name, company, email…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-full h-[36px] pl-9 pr-8 text-[13px] font-semibold rounded-lg border border-[#CBD5E1] bg-white text-[#0F172A] placeholder:text-[#64748B] shadow-xs hover:border-[#94A3B8] focus:outline-none focus:ring-2 focus:ring-[#A4285E]/20 focus:border-[#A4285E] transition-all"/>
+            {search && (<button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#475569] hover:text-[#0F172A]">
+                <X className="w-3.5 h-3.5"/>
               </button>)}
           </div>
-          {/* Filter pills */}
-          <div className="flex items-center gap-1.5 flex-nowrap">
-            <select value={filterIndustry} onChange={(e) => setFilterIndustry(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterIndustry ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
+          {/* Filter dropdowns */}
+          <div className="flex items-center gap-2 flex-nowrap">
+            <select value={filterIndustry} onChange={(e) => setFilterIndustry(e.target.value)} className={cn("h-[36px] px-3 pr-7 text-[13px] font-semibold rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#A4285E]/20 appearance-none bg-no-repeat shadow-xs transition-all", filterIndustry ? "border-[#CB3273] bg-[#FDF2F8] text-[#A4285E]" : "border-[#CBD5E1] bg-white text-[#0F172A] hover:border-[#94A3B8]")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23334155'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 8px center", backgroundSize: "16px" }}>
               <option value="">Industry ▾</option>
               {uniqueIndustries.map((ind) => <option key={ind} value={ind}>{ind}</option>)}
             </select>
-            <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterCountry ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
+            <select value={filterCountry} onChange={(e) => setFilterCountry(e.target.value)} className={cn("h-[36px] px-3 pr-7 text-[13px] font-semibold rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#A4285E]/20 appearance-none bg-no-repeat shadow-xs transition-all", filterCountry ? "border-[#CB3273] bg-[#FDF2F8] text-[#A4285E]" : "border-[#CBD5E1] bg-white text-[#0F172A] hover:border-[#94A3B8]")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23334155'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 8px center", backgroundSize: "16px" }}>
               <option value="">Location ▾</option>
               {uniqueCountries.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
-            <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterSource ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
+            <select value={filterSource} onChange={(e) => setFilterSource(e.target.value)} className={cn("h-[36px] px-3 pr-7 text-[13px] font-semibold rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#A4285E]/20 appearance-none bg-no-repeat shadow-xs transition-all", filterSource ? "border-[#CB3273] bg-[#FDF2F8] text-[#A4285E]" : "border-[#CBD5E1] bg-white text-[#0F172A] hover:border-[#94A3B8]")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23334155'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 8px center", backgroundSize: "16px" }}>
               <option value="">Source ▾</option>
               <option value="Bulk Calling">Bulk Calling</option>
               {uniqueCampaigns.length > 0 && (
@@ -1210,11 +1211,11 @@ export default function Leads() {
               )}
               {uniqueSources.filter((s) => s.toLowerCase() !== "bulk calling").map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
-            {icpsData && icpsData.length > 0 && (<select value={filterIcp} onChange={(e) => setFilterIcp(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterIcp ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
+            {icpsData && icpsData.length > 0 && (<select value={filterIcp} onChange={(e) => setFilterIcp(e.target.value)} className={cn("h-[36px] px-3 pr-7 text-[13px] font-semibold rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#A4285E]/20 appearance-none bg-no-repeat shadow-xs transition-all", filterIcp ? "border-[#CB3273] bg-[#FDF2F8] text-[#A4285E]" : "border-[#CBD5E1] bg-white text-[#0F172A] hover:border-[#94A3B8]")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23334155'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 8px center", backgroundSize: "16px" }}>
                 <option value="">ICP ▾</option>
                 {icpsData.map((icp) => <option key={icp.id} value={String(icp.id)}>{icp.name}</option>)}
               </select>)}
-            <select value={filterAssignedTo} onChange={(e) => setFilterAssignedTo(e.target.value)} className={cn("py-1.5 pl-2.5 pr-6 text-[12px] rounded-md border cursor-pointer focus:outline-none focus:ring-1 focus:ring-violet-400 appearance-none bg-no-repeat", filterAssignedTo ? "border-violet-300 bg-violet-50 text-violet-700 font-medium" : "border-gray-300 bg-white text-gray-600")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%239CA3AF'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 4px center", backgroundSize: "16px" }}>
+            <select value={filterAssignedTo} onChange={(e) => setFilterAssignedTo(e.target.value)} className={cn("h-[36px] px-3 pr-7 text-[13px] font-semibold rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#A4285E]/20 appearance-none bg-no-repeat shadow-xs transition-all", filterAssignedTo ? "border-[#CB3273] bg-[#FDF2F8] text-[#A4285E]" : "border-[#CBD5E1] bg-white text-[#0F172A] hover:border-[#94A3B8]")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23334155'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 8px center", backgroundSize: "16px" }}>
               <option value="">Contact Owner ▾</option>
               <option value="me">Assigned to me</option>
               {(teamMembers ?? []).map((m) => {
@@ -1223,8 +1224,8 @@ export default function Leads() {
             return <option key={m.id} value={String(m.id)}>{c != null ? `${name} (${c})` : name}</option>;
         })}
             </select>
-            {(filterIndustry || filterCountry || filterSource || filterIcp || filterAssignedTo) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="flex items-center gap-1 text-[11px] text-orange-600 hover:text-orange-700 border border-orange-200 bg-orange-50 hover:bg-orange-100 rounded-md px-2.5 py-1.5 transition-colors font-medium whitespace-nowrap">
-                <X className="w-3 h-3"/> Clear filters
+            {(filterIndustry || filterCountry || filterSource || filterIcp || filterAssignedTo) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="h-[36px] flex items-center gap-1.5 text-[12px] text-[#A4285E] hover:text-[#831843] border border-[#F3D9E5] bg-[#FDF2F8] hover:bg-[#FBE9F1] rounded-lg px-3 transition-colors font-semibold whitespace-nowrap shadow-xs">
+                <X className="w-3.5 h-3.5"/> Clear filters
               </button>)}
           </div>
         </div>

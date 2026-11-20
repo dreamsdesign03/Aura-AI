@@ -12,12 +12,12 @@
   --co-brand-2: #CB3273;
   --co-soft: #FBE9F1;
   --co-soft-2: #FDF3F8;
-  --co-line: #F3D9E5;
-  --co-line-2: #EAD0DD;
+  --co-line: #CBD5E1;
+  --co-line-2: #E2E8F0;
   --co-page: #FDF7FA;
-  --co-ink: #1E293B;
-  --co-body: #374151;
-  --co-mute: #6B7280;
+  --co-ink: #0F172A;
+  --co-body: #1E293B;
+  --co-mute: #475569;
   --co-green: #15803D;
   --co-green-bg: #DCFCE7;
   --co-amber: #B45309;
@@ -215,18 +215,27 @@
 
 /* ---------- forms ---------- */
 .co-field { display: flex; flex-direction: column; gap: 6px; }
-.co-label { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--co-mute); }
+.co-label { font-size: 11.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: #475569; }
 .co-input,
-.clinic-os select,
-.clinic-os textarea {
-  width: 100%; border: 1px solid var(--co-line-2); border-radius: 10px; background: #fff;
-  padding: 9px 11px; font: 400 13.5px Inter, sans-serif; color: var(--co-ink); outline: none;
+.clinic-os select {
+  width: 100%; height: 36px; border: 1px solid #CBD5E1; border-radius: 10px; background: #fff;
+  padding: 0 12px; font: 500 13px Inter, sans-serif; color: #0F172A; outline: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   transition: border-color .18s, box-shadow .18s;
 }
-.co-input:focus, .clinic-os select:focus, .clinic-os textarea:focus {
-  border-color: #DE8FB4; box-shadow: 0 0 0 3px #FBE9F1;
+.clinic-os textarea {
+  width: 100%; border: 1px solid #CBD5E1; border-radius: 10px; background: #fff;
+  padding: 10px 12px; font: 500 13px Inter, sans-serif; color: #0F172A; outline: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color .18s, box-shadow .18s;
 }
-.co-input::placeholder, .clinic-os textarea::placeholder { color: #9CA3AF; }
+.co-input:hover, .clinic-os select:hover, .clinic-os textarea:hover {
+  border-color: #94A3B8;
+}
+.co-input:focus, .clinic-os select:focus, .clinic-os textarea:focus {
+  border-color: #CB3273; box-shadow: 0 0 0 3px rgba(203, 50, 115, 0.18);
+}
+.co-input::placeholder, .clinic-os textarea::placeholder { color: #64748B !important; opacity: 1 !important; }
 .co-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .co-form-grid .co-span-2 { grid-column: span 2; }
 

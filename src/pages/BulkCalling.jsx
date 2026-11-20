@@ -47,24 +47,26 @@ export default function BulkCalling() {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <div className="flex-shrink-0 px-6 py-5 border-b border-gray-200 bg-white flex items-center justify-between">
+    <div className="flex flex-col h-full bg-[#FDF7FA]">
+      <div className="flex-shrink-0 px-6 py-5 border-b border-[#CBD5E1] bg-white flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <PhoneOutgoing className="w-5 h-5 text-pink-600" />
+          <h1 className="text-xl font-extrabold text-[#0F172A] flex items-center gap-2">
+            <PhoneOutgoing className="w-5 h-5 text-[#A4285E]" />
             Bulk AI Calling
           </h1>
-          <p className="text-xs text-gray-500 mt-1">Manage and track AI voice campaigns</p>
-          <div className="flex items-center gap-1 mt-3 bg-gray-100 rounded-xl p-1 w-fit">
+          <p className="text-xs text-[#475569] font-medium mt-1">Manage and track AI voice campaigns</p>
+          <div className="co-pill-tabs mt-3">
             <button
+              type="button"
               onClick={() => setView('campaigns')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${view === 'campaigns' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`co-pill-tab ${view === 'campaigns' ? 'active' : ''}`}
             >
               Campaigns
             </button>
             <button
+              type="button"
               onClick={() => setView('conversations')}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors ${view === 'conversations' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`co-pill-tab ${view === 'conversations' ? 'active' : ''}`}
             >
               All Conversations
             </button>
@@ -72,9 +74,9 @@ export default function BulkCalling() {
         </div>
         {view === 'campaigns' && (
           <button
+            type="button"
             onClick={() => setShowNew(true)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white rounded-xl shadow-sm transition-all"
-            style={{ background: "#CB3273" }}
+            className="co-btn co-btn-primary"
           >
             <Plus className="w-4 h-4" />
             New Campaign
@@ -458,29 +460,44 @@ function BulkCallDetail({ id, onBack }) {
 
         {/* Contacts Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
-          <div className="px-5 py-4 border-b border-gray-100 bg-gray-50 flex flex-wrap items-center justify-between gap-4">
-            <div className="flex gap-2">
+          <div className="px-5 py-3 border-b border-[#CBD5E1] bg-[#FCFAFB] flex flex-wrap items-center justify-between gap-4">
+            <div className="co-pill-tabs">
               {['all', 'pending', 'calling', 'booked', 'not_booked', 'no_answer', 'failed'].map(s => (
-                <button key={s} onClick={() => setFilterStatus(s)} className={`px-3 py-1.5 text-xs font-bold rounded-lg uppercase transition-colors ${filterStatus === s ? 'bg-gray-800 text-white' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}>
-                  {s}
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setFilterStatus(s)}
+                  className={`co-pill-tab ${filterStatus === s ? 'active' : ''}`}
+                >
+                  {s.replace('_', ' ')}
                 </button>
               ))}
             </div>
-            <div className="flex gap-3 items-center">
+            <div className="flex gap-2 items-center">
               <div className="relative">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <Search className="w-4 h-4 text-[#475569] absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text" placeholder="Search..." value={search} onChange={e => setSearch(e.target.value)}
-                  className="pl-9 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm focus:ring-1 focus:ring-pink-400 outline-none w-64"
+                  className="h-[36px] pl-9 pr-4 bg-white border border-[#CBD5E1] rounded-lg text-[13px] font-medium text-[#0F172A] placeholder:text-[#64748B] hover:border-[#94A3B8] focus:border-[#CB3273] focus:ring-2 focus:ring-[#CB3273]/20 outline-none w-64 shadow-xs"
                 />
               </div>
               {campaign.sarvam_campaign_id && (
-                <button onClick={async () => { const r = await syncFromSarvam(); toast({ title: r.ok ? `Synced from Sarvam (${r.found ?? 0} calls found, ${r.created ?? 0} updated)` : "Sync failed", description: r.ok ? undefined : r.error, variant: r.ok ? undefined : "destructive" }); }} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600" title="Sync results from Sarvam">
+                <button
+                  type="button"
+                  onClick={async () => { const r = await syncFromSarvam(); toast({ title: r.ok ? `Synced from Sarvam (${r.found ?? 0} calls found, ${r.created ?? 0} updated)` : "Sync failed", description: r.ok ? undefined : r.error, variant: r.ok ? undefined : "destructive" }); }}
+                  className="co-btn"
+                  title="Sync results from Sarvam"
+                >
                   <RefreshCw className="w-4 h-4" />
                 </button>
               )}
-              <button onClick={exportCsv} className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 text-gray-600" title="Export CSV">
-                <Download className="w-4 h-4" />
+              <button
+                type="button"
+                onClick={exportCsv}
+                className="co-btn"
+                title="Export CSV"
+              >
+                <Download className="w-4 h-4" /> Export
               </button>
             </div>
           </div>
