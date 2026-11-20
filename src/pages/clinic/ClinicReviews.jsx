@@ -21,7 +21,7 @@ function ReviewCard({ review, onReply, replyingId, busy }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
           <Avatar first={review.author?.split(' ')[0]} last={review.author?.split(' ').slice(1).join(' ')} />
           <div style={{ minWidth: 0 }}>
-            <div className="co-strong" style={{ fontSize: 14, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            <div className="co-strong" style={{ fontSize: 14, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.45, paddingBottom: 2 }}>
               {review.author}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>

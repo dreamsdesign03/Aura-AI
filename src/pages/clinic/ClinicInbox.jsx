@@ -294,10 +294,14 @@ function ThreadRow({ thread, isSelected, onClick }) {
         textAlign: 'left',
         cursor: 'pointer',
         padding: '14px 18px',
+        border: 'none',
+        borderBottom: '1px solid #F3D9E5',
         borderLeft: isSelected ? '4px solid #CB3273' : isUnread ? '4px solid #F472B6' : '4px solid transparent',
         background: isSelected ? '#FFF5F9' : isUnread ? '#FFFDFE' : '#FFFFFF',
         transition: 'all 0.15s ease',
         width: '100%',
+        minHeight: 76,
+        boxSizing: 'border-box',
         position: 'relative',
       }}
       onMouseEnter={(e) => {
@@ -455,7 +459,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
         </div>
 
         {thread.type === 'email' && thread.subject ? (
-          <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.45, minHeight: 18, paddingBottom: 2 }}>
             {thread.subject}
           </div>
         ) : null}
@@ -495,7 +499,10 @@ function ThreadRow({ thread, isSelected, onClick }) {
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             color: '#6B7280',
-            lineHeight: 1.4,
+            lineHeight: 1.5,
+            minHeight: 20,
+            paddingTop: 1,
+            paddingBottom: 2,
           }}
         >
           {formatThreadPreview(thread.preview)}

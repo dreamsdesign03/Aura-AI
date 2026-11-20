@@ -666,7 +666,7 @@ export default function ClinicCallReview({ id }) {
                             )}
                           </div>
                           {c.transcript_summary && (
-                            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4, maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            <div style={{ fontSize: 11, color: '#64748B', marginTop: 4, maxWidth: 280, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1.5, paddingBottom: 2 }}>
                               {c.transcript_summary}
                             </div>
                           )}

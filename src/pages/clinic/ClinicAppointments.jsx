@@ -608,7 +608,7 @@ function LinkCallModal({ appointment, onClose, onLinked }) {
                     {c.duration_secs ? ` · ${Math.round(c.duration_secs / 60)} min` : ''}
                   </div>
                   {c.transcript_summary ? (
-                    <div className="co-sm" style={{ marginTop: 4, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                    <div className="co-sm" style={{ marginTop: 4, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.45, paddingBottom: 2 }}>
                       {c.transcript_summary}
                     </div>
                   ) : null}
