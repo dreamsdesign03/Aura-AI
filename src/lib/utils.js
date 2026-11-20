@@ -233,6 +233,7 @@ export const LEAD_STATUS_LIST = [
     "quote_sent", "follow_up", "project_won", "project_lost",
 ];
 export const STATUS_LABELS = {
+    new: "New Lead",
     new_enquiry: "New Enquiry",
     enquiry_qualified: "Enquiry Qualified",
     discovery_call: "Discovery Call",
@@ -245,6 +246,7 @@ export function statusLabel(status) {
     return STATUS_LABELS[status] ?? status.replace(/_/g, " ");
 }
 export const STATUS_COLORS = {
+    new: "bg-blue-50 text-blue-700 border-blue-200",
     new_enquiry: "bg-blue-50 text-blue-700 border-blue-200",
     enquiry_qualified: "bg-purple-50 text-purple-700 border-purple-200",
     discovery_call: "bg-teal-50 text-teal-700 border-teal-200",

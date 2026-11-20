@@ -35,14 +35,14 @@ const CSV_COLUMN_LABELS = {
     linkedInUrl: "LinkedIn URL",
     notes: "Notes",
 };
-const STATUSES = ["all", "new_enquiry", "enquiry_qualified", "discovery_call", "quote_sent", "follow_up", "project_won", "project_lost"];
+const STATUSES = ["all", "new", "new_enquiry", "enquiry_qualified", "discovery_call", "quote_sent", "follow_up", "project_won", "project_lost"];
 const STATUS_DISPLAY = {
-    all: "All", new_enquiry: "New Enquiry", enquiry_qualified: "Enquiry Qualified",
+    all: "All", new: "New Lead", new_enquiry: "New Enquiry", enquiry_qualified: "Enquiry Qualified",
     discovery_call: "Discovery Call", quote_sent: "Quote / Estimation Sent",
     follow_up: "Follow Up / Negotiation", project_won: "Project Won", project_lost: "Project Lost",
 };
 const STATUS_DOT = {
-    all: "#9CA3AF", new_enquiry: "#3B82F6", enquiry_qualified: "#CB3273",
+    all: "#9CA3AF", new: "#3B82F6", new_enquiry: "#3B82F6", enquiry_qualified: "#CB3273",
     discovery_call: "#0D9488", quote_sent: "#DE377C", follow_up: "#DE377C",
     project_won: "#16A34A", project_lost: "#EF4444",
 };
@@ -1518,127 +1518,410 @@ export default function Leads() {
 
         {/* ── Desktop table (≥ md) ───────────────────────────────── */}
         <div className="hidden md:block w-full max-w-full overflow-x-auto overscroll-x-contain">
-          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "1380px", tableLayout: "fixed" }}>
-            <thead className="sticky top-0 z-10">
-              <tr className="bg-white border-b border-gray-200">
-                <th className="sticky left-0 z-20 bg-white w-8 px-2 py-3 text-center">
-                  <input ref={headerCheckboxRef} type="checkbox" onChange={selectPage} className="w-3.5 h-3.5 accent-violet-500 cursor-pointer" title="Select all on this page"/>
+          <table className="w-full text-[12px] border-separate border-spacing-0" style={{ minWidth: "1960px", tableLayout: "fixed" }}>
+            <thead className="sticky top-0 z-20">
+              <tr className="bg-[#F9FAFB] border-b border-gray-200">
+                {/* 1. Checkbox (Sticky Left 0) */}
+                <th
+                  className="sticky left-0 z-30 bg-[#F9FAFB] text-center border-r border-b border-gray-200 px-3 py-3"
+                  style={{ width: "46px", minWidth: "46px" }}
+                >
+                  <input
+                    ref={headerCheckboxRef}
+                    type="checkbox"
+                    onChange={selectPage}
+                    className="w-3.5 h-3.5 accent-violet-600 cursor-pointer"
+                    title="Select all on this page"
+                  />
                 </th>
-                <th className="w-8 px-2 py-3 text-[10px] font-semibold text-gray-300 text-center">#</th>
-                <th className="sticky left-16 z-20 bg-white w-[180px] px-3 py-2.5 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">Contact</th>
-                {[
-            ["Designation", null, "90px"],
-            ["Company", "company", "110px"],
-            ["Email ID", null, "135px"],
-            ["Phone No", null, "115px"],
-            ["Website URL", null, "110px"],
-            ["Email Send", null, "70px"],
-            ["Location", null, "90px"],
-            ["Lead Status", null, "105px"],
-            ["Source", null, "85px"],
-            ["Web Status", null, "80px"],
-            ["Industry", null, "90px"],
-            ["Date Added", "createdAt", "90px"],
-        ].map(([label, col, w]) => (<th key={label} style={{ minWidth: w, width: w }} className={cn("px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500 whitespace-nowrap bg-white", col && "cursor-pointer hover:text-violet-600")} onClick={col ? () => handleSort(col) : undefined}>
-                    {col ? <span className="flex items-center gap-1">{label} <SortIcon col={col}/></span> : label}
-                  </th>))}
-                <th className="w-16 px-2 py-3"/>
+
+                {/* 2. Contact Name (Sticky Left 46px) */}
+                <th
+                  className="sticky left-[46px] z-30 bg-[#F9FAFB] px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 shadow-[2px_0_5px_rgba(0,0,0,0.04)]"
+                  style={{ width: "230px", minWidth: "230px" }}
+                >
+                  Contact Name
+                </th>
+
+                {/* 3. Company */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
+                  style={{ width: "170px", minWidth: "170px" }}
+                  onClick={() => handleSort("company")}
+                >
+                  <span className="flex items-center gap-1">Company <SortIcon col="company"/></span>
+                </th>
+
+                {/* 4. Phone Number */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "200px", minWidth: "200px" }}
+                >
+                  Phone Number
+                </th>
+
+                {/* 5. Lead Status */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "160px", minWidth: "160px" }}
+                >
+                  Lead Status
+                </th>
+
+                {/* 6. Source / Campaign */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "180px", minWidth: "180px" }}
+                >
+                  Source / Campaign
+                </th>
+
+                {/* 7. Designation */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "160px", minWidth: "160px" }}
+                >
+                  Designation
+                </th>
+
+                {/* 8. Location */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "130px", minWidth: "130px" }}
+                >
+                  Location
+                </th>
+
+                {/* 9. Website URL */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "150px", minWidth: "150px" }}
+                >
+                  Website
+                </th>
+
+                {/* 10. Email Status */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "120px", minWidth: "120px" }}
+                >
+                  Email Status
+                </th>
+
+                {/* 11. Web Status */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "110px", minWidth: "110px" }}
+                >
+                  Web Status
+                </th>
+
+                {/* 12. Industry */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "140px", minWidth: "140px" }}
+                >
+                  Industry
+                </th>
+
+                {/* 13. Date Added */}
+                <th
+                  className="px-4 py-3 text-left text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap cursor-pointer hover:text-violet-600"
+                  style={{ width: "120px", minWidth: "120px" }}
+                  onClick={() => handleSort("createdAt")}
+                >
+                  <span className="flex items-center gap-1">Date Added <SortIcon col="createdAt"/></span>
+                </th>
+
+                {/* 14. Actions (Sticky Right 0) */}
+                <th
+                  className="sticky right-0 z-30 bg-[#F9FAFB] px-3 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-l border-b border-gray-200 shadow-[-2px_0_5px_rgba(0,0,0,0.04)]"
+                  style={{ width: "100px", minWidth: "100px" }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (Array.from({ length: 10 }).map((_, i) => (<tr key={i} className="border-b border-gray-100"><td colSpan={15} className="px-3 py-3"><div className="h-4 rounded bg-gray-100 animate-pulse" style={{ width: `${55 + i * 4}%` }}/></td></tr>))) : pagedLeads.length === 0 ? (<tr><td colSpan={15} className="text-center py-16 text-gray-400">No leads match your filters</td></tr>) : pagedLeads.map((lead, idx) => {
-            const l = lead;
-            const phoneDisplay = [lead.phone, l.whatsapp].filter(Boolean).join(" / ") || null;
-            const waNum = ((l.whatsapp || lead.phone) ?? "").replace(/[^0-9]/g, "");
-            const rowNum = (page - 1) * PAGE_SIZE + idx + 1;
-            const fn = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
-            const ln = (lead.lastName || lead.last_name || "").trim();
-            const leadNameStr = ln ? `${fn} ${ln}` : fn;
-            const initials = leadNameStr.substring(0, 2).toUpperCase();
-            const avatarColor = MOBILE_AVATAR_COLORS[lead.id % MOBILE_AVATAR_COLORS.length];
-            return (<tr key={lead.id} className="border-b border-gray-100 hover:bg-violet-50/40 transition-colors cursor-pointer group bg-white" onClick={() => navigate(`/leads/${lead.id}`)}>
-                    <td className="sticky left-0 z-10 w-8 px-2 py-2.5 bg-white group-hover:bg-violet-50/30" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" checked={selected.includes(lead.id)} onChange={() => toggleSelect(lead.id)} className="w-3.5 h-3.5 accent-violet-500"/>
+              {isLoading ? (
+                Array.from({ length: 10 }).map((_, i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    <td colSpan={14} className="px-4 py-3">
+                      <div className="h-4 rounded bg-gray-100 animate-pulse" style={{ width: `${55 + i * 4}%` }}/>
                     </td>
-                    <td className="w-8 px-2 py-2.5 text-center text-[10px] text-gray-300 font-mono">{rowNum}</td>
-                    <td className="sticky left-16 z-10 px-3 py-2 bg-white group-hover:bg-violet-50/40 border-r border-gray-100" style={{ width: "180px", maxWidth: "180px" }}>
+                  </tr>
+                ))
+              ) : pagedLeads.length === 0 ? (
+                <tr>
+                  <td colSpan={14} className="text-center py-16 text-gray-400">
+                    No leads match your filters
+                  </td>
+                </tr>
+              ) : pagedLeads.map((lead) => {
+                const l = lead;
+                const phoneCandidates = [lead.phone, l.whatsapp].filter(Boolean);
+                const cleanPhone = [...new Set(phoneCandidates)].join(" / ");
+                const fn = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
+                const ln = (lead.lastName || lead.last_name || "").trim();
+                const leadNameStr = ln ? `${fn} ${ln}` : fn;
+                const initials = leadNameStr.substring(0, 2).toUpperCase();
+                const avatarColor = MOBILE_AVATAR_COLORS[lead.id % MOBILE_AVATAR_COLORS.length];
+
+                return (
+                  <tr
+                    key={lead.id}
+                    className="border-b border-gray-100 hover:bg-[#F8FAFC] transition-colors cursor-pointer group bg-white"
+                    onClick={() => navigate(`/leads/${lead.id}`)}
+                  >
+                    {/* 1. Checkbox */}
+                    <td
+                      className="sticky left-0 z-10 bg-white group-hover:bg-[#F8FAFC] text-center border-r border-b border-gray-100 px-3 py-2.5"
+                      style={{ width: "46px", minWidth: "46px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected.includes(lead.id)}
+                        onChange={() => toggleSelect(lead.id)}
+                        className="w-3.5 h-3.5 accent-violet-600 cursor-pointer"
+                      />
+                    </td>
+
+                    {/* 2. Contact Name */}
+                    <td
+                      className="sticky left-[46px] z-10 bg-white group-hover:bg-[#F8FAFC] px-4 py-2.5 border-r border-b border-gray-100 shadow-[2px_0_5px_rgba(0,0,0,0.04)]"
+                      style={{ width: "230px", minWidth: "230px", maxWidth: "230px" }}
+                    >
                       <div className="flex items-center gap-2.5 min-w-0">
-                        {l.photoUrl ? <img src={l.photoUrl} alt="" className="w-9 h-9 rounded-full object-cover flex-shrink-0"/> : (<div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0" style={{ background: avatarColor }}>
+                        {l.photoUrl ? (
+                          <img src={l.photoUrl} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
+                        ) : (
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white flex-shrink-0 shadow-sm"
+                            style={{ background: avatarColor }}
+                          >
                             {initials || "?"}
-                          </div>)}
-                        <div className="min-w-0">
-                          <div className="font-semibold text-violet-700 group-hover:text-violet-900 text-[12px] leading-4 truncate" title={leadNameStr}>{leadNameStr}</div>
-                          {cleanEmail(lead.email) && <div className="text-[10px] text-gray-500 leading-4 truncate" title={cleanEmail(lead.email)}>{cleanEmail(lead.email)}</div>}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div
+                            className="font-semibold text-gray-900 group-hover:text-violet-600 text-[13px] leading-tight truncate"
+                            title={leadNameStr}
+                          >
+                            {leadNameStr}
+                          </div>
+                          {cleanEmail(lead.email) ? (
+                            <div className="text-[11px] text-gray-500 leading-tight truncate mt-0.5" title={cleanEmail(lead.email)}>
+                              {cleanEmail(lead.email)}
+                            </div>
+                          ) : cleanPhone ? (
+                            <div className="text-[11px] text-gray-400 leading-tight truncate mt-0.5">
+                              {cleanPhone}
+                            </div>
+                          ) : null}
                         </div>
                       </div>
                     </td>
-                    <td className="px-2.5 py-2 text-gray-600 truncate" title={lead.designation || ""}>{lead.designation ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-2.5 py-2 truncate" style={{ width: "130px", maxWidth: "130px" }}>
-                      <div className="flex items-center gap-1.5">
-                        {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0"/>}
-                        <span className="text-gray-800 font-medium truncate block">{cleanCompanyName(lead.company)}</span>
+
+                    {/* 3. Company */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-800"
+                      style={{ width: "170px", minWidth: "170px", maxWidth: "170px" }}
+                    >
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {l.companyLogo && <img src={l.companyLogo} alt="" className="w-4 h-4 rounded object-cover flex-shrink-0" />}
+                        <span className="font-medium truncate block" title={lead.company || ""}>
+                          {cleanCompanyName(lead.company) || <span className="text-gray-300 font-normal">—</span>}
+                        </span>
                       </div>
                     </td>
-                    <td className="px-2.5 py-2" style={{ width: "170px", maxWidth: "170px" }}>
-                      {cleanEmail(lead.email) && <a href={`mailto:${cleanEmail(lead.email)}`} className="text-blue-600 hover:underline block text-[11px] truncate" onClick={e => e.stopPropagation()}>{cleanEmail(lead.email)}</a>}
-                    </td>
-                    <td className="px-4 py-3" style={{ width: "145px", maxWidth: "145px" }} onClick={e => e.stopPropagation()}>
-                      {phoneDisplay ? (<div className="flex items-center gap-1">
-                          <span className="text-gray-600 text-[11px] truncate">{phoneDisplay}</span>
-                          {lead.last_ai_call_status && (
-                            <span className="px-1 py-0.5 rounded bg-pink-50 text-pink-700 text-[9px] uppercase font-bold border border-pink-100" title={lead.last_ai_call_status}>
-                              {lead.last_ai_call_status.substring(0, 4)}
+
+                    {/* 4. Phone */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px]"
+                      style={{ width: "200px", minWidth: "200px", maxWidth: "200px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {cleanPhone ? (
+                        <div className="flex items-center justify-between gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <span className="text-gray-800 font-medium text-[12px] truncate block" title={cleanPhone}>
+                              {cleanPhone}
                             </span>
-                          )}
-                          <button type="button" disabled={lead.do_not_call} onClick={e => { e.stopPropagation(); setConfirmCallLead(lead); }} className={cn("flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-blue-100 text-[11px] transition-colors", lead.do_not_call ? "opacity-30 cursor-not-allowed" : "")} title={`AI Proposal Call to ${lead.firstName || lead.name || 'Lead'}`}>📞</button>
-                          <button title={lead.whatsapp || lead.phone ? "Send WhatsApp template" : "No phone"} onClick={(e) => {
-                            e.stopPropagation();
-                            if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
-                          }}>
-                            <Send className={cn("w-3.5 h-3.5", (lead.whatsapp || lead.phone) ? "text-green-600 hover:text-green-700" : "text-gray-300")}/>
-                          </button>
-                        </div>) : (
-                        <div className="flex items-center gap-1" title="No phone number available">
-                          <span className="text-gray-300 text-[11px]">—</span>
-                          <button type="button" disabled className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded opacity-40 cursor-not-allowed text-[11px]" title="No phone number available">📞</button>
-                          <button disabled title="No phone" className="opacity-40 cursor-not-allowed">
-                            <Send className="w-3.5 h-3.5 text-gray-300"/>
-                          </button>
+                            {lead.last_ai_call_status && (
+                              <span
+                                className="inline-block mt-0.5 px-1.5 py-0.2 rounded text-[9px] uppercase font-bold tracking-wide bg-pink-50 text-pink-700 border border-pink-200"
+                                title={`Last AI Call: ${lead.last_ai_call_status}`}
+                              >
+                                AI {lead.last_ai_call_status}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              disabled={lead.do_not_call}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmCallLead(lead);
+                              }}
+                              className={cn(
+                                "w-6 h-6 flex items-center justify-center rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-[11px]",
+                                lead.do_not_call && "opacity-30 cursor-not-allowed"
+                              )}
+                              title={`Call ${leadNameStr}`}
+                            >
+                              <Phone className="w-3 h-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
+                              }}
+                              className="w-6 h-6 flex items-center justify-center rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors text-[11px]"
+                              title="Send WhatsApp"
+                            >
+                              <MessageCircle className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
+                      ) : (
+                        <span className="text-gray-300">—</span>
                       )}
                     </td>
-                    <td className="px-2.5 py-2 text-[11px]" style={{ minWidth: "170px" }} onClick={e => e.stopPropagation()}>
-                      {lead.website ? (<a href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} target="_blank" rel="noopener noreferrer" className="text-blue-500 hover:underline block truncate" title={lead.website}>
-                          {lead.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}
-                        </a>) : <span className="text-gray-300">—</span>}
+
+                    {/* 5. Lead Status */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap"
+                      style={{ width: "160px", minWidth: "160px" }}
+                    >
+                      <StatusBadge status={lead.status} />
                     </td>
-                    <td className="px-3 py-2">
-                      {l.emailSent ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700"><Mail className="w-2.5 h-2.5"/> Email Sent</span>) : <span className="text-gray-300 text-[10px]">—</span>}
-                    </td>
-                    <td className="px-2.5 py-2 text-gray-600 text-[11px] truncate" style={{ width: "115px", maxWidth: "115px" }}>
-                      {lead.country || l.city
-                    ? <span>{[l.city, lead.country].filter(Boolean).join(", ")}</span>
-                    : <span className="text-gray-300">—</span>}
-                    </td>
-                    <td className="px-3 py-2"><StatusBadge status={lead.status}/></td>
-                    <td className="px-2.5 py-2 text-[12px] truncate" style={{ width: "115px", maxWidth: "115px" }}>
+
+                    {/* 6. Source / Campaign */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px]"
+                      style={{ width: "180px", minWidth: "180px", maxWidth: "180px" }}
+                    >
                       {lead.campaign_name ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-violet-100 text-violet-800 border border-violet-200 truncate max-w-[140px]" title={`Bulk Campaign: ${lead.campaign_name}`}>
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10.5px] font-semibold bg-violet-50 text-violet-700 border border-violet-200 truncate max-w-full"
+                          title={`Bulk Campaign: ${lead.campaign_name}`}
+                        >
                           📢 {lead.campaign_name}
                         </span>
                       ) : (
-                        <span className="text-gray-600 capitalize whitespace-normal break-words block">
+                        <span className="text-gray-600 capitalize block truncate" title={lead.source || ""}>
                           {lead.source?.replace(/_/g, " ") ?? <span className="text-gray-300">—</span>}
                         </span>
                       )}
                     </td>
-                    <td className="px-3 py-2">
-                      {l.websiteStatus === "live" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-700">✓ Live</span>) : l.websiteStatus === "down" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-100 text-red-700"><WifiOff className="w-2.5 h-2.5"/> Dead</span>) : l.websiteStatus === "no_website" ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">No URL</span>) : lead.website ? (<span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-500 border border-amber-200">? Check</span>) : (<span className="text-gray-300 text-[10px]">—</span>)}
+
+                    {/* 7. Designation */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
+                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      title={lead.designation || ""}
+                    >
+                      {lead.designation || <span className="text-gray-300">—</span>}
                     </td>
-                    <td className="px-2.5 py-2 text-gray-600 text-[11px] truncate" style={{ width: "105px", maxWidth: "105px" }}>{lead.industry ?? <span className="text-gray-300">—</span>}</td>
-                    <td className="px-2.5 py-2 text-gray-500 text-[11px] whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                    <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center gap-1">
+
+                    {/* 8. Location */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
+                      style={{ width: "130px", minWidth: "130px", maxWidth: "130px" }}
+                      title={[l.city, lead.country].filter(Boolean).join(", ")}
+                    >
+                      {[l.city, lead.country].filter(Boolean).join(", ") || <span className="text-gray-300">—</span>}
+                    </td>
+
+                    {/* 9. Website */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px]"
+                      style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {lead.website ? (
+                        <a
+                          href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline inline-flex items-center gap-1 font-medium truncate"
+                          title={lead.website}
+                        >
+                          <Globe className="w-3 h-3 text-gray-400 shrink-0" />
+                          <span className="truncate">{lead.website.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]}</span>
+                        </a>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
+
+                    {/* 10. Email Status */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[12px]"
+                      style={{ width: "120px", minWidth: "120px" }}
+                    >
+                      {l.emailSent ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <Mail className="w-2.5 h-2.5" /> Email Sent
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 text-[11px]">—</span>
+                      )}
+                    </td>
+
+                    {/* 11. Web Status */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[12px]"
+                      style={{ width: "110px", minWidth: "110px" }}
+                    >
+                      {l.websiteStatus === "live" ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          ✓ Live
+                        </span>
+                      ) : l.websiteStatus === "down" ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-50 text-red-700 border border-red-200">
+                          <WifiOff className="w-2.5 h-2.5" /> Dead
+                        </span>
+                      ) : l.websiteStatus === "no_website" ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 text-gray-500">
+                          No URL
+                        </span>
+                      ) : lead.website ? (
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+                          ? Check
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 text-[11px]">—</span>
+                      )}
+                    </td>
+
+                    {/* 12. Industry */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 truncate text-[12px] text-gray-700"
+                      style={{ width: "140px", minWidth: "140px", maxWidth: "140px" }}
+                      title={lead.industry || ""}
+                    >
+                      {lead.industry || <span className="text-gray-300">—</span>}
+                    </td>
+
+                    {/* 13. Date Added */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 whitespace-nowrap text-[11px] text-gray-500"
+                      style={{ width: "120px", minWidth: "120px" }}
+                    >
+                      {formatDate(lead.createdAt)}
+                    </td>
+
+                    {/* 14. Actions (Sticky Right 0) */}
+                    <td
+                      className="sticky right-0 z-10 bg-white group-hover:bg-[#F8FAFC] px-3 py-2.5 text-center border-l border-b border-gray-200 shadow-[-2px_0_5px_rgba(0,0,0,0.04)]"
+                      style={{ width: "100px", minWidth: "100px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();
@@ -1659,20 +1942,31 @@ export default function Leads() {
                             }
                           }}
                           title="Convert to Clinic Patient"
-                          className="p-1 rounded hover:bg-pink-50 text-gray-400 hover:text-pink-600 transition-colors"
+                          className="p-1.5 rounded-md hover:bg-pink-50 text-gray-400 hover:text-pink-600 transition-colors"
                         >
-                          <HeartPulse className="w-3.5 h-3.5"/>
+                          <HeartPulse className="w-3.5 h-3.5" />
                         </button>
-                        <button onClick={() => navigate(`/leads/${lead.id}`)} title="Open"><ExternalLink className="w-3.5 h-3.5 text-gray-300 hover:text-gray-700"/></button>
-                        <button onClick={() => { if (confirm("Delete this lead?"))
-                deleteLead.mutate({ id: lead.id }); }} title="Delete lead">
-                          <Trash2 className="w-3.5 h-3.5 text-gray-300 hover:text-red-500"/>
+                        <button
+                          onClick={() => navigate(`/leads/${lead.id}`)}
+                          title="Open Details"
+                          className="p-1.5 rounded-md hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm("Delete this lead?")) deleteLead.mutate({ id: lead.id });
+                          }}
+                          title="Delete lead"
+                          className="p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </td>
-                  </tr>);
-        })}
-
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1684,7 +1978,7 @@ export default function Leads() {
           {filteredLeads.length === 0 ? "No results" : `${((page - 1) * PAGE_SIZE) + 1}–${Math.min(page * PAGE_SIZE, filteredLeads.length)} of ${filteredLeads.length.toLocaleString()} leads`}
         </span>
         <div className="flex items-center gap-1">
-          <button disabled={page <= 1} onClick={() => setPage(1)} className="px-2.5 py-1.5 rounded-md border border-gray-200 text-[12px] text-gray-500 disabled:opacity-30 hover:bg-gray-50 hover:border-gray-300 transition-colors">Prev</button>
+          <button disabled={page <= 1} onClick={() => setPage((p) => Math.max(1, p - 1))} className="px-2.5 py-1.5 rounded-md border border-gray-200 text-[12px] text-gray-500 disabled:opacity-30 hover:bg-gray-50 hover:border-gray-300 transition-colors">Prev</button>
           {(() => {
             const win = Math.min(7, totalFilteredPages);
             let start = Math.max(1, page - Math.floor(win / 2));
