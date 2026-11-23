@@ -4145,7 +4145,7 @@ router.post('/dialer/plivo/answer', async (req, res) => {
 
   const callbackProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
   const callbackHost = req.get('host') || 'aura-ai-six-beta.vercel.app';
-  const recordingCallbackUrl = `${callbackProto}://${callbackHost}/api/clinic/dialer/plivo/recording`;
+  const recordingCallbackUrl = `${callbackProto}://${callbackHost}/api/clinic/dialer/plivo/recording?callUuid=${encodeURIComponent(CallUUID || '')}`;
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
@@ -4157,7 +4157,7 @@ router.post('/dialer/plivo/answer', async (req, res) => {
     callbackMethod="POST"
   />
   <Speak language="en-IN" voice="Polly.Aditi">Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Your consultation call is now connected.</Speak>
-  <Wait length="300" />
+  <Wait length="900" />
 </Response>`;
   res.set('Content-Type', 'text/xml');
   res.send(xml);
@@ -4241,7 +4241,8 @@ router.post('/dialer/plivo/hangup', async (req, res) => {
 // Plivo asynchronous recording callback
 router.post('/dialer/plivo/recording', async (req, res) => {
   try {
-    const { CallUUID, RecordUrl, RecordingDuration } = req.body || {};
+    const { CallUUID: bodyCallUUID, RecordUrl, RecordingDuration } = req.body || {};
+    const CallUUID = bodyCallUUID || req.query.callUuid;
     if (CallUUID && RecordUrl) {
       const upd = await db.query(
         `UPDATE ai_calls
