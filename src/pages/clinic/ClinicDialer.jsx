@@ -375,7 +375,8 @@ export default function ClinicDialer() {
         const updateRes = await clinicApi.updateDialerCall(activeCallId, {
           status: 'completed',
           durationSecs: Math.max(finalSeconds, 5),
-          transcript: fullTranscript,
+          // Never overwrite a real call's later recording transcript with an empty array.
+          transcript: fullTranscript.length ? fullTranscript : undefined,
           summary: summary,
         });
         if (updateRes?.call) {
