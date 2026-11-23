@@ -126,6 +126,9 @@ function conversationSelect() {
              CASE
                WHEN LOWER(TRIM(COALESCE(l.first_name, ''))) IN ('patient', 'unknown', 'unknown caller', 'unnamed patient')
                  OR LOWER(TRIM(COALESCE(l.first_name, ''))) LIKE 'patient %'
+                 OR LOWER(TRIM(COALESCE(l.first_name, ''))) LIKE '% patient'
+                 OR LOWER(TRIM(COALESCE(l.first_name, ''))) LIKE '% patients'
+                 OR COALESCE(l.first_name, '') ~ '[ऀ-ॿ]'
                THEN NULL
                ELSE NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), '')
              END,
@@ -133,6 +136,9 @@ function conversationSelect() {
                WHEN LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) IN
                  ('patient','unknown','unknown caller','unknown contact','inbound caller','patient consultation call','busy for five','no answer','not answered','failed','voicemail','unnamed patient')
                  OR LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) LIKE 'patient %'
+                 OR LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) LIKE '% patient'
+                 OR LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) LIKE '% patients'
+                 OR COALESCE(ac.lead_name_english, ac.lead_name, '') ~ '[ऀ-ॿ]'
                  OR LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) LIKE 'busy for %'
                THEN NULL
                ELSE NULLIF(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, '')), '')
@@ -140,7 +146,7 @@ function conversationSelect() {
              NULLIF(COALESCE(ac.to_phone, l.phone, ac.from_phone), ''),
              'Unknown caller'
            ) AS display_name,
-           COALESCE(ac.to_phone, l.phone, ac.from_phone, '—') AS display_phone,
+           COALESCE(CASE WHEN LOWER(COALESCE(ac.direction, 'outbound')) = 'inbound' THEN ac.from_phone ELSE ac.to_phone END, l.phone, ac.from_phone, ac.to_phone, '—') AS display_phone,
            jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count,
            (ac.transcript IS NOT NULL AND jsonb_typeof(ac.transcript) = 'array') AS has_transcript
       FROM ai_calls ac
