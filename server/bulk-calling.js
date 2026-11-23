@@ -365,15 +365,15 @@ router.get('/conversations', requireUserCookie, async (req, res) => {
       params.push(`%${search.toLowerCase()}%`);
       const i = params.length;
       where += ` AND (
-        LOWER(COALESCE(ac.lead_name, '')) LIKE ${i} OR
-        LOWER(COALESCE(ac.lead_name_english, '')) LIKE ${i} OR
-        LOWER(COALESCE(l.first_name, '')) LIKE ${i} OR
-        LOWER(COALESCE(l.last_name, '')) LIKE ${i} OR
-        LOWER(COALESCE(ac.to_phone, '')) LIKE ${i} OR
-        LOWER(COALESCE(ac.from_phone, '')) LIKE ${i} OR
-        LOWER(COALESCE(ac.transcript_summary, '')) LIKE ${i} OR
-        LOWER(COALESCE(ac.conversation_id, '')) LIKE ${i} OR
-        LOWER(COALESCE(ac.transcript::text, '')) LIKE ${i}
+        LOWER(COALESCE(ac.lead_name, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.lead_name_english, '')) LIKE $${i} OR
+        LOWER(COALESCE(l.first_name, '')) LIKE $${i} OR
+        LOWER(COALESCE(l.last_name, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.to_phone, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.from_phone, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.transcript_summary, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.conversation_id, '')) LIKE $${i} OR
+        LOWER(COALESCE(ac.transcript::text, '')) LIKE $${i}
       )`;
     }
 
