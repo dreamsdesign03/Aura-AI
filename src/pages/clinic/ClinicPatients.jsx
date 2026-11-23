@@ -745,7 +745,7 @@ export default function ClinicPatients() {
                           <Avatar first={p.first_name} last={p.last_name} />
                           <div style={{ minWidth: 0 }}>
                             <div className="co-strong">{getContactDisplayName(p)}</div>
-                            <div className="co-xs co-mut">{p.email || 'No email'}</div>
+                            <div className="co-xs co-mut">{p.email && !/^noemail\+\d+@auralaser\.co\.in$/i.test(String(p.email).trim()) ? p.email : (p.phone || 'No email')}</div>
                           </div>
                         </div>
                       </td>
