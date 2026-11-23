@@ -123,9 +123,16 @@ function conversationSelect() {
            ac.provider, ac.direction, ac.transcript,
            l.pipeline_stage,
            COALESCE(
-             NULLIF(NULLIF(NULLIF(ac.lead_name_english, '.'), '-'), ''),
-             NULLIF(NULLIF(NULLIF(ac.lead_name, '.'), '-'), ''),
-             NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''),
+             NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''), 'Patient'), 'Unknown'),
+             CASE
+               WHEN LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) IN
+                 ('patient','unknown','unknown caller','unknown contact','inbound caller','patient consultation call','busy for five','no answer','not answered','failed','voicemail','unnamed patient')
+                 OR LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) LIKE 'patient %'
+                 OR LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) LIKE 'busy for %'
+               THEN NULL
+               ELSE NULLIF(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, '')), '')
+             END,
+             NULLIF(COALESCE(ac.to_phone, l.phone, ac.from_phone), ''),
              'Unknown caller'
            ) AS display_name,
            COALESCE(ac.to_phone, l.phone, ac.from_phone, '—') AS display_phone,
@@ -208,6 +215,125 @@ function decorateConversation(row, { includeTranscript = false } = {}) {
 
   return out;
 }
+
+// Import recent Plivo CDRs so calls made before webhook logging was enabled also appear.
+router.post('/conversations/sync-plivo', requireUserCookie, async (req, res) => {
+  try {
+    const userId = await cookieUserId(req);
+    if (!userId) return res.status(401).json({ error: 'Unauthenticated' });
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    if (!creds.isConfigured) return res.status(503).json({ error: 'Plivo credentials are not configured.' });
+    const auth = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
+    const base = `https://api.plivo.com/v1/Account/${encodeURIComponent(creds.authId)}`;
+    const end = new Date();
+    const start = new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const fmt = (date) => date.toISOString().slice(0, 19).replace('T', ' ');
+    const headers = { Authorization: auth, Accept: 'application/json' };
+    const calls = [];
+    for (let page = 0; page < 5; page++) {
+      const url = new URL(`${base}/Call/`);
+      url.searchParams.set('limit', '20');
+      url.searchParams.set('offset', String(page * 20));
+      url.searchParams.set('end_time__gte', fmt(start));
+      url.searchParams.set('end_time__lte', fmt(end));
+      const response = await fetch(url, { headers });
+      if (!response.ok) throw new Error(`Plivo call history failed (${response.status}): ${(await response.text()).slice(0, 240)}`);
+      const payload = await response.json();
+      const rows = payload.objects || [];
+      calls.push(...rows);
+      if (!rows.length || rows.length < 20 || calls.length >= Number(payload.meta?.total_count || 0)) break;
+    }
+
+    const recordings = new Map();
+    for (let page = 0; page < 5; page++) {
+      const url = new URL(`${base}/Recording/`);
+      url.searchParams.set('limit', '20');
+      url.searchParams.set('offset', String(page * 20));
+      url.searchParams.set('add_time__gte', fmt(start));
+      url.searchParams.set('add_time__lte', fmt(end));
+      const response = await fetch(url, { headers });
+      if (!response.ok) break;
+      const payload = await response.json();
+      const rows = payload.objects || [];
+      for (const item of rows) {
+        const uuid = item.call_uuid || item.call_uuid_id;
+        const recordingUrl = item.recording_url || item.url;
+        if (uuid && recordingUrl) recordings.set(uuid, recordingUrl);
+      }
+      if (!rows.length || rows.length < 20) break;
+    }
+
+    let imported = 0;
+    let transcriptionsQueued = 0;
+    for (const call of calls) {
+      const uuid = call.call_uuid;
+      const from = call.from_number || call.from || '';
+      const to = call.to_number || call.to || '';
+      if (!uuid || (!from && !to)) continue;
+      const direction = String(call.call_direction || call.direction || 'outbound').toLowerCase();
+      const phone = direction === 'inbound' ? from : to;
+      const digits = String(phone).replace(/\D/g, '').slice(-10);
+      const lead = digits ? await db.query(
+        `SELECT id, first_name, last_name FROM leads
+          WHERE user_id = $1 AND RIGHT(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g'), 10) = $2
+          ORDER BY updated_at DESC NULLS LAST LIMIT 1`, [userId, digits]
+      ) : { rows: [] };
+      const contactName = lead.rows[0]
+        ? [lead.rows[0].first_name, lead.rows[0].last_name].filter(Boolean).join(' ').trim()
+        : phone;
+      const recordUrl = recordings.get(uuid) || null;
+      const duration = Number(call.call_duration || call.bill_duration || 0) || 0;
+      const started = call.initiation_time || call.answer_time || call.end_time || new Date().toISOString();
+      const status = call.hangup_cause_name
+        ? (String(call.hangup_cause_name).toLowerCase().includes('normal') ? 'completed' : String(call.hangup_cause_name).toLowerCase())
+        : 'completed';
+      const exists = await db.query('SELECT id, recording_url, transcript FROM ai_calls WHERE call_sid = $1 OR conversation_id = $1 LIMIT 1', [uuid]);
+      let callId;
+      if (exists.rows.length) {
+        callId = exists.rows[0].id;
+        await db.query(
+          `UPDATE ai_calls SET
+             lead_id = COALESCE(lead_id, $1),
+             from_phone = COALESCE(from_phone, $2),
+             to_phone = COALESCE(to_phone, $3),
+             lead_name = CASE WHEN lead_name IS NULL OR lead_name = '' OR LOWER(lead_name) IN ('patient','unknown caller','busy for five') THEN $4 ELSE lead_name END,
+             provider = 'plivo', direction = $5,
+             duration_secs = GREATEST(COALESCE(duration_secs, 0), $6),
+             recording_url = COALESCE(recording_url, $7),
+             status = CASE WHEN status IN ('ringing','in-progress') THEN $8 ELSE status END,
+             updated_at = NOW()
+           WHERE id = $9`,
+          [lead.rows[0]?.id || null, from, to, contactName, direction, duration, recordUrl, status, callId]
+        );
+      } else {
+        const inserted = await db.query(
+          `INSERT INTO ai_calls
+            (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name,
+             status, booking_type, duration_secs, provider, direction, recording_url, started_at, created_at, updated_at)
+           VALUES ($1,$2,$2,$3,$4,$5,'Aura Laser & Cosmetic Clinic',$6,
+                   'general',$7,'plivo',$8,$9,$10,NOW(),NOW())
+           RETURNING id`,
+          [lead.rows[0]?.id || null, uuid, from, to, contactName, status, duration, direction, recordUrl, started]
+        );
+        callId = inserted.rows[0]?.id;
+        imported++;
+      }
+      if (recordUrl && callId && (!exists.rows[0]?.transcript || exists.rows[0]?.transcript === '[]')) {
+        // Recording callback / transcription worker will handle newly received recordings.
+        const worker = require('./clinic-os');
+        if (typeof worker.transcribePlivoRecording === 'function') {
+          worker.transcribePlivoRecording(callId, recordUrl).catch(() => {});
+          transcriptionsQueued++;
+        }
+      }
+    }
+    res.json({ success: true, checked: calls.length, imported, recordingsFound: recordings.size, transcriptionsQueued, windowDays: 30, capped: calls.length >= 100 });
+  } catch (err) {
+    console.error('[Plivo history sync]', err);
+    res.status(502).json({ error: err.message || 'Could not sync Plivo call history' });
+  }
+});
 
 // List every conversation (bulk outbound, dialer, inbound) with its type.
 router.get('/conversations', requireUserCookie, async (req, res) => {
