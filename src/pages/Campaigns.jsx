@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Megaphone, Plus, Send, CheckCircle2, MessageCircle, CalendarCheck, BarChart3, Play, Pause, X, Clock, TrendingUp, Star, ThumbsUp, RotateCcw, Loader2, AlertCircle, } from "lucide-react";
+import { Megaphone, Plus, Send, CheckCircle2, MessageCircle, CalendarCheck, BarChart3, Play, Pause, X, Clock, TrendingUp, Star, ThumbsUp, RotateCcw, Loader2, AlertCircle, PhoneCall, } from "lucide-react";
 const API_BASE = "/api";
 const SEGMENT_LABELS = {
     new_leads: "New Leads",
@@ -274,6 +274,8 @@ function AnalyticsTab({ campaigns }) {
 export default function Campaigns() {
     const [tab, setTab] = useState("campaigns");
     const [campaigns, setCampaigns] = useState([]);
+    const [callingCampaigns, setCallingCampaigns] = useState([]);
+    const [callingLoading, setCallingLoading] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [showCreate, setShowCreate] = useState(false);
@@ -297,6 +299,20 @@ export default function Campaigns() {
         }
     }, []);
     useEffect(() => { fetchCampaigns(); }, [fetchCampaigns]);
+    const fetchCallingCampaigns = useCallback(async () => {
+        setCallingLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/bulk-calling`, { credentials: "include" });
+            if (!res.ok) throw new Error("Failed to load calling campaigns");
+            const rows = await res.json();
+            setCallingCampaigns(Array.isArray(rows) ? rows : []);
+        } catch (e) {
+            console.warn("[Campaigns] Calling campaigns could not be loaded:", e.message);
+        } finally {
+            setCallingLoading(false);
+        }
+    }, []);
+    useEffect(() => { fetchCallingCampaigns(); }, [fetchCallingCampaigns]);
     useEffect(() => {
         const id = setInterval(fetchCampaigns, 15000);
         return () => clearInterval(id);
@@ -333,6 +349,7 @@ export default function Campaigns() {
     const totalBooked = campaigns.reduce((s, c) => s + c.booked, 0);
     const TABS = [
         { id: "campaigns", label: "Campaigns", icon: Megaphone },
+        { id: "calling", label: "Calling Campaigns", icon: PhoneCall },
         { id: "templates", label: "Templates", icon: BarChart3 },
         { id: "analytics", label: "Analytics", icon: BarChart3 },
     ];
@@ -394,6 +411,33 @@ export default function Campaigns() {
             </div>) : (<div className="space-y-3">
               {filtered.map(c => (<CampaignRow key={c.id} campaign={c} onToggle={toggleCampaign} toggling={togglingId === c.id}/>))}
             </div>)}
+        </div>)}
+
+      {tab === "calling" && (<div className="aura-card p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-semibold" style={{ color: "#111827" }}>AI Calling Campaigns</h2>
+              <p className="text-xs mt-0.5" style={{ color: "#9CA3AF" }}>Campaigns created in Bulk Calling with Sarvam AI.</p>
+            </div>
+            <button onClick={fetchCallingCampaigns} disabled={callingLoading} className="px-3 py-2 rounded-lg border text-xs font-semibold" style={{ borderColor: "hsl(220 13% 88%)", color: "#A4285E" }}>
+              {callingLoading ? "Refreshing…" : "Refresh"}
+            </button>
+          </div>
+          {callingLoading && callingCampaigns.length === 0 ? (<div className="py-10 text-center text-xs" style={{ color: "#9CA3AF" }}>Loading calling campaigns…</div>)
+            : callingCampaigns.length === 0 ? (<div className="py-10 text-center text-xs" style={{ color: "#9CA3AF" }}>No calling campaigns created yet.</div>)
+            : (<div className="overflow-x-auto"><table className="w-full text-xs">
+                <thead><tr className="text-left" style={{ color: "#9CA3AF" }}>
+                  {["Campaign", "Branch", "Status", "Contacts", "Booked", "Created"].map(h => <th key={h} className="py-2 pr-4 font-semibold whitespace-nowrap">{h}</th>)}
+                </tr></thead>
+                <tbody>{callingCampaigns.map(c => <tr key={c.id} style={{ borderTop: "1px solid #F3F4F6" }}>
+                  <td className="py-3 pr-4 font-semibold" style={{ color: "#111827" }}>{c.name || `Campaign #${c.id}`}</td>
+                  <td className="py-3 pr-4" style={{ color: "#6B7280" }}>{c.branch || "—"}</td>
+                  <td className="py-3 pr-4 capitalize" style={{ color: "#A4285E" }}>{String(c.status || (c.enabled ? "running" : "draft")).replace(/_/g, " ")}</td>
+                  <td className="py-3 pr-4">{Number(c.total || 0)}</td>
+                  <td className="py-3 pr-4">{Number(c.booked_count || 0)}</td>
+                  <td className="py-3 pr-4 whitespace-nowrap">{c.created_at ? new Date(c.created_at).toLocaleString("en-IN") : "—"}</td>
+                </tr>)}</tbody>
+              </table></div>)}
         </div>)}
 
       {tab === "templates" && (<div className="grid grid-cols-1 md:grid-cols-2 gap-3">
