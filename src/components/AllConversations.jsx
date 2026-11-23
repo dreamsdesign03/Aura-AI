@@ -81,6 +81,8 @@ export default function AllConversations() {
   const [expandedId, setExpandedId] = useState(null);
   const [details, setDetails] = useState({});
   const [loadingDetail, setLoadingDetail] = useState(null);
+  const [syncingPlivo, setSyncingPlivo] = useState(false);
+  const [syncMessage, setSyncMessage] = useState('');
   const abortRef = useRef(null);
 
   // Debounce the search box.
@@ -216,6 +218,29 @@ export default function AllConversations() {
           </div>
 
           <button
+            onClick={async () => {
+              setSyncingPlivo(true);
+              setSyncMessage('');
+              try {
+                const response = await fetch('/api/bulk-calling/conversations/sync-plivo', { method: 'POST', credentials: 'include' });
+                const result = await response.json().catch(() => ({}));
+                if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+                setSyncMessage(`Plivo checked ${result.checked || 0} calls · ${result.imported || 0} new calls added${result.recordingsFound ? ` · ${result.recordingsFound} recordings found` : ''}.`);
+                await load({ quiet: true });
+              } catch (err) {
+                setSyncMessage(err.message || 'Plivo sync failed');
+              } finally {
+                setSyncingPlivo(false);
+              }
+            }}
+            disabled={syncingPlivo}
+            className="inline-flex items-center gap-2 px-3 py-2 border border-pink-200 rounded-lg text-xs font-semibold text-pink-700 bg-pink-50 hover:bg-pink-100 disabled:opacity-50"
+            title="Import recent Plivo call history"
+          >
+            {syncingPlivo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            {syncingPlivo ? 'Syncing Plivo…' : 'Sync Plivo'}
+          </button>
+          <button
             onClick={() => load({ quiet: true })}
             disabled={refreshing}
             className="p-2 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50 disabled:opacity-50"
@@ -247,6 +272,10 @@ export default function AllConversations() {
           })}
         </div>
       </div>
+
+      {syncMessage && (
+        <div className="bg-pink-50 border border-pink-200 text-pink-800 text-xs font-medium rounded-xl px-4 py-3">{syncMessage}</div>
+      )}
 
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">
