@@ -775,7 +775,7 @@ export default function ClinicVisibilityAudit() {
                 gap: 8, width: '100%', minWidth: 0, maxWidth: '100%',
                 overflowX: 'scroll', overflowY: 'hidden',
                 padding: '3px 2px 10px',
-                scrollbarWidth: 'thin', scrollbarColor: '#CB3273 #FCF7F4',
+                scrollbarWidth: 'thin', scrollbarColor: '#CBD5E1 #F1F5F9',
                 msOverflowStyle: 'auto', WebkitOverflowScrolling: 'touch',
                 overscrollBehaviorX: 'contain', scrollSnapType: 'x proximity',
                 boxSizing: 'border-box',

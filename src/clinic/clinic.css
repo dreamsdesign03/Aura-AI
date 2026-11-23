@@ -110,17 +110,17 @@
 }
 .aura-inbox-channel-scroll::-webkit-scrollbar-track,
 .aura-visibility-category-scroll::-webkit-scrollbar-track {
-  background: #FCF7F4;
+  background: #F1F5F9;
   border-radius: 99px;
 }
 .aura-inbox-channel-scroll::-webkit-scrollbar-thumb,
 .aura-visibility-category-scroll::-webkit-scrollbar-thumb {
-  background: #CB3273;
+  background: #CBD5E1;
   border-radius: 99px;
 }
 .aura-inbox-channel-scroll::-webkit-scrollbar-thumb:hover,
 .aura-visibility-category-scroll::-webkit-scrollbar-thumb:hover {
-  background: #A4285E;
+  background: #94A3B8;
 }
 
 /* ---------- pill tabs (Aura Signature) ---------- */
@@ -227,7 +227,7 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   width: 100%;
-  scrollbar-color: #CB3273 #FCF7F4;
+  scrollbar-color: #CBD5E1 #F1F5F9;
   scrollbar-width: thin;
 }
 .co-table-wrap::-webkit-scrollbar {
@@ -235,15 +235,15 @@
   width: 8px;
 }
 .co-table-wrap::-webkit-scrollbar-track {
-  background: #FCF7F4;
+  background: #F1F5F9;
   border-radius: 6px;
 }
 .co-table-wrap::-webkit-scrollbar-thumb {
-  background: #CB3273;
+  background: #CBD5E1;
   border-radius: 6px;
 }
 .co-table-wrap::-webkit-scrollbar-thumb:hover {
-  background: #A4285E;
+  background: #94A3B8;
 }
 .co-table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .co-table-wide { min-width: 960px; }

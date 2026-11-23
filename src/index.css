@@ -162,10 +162,10 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Clear, accessible, visible scrollbar styling — bright Aura theme & comfortable width */
+/* Clear, accessible, visible scrollbar styling — neutral gray theme & comfortable width */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #CB3273 #FCF7F4;
+  scrollbar-color: #CBD5E1 #F1F5F9;
 }
 
 ::-webkit-scrollbar {
@@ -173,16 +173,16 @@ body {
   height: 9px;
 }
 ::-webkit-scrollbar-track {
-  background: #FCF7F4;
+  background: #F1F5F9;
   border-radius: 99px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #CB3273;
+  background: #CBD5E1;
   border-radius: 99px;
-  border: 1.5px solid #FCF7F4;
+  border: 1.5px solid #F1F5F9;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #A4285E;
+  background: #94A3B8;
 }
 
 /* Card utility */
