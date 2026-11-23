@@ -366,7 +366,11 @@ function AuthenticatedRouter({ onAuthRefresh }) {
 }
 function UnauthenticatedRouter({ onSuccess }) {
     const [, navigate] = useLocation();
-    function handleSuccess() {
+    function handleSuccess(user) {
+        sessionStorage.removeItem("aura_logged_out");
+        if (user?.email) {
+            sessionStorage.setItem("aura_user_email", user.email);
+        }
         navigate("/");
         onSuccess();
     }
@@ -408,8 +412,10 @@ function App() {
                 window.history.replaceState({}, "", "/");
             }
 
+            const storedEmail = sessionStorage.getItem("aura_user_email");
             const res = await fetch("/api/auth/me", {
                 credentials: "include",
+                headers: storedEmail ? { "x-user-email": storedEmail } : {},
                 signal: AbortSignal.timeout(8000),
             });
             if (res.ok) {

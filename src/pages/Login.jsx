@@ -24,7 +24,12 @@ export default function Login({ onSuccess }) {
                 setError(body.error || "Invalid username or password");
             }
             else {
-                onSuccess();
+                const body = await res.json().catch(() => ({}));
+                sessionStorage.removeItem("aura_logged_out");
+                if (body?.user?.email) {
+                    sessionStorage.setItem("aura_user_email", body.user.email);
+                }
+                onSuccess(body?.user);
             }
         }
         catch {
