@@ -4650,4 +4650,4 @@ router.get('/agents', requireUser, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-module.exports = { router, ensureSchema };
+module.exports = { router, ensureSchema, transcribePlivoRecording };
