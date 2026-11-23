@@ -3853,16 +3853,9 @@ router.post('/dialer/call', requireUser, async (req, res) => {
         contactName = [l.rows[0].first_name, l.rows[0].last_name].filter(Boolean).join(' ') || contactName;
         companyName = l.rows[0].company || companyName;
       } else {
-        // Automatically save new dialed phone number as a patient in leads table
-        const lastDigits = cleaned.slice(-4) || 'Contact';
-        const insLead = await db.query(
-          `INSERT INTO leads (user_id, first_name, last_name, phone, company, status, pipeline_stage, created_at, updated_at)
-           VALUES ($1, 'Patient', $2, $3, $4, 'Active', 'Dialer Patient', NOW(), NOW())
-           RETURNING *`,
-          [req.user.id, lastDigits, destination, companyName]
-        );
-        finalLeadId = insLead.rows[0].id;
-        contactName = `Patient ${lastDigits}`;
+        // Do not invent a "Patient ####" contact name or create a placeholder lead.
+        // If no saved contact matches, keep the phone number as the visible identity.
+        contactName = destination;
       }
     }
 
@@ -4241,9 +4234,11 @@ router.post('/dialer/plivo/hangup', async (req, res) => {
 // Plivo asynchronous recording callback
 router.post('/dialer/plivo/recording', async (req, res) => {
   try {
-    const { CallUUID: bodyCallUUID, RecordUrl, RecordingDuration } = req.body || {};
-    const CallUUID = bodyCallUUID || req.query.callUuid;
-    if (CallUUID && RecordUrl) {
+    const { CallUUID: bodyCallUUID, RecordUrl, record_url, recording_url, RecordingDuration, recording_duration } = req.body || {};
+    const CallUUID = bodyCallUUID || req.body?.call_uuid || req.query.callUuid;
+    const finalRecordUrl = RecordUrl || record_url || recording_url;
+    const finalRecordingDuration = RecordingDuration || recording_duration;
+    if (CallUUID && finalRecordUrl) {
       const upd = await db.query(
         `UPDATE ai_calls
             SET recording_url = $1,
@@ -4253,10 +4248,10 @@ router.post('/dialer/plivo/recording', async (req, res) => {
                 updated_at = NOW()
           WHERE call_sid = $3 OR conversation_id = $3
           RETURNING id`,
-        [RecordUrl, Math.round(Number(RecordingDuration) || 0), CallUUID]
+        [finalRecordUrl, Math.round(Number(finalRecordingDuration) || 0), CallUUID]
       );
       if (upd.rows.length > 0) {
-        transcribePlivoRecording(upd.rows[0].id, RecordUrl).catch(() => {});
+        transcribePlivoRecording(upd.rows[0].id, finalRecordUrl).catch((error) => console.error('[Plivo callback transcription]', error.message));
       }
     }
     res.json({ ok: true });
