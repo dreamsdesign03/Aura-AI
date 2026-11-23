@@ -818,8 +818,20 @@ async function upsertCalendlyEvent(userId, scheduledEvent, invitee) {
   }
 }
 
-const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
-const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
+const isPlaceholderEmail = (e) => {
+  if (!e) return true;
+  const str = String(e).trim().toLowerCase();
+  return (
+    str === '' ||
+    str.startsWith('noemail') ||
+    str.includes('noemail+') ||
+    /@sms\.cal\.com$/i.test(str) ||
+    /@cal\.com$/i.test(str) ||
+    /@patient\.auraclinic\.in$/i.test(str) ||
+    /^noemail\+.*@auralaser\.co\.in$/i.test(str)
+  );
+};
+const cleanEmail = (e) => (isPlaceholderEmail(e) ? null : String(e).trim());
 
 function resolveBookingBranch(q, notes) {
   const direct = q?.branch || q?.['Branch'] || q?.branchName || q?.['Branch Name'] || '';
@@ -931,11 +943,17 @@ async function syncCalComBookings(userId) {
     const bfr = b.bookingFieldsResponses || {};
     
     const inviteeName = attendee.name || bfr.name || b.title?.split(' and ').pop()?.trim() || 'Invitee';
-    const inviteeEmail = cleanEmail(attendee.email || bfr.email || '');
+    const rawEmail = attendee.email || bfr.email || '';
+    const inviteeEmail = cleanEmail(rawEmail);
     let phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
-    if (!phone && inviteeEmail.includes('@sms.cal.com')) {
-      const match = inviteeEmail.match(/^(\d+)/);
-      if (match) phone = match[1];
+    if (!phone && rawEmail) {
+      if (rawEmail.includes('@sms.cal.com')) {
+        const match = rawEmail.match(/^(\d+)/);
+        if (match) phone = match[1];
+      } else if (rawEmail.includes('noemail+')) {
+        const match = rawEmail.match(/noemail\+(\d+)/);
+        if (match) phone = match[1];
+      }
     }
 
     const notes = b.description || bfr.notes || '';

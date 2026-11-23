@@ -8,6 +8,7 @@ import {
 import { Link, useLocation, useRoute } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
+import { isPlaceholderEmail } from '@/lib/emails';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi, Modal } from '@/clinic/ui';
 import PatientJourneySection from './PatientJourneySection';
 import { useBranch } from '@/contexts/BranchContext';
@@ -177,8 +178,7 @@ export function PatientDrawer({ id, onClose, onDeleteClick }) {
   const currentStage = p ? getPatientCareStage(p) : PATIENT_CARE_STAGES[0];
 
   // Filter out placeholder emails for display
-  const isPlaceholder = (e) => !e || /^noemail\+\d+@auralaser\.co\.in$/i.test(String(e).trim());
-  const displayEmail = p?.email && !isPlaceholder(p.email) ? p.email : null;
+  const displayEmail = p?.email && !isPlaceholderEmail(p.email) ? p.email : null;
   // Format phone for display
   const formatPhone = (phone) => {
     if (!phone) return '';
@@ -745,7 +745,7 @@ export default function ClinicPatients() {
                           <Avatar first={p.first_name} last={p.last_name} />
                           <div style={{ minWidth: 0 }}>
                             <div className="co-strong">{getContactDisplayName(p)}</div>
-                            <div className="co-xs co-mut">{p.email && !/^noemail\+\d+@auralaser\.co\.in$/i.test(String(p.email).trim()) ? p.email : (p.phone || 'No email')}</div>
+                            <div className="co-xs co-mut">{p.email && !isPlaceholderEmail(p.email) ? p.email : (p.phone || 'No email')}</div>
                           </div>
                         </div>
                       </td>

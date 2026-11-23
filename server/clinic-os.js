@@ -40,8 +40,20 @@ const {
 const { normalizeRole, isAdminRole, canAccessClinicApi } = require('./permissions');
 const { sendMetaMessage, replyToMetaComment, syncInstagramComments, syncFacebookComments, syncMetaOmnichannel } = require('./meta');
 
-const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
-const cleanEmail = (e) => (isPlaceholderEmail(e) ? '' : String(e).trim());
+const isPlaceholderEmail = (e) => {
+  if (!e) return true;
+  const str = String(e).trim().toLowerCase();
+  return (
+    str === '' ||
+    str.startsWith('noemail') ||
+    str.includes('noemail+') ||
+    /@sms\.cal\.com$/i.test(str) ||
+    /@cal\.com$/i.test(str) ||
+    /@patient\.auraclinic\.in$/i.test(str) ||
+    /^noemail\+.*@auralaser\.co\.in$/i.test(str)
+  );
+};
+const cleanEmail = (e) => (isPlaceholderEmail(e) ? null : String(e).trim());
 
 function normalizePatientName(raw) {
   if (!raw) return 'Unnamed patient';
@@ -415,7 +427,7 @@ async function syncBulkCallsToAiCalls() {
 async function syncCalPatients() {
   try {
     const calInvitees = await db.query(`
-      SELECT DISTINCT invitee_name, invitee_email, user_id
+      SELECT DISTINCT invitee_name, invitee_email, user_id, questions
         FROM calendly_events
        WHERE COALESCE(is_deleted, false) = false
          AND invitee_name IS NOT NULL
@@ -426,17 +438,28 @@ async function syncCalPatients() {
       const parts = rawName.split(/\s+/);
       const first = parts[0] || 'Patient';
       const last = parts.slice(1).join(' ') || 'Patient';
-      const cleanEmail = inv.invitee_email && inv.invitee_email.trim()
-        ? inv.invitee_email.trim().toLowerCase()
-        : `patient.${first.toLowerCase().replace(/[^a-z0-9]/g, '') || 'aura'}@patient.auraclinic.in`;
+      const patientEmail = cleanEmail(inv.invitee_email);
+      const q = inv.questions && typeof inv.questions === 'object' ? inv.questions : {};
+      let phone = q['Phone / WhatsApp'] || q['phone'] || null;
+      if (!phone && inv.invitee_email && inv.invitee_email.includes('noemail+')) {
+        const m = inv.invitee_email.match(/noemail\+(\d+)/);
+        if (m) phone = `+91${m[1]}`;
+      }
 
       let existing = null;
-      if (inv.invitee_email && inv.invitee_email.trim()) {
-        const ex = await db.query('SELECT id, pipeline_stage FROM leads WHERE LOWER(email) = $1 LIMIT 1', [inv.invitee_email.trim().toLowerCase()]);
+      if (patientEmail) {
+        const ex = await db.query('SELECT id, pipeline_stage, phone FROM leads WHERE LOWER(email) = $1 LIMIT 1', [patientEmail.toLowerCase()]);
         if (ex.rows.length > 0) existing = ex.rows[0];
       }
+      if (!existing && phone) {
+        const last10 = String(phone).replace(/\D/g, '').slice(-10);
+        if (last10.length === 10) {
+          const ex = await db.query("SELECT id, pipeline_stage, phone FROM leads WHERE RIGHT(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g'), 10) = $1 LIMIT 1", [last10]);
+          if (ex.rows.length > 0) existing = ex.rows[0];
+        }
+      }
       if (!existing) {
-        const ex = await db.query('SELECT id, pipeline_stage FROM leads WHERE LOWER(first_name) = LOWER($1) AND LOWER(last_name) = LOWER($2) LIMIT 1', [first, last]);
+        const ex = await db.query('SELECT id, pipeline_stage, phone FROM leads WHERE LOWER(first_name) = LOWER($1) AND LOWER(last_name) = LOWER($2) LIMIT 1', [first, last]);
         if (ex.rows.length > 0) existing = ex.rows[0];
       }
 
@@ -444,16 +467,19 @@ async function syncCalPatients() {
         if (['Lead In', 'new'].includes(existing.pipeline_stage)) {
           await db.query("UPDATE leads SET pipeline_stage = 'Active Patient' WHERE id = $1", [existing.id]);
         }
+        if (!existing.phone && phone) {
+          await db.query("UPDATE leads SET phone = $1 WHERE id = $2", [phone, existing.id]);
+        }
       } else {
         await db.query(`
           INSERT INTO leads (
-            user_id, first_name, last_name, email, company, country, designation, industry,
+            user_id, first_name, last_name, email, phone, company, country, designation, industry,
             pipeline_stage, status, source, created_at, updated_at
           ) VALUES (
-            $1, $2, $3, $4, 'Aura Laser & Cosmetic Clinic', 'India', 'Patient', 'Healthcare / Clinic',
+            $1, $2, $3, $4, $5, 'Aura Laser & Cosmetic Clinic', 'India', 'Patient', 'Healthcare / Clinic',
             'Active Patient', 'Active', 'Cal.com Booking', NOW(), NOW()
           ) ON CONFLICT DO NOTHING
-        `, [inv.user_id, first, last, cleanEmail]);
+        `, [inv.user_id, first, last, patientEmail, phone]);
       }
     }
   } catch {
@@ -1696,9 +1722,7 @@ router.post('/patients', requireUser, async (req, res) => {
     first = (first || 'Patient').trim();
     last = (last || 'Patient').trim();
 
-    const cleanEmail = email && email.trim()
-      ? email.trim()
-      : `patient.${first.toLowerCase().replace(/[^a-z0-9]/g, '') || 'aura'}.${Date.now()}@patient.auraclinic.in`;
+    const patientEmail = cleanEmail(email);
 
     const ins = await db.query(
       `INSERT INTO leads (
@@ -1709,7 +1733,7 @@ router.post('/patients', requireUser, async (req, res) => {
         'Active Patient', 'Active', 'Clinic OS', NOW(), NOW()
       )
       RETURNING *`,
-      [req.user.id, first, last, cleanEmail, phone ? phone.trim() : null, company || branch || 'Aura Laser & Cosmetic Clinic']
+      [req.user.id, first, last, patientEmail, phone ? phone.trim() : null, company || branch || 'Aura Laser & Cosmetic Clinic']
     );
 
     const lead = ins.rows[0];
