@@ -123,7 +123,12 @@ function conversationSelect() {
            ac.provider, ac.direction, ac.transcript,
            l.pipeline_stage,
            COALESCE(
-             NULLIF(NULLIF(NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''), 'Patient'), 'Unknown'),
+             CASE
+               WHEN LOWER(TRIM(COALESCE(l.first_name, ''))) IN ('patient', 'unknown', 'unknown caller', 'unnamed patient')
+                 OR LOWER(TRIM(COALESCE(l.first_name, ''))) LIKE 'patient %'
+               THEN NULL
+               ELSE NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), '')
+             END,
              CASE
                WHEN LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name, ''))) IN
                  ('patient','unknown','unknown caller','unknown contact','inbound caller','patient consultation call','busy for five','no answer','not answered','failed','voicemail','unnamed patient')
