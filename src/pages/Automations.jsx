@@ -97,7 +97,7 @@ function LiveActivityFeed({ activities, loading }) {
     }
     const displayList = Array.from(entityMap.values());
 
-    return (<div className="rounded-xl border p-4" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
+    return (<div className="aura-card p-4">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"/>
@@ -141,7 +141,7 @@ function AutomationCard({ automation, onToggle, onDelete, onExpand, expanded, to
     const TriggerIcon = TRIGGER_ICONS[automation.trigger];
     const triggerColor = TRIGGER_COLORS[automation.trigger];
     const convRate = automation.runs ? Math.round((automation.conversions / automation.runs) * 100) : 0;
-    return (<div className="rounded-xl border overflow-hidden transition-all duration-200" style={{ background: "#ffffff", borderColor: expanded ? "#A4285E" : "hsl(220 13% 91%)" }}>
+    return (<div className="aura-card overflow-hidden">
       <div className="p-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${triggerColor}18` }}>
@@ -422,7 +422,7 @@ export default function Automations() {
             { label: "Active Automations", value: activeCount, color: "#059669" },
             { label: "Total Runs", value: totalRuns.toLocaleString(), color: "#A4285E" },
             { label: "Conversions", value: totalConversions, color: "#DE377C" },
-        ].map(({ label, value, color }) => (<div key={label} className="rounded-xl border p-3 text-center" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
+        ].map(({ label, value, color }) => (<div key={label} className="aura-card p-3 text-center">
             <div className="text-[20px] font-black" style={{ color }}>{value}</div>
             <div className="text-[11px] font-medium mt-0.5" style={{ color: "#9CA3AF" }}>{label}</div>
           </div>))}

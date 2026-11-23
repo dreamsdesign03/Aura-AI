@@ -150,9 +150,9 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
     const ownerName = l.assignedToName || null;
     const phoneNum = lead.phone || lead.whatsapp || "";
 
-    return (<div className={cn("bg-white rounded border select-none group transition-shadow", isDragging
-            ? "shadow-2xl opacity-75 border-blue-400 rotate-1"
-            : "border-gray-200 hover:shadow-md hover:border-blue-300 cursor-pointer")}>
+    return (<div className={cn("bg-white rounded-xl border select-none group transition-all relative overflow-hidden", isDragging
+            ? "shadow-2xl opacity-75 border-[#CB3273] rotate-1"
+            : "border-[#F3D9E5] hover:shadow-md hover:border-[#CB3273] cursor-pointer")}>
       {/* Card body */}
       <div className="px-3 pt-2.5 pb-2" onClick={() => navigate(`/leads/${lead.id}`)}>
 

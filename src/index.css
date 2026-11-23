@@ -185,12 +185,40 @@ body {
   background: #94A3B8;
 }
 
-/* Card utility */
-.card {
-  background: hsl(var(--card));
-  border: 1px solid hsl(var(--card-border));
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.04), 0 1px 2px -1px rgb(0 0 0 / 0.04);
+/* Signature Aura Card Effect — applied globally across all pages & tools */
+.aura-card,
+.card,
+.co-card {
+  background: #ffffff !important;
+  border: 1px solid #F3D9E5 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.03), 0 4px 12px -2px rgba(203, 50, 115, 0.04) !important;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.aura-card::after,
+.card::after,
+.co-card::after {
+  content: "";
+  position: absolute;
+  right: -24px;
+  top: -24px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #FBE9F1, transparent 70%);
+  pointer-events: none;
+  opacity: 0.8;
+}
+
+.aura-card:hover,
+.card:hover,
+.co-card:hover {
+  border-color: #CB3273 !important;
+  box-shadow: 0 8px 24px -4px rgba(203, 50, 115, 0.12) !important;
+  transform: translateY(-2px);
 }
 
 /* Form inputs & controls — high contrast, crisp lining, clear placeholders */

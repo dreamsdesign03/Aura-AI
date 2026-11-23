@@ -45,7 +45,7 @@ export default function Integrations() {
         </div>
 
         {/* ── GOOGLE CALENDAR / MEET ─────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="aura-card overflow-hidden">
           <div className="flex items-center gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#4285F4,#34A853)" }}>
               <Calendar className="w-5 h-5 text-white"/>
@@ -108,7 +108,7 @@ export default function Integrations() {
         </div>
 
         {/* ── GOOGLE MEET INFO ──────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="aura-card overflow-hidden">
           <div className="flex items-center gap-4 px-6 pt-6 pb-4 border-b border-gray-100">
             <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "linear-gradient(135deg,#00832D,#0F9D58)" }}>
               <Video className="w-5 h-5 text-white"/>
@@ -157,7 +157,7 @@ export default function Integrations() {
         </div>
 
         {/* ── HOW IT WORKS ────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5">
+        <div className="aura-card px-6 py-5">
           <div className="flex items-center gap-2 mb-4">
             <Zap className="w-4 h-4 text-indigo-500"/>
             <h3 className="font-semibold text-gray-900 text-sm">How the full flow works</h3>
@@ -178,7 +178,7 @@ export default function Integrations() {
         </div>
 
         {/* ── BOOKING LINK ────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-200 px-6 py-5">
+        <div className="aura-card px-6 py-5">
           <div className="flex items-center gap-2 mb-3">
             <Link2 className="w-4 h-4 text-gray-500"/>
             <h3 className="font-semibold text-gray-900 text-sm">Your Booking Link</h3>

@@ -112,7 +112,7 @@ export default function Dashboard() {
                 { label: "Audits", used: planData.usage.audits?.used ?? 0, max: planData.usage.audits?.max ?? 0, color: "#CB3273" },
                 { label: "Emails", used: planData.usage.emails?.used ?? 0, max: planData.usage.emails?.max ?? 0, color: "#2563EB" },
             ];
-            return (<div className="rounded-xl border border-[#CBD5E1] bg-white shadow-xs p-4">
+            return (<div className="aura-card p-4">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-4 h-4 text-[#475569]"/>
@@ -169,7 +169,7 @@ export default function Dashboard() {
       </div>
 
       {/* Autonomous Sales Agent Status Bar */}
-      <div className="rounded-xl border border-[#CBD5E1] bg-white p-4 shadow-xs space-y-3">
+      <div className="aura-card p-4 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="w-4 h-4 text-pink-600" />
@@ -190,7 +190,7 @@ export default function Dashboard() {
             { name: "Lead Hunter", role: "ICP Prospecting", color: "#DE377C", path: "/lead-hunter", active: !!hub?.leadHunter?.active },
           ].map(agent => (
             <Link key={agent.name} href={agent.path}>
-              <div className="p-3 rounded-lg border border-[#CBD5E1] bg-[#FAFAFA] hover:bg-white hover:border-[#CB3273] transition-all cursor-pointer space-y-1">
+              <div className="p-3 rounded-lg border border-[#F3D9E5] bg-[#FCFAFB] hover:bg-white hover:border-[#CB3273] transition-all cursor-pointer space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-[#0F172A]">{agent.name}</span>
                   <span className="w-2.5 h-2.5 rounded-full" style={{ background: agent.active ? "#16A34A" : "#94A3B8" }} />
@@ -206,7 +206,7 @@ export default function Dashboard() {
       </div>
 
       {/* Daily Rhythm Checklist */}
-      <div className="rounded-xl border border-[#CBD5E1] p-4 bg-white shadow-xs">
+      <div className="aura-card p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="text-[13px] font-bold text-[#0F172A] uppercase tracking-wider">Daily Rhythm Checklist</div>
           <div className="text-[12px] text-[#334155] font-bold">{checked.size}/{DAILY_CHECKLIST.length} done</div>
@@ -225,7 +225,7 @@ export default function Dashboard() {
       {/* Pipeline Funnel + Activity — stack on mobile, side-by-side on desktop */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Pipeline Funnel */}
-        <div className="md:col-span-2 rounded-xl border border-[#CBD5E1] p-4 bg-white shadow-xs">
+        <div className="md:col-span-2 aura-card p-4">
           <div className="text-[13px] font-bold text-[#0F172A] mb-4 uppercase tracking-wider">Pipeline Funnel</div>
           {funnel?.stages && funnel.stages.length > 0 ? (<ResponsiveContainer width="100%" height={200}>
               <BarChart data={funnel.stages} margin={{ top: 0, right: 0, bottom: 0, left: -20 }}>
@@ -240,7 +240,7 @@ export default function Dashboard() {
         </div>
 
         {/* Activity Feed */}
-        <div className="rounded-xl border border-gray-200 p-4 bg-white shadow-sm">
+        <div className="aura-card p-4">
           <div className="text-xs font-semibold text-foreground mb-3 uppercase tracking-wider">Recent Activity</div>
           <div className="space-y-2.5 overflow-y-auto max-h-52">
             {activity.length === 0 ? (<div className="text-xs text-muted-foreground py-4 text-center">No recent activity</div>) : (activity.map((item) => (<div key={item.id} className="flex gap-2.5 text-xs">

@@ -449,7 +449,7 @@ export default function LeadHunter() {
 
             <div className="grid md:grid-cols-2 gap-5">
               {/* ICP Targets */}
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="aura-card p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Target className="w-4 h-4 text-violet-600"/>
                   <span className="text-[13px] font-bold text-gray-900">ICP Targets</span>
@@ -480,7 +480,7 @@ export default function LeadHunter() {
               </div>
 
               {/* Brain Sync */}
-              <div className="rounded-xl border border-gray-200 bg-white p-4">
+              <div className="aura-card p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <Brain className="w-4 h-4 text-green-600"/>
                   <span className="text-[13px] font-bold text-gray-900">Brain Sync</span>
@@ -528,7 +528,7 @@ export default function LeadHunter() {
             </div>
 
             {/* Source Arsenal */}
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="aura-card p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Globe className="w-4 h-4 text-blue-600"/>
                 <span className="text-[13px] font-bold text-gray-900">Source Arsenal</span>
@@ -553,7 +553,7 @@ export default function LeadHunter() {
             </div>
 
             {/* Shield: Constraints */}
-            <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="aura-card p-4">
               <div className="flex items-center gap-2 mb-3">
                 <Shield className="w-4 h-4 text-gray-600"/>
                 <span className="text-[13px] font-bold text-gray-900">Operating Constraints</span>
@@ -575,7 +575,7 @@ export default function LeadHunter() {
           </>)}
 
         {/* ─── SKILLS DOCUMENT ─────────────────────────────────────────────── */}
-        {tab === "skills" && (<div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        {tab === "skills" && (<div className="aura-card overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-100" style={{ background: "#FAFAFA" }}>
               <div className="flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-violet-600"/>
@@ -602,7 +602,7 @@ export default function LeadHunter() {
           </div>)}
 
         {/* ─── ACTIVITY LOG ────────────────────────────────────────────────── */}
-        {tab === "activity" && (<div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+        {tab === "activity" && (<div className="aura-card overflow-hidden">
             {/* Header */}
             <div className="px-5 py-3.5 border-b border-gray-100" style={{ background: "#FAFAFA" }}>
               <div className="flex items-center justify-between mb-3">

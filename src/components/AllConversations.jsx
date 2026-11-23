@@ -164,13 +164,13 @@ export default function AllConversations() {
     <div className="space-y-4">
       {/* Summary */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+        <div className="aura-card p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Conversations</div>
           <div className="text-2xl font-bold text-gray-900 mt-1">{total}</div>
           <div className="text-[11px] text-gray-400 mt-0.5">Bulk · Dialer · Inbound</div>
         </div>
         {summary.map((s) => (
-          <div key={s.id} className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+          <div key={s.id} className="aura-card p-4">
             <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-400">
               <span className={`w-2 h-2 rounded-full ${s.meta.dot}`} />
               {s.label}
@@ -182,7 +182,7 @@ export default function AllConversations() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm space-y-3">
+      <div className="aura-card p-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
           {SOURCE_TABS.map((tab) => {
             const active = source === tab.id;
@@ -256,11 +256,11 @@ export default function AllConversations() {
 
       {/* List */}
       {loading ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-12 flex justify-center text-gray-400">
+        <div className="aura-card p-12 flex justify-center text-gray-400">
           <Loader2 className="w-6 h-6 animate-spin" />
         </div>
       ) : data.conversations.length === 0 ? (
-        <div className="bg-white border border-gray-200 rounded-2xl p-16 text-center">
+        <div className="aura-card p-16 text-center">
           <Sparkles className="w-10 h-10 text-gray-200 mx-auto mb-3" />
           <h3 className="text-gray-900 font-bold mb-1">No conversations found</h3>
           <p className="text-xs text-gray-500 max-w-sm mx-auto">
@@ -297,7 +297,7 @@ function ConversationCard({ conversation: c, expanded, detail, loadingDetail, on
   const turns = detail?.transcript || [];
 
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+    <div className="aura-card overflow-hidden">
       <button onClick={onToggle} className="w-full text-left p-4 hover:bg-gray-50/60 transition-colors">
         <div className="flex items-start gap-3">
           <div className={`mt-0.5 w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${inbound ? 'bg-sky-50 text-sky-600' : 'bg-pink-50 text-pink-600'}`}>

@@ -278,7 +278,7 @@ function LeadBrainTab() {
                   {/* ── OVERVIEW ── */}
                   {subTab === "overview" && (<div className="p-5 space-y-4 max-w-2xl">
                       {/* Profile card */}
-                      <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
+                      <div className="aura-card p-4 space-y-3">
                         <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">Contact</div>
                         <div className="grid grid-cols-2 gap-2">
                           {sel.email && <div className="flex items-center gap-2 text-xs text-gray-700"><Mail className="w-3.5 h-3.5 text-gray-400 flex-shrink-0"/><span className="truncate">{sel.email}</span></div>}
@@ -300,7 +300,7 @@ function LeadBrainTab() {
                         { label: "WA Messages", value: context.context.waMessages.length },
                         { label: "Meetings", value: context.context.meetings.length + context.context.appointments.length },
                         { label: "Transcripts", value: context.context.transcripts.length },
-                    ].map(s => (<div key={s.label} className="bg-white rounded-xl border border-gray-200 p-3 text-center">
+                    ].map(s => (<div key={s.label} className="aura-card p-3 text-center">
                             <div className="text-lg font-bold text-gray-900">{s.value}</div>
                             <div className="text-[10px] text-gray-400 mt-0.5">{s.label}</div>
                           </div>))}
@@ -308,7 +308,7 @@ function LeadBrainTab() {
 
                       {context.memory ? (<>
                           {/* AI Summary */}
-                          {context.memory.aiSummary && (<div className="bg-white rounded-2xl border border-indigo-100 p-4">
+                          {context.memory.aiSummary && (<div className="aura-card p-4">
                               <div className="flex items-center gap-2 mb-2">
                                 <Brain className="w-4 h-4 text-indigo-600"/>
                                 <span className="text-xs font-bold text-indigo-700">AI Memory Summary</span>
@@ -318,7 +318,7 @@ function LeadBrainTab() {
                             </div>)}
 
                           {/* Deal insights */}
-                          {context.memory.dealInsights && (<div className="bg-white rounded-2xl border border-amber-100 p-4">
+                          {context.memory.dealInsights && (<div className="aura-card p-4">
                               <div className="flex items-center gap-2 mb-2">
                                 <Target className="w-4 h-4 text-amber-600"/>
                                 <span className="text-xs font-bold text-amber-700">Deal Intelligence</span>
@@ -327,7 +327,7 @@ function LeadBrainTab() {
                             </div>)}
 
                           {/* Next best action */}
-                          {context.memory.nextBestAction && (<div className="bg-white rounded-2xl border border-green-100 p-4">
+                          {context.memory.nextBestAction && (<div className="aura-card p-4">
                               <div className="flex items-center gap-2 mb-2">
                                 <Zap className="w-4 h-4 text-green-600"/>
                                 <span className="text-xs font-bold text-green-700">Next Best Action</span>
@@ -336,14 +336,14 @@ function LeadBrainTab() {
                             </div>)}
 
                           {/* Personality */}
-                          {context.memory.personalityProfile && (<div className="bg-white rounded-2xl border border-purple-100 p-4">
+                          {context.memory.personalityProfile && (<div className="aura-card p-4">
                               <div className="flex items-center gap-2 mb-2">
                                 <User className="w-4 h-4 text-purple-600"/>
                                 <span className="text-xs font-bold text-purple-700">Communication Profile</span>
                               </div>
                               <p className="text-xs text-gray-700 leading-relaxed">{context.memory.personalityProfile}</p>
                             </div>)}
-                        </>) : (<div className="bg-white rounded-2xl border border-dashed border-indigo-200 p-6 text-center">
+                        </>) : (<div className="aura-card p-6 text-center">
                           <Brain className="w-8 h-8 text-indigo-300 mx-auto mb-2"/>
                           <p className="text-sm font-semibold text-indigo-700 mb-1">No memory yet</p>
                           <p className="text-xs text-gray-400 mb-3">Click "Sync Memory" to have AI read all interactions and build a complete deal profile.</p>

@@ -44,7 +44,7 @@ function useExpiryCountdown(expiresAt) {
     return { expired: false, label };
 }
 function SectionCard({ title, subtitle, icon: Icon, iconBg, iconColor, children }) {
-    return (<div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+    return (<div className="aura-card overflow-hidden">
       <div className="px-5 py-4 border-b border-gray-100 flex items-center gap-3">
         <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: iconBg }}>
           <Icon className="w-4 h-4" style={{ color: iconColor }}/>

@@ -310,8 +310,8 @@ export default function IcpManager() {
       </div>
 
       {isLoading ? (<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (<div key={i} className="rounded-xl border border-[#CBD5E1] p-4 animate-pulse bg-white shadow-xs" style={{ height: "180px" }}/>))}
-        </div>) : icps.length === 0 ? (<div className="rounded-xl border border-[#CBD5E1] p-12 text-center bg-white shadow-xs">
+          {[1, 2, 3].map((i) => (<div key={i} className="aura-card p-4 animate-pulse" style={{ height: "180px" }}/>))}
+        </div>) : icps.length === 0 ? (<div className="aura-card p-12 text-center">
           <TargetIcon className="w-8 h-8 text-[#475569] mx-auto mb-3"/>
           <div className="text-sm font-semibold text-[#0F172A]">No ICPs defined yet</div>
           <div className="flex items-center justify-center gap-3 mt-4">
@@ -320,7 +320,7 @@ export default function IcpManager() {
             <button onClick={() => setShowCreate(true)} className="co-btn co-btn-primary"><Plus className="w-3.5 h-3.5"/> Create manually</button>
           </div>
         </div>) : (<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          {icps.map((icp) => (<div key={icp.id} className="rounded-xl border border-[#CBD5E1] p-4 hover:border-[#CB3273] transition-all bg-white shadow-xs hover:shadow-sm">
+          {icps.map((icp) => (<div key={icp.id} className="aura-card p-4">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="text-sm font-bold text-[#0F172A]">{icp.name}</div>

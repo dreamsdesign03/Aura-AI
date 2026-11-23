@@ -57,8 +57,7 @@ function FunnelBar({ label, value, total, color }) {
 function CampaignRow({ campaign, onToggle, toggling }) {
     const statusCfg = STATUS_CONFIG[campaign.status];
     const segColor = SEGMENT_COLORS[campaign.segment];
-    return (<div className="rounded-xl border transition-all duration-150" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
-      <div className="p-4">
+    return (<div className="aura-card p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -101,7 +100,7 @@ function CampaignRow({ campaign, onToggle, toggling }) {
           <FunnelBar label="Booked" value={campaign.booked} total={campaign.total} color="#059669"/>
         </div>
       </div>
-    </div>);
+    );
 }
 function CreateCampaignModal({ onClose, onCreate }) {
     const [name, setName] = useState("");
@@ -195,7 +194,7 @@ function CreateCampaignModal({ onClose, onCreate }) {
 function TemplateCard({ template }) {
     const Icon = TEMPLATE_ICONS[template.category];
     const color = TEMPLATE_COLORS[template.category];
-    return (<div className="rounded-xl border p-4 transition-all duration-150 hover:shadow-md" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
+    return (<div className="aura-card p-4">
       <div className="flex items-start gap-3 mb-3">
         <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: `${color}18` }}>
           <Icon style={{ color, width: 18, height: 18 }}/>
@@ -221,7 +220,7 @@ function AnalyticsTab({ campaigns }) {
     ];
     return (<div className="space-y-5">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {funnel.map(({ label, value, icon: Icon, color }) => (<div key={label} className="rounded-xl border p-4" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
+        {funnel.map(({ label, value, icon: Icon, color }) => (<div key={label} className="aura-card p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${color}18` }}>
                 <Icon className="w-3.5 h-3.5" style={{ color }}/>
@@ -233,7 +232,7 @@ function AnalyticsTab({ campaigns }) {
           </div>))}
       </div>
 
-      <div className="rounded-xl border p-5" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
+      <div className="aura-card p-5">
         <div className="text-[14px] font-semibold mb-4" style={{ color: "#111827" }}>Overall Funnel</div>
         <div className="space-y-3">
           <FunnelBar label="Delivered" value={totals.delivered} total={totals.sent} color="#3B82F6"/>
@@ -242,7 +241,7 @@ function AnalyticsTab({ campaigns }) {
         </div>
       </div>
 
-      <div className="rounded-xl border p-5" style={{ background: "#ffffff", borderColor: "hsl(220 13% 91%)" }}>
+      <div className="aura-card p-5">
         <div className="text-[14px] font-semibold mb-4" style={{ color: "#111827" }}>Campaign Performance</div>
         <div className="overflow-x-auto">
           <table className="w-full text-[12px]">

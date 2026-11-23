@@ -183,7 +183,7 @@ function SyncDashboard({ onRefresh }) {
     const t = status?.totals;
     return (<div className="space-y-5">
       {/* Sync controls */}
-      <div className="p-5 rounded-xl border" style={{ borderColor: "#E5E7EB", background: "#FAFAFA" }}>
+      <div className="aura-card p-5">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <p className="text-sm font-semibold text-gray-900">Two-way sync</p>
@@ -231,7 +231,7 @@ function SyncDashboard({ onRefresh }) {
       </div>
 
       {/* All-time stats */}
-      {t && (<div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-5 rounded-xl border" style={{ borderColor: "#E5E7EB" }}>
+      {t && (<div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-5 aura-card">
           <StatCard label="Created" value={fmt(t.created)} color="#16a34a"/>
           <StatCard label="Updated" value={fmt(t.updated)} color="#2563eb"/>
           <StatCard label="Skipped" value={fmt(t.skipped)} color="#9ca3af"/>

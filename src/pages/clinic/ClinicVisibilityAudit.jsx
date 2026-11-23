@@ -555,7 +555,7 @@ export default function ClinicVisibilityAudit() {
 
         {/* ── KPI CARDS ──────────────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
+          <div className="aura-card p-5">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Network visibility score</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-gray-900">{summary.networkVisibilityScore ?? "-"}</span>
@@ -566,7 +566,7 @@ export default function ClinicVisibilityAudit() {
             </div>
             <p className="mt-2 text-[11px] text-gray-400">60% Maps rank · 25% AI mentions · 15% rating</p>
           </div>
-          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
+          <div className="aura-card p-5">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Top 3 on Google Maps</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-[#CB3273]">{kpi.scanned ? kpi.top3 : "-"}</span>
@@ -574,14 +574,14 @@ export default function ClinicVisibilityAudit() {
             </div>
             <p className="mt-3 text-xs text-gray-500">{kpi.notRanked ? `${kpi.notRanked} scanned keyword(s) not in Maps results` : "Live Local Pack / Maps position"}</p>
           </div>
-          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
+          <div className="aura-card p-5">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Average rank, scanned searches</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-gray-900">{kpi.avg ?? "-"}</span>
             </div>
             <p className="mt-3 text-xs text-gray-500">Only keywords where Aura actually ranks</p>
           </div>
-          <div className="bg-white rounded-xl p-5 border border-[#F3D9E5] shadow-xs hover:shadow-md transition-all">
+          <div className="aura-card p-5">
             <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">AI answers that mention Aura</span>
             <div className="mt-2 flex items-baseline gap-2">
               <span className="text-3xl font-extrabold text-purple-700">{summary.aiMentions ?? "-"}</span>
@@ -592,7 +592,7 @@ export default function ClinicVisibilityAudit() {
 
         {/* ── BRANCH SCORECARD + AI + FIXES ──────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 bg-white rounded-xl border border-[#F3D9E5] p-5 shadow-xs">
+          <div className="lg:col-span-8 aura-card p-5">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
               <div>
                 <h2 className="text-sm font-bold text-gray-900">Branch scorecard</h2>
@@ -638,7 +638,7 @@ export default function ClinicVisibilityAudit() {
           </div>
 
           <div className="lg:col-span-4 space-y-4">
-            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+            <div className="aura-card p-5">
               <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5"><CheckCircle2 className="w-4 h-4 text-emerald-600" /> Fix list</h2>
               <p className="text-xs text-gray-500 mt-0.5 mb-3">Generated from your latest scan results</p>
               <div className="space-y-2 max-h-72 overflow-y-auto">
@@ -660,7 +660,7 @@ export default function ClinicVisibilityAudit() {
 
         {/* ── AI ANSWERS BY QUESTION ─────────────────────────────────────── */}
         {showAiDetail && (
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div className="aura-card shadow-sm overflow-hidden">
             <div className="p-5 border-b border-gray-200 flex items-center justify-between">
               <div>
                 <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><Bot className="w-4 h-4 text-purple-600" /> AI answers by question</h2>
@@ -715,7 +715,7 @@ export default function ClinicVisibilityAudit() {
         )}
 
         {/* ── KEYWORD RANKINGS EXPLORER ──────────────────────────────────── */}
-        <div ref={explorerRef} className="bg-white rounded-xl border border-[#F3D9E5] shadow-xs overflow-hidden scroll-mt-24">
+        <div ref={explorerRef} className="aura-card shadow-xs overflow-hidden scroll-mt-24">
           <div className="p-5 border-b border-[#F3D9E5]">
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
               <div>

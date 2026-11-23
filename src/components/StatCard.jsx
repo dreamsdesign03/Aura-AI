@@ -10,11 +10,11 @@ export default function StatCard({ label, value, icon: Icon, trend, color = "tea
     const c = colorMap[color] || colorMap.teal;
     return (
       <div
-        className="rounded-xl p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+        className="aura-card p-4 cursor-pointer"
         style={{
-          background: "#ffffff",
-          border: "1px solid #CBD5E1",
-          boxShadow: "0 1px 3px 0 rgba(15, 23, 42, 0.05)",
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'space-between',
         }}
       >
         <div className="flex items-start justify-between">

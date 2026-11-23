@@ -88,7 +88,7 @@ export default function BulkCalling() {
         {view === 'conversations' ? (
           <AllConversations />
         ) : (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="aura-card overflow-hidden">
           {loading ? (
             <div className="p-12 flex justify-center text-gray-400">
               <Loader2 className="w-6 h-6 animate-spin" />
@@ -421,7 +421,7 @@ function BulkCallDetail({ id, onBack }) {
         )}
 
         {/* Progress */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm">
+        <div className="aura-card p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-gray-800">Overall Progress</h3>
             <div className="text-sm font-semibold text-pink-600">{called} / {total} Called ({Math.round(progressPct)}%)</div>
@@ -459,7 +459,7 @@ function BulkCallDetail({ id, onBack }) {
         </div>
 
         {/* Contacts Table */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[500px]">
+        <div className="aura-card overflow-hidden flex flex-col h-[500px]">
           <div className="px-5 py-3 border-b border-[#CBD5E1] bg-[#FCFAFB] flex flex-wrap items-center justify-between gap-4">
             <div className="co-pill-tabs">
               {['all', 'pending', 'calling', 'booked', 'not_booked', 'no_answer', 'failed'].map(s => (
