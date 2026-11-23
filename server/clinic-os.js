@@ -4141,9 +4141,19 @@ router.post('/dialer/plivo/answer', async (req, res) => {
     }
   }
 
+  const callbackProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const callbackHost = req.get('host') || 'aura-ai-six-beta.vercel.app';
+  const recordingCallbackUrl = `${callbackProto}://${callbackHost}/api/clinic/dialer/plivo/recording`;
+
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Record recordSession="true" fileFormat="mp3" />
+  <Record
+    recordSession="true"
+    fileFormat="mp3"
+    maxLength="900"
+    callbackUrl="${recordingCallbackUrl}"
+    callbackMethod="POST"
+  />
   <Speak language="en-IN" voice="Polly.Aditi">Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Your consultation call is now connected.</Speak>
   <Wait length="300" />
 </Response>`;
