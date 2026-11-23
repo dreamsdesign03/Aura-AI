@@ -3,18 +3,22 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
   RefreshCw, Search, CalendarDays, Phone, Mail, MapPin, Clock,
-  ChevronRight, AlertCircle, UserPlus, Plus,
+  ChevronRight, AlertCircle, UserPlus, Plus, User,
 } from 'lucide-react';
 import { clinicApi, dateLabel, datetimeLabel, fullName, money } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi, Modal } from '@/clinic/ui';
+import { PatientDrawer } from './ClinicPatients';
 
 function PatientRow({ patient, onAction }) {
   const daysSince = patient.last_visit ? Math.floor((Date.now() - new Date(patient.last_visit).getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const name = fullName(patient);
+  const cleanPhone = patient.phone ? String(patient.phone).replace(/\D/g, '') : '';
+
   return (
     <div className="co-list-item" style={{ alignItems: 'center' }}>
       <Avatar first={patient.first_name} last={patient.last_name} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="co-strong" style={{ fontSize: 13 }}>{fullName(patient)}</div>
+        <div className="co-strong" style={{ fontSize: 13 }}>{name}</div>
         <div className="co-row" style={{ gap: 10, marginTop: 2, flexWrap: 'wrap' }}>
           {patient.phone ? <span className="co-xs co-mut"><Phone size={10} /> {patient.phone}</span> : null}
           {patient.email ? <span className="co-xs co-mut"><Mail size={10} /> {patient.email}</span> : null}
@@ -23,9 +27,45 @@ function PatientRow({ patient, onAction }) {
         </div>
       </div>
       <div className="co-row" style={{ gap: 6 }}>
-        <Link href={`/clinic/patients/${patient.id}`} className="co-btn co-btn-sm co-btn-ghost"><ChevronRight size={12} /> 360</Link>
-        <button type="button" className="co-btn co-btn-sm" onClick={() => onAction('call', patient)}><Clock size={12} /> Call</button>
-        <button type="button" className="co-btn co-btn-sm" onClick={() => onAction('whatsapp', patient)}><Mail size={12} /> WA</button>
+        <button
+          type="button"
+          className="co-btn co-btn-sm co-btn-ghost"
+          style={{ fontWeight: 600, color: '#A4285E' }}
+          onClick={() => onAction('360', patient)}
+          title="Open Patient 360 Full Profile"
+        >
+          <ChevronRight size={12} /> 360
+        </button>
+        {patient.phone ? (
+          <a
+            href={`tel:${patient.phone}`}
+            className="co-btn co-btn-sm"
+            style={{ textDecoration: 'none' }}
+            title={`Call ${name}`}
+          >
+            <Clock size={12} /> Call
+          </a>
+        ) : (
+          <button type="button" className="co-btn co-btn-sm" disabled style={{ opacity: 0.45 }} title="No phone number">
+            <Clock size={12} /> Call
+          </button>
+        )}
+        {cleanPhone ? (
+          <a
+            href={`https://wa.me/${cleanPhone}?text=Hello%20${encodeURIComponent(name)}%2C%20Dr.%20Aditya%20Shah%27s%20Clinic%20here.%20We%20miss%20seeing%20you%20at%20Aura!`}
+            target="_blank"
+            rel="noreferrer"
+            className="co-btn co-btn-sm"
+            style={{ textDecoration: 'none' }}
+            title={`Send WhatsApp message to ${name}`}
+          >
+            <Mail size={12} /> WA
+          </a>
+        ) : (
+          <button type="button" className="co-btn co-btn-sm" disabled style={{ opacity: 0.45 }} title="No phone number">
+            <Mail size={12} /> WA
+          </button>
+        )}
       </div>
     </div>
   );
@@ -35,6 +75,7 @@ export default function ClinicRetention() {
   const qc = useQueryClient();
   const [days, setDays] = useState(90);
   const [search, setSearch] = useState('');
+  const [openPatientId, setOpenPatientId] = useState(null);
 
   const { data, isLoading, isFetching, refetch } = useQuery({
     queryKey: ['clinic', 'retention', days],
@@ -56,6 +97,12 @@ export default function ClinicRetention() {
     { label: '90 days', days: 90 },
     { label: '180 days', days: 180 },
   ];
+
+  const handleAction = (action, patient) => {
+    if (action === '360') {
+      setOpenPatientId(patient.id);
+    }
+  };
 
   return (
     <div className="clinic-os">
@@ -99,11 +146,19 @@ export default function ClinicRetention() {
         ) : (
           <div className="co-list">
             {filtered.map((p) => (
-              <PatientRow key={p.id} patient={p} onAction={() => {}} />
+              <PatientRow key={p.id} patient={p} onAction={handleAction} />
             ))}
           </div>
         )}
       </Card>
+
+      {/* Patient 360 Slide-over Profile Drawer */}
+      {openPatientId && (
+        <PatientDrawer
+          id={openPatientId}
+          onClose={() => setOpenPatientId(null)}
+        />
+      )}
     </div>
   );
 }

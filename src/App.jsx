@@ -348,6 +348,7 @@ function AuthenticatedRouter({ onAuthRefresh }) {
         <Route path="/clinic/journey" component={() => <RedirectTo to="/clinic/patients"/>}/>
         <Route path="/clinic/appointments" component={() => <Layout><ClinicAppointments /></Layout>}/>
         <Route path="/clinic/patients" component={() => <Layout><ClinicPatients /></Layout>}/>
+        <Route path="/clinic/patients/:id" component={() => <Layout><ClinicPatients /></Layout>}/>
         <Route path="/clinic/inbox" component={() => <Layout><ClinicInbox /></Layout>}/>
         <Route path="/clinic/call-review" component={() => <Layout><ClinicCallReview /></Layout>}/>
         <Route path="/clinic/call-review/:id" component={() => <Layout><ClinicCallReview /></Layout>}/>

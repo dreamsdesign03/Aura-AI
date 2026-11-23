@@ -5,7 +5,7 @@ import {
   StickyNote, Package, PhoneCall, ArrowUpRight, Check, Clock, Users, MessageCircle,
   Filter, X, Compass, ArrowLeft, Trash2
 } from 'lucide-react';
-import { Link, useLocation } from 'wouter';
+import { Link, useLocation, useRoute } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Drawer, Tabs, Kpi, Modal } from '@/clinic/ui';
@@ -145,7 +145,7 @@ function PackageForm({ leadId }) {
   );
 }
 
-function PatientDrawer({ id, onClose, onDeleteClick }) {
+export function PatientDrawer({ id, onClose, onDeleteClick }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState('overview');
   const { data, isLoading, isError, error } = useQuery({
@@ -414,11 +414,18 @@ function PatientDrawer({ id, onClose, onDeleteClick }) {
 }
 
 export default function ClinicPatients() {
+  const [, params] = useRoute('/clinic/patients/:id');
   const qc = useQueryClient();
   const { selectedBranch } = useBranch();
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [openId, setOpenId] = useState(null);
+
+  useEffect(() => {
+    if (params?.id) {
+      setOpenId(params.id);
+    }
+  }, [params?.id]);
   const [addPatientOpen, setAddPatientOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [selectedStage, setSelectedStage] = useState(null);
