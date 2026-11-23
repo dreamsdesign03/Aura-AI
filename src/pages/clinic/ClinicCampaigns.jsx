@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
   RefreshCw, Send, Clock, CheckCircle2, Mail, Users, BarChart2,
-  ChevronRight, AlertCircle, Plus, Zap,
+  ChevronRight, AlertCircle, Plus, Zap, PhoneCall, MessageCircle,
 } from 'lucide-react';
 import { clinicApi, dateLabel, datetimeLabel, money } from '@/clinic/api';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi } from '@/clinic/ui';
@@ -13,7 +13,11 @@ const STATUS_STYLE = {
   scheduled: { chip: 'co-c-o', icon: Clock },
   sending: { chip: 'co-c-p', icon: Send },
   sent: { chip: 'co-c-g', icon: CheckCircle2 },
+  active: { chip: 'co-c-g', icon: CheckCircle2 },
+  running: { chip: 'co-c-g', icon: CheckCircle2 },
   paused: { chip: 'co-c-n', icon: AlertCircle },
+  stopped: { chip: 'co-c-n', icon: AlertCircle },
+  completed: { chip: 'co-c-g', icon: CheckCircle2 },
 };
 
 export default function ClinicCampaigns() {
@@ -69,7 +73,20 @@ export default function ClinicCampaigns() {
                   const style = STATUS_STYLE[c.status] || { chip: 'co-c-n', icon: Mail };
                   return (
                     <tr key={c.id} style={{ cursor: 'pointer' }}>
-                      <td><div className="co-strong">{c.name}</div></td>
+                      <td>
+                        <div className="co-strong flex items-center gap-1.5">
+                          {c.channel === 'calling' ? (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-pink-100 text-[#A4285E] border border-pink-200 inline-flex items-center gap-1">
+                              <PhoneCall size={10} /> Call
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 border border-emerald-200 inline-flex items-center gap-1">
+                              <MessageCircle size={10} /> WA
+                            </span>
+                          )}
+                          <span>{c.name}</span>
+                        </div>
+                      </td>
                       <td className="co-mut">{c.segment || 'All'}</td>
                       <td><span className={`co-chip ${style.chip}`}>{c.status}</span></td>
                       <td className="co-strong">{c.sent || 0}</td>
@@ -77,7 +94,7 @@ export default function ClinicCampaigns() {
                       <td>{c.replied || 0}</td>
                       <td>{c.booked || 0}</td>
                       <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>{c.created_at ? dateLabel(c.created_at) : '—'}</td>
-                      <td><Link href={`/campaigns`} className="co-btn co-btn-sm co-btn-ghost"><ChevronRight size={12} /> Open</Link></td>
+                      <td><Link href={c.channel === 'calling' ? '/bulk-calling' : '/campaigns'} className="co-btn co-btn-sm co-btn-ghost"><ChevronRight size={12} /> Open</Link></td>
                     </tr>
                   );
                 })}

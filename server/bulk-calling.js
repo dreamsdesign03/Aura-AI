@@ -707,6 +707,17 @@ router.post('/', requireUserCookie, async (req, res) => {
     );
     const campaignId = insertCamp.rows[0].id;
 
+    // Mirror to campaigns table for unified campaign tracking
+    try {
+      await db.query(
+        `INSERT INTO campaigns (name, segment, template, status, total, sent, delivered, replied, booked, created_at, org_id)
+         VALUES ($1, $2, $3, $4, $5, 0, 0, 0, 0, NOW(), (SELECT org_id FROM users WHERE id = $6 LIMIT 1))`,
+        [name, req.body.branch || 'Bulk Calling', 'AI Voice Calling', 'draft', contacts.length, creatorUserId]
+      );
+    } catch (cErr) {
+      console.warn('[bulk-calling] mirror to campaigns warning:', cErr.message);
+    }
+
     const seenPhones = new Set();
 
     for (const c of contacts) {

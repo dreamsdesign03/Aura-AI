@@ -47,6 +47,7 @@ const AGENT_NAMES = {
 };
 
 const FOLLOWUP_DAYS = [3, 6, 9, 14];
+const isPlaceholderEmail = (e) => !e || /^noemail\+.*@auralaser\.co\.in$/i.test(String(e).trim());
 
 function todayStartSql() {
   return `(NOW() - interval '5 hours 30 minutes')::date::timestamp + interval '5 hours 30 minutes'`;
@@ -361,6 +362,7 @@ async function runSales(userId, opts = {}) {
      WHERE l.user_id = $1
        AND l.pipeline_stage NOT IN ('won','lost','call_booked','proposal_sent')
        AND COALESCE(l.email, '') <> ''
+       AND l.email NOT ILIKE 'noemail+%'
        AND (l.website_status IS NULL OR l.website_status NOT IN ('down', 'error'))
        AND NOT EXISTS (
          SELECT 1 FROM outreach_emails oe WHERE oe.lead_id = l.id AND oe.status IN ('sent','draft')
@@ -373,6 +375,7 @@ async function runSales(userId, opts = {}) {
   const capReachedAtStart = sentToday.rows[0].n >= dailyCap;
 
   for (const lead of leadsRes.rows) {
+    if (isPlaceholderEmail(lead.email)) continue;
     if (sentToday.rows[0].n >= dailyCap) break;
     const name = (lead.first_name || '').trim() || (lead.company || '').trim() || 'Valued Client';
     const firstName = name.split(' ')[0] || 'Valued Client';
@@ -491,6 +494,8 @@ async function runFollowup(userId) {
     `SELECT l.* FROM leads l
      WHERE l.user_id = $1
        AND l.pipeline_stage NOT IN ('won','lost','call_booked','proposal_sent')
+       AND COALESCE(l.email, '') <> ''
+       AND l.email NOT ILIKE 'noemail+%'
        AND EXISTS (SELECT 1 FROM outreach_emails oe WHERE oe.lead_id = l.id AND oe.status = 'sent')
      ORDER BY l.created_at ASC LIMIT 40`,
     [userId]
@@ -500,6 +505,7 @@ async function runFollowup(userId) {
   const dueLeads = [];
 
   for (const lead of leadsRes.rows) {
+    if (isPlaceholderEmail(lead.email)) continue;
     const emails = await db.query(
       `SELECT id, subject, body, sent_at FROM outreach_emails
        WHERE lead_id = $1 AND user_id = $2 AND status = 'sent' ORDER BY sent_at ASC`,

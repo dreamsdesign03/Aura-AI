@@ -2688,9 +2688,35 @@ router.get('/retention', requireUser, async (req, res) => {
 router.get('/campaigns', requireUser, async (req, res) => {
   try {
     const r = await db.query(
-      `SELECT id, name, segment, status, template, scheduled_at, sent, delivered, replied, booked, total, created_at
+      `SELECT id, name, COALESCE(segment, 'all_leads') AS segment, COALESCE(status, 'draft') AS status, 
+              COALESCE(template, 'WhatsApp Broadcast') AS template, scheduled_at, 
+              COALESCE(sent, 0) AS sent, COALESCE(delivered, 0) AS delivered, 
+              COALESCE(replied, 0) AS replied, COALESCE(booked, 0) AS booked, 
+              COALESCE(total, 0) AS total, created_at, 'whatsapp' AS channel
          FROM campaigns WHERE org_id = (SELECT org_id FROM users WHERE id = $1 LIMIT 1)
-         ORDER BY created_at DESC LIMIT 50`,
+
+       UNION ALL
+
+       SELECT
+         bc.id, bc.name, COALESCE(bc.branch, 'all_leads') AS segment,
+         CASE 
+           WHEN bc.status = 'running' OR bc.enabled = TRUE THEN 'sent'
+           WHEN bc.status = 'completed' THEN 'sent'
+           WHEN bc.status = 'stopped' OR bc.enabled = FALSE THEN 'paused'
+           ELSE 'draft'
+         END AS status,
+         'AI Voice Calling' AS template,
+         bc.started_at AS scheduled_at,
+         (SELECT COUNT(*)::int FROM bulk_attempts ba WHERE ba.campaign_id = bc.id AND ba.call_status IS NOT NULL) AS sent,
+         (SELECT COUNT(*)::int FROM bulk_attempts ba WHERE ba.campaign_id = bc.id AND ba.call_status = 'completed') AS delivered,
+         (SELECT COUNT(*)::int FROM bulk_attempts ba WHERE ba.campaign_id = bc.id AND ba.call_status = 'completed') AS replied,
+         (SELECT COUNT(*)::int FROM bulk_contacts bc2 WHERE bc2.campaign_id = bc.id AND bc2.status = 'booked') AS booked,
+         COALESCE(bc.total, 0) AS total,
+         bc.created_at,
+         'calling' AS channel
+       FROM bulk_campaigns bc
+
+       ORDER BY created_at DESC LIMIT 50`,
       [req.user.id]
     );
     res.json({ campaigns: r.rows });
@@ -3127,6 +3153,7 @@ router.get('/inbox', requireUser, async (req, res) => {
            FROM outreach_emails oe
            LEFT JOIN leads l ON l.id = oe.lead_id
           WHERE (oe.user_id = $1 OR oe.lead_id IS NOT NULL OR oe.recipient_email IS NOT NULL OR oe.to_email IS NOT NULL)
+            AND COALESCE(oe.to_email, oe.recipient_email, '') NOT ILIKE 'noemail+%'
             AND ($3::timestamptz IS NULL OR COALESCE(oe.sent_at, oe.created_at) < $3::timestamptz)
           ORDER BY COALESCE(oe.sent_at, oe.created_at) DESC LIMIT $2`,
         [uid, limit, beforeIso]

@@ -2240,6 +2240,7 @@ app.get('/api/outreach/emails', async (req, res) => {
        FROM outreach_emails o 
        LEFT JOIN leads l ON o.lead_id = l.id 
        WHERE o.user_id = $1 
+         AND COALESCE(o.recipient_email, o.to_email, '') NOT ILIKE 'noemail+%'
        ORDER BY o.id DESC`,
       [userId]
     );
@@ -2406,8 +2407,12 @@ app.post(['/api/outreach/generate', '/api/outreach-ai/generate'], async (req, re
       if (lr.rows.length > 0) lead = lr.rows[0];
     }
 
+    if (!lead.email || isPlaceholderEmail(lead.email)) {
+      return res.status(400).json({ error: 'Cannot draft email: lead has no valid email address' });
+    }
+
     const emailContent = await generateSkinnonestOutreachEmail(lead);
-    const recipientEmail = lead.email || 'contact@client.com';
+    const recipientEmail = lead.email;
     const contactName = (lead.first_name || lead.company || 'Client').trim();
     const company = lead.company || 'Organization';
 
@@ -2441,10 +2446,15 @@ app.get('/api/outreach-ai/generate/:leadId', async (req, res) => {
       if (lr.rows.length > 0) lead = lr.rows[0];
     }
 
+    if (!lead.email || isPlaceholderEmail(lead.email)) {
+      res.write(`event: error\ndata: ${JSON.stringify({ message: "Lead has no email address (phone only)" })}\n\n`);
+      return res.end();
+    }
+
     res.write(`data: ${JSON.stringify({ message: "Generating Skinnonest email copy…" })}\n\n`);
     const emailContent = await generateSkinnonestOutreachEmail(lead);
 
-    const recipientEmail = lead.email || 'contact@prospect.com';
+    const recipientEmail = lead.email;
     const contactName = (lead.first_name || lead.company || 'Client').trim();
     const company = lead.company || 'Organization';
 
@@ -2473,22 +2483,23 @@ app.get('/api/outreach-ai/generate-all', async (req, res) => {
   res.setHeader('Connection', 'keep-alive');
   try {
     const userId = await resolveUserId(null, req.headers.cookie);
-    const leadsRes = await db.query('SELECT * FROM leads ORDER BY id DESC');
-    const leads = leadsRes.rows || [];
+    const leadsRes = await db.query("SELECT * FROM leads WHERE COALESCE(email, '') <> '' AND email NOT ILIKE 'noemail+%' ORDER BY id DESC");
+    const leads = (leadsRes.rows || []).filter(l => !isPlaceholderEmail(l.email));
 
     if (leads.length === 0) {
-      res.write(`event: done\ndata: ${JSON.stringify({ message: "No leads found to generate outreach emails." })}\n\n`);
+      res.write(`event: done\ndata: ${JSON.stringify({ message: "No leads found with valid email addresses to generate outreach emails." })}\n\n`);
       return res.end();
     }
 
     let count = 0;
     for (let i = 0; i < leads.length; i++) {
       const lead = leads[i];
+      if (isPlaceholderEmail(lead.email)) continue;
       const name = (lead.first_name || lead.company || 'Lead').trim();
       res.write(`data: ${JSON.stringify({ message: `Generating Skinnonest email for ${name} (${i + 1}/${leads.length})…` })}\n\n`);
 
       const emailContent = await generateSkinnonestOutreachEmail(lead);
-      const recipientEmail = lead.email || `${lead.id}@prospect.com`;
+      const recipientEmail = lead.email;
       const contactName = (lead.first_name || lead.company || 'Client').trim();
 
       // Check if draft exists
@@ -2520,7 +2531,7 @@ app.get('/api/outreach-ai/generate-all', async (req, res) => {
 // POST /api/outreach/regenerate-drafts — Bulk regenerate existing drafts using Skinnonest template
 app.post('/api/outreach/regenerate-drafts', async (req, res) => {
   try {
-    const draftsRes = await db.query("SELECT o.*, l.first_name, l.last_name, l.company, l.industry, l.designation FROM outreach_emails o LEFT JOIN leads l ON o.lead_id = l.id WHERE o.status = 'draft' OR o.body LIKE '%pitch deck%' OR o.body LIKE '%finds you well%' OR o.body LIKE '%Aura AI Growth Team%'");
+    const draftsRes = await db.query("SELECT o.*, l.first_name, l.last_name, l.company, l.industry, l.designation FROM outreach_emails o LEFT JOIN leads l ON o.lead_id = l.id WHERE (o.status = 'draft' OR o.body LIKE '%pitch deck%' OR o.body LIKE '%finds you well%' OR o.body LIKE '%Aura AI Growth Team%') AND COALESCE(o.recipient_email, o.to_email, '') NOT ILIKE 'noemail+%'");
     const drafts = draftsRes.rows || [];
     let updatedCount = 0;
 
@@ -3366,20 +3377,95 @@ app.post('/api/proposals/send', async (req, res) => {
 app.get('/api/campaigns', async (req, res) => {
   try {
     const { email } = req.query;
-    let query = 'SELECT * FROM campaigns';
+    let userFilter = '';
     let params = [];
 
     if (email) {
       const userRes = await db.query('SELECT id FROM users WHERE email = $1', [email]);
       if (userRes.rows.length > 0) {
-        query += ' WHERE user_id = $1';
+        userFilter = ' WHERE c.org_id = (SELECT org_id FROM users WHERE id = $1 LIMIT 1)';
         params = [userRes.rows[0].id];
       }
     }
 
-    query += ' ORDER BY id DESC';
+    const query = `
+      SELECT 
+        c.id,
+        c.name,
+        COALESCE(c.segment, 'all_leads') AS segment,
+        COALESCE(c.template, 'WhatsApp Broadcast') AS template,
+        'whatsapp' AS channel,
+        COALESCE(c.status, 'draft') AS status,
+        COALESCE(c.total, 0) AS total,
+        COALESCE(c.sent, 0) AS sent,
+        COALESCE(c.delivered, 0) AS delivered,
+        COALESCE(c.replied, 0) AS replied,
+        COALESCE(c.booked, 0) AS booked,
+        c.created_at,
+        c.scheduled_at
+      FROM campaigns c
+      ${userFilter}
+
+      UNION ALL
+
+      SELECT
+        bc.id,
+        bc.name,
+        COALESCE(bc.branch, 'all_leads') AS segment,
+        'AI Voice Calling' AS template,
+        'calling' AS channel,
+        CASE 
+          WHEN bc.status = 'running' OR bc.enabled = TRUE THEN 'active'
+          WHEN bc.status = 'completed' THEN 'completed'
+          WHEN bc.status = 'stopped' OR bc.enabled = FALSE THEN 'paused'
+          ELSE 'draft'
+        END AS status,
+        COALESCE(bc.total, 0) AS total,
+        (SELECT COUNT(*)::int FROM bulk_attempts ba WHERE ba.campaign_id = bc.id AND ba.call_status IS NOT NULL) AS sent,
+        (SELECT COUNT(*)::int FROM bulk_attempts ba WHERE ba.campaign_id = bc.id AND ba.call_status = 'completed') AS delivered,
+        (SELECT COUNT(*)::int FROM bulk_attempts ba WHERE ba.campaign_id = bc.id AND ba.call_status = 'completed') AS replied,
+        (SELECT COUNT(*)::int FROM bulk_contacts bc2 WHERE bc2.campaign_id = bc.id AND bc2.status = 'booked') AS booked,
+        bc.created_at,
+        bc.started_at AS scheduled_at
+      FROM bulk_campaigns bc
+
+      ORDER BY created_at DESC
+    `;
     const campaignsRes = await db.query(query, params);
-    res.json(campaignsRes.rows);
+    // Return object with campaigns array (and also allow array consumers)
+    res.json({ campaigns: campaignsRes.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/campaigns
+app.post('/api/campaigns', async (req, res) => {
+  try {
+    const { name, segment, template, scheduledAt, total } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'Campaign name is required' });
+    const userId = await resolveUserId(null, req.headers.cookie);
+    const ins = await db.query(
+      `INSERT INTO campaigns (name, segment, template, scheduled_at, total, status, created_at, org_id)
+       VALUES ($1, $2, $3, $4, $5, 'active', NOW(), (SELECT org_id FROM users WHERE id = $6 LIMIT 1))
+       RETURNING *`,
+      [name, segment || 'all_leads', template || 'WhatsApp Broadcast', scheduledAt ? new Date(scheduledAt) : null, total || 0, userId]
+    );
+    res.json({ campaign: ins.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/campaigns/:id
+app.patch('/api/campaigns/:id', async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    const upd = await db.query(
+      `UPDATE campaigns SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING *`,
+      [status || 'draft', req.params.id]
+    );
+    res.json({ campaign: upd.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -18,7 +18,9 @@ const SEGMENT_COLORS = {
 const STATUS_CONFIG = {
     draft: { label: "Draft", color: "#6B7280", bg: "#F3F4F6" },
     active: { label: "Active", color: "#059669", bg: "#D1FAE5" },
+    running: { label: "Running", color: "#059669", bg: "#D1FAE5" },
     paused: { label: "Paused", color: "#DE377C", bg: "#FEF3C7" },
+    stopped: { label: "Stopped", color: "#DE377C", bg: "#FEF3C7" },
     completed: { label: "Completed", color: "#6B7280", bg: "#F3F4F6" },
 };
 const TEMPLATES = [
@@ -55,17 +57,28 @@ function FunnelBar({ label, value, total, color }) {
     </div>);
 }
 function CampaignRow({ campaign, onToggle, toggling }) {
-    const statusCfg = STATUS_CONFIG[campaign.status];
-    const segColor = SEGMENT_COLORS[campaign.segment];
+    const statusCfg = STATUS_CONFIG[campaign.status] || { label: campaign.status || "Draft", color: "#6B7280", bg: "#F3F4F6" };
+    const segColor = SEGMENT_COLORS[campaign.segment] || "#A4285E";
+    const segLabel = SEGMENT_LABELS[campaign.segment] || campaign.segment || "All Leads";
+    const isCalling = campaign.channel === "calling" || campaign.template?.includes("Calling");
     return (<div className="aura-card p-4">
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="text-[14px] font-semibold truncate" style={{ color: "#111827" }}>{campaign.name}</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full" style={{ background: statusCfg.bg, color: statusCfg.color }}>{statusCfg.label}</span>
+              {isCalling ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-pink-50 text-[#A4285E] border border-pink-200 flex items-center gap-1">
+                  <PhoneCall className="w-2.5 h-2.5" /> AI Calling
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                  <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${segColor}18`, color: segColor }}>{SEGMENT_LABELS[campaign.segment]}</span>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: `${segColor}18`, color: segColor }}>{segLabel}</span>
               <span className="text-[11px]" style={{ color: "#9CA3AF" }}>{campaign.template}</span>
             </div>
           </div>
@@ -289,7 +302,8 @@ export default function Campaigns() {
             if (!res.ok)
                 throw new Error("Failed to load campaigns");
             const data = await res.json();
-            setCampaigns(data.campaigns ?? []);
+            const list = Array.isArray(data) ? data : (Array.isArray(data.campaigns) ? data.campaigns : []);
+            setCampaigns(list);
         }
         catch (e) {
             setError(e.message);
@@ -327,14 +341,23 @@ export default function Campaigns() {
         setTogglingId(id);
         setCampaigns(prev => prev.map(x => x.id === id ? { ...x, status: nextStatus } : x));
         try {
-            const res = await fetch(`${API_BASE}/campaigns/${id}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ status: nextStatus }),
-                credentials: "include",
-            });
-            if (!res.ok)
-                throw new Error();
+            if (c.channel === 'calling') {
+                const res = await fetch(`/api/bulk-calling/${id}/toggle`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ enabled: nextStatus === "active" }),
+                    credentials: "include",
+                });
+                if (!res.ok) throw new Error();
+            } else {
+                const res = await fetch(`${API_BASE}/campaigns/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ status: nextStatus }),
+                    credentials: "include",
+                });
+                if (!res.ok) throw new Error();
+            }
         }
         catch {
             setCampaigns(prev => prev.map(x => x.id === id ? { ...x, status: c.status } : x));
