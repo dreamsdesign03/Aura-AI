@@ -16,10 +16,16 @@ export function toTitleCase(str) {
     .join(' ');
 }
 
+function normalizeDisplayName(val) {
+  return String(val || '').trim().replace(/\\s+patient\\s*$/i, '').replace(/\\s+/g, ' ').trim();
+}
+
 function isCleanName(val) {
   if (!val) return false;
-  const s = String(val).trim();
-  if (!s || s === '.' || s === '-' || s === '—' || s === 'Name Not Available' || s === 'Unknown' || s === 'Patient') return false;
+  const s = normalizeDisplayName(val);
+  if (!s || s === '.' || s === '-' || s === '—' || s === 'Name Not Available' || s === 'Unknown' || /^patient(?:\\s+\\d+)?$/i.test(s)) return false;
+  // Do not expose source-script Hindi names in English-only patient/contact lists.
+  if (/[\\u0900-\\u097F]/.test(s)) return false;
   return true;
 }
 
@@ -32,52 +38,52 @@ export function getContactDisplayName(contact) {
 
   // Priority 0: display_name (explicitly computed clean name from backend APIs)
   if (isCleanName(contact.display_name)) {
-    return contact.display_name.trim();
+    return normalizeDisplayName(contact.display_name);
   }
   
   // Priority 1: name_english (transliterated English name from AI calls)
   if (isCleanName(contact.name_english)) {
-    return contact.name_english.trim();
+    return normalizeDisplayName(contact.name_english);
   }
   
   // Priority 2: name_original (original spoken name)
   if (isCleanName(contact.name_original)) {
-    return contact.name_original.trim();
+    return normalizeDisplayName(contact.name_original);
   }
   
   // Priority 3: standard first_name + last_name
   if (contact.first_name || contact.last_name) {
     const fullName = [contact.first_name, contact.last_name].filter(Boolean).join(' ').trim();
     if (isCleanName(fullName)) {
-      return fullName;
+      return normalizeDisplayName(fullName);
     }
   }
   
   // Priority 4: lead_name fields (from ai_calls)
   if (isCleanName(contact.lead_name_english)) {
-    return contact.lead_name_english.trim();
+    return normalizeDisplayName(contact.lead_name_english);
   }
   if (isCleanName(contact.lead_name_original)) {
-    return contact.lead_name_original.trim();
+    return normalizeDisplayName(contact.lead_name_original);
   }
   if (isCleanName(contact.lead_name)) {
-    return contact.lead_name.trim();
+    return normalizeDisplayName(contact.lead_name);
   }
   
   // Priority 5: patient_name fields (from clinic_appointments)
   if (isCleanName(contact.patient_name_english)) {
-    return contact.patient_name_english.trim();
+    return normalizeDisplayName(contact.patient_name_english);
   }
   if (isCleanName(contact.patient_name_original)) {
-    return contact.patient_name_original.trim();
+    return normalizeDisplayName(contact.patient_name_original);
   }
   if (isCleanName(contact.patient_name)) {
-    return contact.patient_name.trim();
+    return normalizeDisplayName(contact.patient_name);
   }
   
   // Priority 6: name from bulk_contacts
   if (isCleanName(contact.name)) {
-    return contact.name.trim();
+    return normalizeDisplayName(contact.name);
   }
   
   // Fallback: phone number
