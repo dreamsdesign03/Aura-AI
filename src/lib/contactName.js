@@ -17,7 +17,7 @@ export function toTitleCase(str) {
 }
 
 function normalizeDisplayName(val) {
-  return String(val || '').trim().replace(/\\s+patient\\s*$/i, '').replace(/\\s+/g, ' ').trim();
+  return String(val || '').trim().replace(/\\s+patients?\\s*$/i, '').replace(/\\s+/g, ' ').trim();
 }
 
 function isCleanName(val) {
