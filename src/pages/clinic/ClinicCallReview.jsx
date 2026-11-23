@@ -974,7 +974,13 @@ export default function ClinicCallReview({ id }) {
                     <div style={{ fontSize: 13, fontWeight: 600, color: '#475569' }}>No AI Transcript for this Call</div>
                     <p className="co-sm co-mut" style={{ maxWidth: 440, margin: '4px auto 0' }}>
                       {(call.provider || '').toLowerCase() === 'plivo'
-                        ? 'This was a direct outbound dialer call between clinic staff and the patient. AI conversational transcription is active on Sarvam AI voice calls.'
+                        ? call.transcription_status === 'processing'
+                          ? 'The call recording is ready and its transcript is being generated. This panel will refresh automatically.'
+                          : call.transcription_status === 'failed'
+                          ? `Transcript generation failed: ${call.transcription_error || 'Unknown error'}. Use “AI Transcribe Audio” above to retry.`
+                          : call.recording_url
+                          ? 'The call recording is ready. The transcript will be generated automatically.'
+                          : 'Waiting for Plivo to finish the call recording. The transcript will be generated automatically when the recording is ready.'
                         : 'No automated transcript stream was logged for this session.'}
                     </p>
                   </>
