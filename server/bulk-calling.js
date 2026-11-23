@@ -351,47 +351,51 @@ router.get('/conversations', requireUserCookie, async (req, res) => {
     const search = String(req.query.search || '').trim();
     const limit = Math.min(Math.max(Number(req.query.limit) || 200, 1), 400);
 
+    const baseWhere = ` WHERE (l.user_id = $1 OR l.user_id IS NULL OR ac.lead_id IS NULL)`;
     const params = [userId];
-    let where = ` WHERE (l.user_id = $1 OR l.user_id IS NULL OR ac.lead_id IS NULL)`;
-    where += sourceWhere(source, params);
+    let where = baseWhere + sourceWhere(source, params);
 
     if (search) {
       params.push(`%${search.toLowerCase()}%`);
       const i = params.length;
       where += ` AND (
-        LOWER(COALESCE(ac.lead_name, '')) LIKE $${i} OR
-        LOWER(COALESCE(ac.lead_name_english, '')) LIKE $${i} OR
-        LOWER(COALESCE(l.first_name, '')) LIKE $${i} OR
-        LOWER(COALESCE(l.last_name, '')) LIKE $${i} OR
-        LOWER(COALESCE(ac.to_phone, '')) LIKE $${i} OR
-        LOWER(COALESCE(ac.from_phone, '')) LIKE $${i} OR
-        LOWER(COALESCE(ac.transcript_summary, '')) LIKE $${i} OR
-        LOWER(COALESCE(ac.conversation_id, '')) LIKE $${i} OR
-        LOWER(COALESCE(ac.transcript::text, '')) LIKE $${i}
+        LOWER(COALESCE(ac.lead_name, '')) LIKE ${i} OR
+        LOWER(COALESCE(ac.lead_name_english, '')) LIKE ${i} OR
+        LOWER(COALESCE(l.first_name, '')) LIKE ${i} OR
+        LOWER(COALESCE(l.last_name, '')) LIKE ${i} OR
+        LOWER(COALESCE(ac.to_phone, '')) LIKE ${i} OR
+        LOWER(COALESCE(ac.from_phone, '')) LIKE ${i} OR
+        LOWER(COALESCE(ac.transcript_summary, '')) LIKE ${i} OR
+        LOWER(COALESCE(ac.conversation_id, '')) LIKE ${i} OR
+        LOWER(COALESCE(ac.transcript::text, '')) LIKE ${i}
       )`;
     }
 
-    const queryText = `${conversationSelect()}${where} ORDER BY ac.started_at DESC NULLS LAST LIMIT $${params.length + 1}`;
+    const queryText = `${conversationSelect()}${where} ORDER BY ac.started_at DESC NULLS LAST LIMIT ${params.length + 1}`;
     params.push(limit);
-    const r = await db.query(queryText, params);
+    const [r, globalRows, totalResult] = await Promise.all([
+      db.query(queryText, params),
+      db.query(`${conversationSelect()}${baseWhere} ORDER BY ac.started_at DESC NULLS LAST LIMIT 5000`, [userId]),
+      db.query(`SELECT COUNT(*)::int AS total FROM ai_calls ac LEFT JOIN leads l ON l.id = ac.lead_id${baseWhere}`, [userId]),
+    ]);
 
-    const all = r.rows.map((row) => decorateConversation(row));
-
+    const filtered = r.rows.map((row) => decorateConversation(row));
+    const allForCounts = globalRows.rows.map((row) => decorateConversation(row));
     const byType = { marketing_sales: 0, patient_consultation: 0, customer_care: 0 };
     const bySource = { bulk: 0, dialer: 0, inbound: 0, single: 0 };
-    for (const c of all) {
+    for (const c of allForCounts) {
       byType[c.conversation_type] = (byType[c.conversation_type] || 0) + 1;
       bySource[c.source] = (bySource[c.source] || 0) + 1;
     }
 
     const conversations = typeFilter === 'all'
-      ? all
-      : all.filter((c) => c.conversation_type === typeFilter);
+      ? filtered
+      : filtered.filter((c) => c.conversation_type === typeFilter);
 
     res.json({
       conversations,
       counts: {
-        total: all.length,
+        total: Number(totalResult.rows[0]?.total || 0),
         by_type: byType,
         by_source: bySource,
       },
@@ -418,7 +422,27 @@ router.get('/conversations/:id', requireUserCookie, async (req, res) => {
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
 
-    res.json({ conversation: decorateConversation(r.rows[0], { includeTranscript: true }) });
+    const row = r.rows[0];
+    let cachedTranscript = row.transcript;
+    if (typeof cachedTranscript === 'string') {
+      try { cachedTranscript = JSON.parse(cachedTranscript); } catch { cachedTranscript = []; }
+    }
+    if ((!Array.isArray(cachedTranscript) || cachedTranscript.length === 0) &&
+        String(row.provider || '').toLowerCase() === 'sarvam' && row.conversation_id &&
+        validInteractionId(row.conversation_id)) {
+      try {
+        const upstreamTurns = await fetchSarvamTranscript(row.conversation_id);
+        if (Array.isArray(upstreamTurns) && upstreamTurns.length) {
+          cachedTranscript = upstreamTurns;
+          row.transcript = upstreamTurns;
+          await db.query('UPDATE ai_calls SET transcript = $1, updated_at = NOW() WHERE id = $2', [JSON.stringify(upstreamTurns), row.id]);
+        }
+      } catch (transcriptErr) {
+        console.warn('[Conversations] Sarvam transcript fetch deferred:', transcriptErr.message);
+      }
+    }
+    row.transcript = Array.isArray(cachedTranscript) ? cachedTranscript : [];
+    res.json({ conversation: decorateConversation(row, { includeTranscript: true }) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
