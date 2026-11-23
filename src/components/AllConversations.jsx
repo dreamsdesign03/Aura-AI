@@ -74,7 +74,7 @@ export default function AllConversations() {
   const [type, setType] = useState('all');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
-  const [data, setData] = useState({ conversations: [], counts: { total: 0, by_type: {}, by_source: {} } });
+  const [data, setData] = useState({ conversations: [], counts: null });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState('');
@@ -168,7 +168,7 @@ export default function AllConversations() {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="aura-card p-4">
           <div className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Conversations</div>
-          <div className="text-2xl font-bold text-gray-900 mt-1">{total}</div>
+          <div className="text-2xl font-bold text-gray-900 mt-1">{loading && !data.counts ? '—' : total}</div>
           <div className="text-[11px] text-gray-400 mt-0.5">Bulk · Dialer · Inbound</div>
         </div>
         {summary.map((s) => (
@@ -177,7 +177,7 @@ export default function AllConversations() {
               <span className={`w-2 h-2 rounded-full ${s.meta.dot}`} />
               {s.label}
             </div>
-            <div className="text-2xl font-bold text-gray-900 mt-1">{s.value}</div>
+            <div className="text-2xl font-bold text-gray-900 mt-1">{loading && !data.counts ? '—' : s.value}</div>
             <div className="text-[11px] text-gray-400 mt-0.5">classified from transcript</div>
           </div>
         ))}
@@ -200,7 +200,7 @@ export default function AllConversations() {
                 }`}
               >
                 {tab.label}
-                <span className={`ml-1.5 ${active ? 'text-gray-300' : 'text-gray-400'}`}>{count}</span>
+                <span className={`ml-1.5 ${active ? 'text-gray-300' : 'text-gray-400'}`}>{loading && !data.counts ? '—' : count}</span>
               </button>
             );
           })}
@@ -266,7 +266,7 @@ export default function AllConversations() {
                 }`}
               >
                 {tab.label}
-                <span className="ml-1 opacity-60">{count}</span>
+                <span className="ml-1 opacity-60">{loading && !data.counts ? '—' : count}</span>
               </button>
             );
           })}
