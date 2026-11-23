@@ -1611,7 +1611,3075 @@ router.get('/patients', requireUser, async (req, res) => {
     const search = req.query.search ? `%${req.query.search}%` : null;
 
     const r = await db.query(
-      `SELECT l.id, l.first_name, l.last_name, l.email, l.phone, l.company, l.status,
+      `SELECT l.id, l.first_name, l.last_name, l.email,
+              COALESCE(NULLIF(l.phone, ''), (
+                SELECT COALESCE(ac.from_phone, ac.to_phone)
+                  FROM ai_calls ac
+                 WHERE ac.lead_id = l.id
+                   AND COALESCE(ac.from_phone, ac.to_phone) IS NOT NULL
+                 ORDER BY ac.started_at DESC NULLS LAST LIMIT 1
+              ), NULLIF(regexp_replace(COALESCE(l.email, ''), '^noemail\\+([0-9]{10})@auralaser\\.co\\.in
+              ((SELECT COUNT(*)::int FROM clinic_appointments a WHERE a.lead_id = l.id) +
+               (SELECT COUNT(*)::int FROM calendly_events ce WHERE 
+                 (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
+                 OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+                 OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
+                      LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
+                      OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
+                    ))
+               )) AS appointments,
+              COALESCE(
+                (SELECT MAX(a.starts_at) FROM clinic_appointments a WHERE a.lead_id = l.id),
+                (SELECT MAX(ce.start_time) FROM calendly_events ce WHERE 
+                  (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
+                  OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+                  OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
+                       LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
+                       OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
+                     ))
+                )
+              ) AS last_visit,
+              (SELECT COUNT(*)::int FROM clinic_packages p WHERE p.lead_id = l.id) AS packages,
+              (SELECT COALESCE(SUM(p.amount),0)::numeric FROM clinic_packages p WHERE p.lead_id = l.id) AS package_value
+         FROM leads l
+        WHERE (l.user_id = $1 OR l.user_id IS NULL)
+          AND (
+            l.pipeline_stage IN ('New Patient', 'Patient', 'Active Patient', 'Consultation', 'Follow-up')
+            OR l.pipeline_stage ILIKE 'Stage%'
+            OR l.designation ILIKE '%patient%'
+            OR l.source IN ('Clinic OS', 'Cal.com Booking')
+            OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id)
+            OR EXISTS (SELECT 1 FROM clinic_notes n WHERE n.lead_id = l.id)
+            OR EXISTS (SELECT 1 FROM clinic_packages p WHERE p.lead_id = l.id)
+            OR EXISTS (SELECT 1 FROM calendly_events ce WHERE 
+              (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
+              OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+              OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
+                   LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
+                   OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
+                 ))
+            )
+          )
+          ${search ? 'AND (l.first_name ILIKE $2 OR l.last_name ILIKE $2 OR l.phone ILIKE $2 OR l.email ILIKE $2)' : ''}
+        ORDER BY COALESCE(l.updated_at, l.created_at) DESC
+        LIMIT 250`,
+      search ? [uid, search] : [uid]
+    );
+    res.json({ patients: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/patients', requireUser, async (req, res) => {
+  try {
+    const { firstName, lastName, name, phone, email, company, treatment, branch } = req.body || {};
+    let first = firstName;
+    let last = lastName;
+    if (!first && name) {
+      const parts = name.trim().split(/\s+/);
+      first = parts[0] || 'Patient';
+      last = parts.slice(1).join(' ') || 'Patient';
+    }
+    first = (first || 'Patient').trim();
+    last = (last || 'Patient').trim();
+
+    const cleanEmail = email && email.trim()
+      ? email.trim()
+      : `patient.${first.toLowerCase().replace(/[^a-z0-9]/g, '') || 'aura'}.${Date.now()}@patient.auraclinic.in`;
+
+    const ins = await db.query(
+      `INSERT INTO leads (
+        user_id, first_name, last_name, email, phone, company, country, designation, industry,
+        pipeline_stage, status, source, created_at, updated_at
+      ) VALUES (
+        $1, $2, $3, $4, $5, $6, 'India', 'Patient', 'Healthcare / Clinic',
+        'Active Patient', 'Active', 'Clinic OS', NOW(), NOW()
+      )
+      RETURNING *`,
+      [req.user.id, first, last, cleanEmail, phone ? phone.trim() : null, company || branch || 'Aura Laser & Cosmetic Clinic']
+    );
+
+    const lead = ins.rows[0];
+
+    // If initial treatment or note provided, create note
+    if (treatment) {
+      await db.query(
+        `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+         VALUES ($1, $2, 'consult', 'Patient Registration', $3, NOW())`,
+        [req.user.id, lead.id, `Patient registered with interest in: ${treatment} at ${branch || 'Alkapuri Main Clinic'}`]
+      );
+    }
+
+    await audit(req.user.id, 'created', 'patient', lead.id);
+    res.json({ success: true, patient: lead });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/patients/:id', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const leadId = req.params.id;
+
+    const lead = await db.query('SELECT * FROM leads WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [leadId, uid]);
+    if (lead.rows.length === 0) return res.status(404).json({ error: 'Patient not found' });
+    const patientRow = lead.rows[0];
+
+    const [notes, appointments, packages, calls, visits] = await Promise.all([
+      db.query('SELECT * FROM clinic_notes WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC LIMIT 50', [uid, leadId]),
+      (async () => {
+        const [appts, cal] = await Promise.all([
+          db.query('SELECT * FROM clinic_appointments WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY starts_at DESC LIMIT 30', [uid, leadId]),
+          patientRow?.email ? db.query(
+            `SELECT * FROM calendly_events
+              WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false
+                AND LOWER(invitee_email) = LOWER($2)
+              ORDER BY start_time DESC LIMIT 30`,
+            [uid, patientRow.email]
+          ) : { rows: [] }
+        ]);
+        const mappedCal = cal.rows.map(mapCalRowToClinic);
+        return [...appts.rows, ...mappedCal].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+      })(),
+      db.query('SELECT * FROM clinic_packages WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC', [uid, leadId]),
+      tryQuery(
+        `SELECT id, status, started_at, duration_secs, transcript_summary, transcript, call_sid, booking_type
+           FROM clinic_calls WHERE lead_id = $1 OR phone = $2
+           UNION ALL
+           SELECT id, status, started_at, duration_secs, transcript_summary, transcript, call_sid, booking_type
+           FROM ai_calls WHERE lead_id = $1 OR to_phone = $2 OR from_phone = $2
+           ORDER BY started_at DESC LIMIT 20`,
+        [leadId, patientRow.phone || '']
+      ),
+      db.query('SELECT * FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY visit_date DESC LIMIT 20', [uid, leadId]),
+    ]);
+
+    res.json({
+      patient: patientRow,
+      notes: notes.rows,
+      appointments: appointments,
+      packages: packages.rows,
+      calls: calls.rows,
+      visits: visits.rows,
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/patients/:id', requireUser, async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    const uid = req.user?.id;
+
+    const pRes = await db.query('SELECT * FROM leads WHERE id = $1 AND (user_id = $2 OR user_id IS NULL)', [leadId, uid]);
+    if (pRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+    const p = pRes.rows[0];
+
+    // Mark matching calendly events as deleted so background sync won't revive them
+    if (p.email && p.email.trim()) {
+      await db.query("UPDATE calendly_events SET is_deleted = true, status = 'canceled' WHERE LOWER(invitee_email) = LOWER($1)", [p.email.trim()]).catch(() => {});
+    }
+    if (p.phone && p.phone.trim()) {
+      const cleanPhone = p.phone.replace(/[^0-9]/g, '');
+      if (cleanPhone.length >= 10) {
+        await db.query("UPDATE calendly_events SET is_deleted = true, status = 'canceled' WHERE questions->>'Phone / WhatsApp' LIKE '%' || $1", [cleanPhone.slice(-10)]).catch(() => {});
+      }
+    }
+    if (p.first_name && p.last_name) {
+      await db.query("UPDATE calendly_events SET is_deleted = true, status = 'canceled' WHERE LOWER(invitee_name) ILIKE $1", [`%${p.first_name.trim()}%${p.last_name.trim()}%`]).catch(() => {});
+    }
+
+    // Delete related records from child tables to prevent foreign key errors
+    await db.query('DELETE FROM clinic_notes WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM clinic_appointments WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM clinic_packages WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM clinic_waitlist WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM appointments WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM ai_calls WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM touchpoints WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM meetings WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM proposals WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM lead_audits WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM audit_runs WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM outreach_emails WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM whatsapp_conversations WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM lead_brain_memory WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM agent_activities WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM agent_activity_log WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM lead_list_items WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM play_leads WHERE lead_id = $1', [leadId]).catch(() => {});
+    await db.query('DELETE FROM hubspot_inbox_threads WHERE lead_id = $1', [leadId]).catch(() => {});
+
+    // Delete from leads table
+    await db.query('DELETE FROM leads WHERE id = $1', [leadId]);
+
+    await audit(uid || p.user_id, 'deleted', 'patient', leadId);
+
+    res.json({ success: true, message: 'Patient deleted successfully', id: leadId });
+  } catch (err) {
+    console.error('Error deleting patient:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update patient care stage
+router.patch('/patients/:id/stage', requireUser, async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    const { stage } = req.body || {};
+    if (!stage) return res.status(400).json({ error: 'Stage is required' });
+
+    await db.query('UPDATE leads SET pipeline_stage = $1, updated_at = NOW() WHERE id = $2', [stage, leadId]);
+
+    await db.query(`
+      INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+      VALUES ($1, $2, 'consult', 'Care Stage Updated', $3, NOW())
+    `, [req.user?.id, leadId, `Patient care stage moved to "${stage}".`]).catch(() => {});
+
+    res.json({ success: true, stage });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Convert sales lead to patient
+router.post('/patients/convert-lead/:id', requireUser, async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    const { stage = 'Stage 1: Discover' } = req.body || {};
+    const leadRes = await db.query('SELECT * FROM leads WHERE id = $1', [leadId]);
+    if (leadRes.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
+    const lead = leadRes.rows[0];
+
+    await db.query(`
+      UPDATE leads
+      SET pipeline_stage = 'Active Patient',
+          designation = 'Patient',
+          source = COALESCE(source, 'Clinic OS'),
+          status = 'Active',
+          updated_at = NOW()
+      WHERE id = $1
+    `, [leadId]);
+
+    await db.query(`
+      INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+      VALUES ($1, $2, 'consult', 'Converted from Sales Lead', $3, NOW())
+    `, [
+      req.user?.id || lead.user_id,
+      leadId,
+      `Lead "${[lead.first_name, lead.last_name].filter(Boolean).join(' ')}" was converted to an active Clinic Patient (${stage}).`
+    ]).catch(() => {});
+
+    await audit(req.user?.id || lead.user_id, 'converted', 'patient', leadId);
+
+    res.json({ success: true, message: 'Lead converted to patient successfully', id: leadId });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/notes', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const { leadId, kind, title, body, meta } = req.body || {};
+    if (!body && !title) return res.status(400).json({ error: 'title or body required' });
+    const r = await db.query(
+      `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, meta)
+       VALUES ($1,$2,$3,$4,$5,$6::jsonb) RETURNING *`,
+      [uid, leadId || null, kind || 'note', title || null, body || null, JSON.stringify(meta || {})]
+    );
+    await audit(uid, 'created', 'note', r.rows[0].id, title || String(body || '').slice(0, 80));
+    res.json({ note: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Tasks
+// ---------------------------------------------------------------------------
+router.get('/tasks', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT * FROM clinic_tasks WHERE user_id = $1 ORDER BY
+         CASE WHEN status = 'open' THEN 0 ELSE 1 END,
+         (priority = 'high') DESC, due_at NULLS LAST, created_at DESC`,
+      [req.user.id]
+    );
+    res.json({ tasks: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/tasks', requireUser, async (req, res) => {
+  try {
+    const { title, detail, priority, dueAt, href } = req.body || {};
+    if (!title) return res.status(400).json({ error: 'title required' });
+    const r = await db.query(
+      `INSERT INTO clinic_tasks (user_id, title, detail, priority, due_at, href)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [req.user.id, title, detail || null, priority === 'high' ? 'high' : 'normal', dueAt || null, href || null]
+    );
+    await audit(req.user.id, 'created', 'task', r.rows[0].id, title);
+    res.json({ task: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/tasks/:id', requireUser, async (req, res) => {
+  try {
+    const { status } = req.body || {};
+    const r = await db.query(
+      `UPDATE clinic_tasks SET status = $1 WHERE id = $2 AND user_id = $3 RETURNING *`,
+      [status === 'done' ? 'done' : 'open', req.params.id, req.user.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Task not found' });
+    await audit(req.user.id, status === 'done' ? 'completed' : 'reopened', 'task', req.params.id);
+    res.json({ task: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Packages
+// ---------------------------------------------------------------------------
+router.post('/packages', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const { leadId, name, totalSessions, amount, paidAmount } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'name required' });
+    const r = await db.query(
+      `INSERT INTO clinic_packages (user_id, lead_id, name, total_sessions, amount, paid_amount)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+      [uid, leadId || null, name, Number(totalSessions) || 1, Number(amount) || 0, Number(paidAmount) || 0]
+    );
+    await audit(uid, 'created', 'package', r.rows[0].id, name);
+    res.json({ package: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/packages/:id/use', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `UPDATE clinic_packages
+          SET used_sessions = LEAST(total_sessions, used_sessions + 1),
+              status = CASE WHEN used_sessions + 1 >= total_sessions THEN 'completed' ELSE status END
+        WHERE id = $1 AND user_id = $2 RETURNING *`,
+      [req.params.id, req.user.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Package not found' });
+    await audit(req.user.id, 'session-used', 'package', req.params.id, `${r.rows[0].used_sessions}/${r.rows[0].total_sessions}`);
+    res.json({ package: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Optional demo seed — never touches leads or any existing table.
+// ---------------------------------------------------------------------------
+router.post('/seed-demo', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const already = await db.query('SELECT 1 FROM clinic_seed_state WHERE user_id = $1', [uid]);
+    if (already.rows.length > 0) return res.json({ seeded: false, reason: 'already-seeded' });
+
+    const today = new Date();
+    const at = (dayOffset, hour, minute = 0) => {
+      const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + dayOffset, hour, minute);
+      return d.toISOString();
+    };
+
+    const rows = [
+      ['Kavya Patel', '+91 98250 11021', 'Laser hair reduction', 'Alkapuri', at(0, 10, 0), 'confirmed', 4500],
+      ['Aarti Shah', '+91 98980 22032', 'Bridal consult', 'Alkapuri', at(0, 11, 30), 'booked', 1500],
+      ['Ravi Thakkar', '+91 97250 33043', 'Acne scar consult', 'Manjalpur', at(0, 14, 0), 'arrived', 1200],
+      ['Sneha Joshi', '+91 99090 44054', 'HydraFacial', 'Vasna Bhayli', at(0, 16, 30), 'booked', 3200],
+      ['Priya Mehta', '+91 98790 55065', 'Botox review', 'Alkapuri', at(1, 9, 30), 'booked', 0],
+      ['Nisha Desai', '+91 98240 66076', 'Laser hair reduction', 'Manjalpur', at(2, 12, 0), 'booked', 4500],
+    ];
+
+    for (const r of rows) {
+      await db.query(
+        `INSERT INTO clinic_appointments
+           (user_id, patient_name, phone, treatment, branch, starts_at, status, amount)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+        [uid, r[0], r[1], r[2], r[3], r[4], r[5], r[6]]
+      );
+    }
+
+    await db.query(
+      `INSERT INTO clinic_tasks (user_id, title, detail, priority, due_at)
+       VALUES
+        ($1,'Call Aarti about bridal package','She asked for a Saturday consult and a 6-sitting quote.', 'high', NOW() + interval '2 hours'),
+        ($1,'Send payment link to Ravi','Acne scar package, ₹18,000, 3 sittings.', 'normal', NOW() + interval '1 day'),
+        ($1,'Reply to 3-star Google review','Review is assigned to Dr. Aditya.', 'high', NOW() + interval '4 hours')`,
+      [uid]
+    );
+
+    await db.query(
+      `INSERT INTO clinic_notes (user_id, kind, title, body)
+       VALUES
+        ($1,'system','Clinic OS enabled','Appointments, patient timeline and tasks are now live.'),
+        ($1,'call','Call with Sneha Joshi','She wants a HydraFacial before her sister''s wedding. Happy with the ₹3,200 quote.')`,
+      [uid]
+    );
+
+    await db.query('INSERT INTO clinic_seed_state (user_id) VALUES ($1)', [uid]);
+    res.json({ seeded: true });
+  } catch (err) {
+    console.error('[clinic-os] seed:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+router.get('/settings', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM clinic_settings WHERE user_id = $1', [req.user.id]);
+    res.json({ settings: r.rows[0] || { branches: [], treatments: [], hours: {}, ai_notes: '', consent: {} } });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/settings', requireUser, async (req, res) => {
+  try {
+    const uid = req.user.id;
+    const { clinicName, branches, treatments, hours, aiNotes, consent } = req.body || {};
+    const r = await db.query(
+      `INSERT INTO clinic_settings (user_id, clinic_name, branches, treatments, hours, ai_notes, consent)
+       VALUES ($1,$2,$3,$4,$5,$6,$7)
+       ON CONFLICT (user_id) DO UPDATE SET
+         clinic_name = EXCLUDED.clinic_name,
+         branches = EXCLUDED.branches,
+         treatments = EXCLUDED.treatments,
+         hours = EXCLUDED.hours,
+         ai_notes = EXCLUDED.ai_notes,
+         consent = EXCLUDED.consent,
+         updated_at = NOW()
+       RETURNING *`,
+      [uid, clinicName || null, JSON.stringify(branches || []), JSON.stringify(treatments || []), JSON.stringify(hours || {}), aiNotes || '', JSON.stringify(consent || {})]
+    );
+    await audit(uid, 'updated', 'settings', 'clinic');
+    res.json({ settings: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Playbooks
+// ---------------------------------------------------------------------------
+// Treatment Playbooks
+// ---------------------------------------------------------------------------
+const DEFAULT_PLAYBOOKS = [
+  {
+    title: 'Bridal countdown',
+    who: 'Brides, grooms and families, 2 to 6 months before the wedding',
+    status: 'Live',
+    enrolled_count: 146,
+    conv_count: 61,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Plan prices only after the doctor’s consult'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'Lead mentions a wedding', when: 'Instant', detail: 'Tagged Bridal from any channel. Wedding date asked in the first reply.', channel: 'System' },
+      { title: 'AI qualification call', when: 'Within 5 min', detail: 'Asks the date, concerns, who else in the family wants treatment, and the preferred branch.', channel: 'AI voice' },
+      { title: 'Consult with a doctor', when: 'Within 7 days', detail: 'Doctor builds the plan. Aura books every sitting backwards from the wedding date.', channel: 'Doctor' },
+      { title: 'Countdown sittings', when: '90 to 30 days before', detail: 'Peels, LHR and HydraFacial sittings with reminders 3 days and 1 day before each.', channel: 'WhatsApp' },
+      { title: 'Final glow', when: '7 days and 1 day before', detail: 'Last session, aftercare and a good luck message.', channel: 'WhatsApp' },
+      { title: 'After the wedding', when: '14 days after', detail: 'Review request and a couple or family maintenance package.', channel: 'AI voice' }
+    ]
+  },
+  {
+    title: 'Laser Hair Reduction',
+    who: 'Women 18 to 40, and men for back, chest and beard shaping',
+    status: 'Live',
+    enrolled_count: 412,
+    conv_count: 138,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Safety screen before the first session',
+      'Package prices allowed on chat'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'New LHR enquiry', when: 'Instant', detail: 'Area of interest captured from the ad or message.', channel: 'System' },
+      { title: 'AI call with safety screen', when: 'Within 5 min', detail: 'Area, pregnancy, isotretinoin, light sensitive medicines, recent tan. Any yes goes to the doctor.', channel: 'AI voice' },
+      { title: 'Consult and patch test', when: 'Within 3 days', detail: 'Doctor confirms the plan and package.', channel: 'Doctor' },
+      { title: 'Every sitting', when: 'Every 4 to 6 weeks', detail: 'Next sitting booked before the patient leaves. Reminders 3 days and 1 day before.', channel: 'WhatsApp' },
+      { title: 'Missed sitting', when: '3 days late', detail: 'AI recovery call. A second miss creates a staff task.', channel: 'AI voice' },
+      { title: 'After the last sitting', when: '6 months later', detail: 'Touch up reminder and a review request.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Acne and scars',
+    who: 'Teens to early 30s, high social media use',
+    status: 'Live',
+    enrolled_count: 238,
+    conv_count: 74,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Prescriptions only from the doctor'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'Skin analysis or enquiry', when: 'Instant', detail: 'Acne score from skin AI attached to the lead.', channel: 'System' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Concern, duration, past treatments, budget comfort.', channel: 'AI voice' },
+      { title: 'Medical plan first', when: 'Week 1', detail: 'Doctor led plan, then peels, then CO2 for scars.', channel: 'Doctor' },
+      { title: 'Progress check ins', when: 'Every 4 weeks', detail: 'Photo comparison with consent.', channel: 'WhatsApp' },
+      { title: 'Scar phase offer', when: 'After acne is controlled', detail: 'CO2 fractional consult suggested by the doctor.', channel: 'Staff task' }
+    ]
+  },
+  {
+    title: 'Hair loss: PRP and GFC',
+    who: 'Men 25 to 45, women with thinning',
+    status: 'Live',
+    enrolled_count: 183,
+    conv_count: 52,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'SMS backup', 'Staff tasks'],
+    steps: [
+      { title: 'Hair enquiry', when: 'Instant', detail: 'Tagged hair loss.', channel: 'System' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Duration, family history, pattern, branch.', channel: 'AI voice' },
+      { title: 'Density assessment', when: 'Within 7 days', detail: 'Doctor assessment and plan.', channel: 'Doctor' },
+      { title: 'Monthly sittings', when: 'Every 4 weeks', detail: 'Reminders start 10 days early.', channel: 'WhatsApp' },
+      { title: '3 and 6 month review', when: 'Month 3 and 6', detail: 'Photo comparison. Non responders offered a transplant consult.', channel: 'Doctor' }
+    ]
+  },
+  {
+    title: 'Hair and beard transplant',
+    who: 'Men 25 to 50, high ticket, long decision cycle',
+    status: 'Live',
+    enrolled_count: 64,
+    conv_count: 9,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Graft estimates only from the doctor'
+    ],
+    channels: ['Staff task', 'WhatsApp', 'Doctor'],
+    steps: [
+      { title: 'Transplant enquiry', when: 'Instant', detail: 'Flagged high value.', channel: 'System' },
+      { title: 'Counsellor call', when: 'Same day', detail: 'A human counsellor calls, not AI.', channel: 'Staff task' },
+      { title: 'Nurture', when: 'Days 1 to 30', detail: 'Results stories, doctor explainer videos and FAQs.', channel: 'WhatsApp' },
+      { title: 'Consult and EMI', when: 'When ready', detail: 'Doctor consult, then quote and EMI link.', channel: 'Doctor' },
+      { title: 'Post op care', when: '12 months', detail: 'Follow ups at day 1, 10, month 3, 6 and 12.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Anti ageing',
+    who: 'Women and men 30 to 55',
+    status: 'Live',
+    enrolled_count: 121,
+    conv_count: 38,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Injectable prices only after consult'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'Doctor'],
+    steps: [
+      { title: 'Enquiry', when: 'Instant', detail: 'Tagged anti ageing.', channel: 'System' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Concern and preferred doctor.', channel: 'AI voice' },
+      { title: 'Private consult', when: 'Within 7 days', detail: 'Doctor credentials shared before the visit.', channel: 'Doctor' },
+      { title: '2 week review', when: 'Day 14', detail: 'Review visit booked at treatment time.', channel: 'WhatsApp' },
+      { title: 'Repeat reminder', when: 'Month 4 to 6', detail: 'Maintenance reminder.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'IV glutathione and glow',
+    who: 'Event and festive season buyers',
+    status: 'Seasonal',
+    enrolled_count: 88,
+    conv_count: 31,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'Medical screening before every IV session'
+    ],
+    channels: ['WhatsApp', 'AI voice', 'Doctor'],
+    steps: [
+      { title: 'Festive campaign', when: 'Navratri, Diwali, weddings', detail: 'Offer to opted in patients only.', channel: 'WhatsApp' },
+      { title: 'AI call', when: 'Within 5 min', detail: 'Event date and medical screening questions.', channel: 'AI voice' },
+      { title: 'Doctor screening', when: 'Before session 1', detail: 'Doctor approves Basic or Advanced protocol.', channel: 'Doctor' },
+      { title: 'Session reminders', when: 'Weekly', detail: 'Reminders and aftercare.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Vitiligo and routine skin',
+    who: 'All ages, medical need',
+    status: 'Live',
+    enrolled_count: 97,
+    conv_count: 44,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message'
+    ],
+    channels: ['AI voice', 'WhatsApp', 'Doctor'],
+    steps: [
+      { title: 'Medical enquiry', when: 'Instant', detail: 'Tagged medical.', channel: 'System' },
+      { title: 'Consult booking', when: 'Within 3 days', detail: 'Earliest doctor slot offered.', channel: 'AI voice' },
+      { title: 'Adherence reminders', when: 'Daily or weekly', detail: 'Medicine and phototherapy reminders.', channel: 'WhatsApp' },
+      { title: 'Monthly review', when: 'Every month', detail: 'Progress photos with consent.', channel: 'Doctor' }
+    ]
+  },
+  {
+    title: 'Intimate care, private',
+    who: 'Women 30 plus, often after pregnancy',
+    status: 'Private',
+    enrolled_count: 23,
+    conv_count: 11,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message',
+      'No promotional WhatsApp, ever',
+      'Female counsellor only',
+      'Restricted record access'
+    ],
+    channels: ['Staff task', 'Doctor', 'WhatsApp'],
+    steps: [
+      { title: 'Private enquiry', when: 'Instant', detail: 'Hidden from shared inboxes and reports by name.', channel: 'System' },
+      { title: 'Female counsellor callback', when: 'Same day', detail: 'Discreet call at the patient’s chosen time.', channel: 'Staff task' },
+      { title: 'Doctor consult', when: 'Within 7 days', detail: 'Neutral wording in all reminders.', channel: 'Doctor' },
+      { title: 'Follow up', when: 'Per protocol', detail: 'Neutral reminders only, no offers.', channel: 'WhatsApp' }
+    ]
+  },
+  {
+    title: 'Online consultation',
+    who: 'Patients outside Vadodara, Surat and Ranchi',
+    status: 'Live',
+    enrolled_count: 56,
+    conv_count: 19,
+    guardrails: [
+      'No diagnosis or medical advice from AI',
+      'Clinical words reach a doctor within 15 minutes',
+      'Opt out honoured on every message'
+    ],
+    channels: ['WhatsApp', 'Doctor', 'AI voice'],
+    steps: [
+      { title: 'Out of city enquiry', when: 'Instant', detail: 'City detected from number or message.', channel: 'System' },
+      { title: 'Paid slot booking', when: 'Within 1 day', detail: 'Video slot with Dr. Aditya Shah and a payment link.', channel: 'WhatsApp' },
+      { title: 'Video consult', when: 'As booked', detail: 'Prescription shared after the call.', channel: 'Doctor' },
+      { title: 'In clinic visit', when: 'If needed', detail: 'Nearest branch offered when a procedure is required.', channel: 'AI voice' }
+    ]
+  }
+];
+
+router.get('/playbooks', requireUser, async (req, res) => {
+  try {
+    let r = await db.query('SELECT * FROM clinic_playbooks WHERE user_id = $1 ORDER BY id ASC', [req.user.id]);
+    if (r.rows.length === 0) {
+      // Auto-seed default clinical playbooks for this user
+      for (const p of DEFAULT_PLAYBOOKS) {
+        await db.query(
+          `INSERT INTO clinic_playbooks (user_id, title, who, status, enrolled_count, conv_count, guardrails, channels, steps, body, active)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, TRUE)`,
+          [
+            req.user.id,
+            p.title,
+            p.who,
+            p.status,
+            p.enrolled_count,
+            p.conv_count,
+            JSON.stringify(p.guardrails),
+            JSON.stringify(p.channels),
+            JSON.stringify(p.steps),
+            p.who
+          ]
+        );
+      }
+      r = await db.query('SELECT * FROM clinic_playbooks WHERE user_id = $1 ORDER BY id ASC', [req.user.id]);
+    }
+    res.json({ playbooks: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/playbooks', requireUser, async (req, res) => {
+  try {
+    const { title, who, status, enrolled_count, conv_count, guardrails, channels, steps, channel, stage, body } = req.body || {};
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+    const r = await db.query(
+      `INSERT INTO clinic_playbooks (user_id, title, who, status, enrolled_count, conv_count, guardrails, channels, steps, channel, stage, body, active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE) RETURNING *`,
+      [
+        req.user.id,
+        title,
+        who || '',
+        status || 'Live',
+        parseInt(enrolled_count, 10) || 0,
+        parseInt(conv_count, 10) || 0,
+        JSON.stringify(Array.isArray(guardrails) ? guardrails : ['No diagnosis or medical advice from AI', 'Clinical words reach a doctor within 15 minutes', 'Opt out honoured on every message']),
+        JSON.stringify(Array.isArray(channels) ? channels : ['AI voice', 'WhatsApp', 'Doctor']),
+        JSON.stringify(Array.isArray(steps) ? steps : []),
+        channel || 'call',
+        stage || null,
+        body || who || ''
+      ]
+    );
+    await audit(req.user.id, 'created', 'playbook', r.rows[0].id, title);
+    res.json({ playbook: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/playbooks/:id', requireUser, async (req, res) => {
+  try {
+    const { active, title, who, status, enrolled_count, conv_count, guardrails, channels, steps, body } = req.body || {};
+    const sets = []; const vals = [];
+    if (typeof active === 'boolean') { vals.push(active); sets.push(`active = $${vals.length}`); }
+    if (title !== undefined) { vals.push(title); sets.push(`title = $${vals.length}`); }
+    if (who !== undefined) { vals.push(who); sets.push(`who = $${vals.length}`); }
+    if (status !== undefined) { vals.push(status); sets.push(`status = $${vals.length}`); }
+    if (enrolled_count !== undefined) { vals.push(parseInt(enrolled_count, 10) || 0); sets.push(`enrolled_count = $${vals.length}`); }
+    if (conv_count !== undefined) { vals.push(parseInt(conv_count, 10) || 0); sets.push(`conv_count = $${vals.length}`); }
+    if (guardrails !== undefined) { vals.push(JSON.stringify(guardrails)); sets.push(`guardrails = $${vals.length}`); }
+    if (channels !== undefined) { vals.push(JSON.stringify(channels)); sets.push(`channels = $${vals.length}`); }
+    if (steps !== undefined) { vals.push(JSON.stringify(steps)); sets.push(`steps = $${vals.length}`); }
+    if (body !== undefined) { vals.push(body); sets.push(`body = $${vals.length}`); }
+
+    if (!sets.length) return res.status(400).json({ error: 'Nothing to update' });
+    vals.push(req.params.id, req.user.id);
+    const r = await db.query(`UPDATE clinic_playbooks SET ${sets.join(', ')} WHERE id = $${vals.length - 1} AND user_id = $${vals.length} RETURNING *`, vals);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Playbook not found' });
+    await audit(req.user.id, 'updated', 'playbook', req.params.id);
+    res.json({ playbook: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/playbooks/:id', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('DELETE FROM clinic_playbooks WHERE id = $1 AND user_id = $2 RETURNING *', [req.params.id, req.user.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Playbook not found' });
+    await audit(req.user.id, 'deleted', 'playbook', req.params.id);
+    res.json({ success: true, deleted: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/playbooks/:id/test', requireUser, async (req, res) => {
+  try {
+    const { patient_name, phone, branch } = req.body || {};
+    const r = await db.query('SELECT * FROM clinic_playbooks WHERE id = $1 AND user_id = $2', [req.params.id, req.user.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Playbook not found' });
+    const playbook = r.rows[0];
+    const steps = Array.isArray(playbook.steps) ? playbook.steps : [];
+
+    const simulatedTimeline = steps.map((s, idx) => ({
+      step_number: idx + 1,
+      title: s.title,
+      channel: s.channel,
+      when: s.when,
+      status: idx === 0 ? 'Executed successfully' : (idx === 1 ? 'Scheduled / Dispatched' : 'Queued per protocol'),
+      simulated_at: new Date(Date.now() + idx * 60000).toISOString(),
+      preview_action: `Triggered [${s.channel}] for ${patient_name || 'Sample Patient'} (${phone || 'Test Phone'}) - ${s.title}`
+    }));
+
+    await audit(req.user.id, 'tested', 'playbook', playbook.id, `Simulated for ${patient_name || phone || 'Sample Patient'}`);
+
+    res.json({
+      success: true,
+      playbook_id: playbook.id,
+      playbook_title: playbook.title,
+      patient_name: patient_name || 'Mansi Patel',
+      phone: phone || '+91 916352504304',
+      branch: branch || 'Alkapuri',
+      timeline: simulatedTimeline
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Reviews
+// ---------------------------------------------------------------------------
+
+const GOOGLE_REVIEW_BRANCHES = [
+  { branch: 'Alkapuri, Vadodara', placeId: 'ChIJJ6F-I7vIXzkRN6vZteeU53o' },
+  { branch: 'Manjalpur, Vadodara', placeId: 'ChIJ917igI7FXzkRdmda7ukJOkA' },
+  { branch: 'Vasna-Bhayli, Vadodara', placeId: 'ChIJo3WzCevHXzkRNQM_a0j-BUc' },
+  { branch: 'Waghodia Road, Vadodara', placeId: 'ChIJ34VyRrvFXzkR9uM-uaHgidA' },
+  { branch: 'Majura Gate, Surat', placeId: 'ChIJK64GThdP4DsRQ1Hp2tUmikI' },
+];
+
+router.post('/reviews/sync-google', requireUser, async (req, res) => {
+  const apiKey = process.env.SERPAPI_API_KEY;
+  if (!apiKey) return res.status(503).json({ error: 'SERPAPI_API_KEY is not configured on the server.' });
+
+  const uid = req.user.id;
+  const restart = req.body?.restart === true;
+  const PAGE_SIZE = 1; // One page per branch per request keeps Vercel execution bounded.
+  try {
+    if (restart) {
+      await db.query('DELETE FROM clinic_review_sync_state WHERE user_id = $1', [uid]);
+    }
+
+    for (const location of GOOGLE_REVIEW_BRANCHES) {
+      await db.query(
+        `INSERT INTO clinic_review_sync_state (user_id, branch, place_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, branch) DO NOTHING`,
+        [uid, location.branch, location.placeId]
+      );
+    }
+
+    const results = [];
+    let imported = 0;
+    for (const location of GOOGLE_REVIEW_BRANCHES) {
+      const stateResult = await db.query(
+        'SELECT * FROM clinic_review_sync_state WHERE user_id = $1 AND branch = $2',
+        [uid, location.branch]
+      );
+      const state = stateResult.rows[0];
+      if (!state || state.completed) {
+        results.push({
+          branch: location.branch,
+          pages: state?.pages_fetched || 0,
+          fetchedAndSaved: 0,
+          totalFetched: state?.reviews_fetched || 0,
+          hasMore: false,
+          completed: true,
+          totalReviews: state?.total_reviews ?? null,
+          rating: state?.rating ?? null,
+        });
+        continue;
+      }
+
+      try {
+        const requestReviews = async (params) => {
+          const response = await fetch(`https://serpapi.com/search.json?${new URLSearchParams(params).toString()}`);
+          const payload = await response.json();
+          if (!response.ok || payload.error || payload.search_metadata?.status === 'Error') {
+            throw new Error(payload.error || `SerpApi returned HTTP ${response.status}`);
+          }
+          return payload;
+        };
+
+        let dataId = state.data_id || null;
+        const params = {
+          engine: 'google_maps_reviews',
+          sort_by: 'newestFirst',
+          hl: 'en',
+          api_key: apiKey,
+        };
+        if (state.next_page_token) params.next_page_token = state.next_page_token;
+        if (dataId) params.data_id = dataId;
+        else params.place_id = location.placeId;
+
+        let payload;
+        try {
+          payload = await requestReviews(params);
+        } catch (firstError) {
+          // Resolve place_id to data_id once if the review engine rejects the place id.
+          if (state.next_page_token || dataId) throw firstError;
+          const place = await requestReviews({
+            engine: 'google_maps',
+            type: 'place',
+            place_id: location.placeId,
+            hl: 'en',
+            api_key: apiKey,
+          });
+          dataId = place.place_results?.data_id;
+          if (!dataId) throw firstError;
+          payload = await requestReviews({
+            engine: 'google_maps_reviews',
+            data_id: dataId,
+            sort_by: 'newestFirst',
+            hl: 'en',
+            api_key: apiKey,
+          });
+        }
+
+        let pageImported = 0;
+        const rows = Array.isArray(payload.reviews) ? payload.reviews : [];
+        for (const item of rows) {
+          const author = item.user?.name || item.user?.username || item.author || 'Google reviewer';
+          const body = item.snippet || item.translated_snippet || item.extracted_snippet?.original || item.extracted_snippet?.translated || item.text || '';
+          if (!String(body).trim()) continue;
+
+          const externalId = String(item.review_id || item.id || item.link || `${location.placeId}:${author}:${item.iso_date || item.date || ''}:${String(body).slice(0, 80)}`);
+          // Prefer SerpApi's absolute ISO timestamp; fall back to its date field
+          // when that field is an absolute date (relative labels like "2 days ago"
+          // are intentionally not parsed as real timestamps).
+          const reviewDateValue = item.iso_date || item.date || null;
+          const parsedReviewDate = reviewDateValue ? new Date(reviewDateValue) : null;
+          const isoDate = parsedReviewDate && !Number.isNaN(parsedReviewDate.getTime())
+            ? parsedReviewDate.toISOString()
+            : null;
+          const rating = Math.max(1, Math.min(5, Number(item.rating) || 5));
+          const sourceUrl = item.link || payload.place_info?.reviews_link || null;
+          await db.query(
+            `INSERT INTO clinic_reviews (user_id, author, rating, channel, body, status, branch, source_url, external_id, created_at)
+             VALUES ($1,$2,$3,'Google',$4,'new',$5,$6,$7,COALESCE($8::timestamptz,NOW()))
+             ON CONFLICT (user_id, external_id) WHERE external_id IS NOT NULL
+             DO UPDATE SET author=EXCLUDED.author, rating=EXCLUDED.rating, body=EXCLUDED.body,
+               branch=EXCLUDED.branch, source_url=EXCLUDED.source_url,
+               created_at = CASE
+                 WHEN $8::timestamptz IS NOT NULL THEN EXCLUDED.created_at
+                 ELSE clinic_reviews.created_at
+               END`,
+            [uid, author, rating, String(body).trim(), location.branch, sourceUrl, externalId, isoDate]
+          );
+          pageImported++;
+        }
+
+        const nextToken = payload.serpapi_pagination?.next_page_token || null;
+        const completed = !nextToken;
+        const totalFetched = Number(state.reviews_fetched || 0) + pageImported;
+        const pagesFetched = Number(state.pages_fetched || 0) + 1;
+        const totalReviews = Number.isFinite(Number(payload.place_info?.reviews))
+          ? Number(payload.place_info.reviews)
+          : state.total_reviews;
+        const placeRating = Number.isFinite(Number(payload.place_info?.rating))
+          ? Number(payload.place_info.rating)
+          : state.rating;
+
+        await db.query(
+          `UPDATE clinic_review_sync_state
+              SET data_id = $1,
+                  next_page_token = $2,
+                  completed = $3,
+                  pages_fetched = $4,
+                  reviews_fetched = $5,
+                  total_reviews = $6,
+                  rating = $7,
+                  last_error = NULL,
+                  updated_at = NOW()
+            WHERE user_id = $8 AND branch = $9`,
+          [dataId, nextToken, completed, pagesFetched, totalFetched, totalReviews ?? null, placeRating ?? null, uid, location.branch]
+        );
+
+        imported += pageImported;
+        results.push({
+          branch: location.branch,
+          pages: pagesFetched,
+          fetchedAndSaved: pageImported,
+          totalFetched,
+          hasMore: !completed,
+          completed,
+          totalReviews: totalReviews ?? null,
+          rating: placeRating ?? null,
+        });
+      } catch (error) {
+        await db.query(
+          'UPDATE clinic_review_sync_state SET last_error = $1, updated_at = NOW() WHERE user_id = $2 AND branch = $3',
+          [String(error.message || error).slice(0, 500), uid, location.branch]
+        );
+        results.push({
+          branch: location.branch,
+          pages: state.pages_fetched || 0,
+          fetchedAndSaved: 0,
+          totalFetched: state.reviews_fetched || 0,
+          hasMore: !state.completed,
+          completed: Boolean(state.completed),
+          error: error.message || 'Google review sync failed',
+        });
+      }
+    }
+
+    const progress = await db.query(
+      `SELECT COUNT(*) FILTER (WHERE completed)::int AS completed_branches,
+              COUNT(*)::int AS total_branches,
+              COALESCE(SUM(reviews_fetched), 0)::int AS reviews_fetched,
+              COALESCE(SUM(pages_fetched), 0)::int AS pages_fetched
+         FROM clinic_review_sync_state WHERE user_id = $1`,
+      [uid]
+    );
+    const summary = progress.rows[0] || {};
+    const hasMore = Number(summary.completed_branches || 0) < GOOGLE_REVIEW_BRANCHES.length;
+    res.json({
+      imported,
+      branches: results,
+      progress: {
+        completedBranches: Number(summary.completed_branches || 0),
+        totalBranches: GOOGLE_REVIEW_BRANCHES.length,
+        reviewsFetched: Number(summary.reviews_fetched || 0),
+        pagesFetched: Number(summary.pages_fetched || 0),
+        hasMore,
+      },
+      warning: results.some((item) => item.error) ? 'Some branches could not be synced. Retry to resume failed branches.' : null,
+    });
+  } catch (error) {
+    console.error('[clinic-os] Google review sync error:', error);
+    res.status(500).json({ error: error.message || 'Google review sync failed' });
+  }
+});
+
+router.get('/reviews', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM clinic_reviews WHERE user_id = $1 ORDER BY created_at DESC LIMIT 5000', [req.user.id]);
+    res.json({ reviews: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/reviews', requireUser, async (req, res) => {
+  try {
+    const { leadId, author, rating, channel, body, branch, sourceUrl } = req.body || {};
+    if (!author || !body) return res.status(400).json({ error: 'author and body required' });
+    const r = await db.query(
+      `INSERT INTO clinic_reviews (user_id, lead_id, author, rating, channel, body, branch, source_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.user.id, leadId || null, author, Number(rating) || 5, channel || 'Website', body, branch || null, sourceUrl || null]
+    );
+    await audit(req.user.id, 'created', 'review', r.rows[0].id, `${author}: ${String(body).slice(0, 60)}`);
+    res.json({ review: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.patch('/reviews/:id/reply', requireUser, async (req, res) => {
+  try {
+    const { reply } = req.body || {};
+    if (!reply) return res.status(400).json({ error: 'reply required' });
+    const r = await db.query('UPDATE clinic_reviews SET reply = $1, status = $2 WHERE id = $3 AND user_id = $4 RETURNING *', [reply, 'replied', req.params.id, req.user.id]);
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Review not found' });
+    await audit(req.user.id, 'replied', 'review', req.params.id);
+    res.json({ review: r.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Retention (patients who haven't visited in N days)
+// ---------------------------------------------------------------------------
+router.get('/retention', requireUser, async (req, res) => {
+  try {
+    const days = Number(req.query.days) || 90;
+    const r = await db.query(
+      `SELECT l.id, l.first_name, l.last_name, l.phone, l.email,
+              MAX(a.starts_at) AS last_visit,
+              (SELECT name FROM clinic_packages p WHERE p.lead_id = l.id AND p.user_id = $1 ORDER BY created_at DESC LIMIT 1) AS last_package
+         FROM leads l
+         LEFT JOIN clinic_appointments a ON a.lead_id = l.id AND a.user_id = $1
+        WHERE l.user_id = $1
+        GROUP BY l.id, l.first_name, l.last_name, l.phone, l.email
+        HAVING MAX(a.starts_at) < NOW() - ($2 || ' days')::interval
+           OR MAX(a.starts_at) IS NULL
+        ORDER BY last_visit NULLS FIRST
+        LIMIT 200`,
+      [req.user.id, days]
+    );
+    res.json({ patients: r.rows, days });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Campaigns (re-use Aura campaigns table)
+// ---------------------------------------------------------------------------
+router.get('/campaigns', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT id, name, segment, status, template, scheduled_at, sent, delivered, replied, booked, total, created_at
+         FROM campaigns WHERE org_id = (SELECT org_id FROM users WHERE id = $1 LIMIT 1)
+         ORDER BY created_at DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ campaigns: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Reports (analytics aggregate)
+// ---------------------------------------------------------------------------
+router.get('/reports', requireUser, async (req, res) => {
+  try {
+    const from = req.query.from ? new Date(req.query.from) : (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })();
+    const to = req.query.to ? new Date(req.query.to) : new Date();
+
+    const [appts, pkg, rev, conv] = await Promise.all([
+      db.query(`SELECT status, COUNT(*)::int AS n FROM clinic_appointments WHERE user_id = $1 AND starts_at BETWEEN $2 AND $3 GROUP BY 1`, [req.user.id, from, to]),
+      db.query(`SELECT status, COUNT(*)::int AS n FROM clinic_packages WHERE user_id = $1 AND created_at BETWEEN $2 AND $3 GROUP BY 1`, [req.user.id, from, to]),
+      db.query(`SELECT COALESCE(SUM(amount),0)::numeric AS sold, COALESCE(SUM(paid_amount),0)::numeric AS collected FROM clinic_packages WHERE user_id = $1 AND created_at BETWEEN $2 AND $3`, [req.user.id, from, to]),
+      tryQuery(`SELECT COUNT(*)::int AS calls, COUNT(*) FILTER (WHERE call_status = 'completed')::int AS completed FROM bulk_attempts a JOIN bulk_campaigns c ON c.id = a.campaign_id WHERE c.created_by = $1 AND a.started_at BETWEEN $2 AND $3`, [req.user.id, from, to]),
+    ]);
+
+    res.json({
+      range: { from: from.toISOString(), to: to.toISOString() },
+      appointments: appts.rows,
+      packages: pkg.rows,
+      revenue: rev.rows[0],
+      calls: conv.rows[0] || { calls: 0, completed: 0 },
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Audit log
+// ---------------------------------------------------------------------------
+router.get('/audit', requireUser, async (req, res) => {
+  try {
+    const r = await db.query('SELECT * FROM clinic_audit WHERE user_id = $1 ORDER BY created_at DESC LIMIT 200', [req.user.id]);
+    res.json({ audit: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// Contact name backfill
+// ---------------------------------------------------------------------------
+router.post('/backfill-contact-names', requireUser, async (req, res) => {
+  try {
+    const { backfillContactNames } = require('./contact-name');
+    const result = await backfillContactNames();
+    res.json({ success: true, ...result });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ---------------------------------------------------------------------------
+// WhatsApp inbox sync
+//
+// Meta delivers webhooks continuously, but historically inbound rows were
+// dropped because `whatsapp_conversations.lead_id` was NOT NULL. The webhook
+// logger still captured every payload in `debug_logs`, so this routine
+// backfills missing messages (idempotent, deduped by Meta message id) and keeps
+// delivery statuses current. It runs at most once every 8 seconds per process.
+// ---------------------------------------------------------------------------
+let inboxSyncPromise = null;
+let lastInboxSyncAt = 0;
+
+async function syncWhatsAppInbox({ force = false } = {}) {
+  if (!force && Date.now() - lastInboxSyncAt < 8000) {
+    return { skipped: true, inserted: 0, updatedStatuses: 0 };
+  }
+  if (inboxSyncPromise) return inboxSyncPromise;
+
+  inboxSyncPromise = (async () => {
+    let inserted = 0;
+    let updatedStatuses = 0;
+    let logsScanned = 0;
+
+    try {
+      await ensureWhatsAppSchema().catch(() => {});
+
+      // 1) Apply the newest delivery / read / failure status reported by Meta.
+      try {
+        const statusRes = await db.query(`
+          UPDATE whatsapp_messages m
+             SET status = s.status
+            FROM (
+              SELECT DISTINCT ON (st->>'id')
+                     st->>'id' AS message_id,
+                     st->>'status' AS status
+                FROM debug_logs dl
+                CROSS JOIN LATERAL jsonb_array_elements(dl.data->'statuses') st
+               WHERE dl.event_type = 'webhook_received'
+                 AND jsonb_typeof(dl.data->'statuses') = 'array'
+               ORDER BY st->>'id', dl.id DESC
+            ) s
+           WHERE s.message_id IS NOT NULL
+             AND (m.meta_message_id = s.message_id OR m.wa_message_id = s.message_id)
+             AND m.status IS DISTINCT FROM s.status
+        `);
+        updatedStatuses = statusRes.rowCount || 0;
+      } catch (statusErr) {
+        // debug_logs is optional in some deployments.
+      }
+
+      // 2) Recover inbound patient messages captured by the webhook logger.
+      const logs = await db.query(`
+        SELECT id, data, created_at
+          FROM debug_logs
+         WHERE event_type = 'webhook_received'
+           AND jsonb_typeof(data->'messages') = 'array'
+         ORDER BY id ASC
+      `);
+      logsScanned = logs.rows.length;
+
+      for (const log of logs.rows) {
+        const data = log.data || {};
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+        const contactName = data.contacts?.[0]?.profile?.name || '';
+
+        for (const msg of messages) {
+          const waId = String(msg.id || msg.wamid || '').trim();
+          if (!waId) continue;
+
+          const existing = await db.query(
+            'SELECT id FROM whatsapp_messages WHERE wa_message_id = $1 OR meta_message_id = $1 LIMIT 1',
+            [waId]
+          );
+          if (existing.rows.length > 0) continue;
+
+          const senderPhone = String(msg.from || '').trim();
+          if (!senderPhone) continue;
+
+          const content = extractWhatsAppMessageText(msg);
+          if (!content) continue;
+
+          let leadId = await findLeadIdByPhone(senderPhone);
+          if (!leadId && contactName) {
+            try {
+              const nameMatch = await db.query(
+                `SELECT id FROM leads
+                  WHERE LOWER(TRIM(first_name || ' ' || COALESCE(last_name, ''))) LIKE '%' || LOWER($1) || '%'
+                  ORDER BY id DESC LIMIT 1`,
+                [contactName.trim()]
+              );
+              leadId = nameMatch.rows[0]?.id || null;
+            } catch {}
+          }
+
+          const parsedTs = msg.timestamp ? new Date(Number(msg.timestamp) * 1000) : new Date(log.created_at);
+          const sentAt = isNaN(parsedTs.getTime()) ? new Date(log.created_at || Date.now()) : parsedTs;
+          const digits = phoneLast10(senderPhone);
+          const isBusinessEcho = digits.endsWith('8490033711') || digits.endsWith('8469522692') || digits.endsWith('9081090555');
+          // Messages sent from our own business number are template echoes,
+          // not patient threads. Never surface them in the inbox list.
+          if (isBusinessEcho) continue;
+          const direction = 'inbound';
+
+          let convId = null;
+          try {
+            convId = await findOrCreateWhatsAppConversation({
+              leadId,
+              phone: senderPhone,
+              content,
+              direction,
+            });
+          } catch (convErr) {
+            console.warn('[clinic-os] inbox sync conversation warning:', convErr.message);
+          }
+          if (!convId) continue;
+
+          try {
+            await persistWhatsAppMessage({
+              conversationId: convId,
+              leadId,
+              phone: senderPhone,
+              direction,
+              content,
+              metaMessageId: waId,
+              status: direction === 'outbound' ? 'sent' : 'delivered',
+              sentAt,
+            });
+            inserted++;
+          } catch (msgErr) {
+            console.warn('[clinic-os] inbox sync message warning:', msgErr.message);
+          }
+        }
+      }
+
+      lastInboxSyncAt = Date.now();
+    } catch (err) {
+      console.warn('[clinic-os] whatsapp inbox sync warning:', err.message);
+    } finally {
+      inboxSyncPromise = null;
+    }
+
+    return {
+      skipped: false,
+      inserted,
+      updatedStatuses,
+      logsScanned,
+      syncedAt: new Date().toISOString(),
+    };
+  })();
+
+  return inboxSyncPromise;
+}
+
+// ---------------------------------------------------------------------------
+// Transactional email delivery for the Inbox (drafts and replies).
+// ---------------------------------------------------------------------------
+let clinicTransporter = null;
+let clinicTransportConfig = null;
+
+function getClinicTransporter() {
+  const user = process.env.SMTP_USER || 'Backoffice@auralaserclinic.com';
+  const pass = process.env.SMTP_PASS;
+  const host = process.env.SMTP_HOST
+    || (user.includes('auralaserclinic') || user.includes('office365') ? 'smtp.office365.com' : 'smtp.gmail.com');
+  const port = Number(process.env.SMTP_PORT) || 587;
+  const fromEmail = process.env.SMTP_FROM || user;
+  const fromName = process.env.SMTP_FROM_NAME || 'Aura Laser & Cosmetic Clinic';
+
+  if (!pass) {
+    throw new Error('Email is not configured (SMTP_PASS is missing).');
+  }
+
+  const cacheKey = `${host}:${port}:${user}`;
+  if (clinicTransporter && clinicTransportConfig === cacheKey) {
+    return { transporter: clinicTransporter, fromEmail, fromName };
+  }
+
+  clinicTransportConfig = cacheKey;
+  clinicTransporter = nodemailer.createTransport({
+    host,
+    port,
+    secure: port === 465,
+    requireTLS: port === 587 || host.includes('office365') || host.includes('outlook'),
+    auth: { user, pass },
+    tls: { rejectUnauthorized: false, minVersion: 'TLSv1.2' },
+    connectionTimeout: 30000,
+    greetingTimeout: 20000,
+    socketTimeout: 30000,
+  });
+
+  return { transporter: clinicTransporter, fromEmail, fromName };
+}
+
+function htmlToText(html) {
+  return String(html || '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+async function deliverClinicEmail({ to, subject, html, leadId = null }) {
+  if (!to) throw new Error('Recipient email is required.');
+  const { transporter, fromEmail, fromName } = getClinicTransporter();
+  const body = html || subject || '';
+  const info = await transporter.sendMail({
+    from: `"${fromName}" <${fromEmail}>`,
+    to,
+    subject: subject || 'Aura Laser & Cosmetic Clinic',
+    html: body,
+    text: htmlToText(body),
+  });
+
+  // Keep the lead timeline warm.
+  if (leadId) {
+    try {
+      await db.query(
+        `INSERT INTO touchpoints (lead_id, channel, subject, body, status, sent_at)
+         VALUES ($1, 'Email', $2, $3, 'Sent', NOW())`,
+        [leadId, subject || 'Email', htmlToText(body)]
+      );
+      await db.query('UPDATE leads SET updated_at = NOW() WHERE id = $1', [leadId]);
+    } catch {}
+  }
+
+  return info;
+}
+
+// ---------------------------------------------------------------------------
+// Unified Omni-Channel Inbox (WhatsApp + Emails + AI Calls + Clinic Notes)
+// ---------------------------------------------------------------------------
+let lastCommentSyncTime = 0;
+
+router.get('/inbox/sync', requireUser, async (req, res) => {
+  try {
+    const [waRes, metaRes] = await Promise.allSettled([
+      syncWhatsAppInbox({ force: true }),
+      syncMetaOmnichannel()
+    ]);
+
+    const wa = waRes.status === 'fulfilled' ? waRes.value : { error: waRes.reason?.message || String(waRes.reason) };
+    const meta = metaRes.status === 'fulfilled' ? metaRes.value : {
+      messenger: { syncedConversations: 0, syncedMessages: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      instagramComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      facebookComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) }
+    };
+
+    if (waRes.status === 'rejected') {
+      const redacted = String(waRes.reason?.message || waRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync WA] Error:', redacted);
+    }
+    if (metaRes.status === 'rejected') {
+      const redacted = String(metaRes.reason?.message || metaRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync Meta] Error:', redacted);
+    }
+
+    res.json({
+      ok: true,
+      whatsapp: wa,
+      meta
+    });
+  } catch (err) {
+    const redacted = (err?.message || String(err)).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+    console.error('[Inbox Sync] Error:', redacted);
+    res.status(500).json({ error: redacted });
+  }
+});
+
+router.post('/inbox/sync', requireUser, async (req, res) => {
+  try {
+    const [waRes, metaRes] = await Promise.allSettled([
+      syncWhatsAppInbox({ force: true }),
+      syncMetaOmnichannel()
+    ]);
+
+    const wa = waRes.status === 'fulfilled' ? waRes.value : { error: waRes.reason?.message || String(waRes.reason) };
+    const meta = metaRes.status === 'fulfilled' ? metaRes.value : {
+      messenger: { syncedConversations: 0, syncedMessages: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      instagramComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) },
+      facebookComments: { synced: 0, error: metaRes.reason?.message || String(metaRes.reason) }
+    };
+
+    if (waRes.status === 'rejected') {
+      const redacted = String(waRes.reason?.message || waRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync WA] Error:', redacted);
+    }
+    if (metaRes.status === 'rejected') {
+      const redacted = String(metaRes.reason?.message || metaRes.reason).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+      console.error('[Inbox Sync Meta] Error:', redacted);
+    }
+
+    res.json({
+      ok: true,
+      whatsapp: wa,
+      meta
+    });
+  } catch (err) {
+    const redacted = (err?.message || String(err)).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***');
+    console.error('[Inbox Sync] Error:', redacted);
+    res.status(500).json({ error: redacted });
+  }
+});
+
+router.get('/inbox', requireUser, async (req, res) => {
+  try {
+    // Fire-and-forget recovery: pull anything dropped into the live inbox
+    syncWhatsAppInbox().catch((err) => console.error('[WA Background Sync] Error:', err?.message || String(err)));
+    const now = Date.now();
+    if (now - lastCommentSyncTime > 40_000) {
+      lastCommentSyncTime = now;
+      syncMetaOmnichannel().catch((err) => console.error('[Meta Background Sync] Error:', (err?.message || String(err)).replace(/EAA[a-zA-Z0-9_\-]+/g, 'EAA***')));
+    }
+    const uid = req.user.id;
+    const limit = Number(req.query.limit) || 100;
+    const before = req.query.before ? new Date(req.query.before) : null;
+    const beforeIso = before && !isNaN(before.getTime()) ? before.toISOString() : null;
+
+    const [wa, emails, calls, notes, meta, comments] = await Promise.all([
+      // 1. WhatsApp Conversations - deduplicate by wa_phone_number (prefer those with lead_id)
+      db.query(
+        `WITH ranked AS (
+            SELECT wc.id, wc.lead_id, COALESCE(NULLIF(wc.phone, ''), NULLIF(wc.wa_phone_number, '')) AS phone,
+                    wc.unread_count, wc.last_message_at,
+                    l.first_name, l.last_name, l.email,
+                    COALESCE(
+                      (SELECT content FROM whatsapp_messages wm
+                       WHERE wm.conversation_id = wc.id OR (wm.lead_id IS NOT NULL AND wm.lead_id = l.id)
+                       ORDER BY COALESCE(wm.sent_at, wm.timestamp, wm.created_at, NOW()) DESC LIMIT 1),
+                      wc.last_message,
+                      'WhatsApp conversation'
+                    ) AS preview,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY COALESCE(wc.wa_phone_number, wc.phone, '')
+                      ORDER BY 
+                        CASE WHEN wc.lead_id IS NOT NULL THEN 0 ELSE 1 END,
+                        wc.last_message_at DESC NULLS LAST
+                    ) as rn
+               FROM whatsapp_conversations wc
+               LEFT JOIN leads l ON l.id = wc.lead_id
+              WHERE (
+                 (wc.org_id IS NULL AND (SELECT org_id FROM users WHERE id = $1) IS NULL)
+                 OR wc.org_id = (SELECT org_id FROM users WHERE id = $1)
+                 OR l.user_id = $1
+                 OR wc.lead_id IS NOT NULL
+                 OR wc.phone IS NOT NULL
+                 OR wc.wa_phone_number IS NOT NULL
+              )
+                AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8490033711%'
+                AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%8469522692%'
+                AND COALESCE(NULLIF(wc.phone,''), NULLIF(wc.wa_phone_number,''), '') NOT LIKE '%9081090555%'
+        )
+        SELECT id, lead_id, phone, unread_count, last_message_at, first_name, last_name, email, preview
+          FROM ranked
+         WHERE rn = 1
+           AND ($3::timestamptz IS NULL OR last_message_at < $3::timestamptz)
+         ORDER BY last_message_at DESC NULLS LAST LIMIT $2`,
+        [uid, limit, beforeIso]
+      ),
+      // 2. Emails (Outreach and Inbound Replies)
+      tryQuery(
+        `SELECT oe.id, oe.lead_id, COALESCE(oe.to_email, oe.recipient_email) AS email,
+                oe.subject, oe.status, oe.body, oe.created_at, oe.sent_at,
+                l.first_name, l.last_name, l.phone,
+                (SELECT er.body FROM email_replies er 
+                  WHERE (er.lead_id IS NOT NULL AND er.lead_id = oe.lead_id) 
+                     OR (er.outreach_email_id IS NOT NULL AND er.outreach_email_id = oe.id)
+                     OR (LOWER(er.from_email) = LOWER(COALESCE(oe.to_email, oe.recipient_email)))
+                  ORDER BY er.received_at DESC LIMIT 1) AS reply_body,
+                (SELECT er.received_at FROM email_replies er 
+                  WHERE (er.lead_id IS NOT NULL AND er.lead_id = oe.lead_id) 
+                     OR (er.outreach_email_id IS NOT NULL AND er.outreach_email_id = oe.id)
+                     OR (LOWER(er.from_email) = LOWER(COALESCE(oe.to_email, oe.recipient_email)))
+                  ORDER BY er.received_at DESC LIMIT 1) AS reply_at
+           FROM outreach_emails oe
+           LEFT JOIN leads l ON l.id = oe.lead_id
+          WHERE (oe.user_id = $1 OR oe.lead_id IS NOT NULL OR oe.recipient_email IS NOT NULL OR oe.to_email IS NOT NULL)
+            AND ($3::timestamptz IS NULL OR COALESCE(oe.sent_at, oe.created_at) < $3::timestamptz)
+          ORDER BY COALESCE(oe.sent_at, oe.created_at) DESC LIMIT $2`,
+        [uid, limit, beforeIso]
+      ),
+      // 3. AI Telephony Calls
+      tryQuery(
+        `SELECT ac.id, ac.lead_id, ac.started_at, ac.status, ac.transcript_summary,
+                ac.duration_secs, ac.to_phone, ac.lead_name, ac.company_name,
+                l.first_name, l.last_name, l.email, COALESCE(ac.to_phone, l.phone) AS phone
+           FROM ai_calls ac
+           LEFT JOIN leads l ON l.id = ac.lead_id
+          WHERE ($2::timestamptz IS NULL OR ac.started_at < $2::timestamptz)
+          ORDER BY ac.started_at DESC LIMIT $1`,
+        [limit, beforeIso]
+      ),
+      // 4. Clinical Notes & Consultations
+      tryQuery(
+        `SELECT cn.id, cn.lead_id, cn.kind, cn.title, cn.body, cn.created_at,
+                l.first_name, l.last_name, l.phone, l.email
+           FROM clinic_notes cn
+           LEFT JOIN leads l ON l.id = cn.lead_id
+          WHERE ($2::timestamptz IS NULL OR cn.created_at < $2::timestamptz)
+          ORDER BY cn.created_at DESC LIMIT $1`,
+        [limit, beforeIso]
+      ),
+      // 5. Meta Omnichannel (Facebook Messenger & Instagram Direct)
+      tryQuery(
+        `SELECT mc.id, mc.lead_id, mc.channel, mc.sender_id, mc.sender_name, mc.sender_username,
+                COALESCE(mc.participant_avatar, mc.sender_avatar) AS sender_avatar,
+                mc.unread_count, mc.last_message, mc.last_message_at, mc.window_expires_at,
+                l.first_name, l.last_name, l.email, l.phone
+           FROM meta_conversations mc
+           LEFT JOIN leads l ON l.id = mc.lead_id
+          WHERE ($2::timestamptz IS NULL OR mc.last_message_at < $2::timestamptz)
+          ORDER BY mc.last_message_at DESC LIMIT $1`,
+        [limit, beforeIso]
+      ),
+      // 6. Meta Comments (Instagram & Facebook Post/Reel Comments)
+      tryQuery(
+        `SELECT mc.id, mc.channel, mc.comment_id, mc.post_id, mc.post_url, mc.post_title, mc.media_type, mc.media_thumbnail, mc.like_count,
+                mc.sender_name, mc.sender_username,
+                COALESCE(mc.author_avatar, mc.sender_avatar) AS sender_avatar,
+                mc.text, mc.reply_text, mc.replied_at, mc.status, mc.unread, mc.created_at, mc.parent_id
+           FROM meta_comments mc
+          WHERE ($2::timestamptz IS NULL OR mc.created_at < $2::timestamptz)
+          ORDER BY mc.created_at DESC LIMIT $1`,
+        [limit, beforeIso]
+      ),
+    ]);
+
+    const threads = [];
+
+    // WhatsApp Threads
+    for (const row of wa.rows) {
+      threads.push({
+        type: 'whatsapp',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.phone || 'WhatsApp Patient',
+        phone: row.phone,
+        email: row.email,
+        unread: row.unread_count || 0,
+        status: 'active',
+        lastAt: row.last_message_at,
+        preview: row.preview || 'Click to open WhatsApp dialogue',
+      });
+    }
+
+    // Email Threads
+    for (const row of (emails?.rows || [])) {
+      const cleanBody = (row.reply_body || row.body || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const hasReply = !!row.reply_body;
+      const status = String(row.status || '').toLowerCase();
+      const isDraft = !hasReply && status === 'draft';
+      threads.push({
+        type: 'email',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.email || 'Email Patient',
+        email: row.email,
+        phone: row.phone,
+        subject: row.subject || 'Consultation & Treatment',
+        unread: hasReply ? 1 : 0,
+        status: hasReply ? 'replied' : (row.status || 'sent'),
+        isDraft,
+        lastAt: row.reply_at || row.sent_at || row.created_at,
+        preview: hasReply
+          ? `Reply: ${cleanBody.slice(0, 110)}`
+          : isDraft
+          ? `Draft · ${row.subject ? `${row.subject} — ` : ''}${cleanBody.slice(0, 90)}`
+          : (row.subject ? `${row.subject} — ${cleanBody.slice(0, 80)}` : cleanBody.slice(0, 100)),
+      });
+    }
+
+    // AI Call Threads
+    for (const row of (calls?.rows || [])) {
+      threads.push({
+        type: 'call',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.lead_name || 'Patient Consultation Call',
+        phone: row.phone || row.to_phone,
+        email: row.email,
+        unread: 0,
+        durationSecs: row.duration_secs || 0,
+        status: row.status || 'completed',
+        lastAt: row.started_at,
+        preview: row.transcript_summary || `AI Call (${row.duration_secs || 0}s) — ${row.status || 'completed'}`,
+      });
+    }
+
+    // Clinic Notes
+    for (const row of notes.rows) {
+      threads.push({
+        type: 'note',
+        id: row.id,
+        leadId: row.lead_id,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || 'Clinical Note',
+        phone: row.phone,
+        email: row.email,
+        unread: 0,
+        status: row.kind || 'note',
+        lastAt: row.created_at,
+        preview: `${row.title || row.kind}: ${(row.body || '').slice(0, 90)}`,
+      });
+    }
+
+    // Meta Omnichannel Threads (Facebook Messenger & Instagram Direct)
+    for (const row of (meta?.rows || [])) {
+      const isIg = row.channel === 'instagram';
+      threads.push({
+        type: row.channel, // 'facebook' or 'instagram'
+        id: row.id,
+        leadId: row.lead_id,
+        senderId: row.sender_id,
+        senderUsername: row.sender_username,
+        senderAvatar: row.sender_avatar,
+        name: [row.first_name, row.last_name].filter(Boolean).join(' ') || row.sender_name || (isIg ? `@${row.sender_username || 'user'}` : null),
+        phone: row.phone,
+        email: row.email,
+        unread: row.unread_count || 0,
+        status: 'active',
+        windowExpiresAt: row.window_expires_at,
+        lastAt: row.last_message_at,
+        preview: row.last_message || (isIg ? 'Instagram Direct Message' : 'Facebook Messenger message'),
+      });
+    }
+
+    // Meta Comments (Instagram & Facebook Post/Reel Comments)
+    for (const row of (comments?.rows || [])) {
+      const isIg = row.channel === 'instagram';
+      const mediaLabel = row.media_type || 'Post';
+      const postTitle = row.post_title || '';
+      threads.push({
+        type: 'comment',
+        channel: row.channel,
+        id: row.id,
+        commentId: row.comment_id,
+        postId: row.post_id,
+        postUrl: row.post_url,
+        postTitle: row.post_title,
+        mediaType: row.media_type || 'Post',
+        mediaThumbnail: row.media_thumbnail,
+        likeCount: row.like_count || 0,
+        senderUsername: row.sender_username,
+        name: row.sender_name || (isIg ? (row.sender_username ? `@${row.sender_username}` : null) : null),
+        unread: row.unread ? 1 : 0,
+        status: row.status || 'pending',
+        replyText: row.reply_text,
+        repliedAt: row.replied_at,
+        lastAt: row.replied_at || row.created_at,
+        preview: postTitle
+          ? `On ${mediaLabel} "${postTitle.slice(0, 45)}...": "${(row.text || '').slice(0, 70)}"`
+          : `Comment on ${isIg ? 'Instagram' : 'Facebook'}: "${(row.text || '').slice(0, 80)}"`,
+      });
+    }
+
+    // Sort newest first
+    threads.sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
+    res.json({ threads: threads.slice(0, limit) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Detailed conversation thread loader
+router.get('/inbox/thread', requireUser, async (req, res) => {
+  try {
+    const { type, id, leadId, phone } = req.query;
+    if (!type || !id) return res.status(400).json({ error: 'type and id are required' });
+
+    if (type === 'whatsapp') {
+      // Recover any messages that Meta delivered but the DB previously rejected.
+      syncWhatsAppInbox().catch(() => {});
+
+      const isNumericId = typeof id === 'number' || (typeof id === 'string' && /^\d+$/.test(id));
+      let targetPhone = phone || (typeof id === 'string' && id.startsWith('new-') ? id.replace('new-', '') : '');
+      let last10 = phoneLast10(targetPhone);
+
+      let conv = null;
+      if (isNumericId) {
+        const convRes = await db.query('SELECT * FROM whatsapp_conversations WHERE id = $1', [parseInt(id)]);
+        conv = convRes.rows[0] || null;
+      }
+      if (!conv && last10) {
+        const convRes = await db.query(
+          `SELECT * FROM whatsapp_conversations
+            WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE $1
+            ORDER BY id DESC LIMIT 1`,
+          [`%${last10}%`]
+        );
+        conv = convRes.rows[0] || null;
+      }
+      if (!targetPhone && conv) {
+        targetPhone = conv.wa_phone_number || conv.phone || '';
+      }
+      if (!last10 && targetPhone) last10 = phoneLast10(targetPhone);
+
+      let resolvedLeadId = leadId ? Number(leadId) : (conv?.lead_id || null);
+      if (!resolvedLeadId && targetPhone) {
+        resolvedLeadId = await findLeadIdByPhone(targetPhone);
+      }
+
+      // Mark conversation as read both on conversation and incoming messages
+      try {
+        if (conv?.id) {
+          await db.query('UPDATE whatsapp_conversations SET unread_count = 0 WHERE id = $1', [conv.id]);
+          await db.query(
+            `UPDATE whatsapp_messages SET status = 'read' WHERE conversation_id = $1 AND direction = 'inbound' AND (status IS NULL OR status != 'read')`,
+            [conv.id]
+          );
+        }
+        if (last10) {
+          await db.query(
+            `UPDATE whatsapp_conversations SET unread_count = 0 WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE $1`,
+            [`%${last10}%`]
+          );
+          await db.query(
+            `UPDATE whatsapp_messages SET status = 'read' WHERE REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE $1 AND direction = 'inbound' AND (status IS NULL OR status != 'read')`,
+            [`%${last10}%`]
+          );
+        }
+      } catch (readErr) {
+        console.warn('[clinic-os] error marking whatsapp read:', readErr.message);
+      }
+
+      // Fetch all messages (including AI messages, automated confirmations, and staff replies)
+      let msgs = { rows: [] };
+      const params = [];
+      const conds = [];
+
+      if (conv?.id) {
+        params.push(conv.id);
+        conds.push(`conversation_id = $${params.length}`);
+      }
+      if (resolvedLeadId) {
+        params.push(resolvedLeadId);
+        conds.push(`(lead_id IS NOT NULL AND lead_id = $${params.length})`);
+      }
+      if (last10) {
+        params.push(`%${last10}%`);
+        conds.push(`REPLACE(REPLACE(REPLACE(COALESCE(phone, ''), '+', ''), '-', ''), ' ', '') LIKE $${params.length}`);
+      }
+
+      if (conds.length > 0) {
+        msgs = await db.query(
+          `SELECT id, conversation_id, lead_id, direction, content, body, status, wa_message_id,
+                  meta_message_id, template_name, error_message, sent_at, timestamp, created_at
+             FROM whatsapp_messages
+            WHERE ${conds.join(' OR ')}
+            ORDER BY COALESCE(sent_at, timestamp, created_at) ASC`,
+          params
+        );
+      }
+
+      const messageList = msgs.rows.map(m => {
+        const raw = m.content || m.body || '';
+        const isAi = Boolean(
+          m.template_name || 
+          (m.direction === 'outbound' && (
+            raw.includes('appointment is confirmed') ||
+            raw.includes('Aura Consultation') ||
+            raw.includes('Aura Clinic') ||
+            raw.includes('Aura Laser') ||
+            raw.includes('Skinnonest') ||
+            raw.includes('Dr. Aditya Shah') ||
+            raw.includes('Dr. Pruthvi Patel') ||
+            raw.includes('[Template:')
+          ))
+        );
+        return {
+          id: m.id,
+          direction: m.direction || 'outbound',
+          content: raw,
+          status: m.status || 'delivered',
+          waMessageId: m.wa_message_id || m.meta_message_id || null,
+          templateName: m.template_name || null,
+          isAi: isAi,
+          errorMessage: m.error_message || null,
+          sentAt: m.sent_at || m.timestamp || m.created_at
+        };
+      });
+
+      return res.json({
+        type: 'whatsapp',
+        conversation: conv,
+        phone: targetPhone || conv?.phone || null,
+        leadId: resolvedLeadId,
+        clinic_whatsapp_number: '+91 84900 33711',
+        messages: messageList
+      });
+    }
+
+    if (type === 'email') {
+      const emailRes = await db.query('SELECT * FROM outreach_emails WHERE id = $1', [id]);
+      const email = emailRes.rows[0];
+      if (!email) return res.status(404).json({ error: 'Email record not found' });
+
+      const targetLeadId = email.lead_id || leadId;
+      const targetEmail = email.to_email || email.recipient_email;
+
+      const [outbound, inbound] = await Promise.all([
+        db.query(
+          `SELECT id, 'outbound' as direction, subject, body, status, sent_at, created_at
+             FROM outreach_emails
+            WHERE id = $1 OR (lead_id IS NOT NULL AND lead_id = $2) OR (to_email = $3 OR recipient_email = $3)
+            ORDER BY COALESCE(sent_at, created_at) ASC`,
+          [id, targetLeadId || 0, targetEmail || '']
+        ),
+        tryQuery(
+          `SELECT id, 'inbound' as direction, subject, body, 'received' as status, received_at as sent_at, created_at
+             FROM email_replies
+            WHERE (lead_id IS NOT NULL AND lead_id = $1) OR (outreach_email_id IS NOT NULL AND outreach_email_id = $2) OR LOWER(from_email) = LOWER($3)
+            ORDER BY COALESCE(received_at, created_at) ASC`,
+          [targetLeadId || 0, id, targetEmail || '']
+        )
+      ]);
+
+      const thread = [...outbound.rows, ...(inbound?.rows || [])].sort((a, b) => new Date(a.sent_at || a.created_at) - new Date(b.sent_at || b.created_at));
+
+      return res.json({
+        type: 'email',
+        email,
+        messages: thread.map(m => ({
+          id: m.id,
+          direction: m.direction,
+          subject: m.subject,
+          content: m.body,
+          status: m.status,
+          isDraft: String(m.status || '').toLowerCase() === 'draft',
+          sentAt: m.sent_at || m.created_at
+        }))
+      });
+    }
+
+    if (type === 'call') {
+      const callRes = await db.query('SELECT * FROM ai_calls WHERE id = $1', [id]);
+      if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call record not found' });
+      const call = callRes.rows[0];
+      return res.json({
+        type: 'call',
+        call,
+        transcript: call.transcript || call.transcript_summary || 'Dialogue completed.',
+        summary: call.transcript_summary
+      });
+    }
+
+    if (type === 'note') {
+      const noteRes = await db.query('SELECT * FROM clinic_notes WHERE id = $1', [id]);
+      if (noteRes.rows.length === 0) return res.status(404).json({ error: 'Note not found' });
+      const note = noteRes.rows[0];
+      const related = await db.query('SELECT * FROM clinic_notes WHERE lead_id = $1 ORDER BY created_at DESC LIMIT 10', [note.lead_id || 0]);
+      return res.json({
+        type: 'note',
+        note,
+        relatedNotes: related.rows
+      });
+    }
+
+    if (type === 'facebook' || type === 'instagram') {
+      const convId = parseInt(id);
+      const convRes = await db.query(
+        `SELECT mc.*, l.first_name, l.last_name, l.email, l.phone
+           FROM meta_conversations mc
+           LEFT JOIN leads l ON l.id = mc.lead_id
+          WHERE mc.id = $1`,
+        [convId]
+      );
+      if (convRes.rows.length === 0) return res.status(404).json({ error: 'Meta conversation not found' });
+      const conv = convRes.rows[0];
+
+      // Mark conversation as read
+      await db.query('UPDATE meta_conversations SET unread_count = 0 WHERE id = $1', [conv.id]).catch(() => {});
+
+      // B.2: Fetch all messages in this thread with attachments, shared_post, reactions
+      const msgsRes = await db.query(
+        `SELECT id, direction, channel, content, media_url, attachments, shared_post, reactions, status, reaction, reaction_emoji, error_message, sent_at, created_at
+           FROM meta_messages
+          WHERE conversation_id = $1
+          ORDER BY COALESCE(sent_at, created_at) ASC, id ASC`,
+        [conv.id]
+      );
+
+      return res.json({
+        type,
+        conversation: conv,
+        window_expires_at: conv.window_expires_at,
+        sender_username: conv.sender_username,
+        lead: conv.lead_id ? { id: conv.lead_id, first_name: conv.first_name, last_name: conv.last_name, email: conv.email, phone: conv.phone } : null,
+        messages: msgsRes.rows.map((m) => {
+          // B.2: Map attachments: [{type, url, title}]
+          const rawAtts = Array.isArray(m.attachments) ? m.attachments : [];
+          const attachments = rawAtts.map((att) => ({
+            type: att.type || 'attachment',
+            url: att.payload?.url || att.url || att.image_data?.url || att.video_data?.url || att.audio_data?.url || att.file_url || null,
+            title: att.title || att.name || att.payload?.title || null
+          }));
+
+          // B.2: Map sharedPost: {type, url, title, thumbnail}
+          let sharedPost = null;
+          if (m.shared_post && typeof m.shared_post === 'object') {
+            const sp = m.shared_post;
+            sharedPost = {
+              type: sp.type || 'share',
+              url: sp.url || sp.link || sp.payload?.url || null,
+              title: sp.title || sp.caption || sp.name || null,
+              thumbnail: sp.thumbnail || sp.thumbnail_url || sp.image_data?.url || null
+            };
+          }
+
+          return {
+            id: m.id,
+            direction: m.direction,
+            type: m.channel,
+            content: m.content,
+            mediaUrl: m.media_url,
+            attachments,
+            sharedPost,
+            reactions: Array.isArray(m.reactions) ? m.reactions : (m.reaction ? [{ reaction: m.reaction, emoji: m.reaction_emoji }] : []),
+            status: m.status,
+            errorMessage: m.error_message,
+            reaction: m.reaction,
+            reactionEmoji: m.reaction_emoji,
+            timestamp: m.sent_at || m.created_at
+          };
+        })
+      });
+    }
+
+    if (type === 'comment') {
+      const commRes = await db.query(
+        'SELECT * FROM meta_comments WHERE id = $1 OR comment_id = $2 LIMIT 1',
+        [parseInt(id) || -1, String(id || '')]
+      );
+      if (commRes.rows.length === 0) return res.status(404).json({ error: 'Comment not found' });
+      const comment = commRes.rows[0];
+      await db.query('UPDATE meta_comments SET unread = FALSE WHERE id = $1', [comment.id]).catch(() => {});
+      return res.json({
+        type: 'comment',
+        comment,
+        messages: [
+          {
+            id: comment.id,
+            direction: 'inbound',
+            type: comment.channel,
+            content: comment.text,
+            timestamp: comment.created_at
+          },
+          ...(comment.reply_text ? [{
+            id: `${comment.id}-reply`,
+            direction: 'outbound',
+            type: comment.channel,
+            content: comment.reply_text,
+            timestamp: comment.replied_at
+          }] : [])
+        ]
+      });
+    }
+
+    if (type === 'reaction') {
+      const rxRes = await db.query('SELECT * FROM meta_reactions WHERE id = $1 LIMIT 1', [parseInt(id) || -1]);
+      if (rxRes.rows.length === 0) return res.status(404).json({ error: 'Reaction not found' });
+      const rx = rxRes.rows[0];
+      return res.json({
+        type: 'reaction',
+        reaction: rx,
+        messages: [
+          {
+            id: rx.id,
+            direction: 'inbound',
+            type: rx.channel,
+            content: `${rx.reaction_emoji || '❤️'} ${rx.reaction || 'Like'} by ${rx.sender_name || (rx.sender_username ? `@${rx.sender_username}` : 'Follower')} on ${rx.target_type || 'post'}: "${rx.target_title || 'Post'}"`,
+            timestamp: rx.created_at,
+            reactionEmoji: rx.reaction_emoji || '❤️',
+            reaction: rx.reaction || 'like'
+          }
+        ]
+      });
+    }
+
+    res.status(400).json({ error: 'Unknown thread type' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reply or send message from Inbox
+router.post('/inbox/reply', requireUser, async (req, res) => {
+  try {
+    const { type, conversationId, leadId, phone, email, subject, body, emailId, templateName, templateParams, templateLang } = req.body || {};
+    if (!body && !templateName) return res.status(400).json({ error: 'Message body or template is required' });
+
+    if (type === 'whatsapp') {
+      const targetPhone = phone || '';
+      if (!targetPhone) return res.status(400).json({ error: 'WhatsApp number is required to send a message' });
+
+      const sendResult = await sendWhatsAppMessage({
+        userId: req.user.id,
+        leadId: leadId ? Number(leadId) : null,
+        phone: targetPhone,
+        message: body ? body.trim() : '',
+        templateName: templateName || null,
+        templateParams: Array.isArray(templateParams) ? templateParams : null,
+        templateLang: templateLang || 'en',
+        autoFallback: true,
+      });
+
+      if (!sendResult.ok) {
+        return res.status(sendResult.status || 400).json({ error: sendResult.error, details: sendResult.details });
+      }
+
+      return res.json({ success: true, message: 'WhatsApp message sent', metaMessageId: sendResult.metaMessageId, warning: sendResult.warning });
+    }
+
+    if (type === 'facebook' || type === 'instagram') {
+      const convId = conversationId ? parseInt(conversationId) : null;
+      let recipientId = req.body.recipientId || req.body.senderId;
+
+      if (!recipientId && convId) {
+        const c = await db.query('SELECT sender_id FROM meta_conversations WHERE id = $1', [convId]);
+        recipientId = c.rows[0]?.sender_id;
+      }
+
+      if (!recipientId) {
+        return res.status(400).json({ error: `Recipient ID is required to send ${type} message` });
+      }
+
+      const sendResult = await sendMetaMessage({
+        channel: type,
+        recipientId,
+        text: (body || '').trim(),
+        conversationId: convId
+      });
+
+      return res.json({
+        success: true,
+        message: `${type === 'instagram' ? 'Instagram DM' : 'Facebook Messenger message'} sent`,
+        messageId: sendResult.messageId
+      });
+    }
+
+    if (type === 'comment') {
+      let commentId = req.body.commentId || req.body.id;
+      let channel = req.body.channel || 'instagram';
+
+      // If numeric ID or not found directly, lookup real comment_id
+      const cRow = await db.query(
+        'SELECT comment_id, channel FROM meta_comments WHERE comment_id = $1 OR id = $2 LIMIT 1',
+        [String(commentId || ''), parseInt(commentId) || -1]
+      );
+      if (cRow.rows.length > 0) {
+        commentId = cRow.rows[0].comment_id;
+        channel = cRow.rows[0].channel || channel;
+      }
+
+      if (!commentId) return res.status(400).json({ error: 'Comment ID is required to reply' });
+
+      await replyToMetaComment({
+        channel,
+        commentId,
+        message: (body || '').trim()
+      });
+
+      return res.json({ success: true, message: 'Comment reply posted successfully' });
+    }
+
+    if (type === 'email') {
+      const toEmail = email || '';
+      if (!toEmail) return res.status(400).json({ error: 'Recipient email is required' });
+
+      // If replying to an existing draft, send it via the canonical sender and
+      // update the outreach_emails row so it leaves the "Drafts" queue.
+      if (emailId) {
+        let draft = null;
+        try {
+          const draftRes = await db.query(
+            `SELECT oe.id, oe.lead_id, COALESCE(oe.to_email, oe.recipient_email) AS to_email,
+                    oe.subject, oe.body, oe.status
+               FROM outreach_emails oe
+              WHERE oe.id = $1
+                AND (oe.user_id = $2 OR oe.user_id IS NULL)
+              LIMIT 1`,
+            [emailId, req.user.id]
+          );
+          draft = draftRes.rows[0] || null;
+        } catch (lookupErr) {
+          console.warn('[clinic-os] draft lookup warning:', lookupErr.message);
+        }
+
+        if (draft) {
+          const sendTo = toEmail || draft.to_email;
+          if (!sendTo) return res.status(400).json({ error: 'This draft has no recipient email.' });
+
+          try {
+            await deliverClinicEmail({
+              to: sendTo,
+              subject: subject || draft.subject || 'Re: Patient Consultation',
+              html: body.trim(),
+              leadId: leadId || draft.lead_id || null,
+            });
+          } catch (deliverErr) {
+            return res.status(400).json({ error: `Email delivery failed: ${deliverErr.message}` });
+          }
+
+          try {
+            await db.query(
+              `UPDATE outreach_emails
+                  SET status = 'sent',
+                      sent_at = COALESCE(sent_at, NOW()),
+                      to_email = COALESCE($1, to_email),
+                      recipient_email = COALESCE($1, recipient_email),
+                      subject = COALESCE($2, subject),
+                      body = $3
+                WHERE id = $4`,
+              [sendTo, subject || draft.subject || null, body.trim(), emailId]
+            );
+          } catch (updateErr) {
+            console.warn('[clinic-os] draft status update warning:', updateErr.message);
+          }
+
+          return res.json({ success: true, message: 'Draft sent successfully', emailId });
+        }
+      }
+
+      try {
+        await deliverClinicEmail({
+          to: toEmail,
+          subject: subject || 'Re: Patient Consultation',
+          html: body.trim(),
+          leadId: leadId ? Number(leadId) : null,
+        });
+      } catch (deliverErr) {
+        return res.status(400).json({ error: deliverErr.message });
+      }
+
+      const ins = await db.query(
+        `INSERT INTO outreach_emails (user_id, lead_id, to_email, recipient_email, subject, body, status, sent_at, created_at)
+         VALUES ($1, $2, $3, $3, $4, $5, 'sent', NOW(), NOW()) RETURNING *`,
+        [req.user.id, leadId ? Number(leadId) : null, toEmail, subject || 'Re: Patient Consultation', body.trim()]
+      );
+      return res.json({ success: true, message: 'Email sent', email: ins.rows[0] });
+    }
+
+    if (type === 'note') {
+      const ins = await db.query(
+        `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+         VALUES ($1, $2, 'note', $3, $4, NOW()) RETURNING *`,
+        [req.user.id, leadId || null, subject || 'Follow-up Note', body.trim()]
+      );
+      return res.json({ success: true, message: 'Note added', note: ins.rows[0] });
+    }
+
+    res.status(400).json({ error: 'Invalid reply type' });
+  } catch (err) {
+    if (err.code === 'WINDOW_EXPIRED' || err.status === 409 || (err.message && err.message.includes('24h window expired'))) {
+      return res.status(409).json({ error: '24h window expired', details: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Dialer: list leads with phone for outbound
+// ---------------------------------------------------------------------------
+router.get('/dialer/leads', requireUser, async (req, res) => {
+  try {
+    const { branch } = req.query;
+    let queryText = `
+      SELECT id, first_name, last_name, phone, company, pipeline_stage
+         FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND phone IS NOT NULL AND phone <> ''
+    `;
+    const params = [req.user.id];
+    
+    if (branch) {
+      queryText += ` AND (pipeline_stage = $${params.length + 1} OR source = $${params.length + 1} OR company = $${params.length + 1})`;
+      params.push(branch);
+    }
+    
+    queryText += ` ORDER BY COALESCE(updated_at, created_at) DESC NULLS LAST LIMIT 250`;
+    
+    const r = await db.query(queryText, params);
+    res.json({ leads: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/dialer/call', requireUser, async (req, res) => {
+  try {
+    const {
+      destination,
+      conversationType = 'patient_consultation',
+      doctor,
+      branch,
+      leadId,
+      isMock = false,
+      mockOutcome = 'connected',
+      durationSecs = 0,
+    } = req.body || {};
+
+    if (!destination && !leadId) {
+      return res.status(400).json({ error: 'Destination phone number or lead ID is required' });
+    }
+
+    let finalLeadId = leadId ? Number(leadId) : null;
+    let contactName = 'Patient';
+    let companyName = branch || 'Aura Laser & Cosmetic Clinic';
+
+    if (finalLeadId) {
+      const l = await db.query('SELECT first_name, last_name, phone, company FROM leads WHERE id = $1', [finalLeadId]);
+      if (l.rows.length > 0) {
+        contactName = [l.rows[0].first_name, l.rows[0].last_name].filter(Boolean).join(' ') || contactName;
+        companyName = l.rows[0].company || companyName;
+      }
+    } else if (destination) {
+      const cleaned = destination.replace(/[^\d+]/g, '');
+      const l = await db.query(
+        'SELECT id, first_name, last_name, company FROM leads WHERE (user_id = $1 OR user_id IS NULL) AND (phone = $2 OR phone LIKE $3) LIMIT 1',
+        [req.user.id, cleaned, `%${cleaned.slice(-10)}%`]
+      );
+      if (l.rows.length > 0) {
+        finalLeadId = l.rows[0].id;
+        contactName = [l.rows[0].first_name, l.rows[0].last_name].filter(Boolean).join(' ') || contactName;
+        companyName = l.rows[0].company || companyName;
+      } else {
+        // Do not invent a "Patient ####" contact name or create a placeholder lead.
+        // If no saved contact matches, keep the phone number as the visible identity.
+        contactName = destination;
+      }
+    }
+
+    const typeLabels = {
+      patient_consultation: 'Patient Consultation',
+      follow_up: 'Post-Treatment Follow-up',
+      treatment_query: 'Treatment Inquiry',
+      appointment_booking: 'Appointment Booking',
+      payment_reminder: 'Package / Payment Reminder',
+      general: 'General Front-Desk Inquiry',
+    };
+    const label = typeLabels[conversationType] || 'Clinical Consultation';
+
+    const transcriptsByOutcome = {
+      connected: [
+        { speaker: 'AI', text: `Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ketki, your AI clinical coordinator.` },
+        { speaker: 'Patient', text: `Hello! Yes, I was inquiring regarding ${label.toLowerCase()}.` },
+        { speaker: 'AI', text: `Certainly! Our team will ensure you receive personalized care. I have updated your consultation notes for ${doctor || 'the clinical team'} at ${branch || 'Alkapuri Main'}.` },
+        { speaker: 'Patient', text: 'Thank you so much, that sounds wonderful.' },
+        { speaker: 'AI', text: 'You are most welcome! Have a wonderful day ahead.' },
+      ],
+      busy: [
+        { speaker: 'System', text: 'Subscriber line was reported busy. Call could not be connected.' },
+      ],
+      'no-answer': [
+        { speaker: 'System', text: 'No answer from subscriber destination after 30 seconds of ringing.' },
+      ],
+      failed: [
+        { speaker: 'System', text: 'Carrier returned network error or unreachable route.' },
+      ],
+    };
+
+    if (isMock) {
+      const convId = `mock_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+      const callSid = `MCK_${Date.now()}`;
+      const status = mockOutcome === 'connected' ? 'in-progress' : mockOutcome;
+      const actualDuration = mockOutcome === 'connected' ? (durationSecs || 0) : 0;
+      const transcript = transcriptsByOutcome[mockOutcome] || transcriptsByOutcome.connected;
+      const summary = mockOutcome === 'connected'
+        ? `Call active: Patient discussing ${label.toLowerCase()} with coordinator. Assigned to ${doctor || 'Clinic Team'} (${branch || 'Alkapuri Main'}).`
+        : `Call attempt ended with status: ${mockOutcome}.`;
+
+      // Insert immediately into ai_calls table in PostgreSQL DB
+      const inserted = await db.query(
+        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status, booking_type, duration_secs, transcript_summary, transcript, started_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+         RETURNING *`,
+        [finalLeadId, convId, callSid, destination, contactName, companyName, status, conversationType, actualDuration, summary, JSON.stringify(transcript)]
+      );
+
+      // Record clinic note on patient timeline
+      if (finalLeadId) {
+        await db.query(
+          `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+           VALUES ($1, $2, 'call', $3, $4, NOW())`,
+          [req.user.id, finalLeadId, `AI Call: ${label}`, summary]
+        );
+      }
+
+      return res.json({ success: true, isMock: true, call: inserted.rows[0] });
+    }
+
+    // 1. Plivo Real Call (Default when live telephony engine is Plivo)
+    const { engine = 'plivo' } = req.body || {};
+    if (engine === 'plivo') {
+      const plivo = require('./plivo');
+      const creds = plivo.getPlivoCredentials();
+      if (!creds.isConfigured) {
+        return res.status(400).json({
+          error: 'Plivo credentials are not configured yet. Please configure your Plivo Auth ID, Auth Token, and Plivo Number.',
+          requiresPlivoConfig: true,
+        });
+      }
+
+      const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
+      const hostUrl = host.includes('localhost') ? 'https://aura-ai-six-beta.vercel.app' : `${rawProto}://${host}`;
+      const plivoResult = await plivo.dispatchPlivoCall({
+        to: destination,
+        from: creds.callerId,
+        conversationType,
+        doctor,
+        branch,
+        hostUrl,
+      });
+
+      const inserted = await db.query(
+        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, started_at)
+         VALUES ($1, $2, $2, $3, $4, $5, $6, 'ringing', $7, 'plivo', 'outbound', NOW())
+         RETURNING *`,
+        [finalLeadId, plivoResult.callUuid, plivoResult.from, plivoResult.to, contactName, companyName, conversationType]
+      );
+
+      if (finalLeadId) {
+        await db.query(
+          `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+           VALUES ($1, $2, 'call', $3, $4, NOW())`,
+          [req.user.id, finalLeadId, `Plivo Call: ${label}`, `Real outbound call placed via Plivo to ${plivoResult.to}. Call UUID: ${plivoResult.callUuid}`]
+        );
+      }
+
+      return res.json({ success: true, isMock: false, engine: 'plivo', call: inserted.rows[0], callUuid: plivoResult.callUuid });
+    }
+
+    // 2. Live AI call: dispatch via Sarvam
+    if (!process.env.SARVAM_API_KEY) {
+      return res.status(400).json({
+        error: 'SARVAM_API_KEY is not configured on this server. Switch to Mock Mode or Plivo.',
+      });
+    }
+
+    const { dispatchSarvamCall, buildAgentVars } = require('./sarvam');
+    const { canCall } = require('./call-utils');
+
+    const leadResult = await db.query('SELECT * FROM leads WHERE id = $1', [finalLeadId]);
+    const lead = leadResult.rows[0];
+    const check = canCall(lead);
+    if (!check.ok) return res.status(400).json({ error: check.reason });
+
+    const sarvamRes = await dispatchSarvamCall({
+      phoneE164: check.e164,
+      vars: buildAgentVars({
+        name: contactName,
+        phone: lead.phone,
+        email: lead.email,
+      }),
+      metadata: { kind: 'single', lead_id: String(lead.id), conversation_type: conversationType },
+    });
+
+    const requestId = sarvamRes.attempt_id;
+    await db.query(`
+      UPDATE leads
+      SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
+      WHERE id = $2
+    `, [requestId, lead.id]);
+
+    const insCall = await db.query(
+      `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, started_at)
+       VALUES ($1, $2, $2, '+917965852999', $3, $4, $5, 'queued', $6, 'sarvam', 'outbound', NOW())
+       RETURNING *`,
+      [lead.id, requestId, check.e164, contactName, companyName, conversationType]
+    );
+
+    if (lead.id) {
+      await db.query(
+        `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+         VALUES ($1, $2, 'call', $3, $4, NOW())`,
+        [req.user.id, lead.id, `Sarvam AI Call: ${label}`, `Outbound call dispatched via Sarvam AI to ${check.e164}. Request ID: ${requestId}`]
+      );
+    }
+
+    return res.json({ success: true, isMock: false, requestId, call: insCall.rows[0] });
+  } catch (err) {
+    console.error('[Clinic Dialer Call Error]:', err);
+    res.status(500).json({ error: err.message || 'Call dispatch failed' });
+  }
+});
+
+// Update call record on hangup / completion with duration, transcript, summary
+router.patch('/dialer/call/:id', requireUser, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status = 'completed', durationSecs = 0, transcript, summary } = req.body || {};
+
+    const updated = await db.query(
+      `UPDATE ai_calls
+          SET status = $1,
+              duration_secs = GREATEST(duration_secs, $2),
+              transcript_summary = COALESCE($3, transcript_summary),
+              transcript = COALESCE($4, transcript),
+              updated_at = NOW()
+        WHERE id = $5
+        RETURNING *`,
+      [status, Number(durationSecs) || 0, summary || null, transcript ? JSON.stringify(transcript) : null, id]
+    );
+
+    if (updated.rows.length === 0) {
+      return res.status(404).json({ error: 'Call record not found' });
+    }
+
+    const call = updated.rows[0];
+    if (call.lead_id) {
+      await db.query(
+        `UPDATE leads SET last_ai_call_status = $1, last_ai_call_at = NOW() WHERE id = $2`,
+        [status, call.lead_id]
+      );
+
+      // Update or add final timeline note
+      if (summary) {
+        await db.query(
+          `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+           VALUES ($1, $2, 'call', $3, $4, NOW())`,
+          [req.user.id, call.lead_id, `AI Call Completed (${formatDuration(call.duration_secs)})`, summary]
+        );
+      }
+    }
+
+    res.json({ success: true, call });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+function formatDuration(sec) {
+  if (!sec && sec !== 0) return '00:00';
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}m ${s}s`;
+}
+
+router.post('/dialer/contact', requireUser, async (req, res) => {
+  try {
+    const { name, phone, email, company, callId } = req.body || {};
+    if (!name || !phone) return res.status(400).json({ error: 'Name and phone are required' });
+    const parts = name.trim().split(/\s+/);
+    const firstName = parts[0] || 'Patient';
+    const lastName = parts.slice(1).join(' ') || '';
+
+    const ins = await db.query(
+      `INSERT INTO leads (user_id, first_name, last_name, phone, email, company, pipeline_stage, status, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, 'New Lead', 'Active', NOW(), NOW())
+       RETURNING *`,
+      [req.user.id, firstName, lastName, phone.trim(), email || null, company || 'Aura Laser & Cosmetic Clinic']
+    );
+    const lead = ins.rows[0];
+
+    if (callId) {
+      await db.query(
+        `UPDATE ai_calls SET lead_id = $1, lead_name = $2 WHERE id = $3`,
+        [lead.id, name.trim(), callId]
+      );
+    }
+
+    res.json({ success: true, lead });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Plivo Telephony Webhooks & Settings
+// ---------------------------------------------------------------------------
+router.post('/dialer/plivo/answer', async (req, res) => {
+  const { type = 'patient_consultation', doctor = 'Dr. Aditya Shah', branch = 'Alkapuri Main Clinic' } = req.query;
+  const { CallUUID, Direction, From, To } = req.body || {};
+
+  // If inbound call from patient to clinic Plivo number
+  const isIncoming = Direction === 'inbound' || req.query.direction === 'inbound';
+  if (isIncoming && CallUUID) {
+    try {
+      const fromNumber = From || req.query.from || 'Unknown Patient';
+      const toNumber = To || req.query.to || '+917965852999';
+      const cleanPhone = fromNumber.replace(/\D/g, '').slice(-10);
+
+      const leadMatch = await db.query(
+        'SELECT id, first_name, last_name, company FROM leads WHERE phone LIKE $1 LIMIT 1',
+        [`%${cleanPhone}%`]
+      );
+      const callerName = leadMatch.rows[0]
+        ? [leadMatch.rows[0].first_name, leadMatch.rows[0].last_name].filter(Boolean).join(' ')
+        : fromNumber;
+      const callerLeadId = leadMatch.rows[0]?.id || null;
+
+      await db.query(
+        `INSERT INTO ai_calls (
+          lead_id, conversation_id, call_sid, from_phone, to_phone,
+          lead_name, company_name, status, booking_type, duration_secs,
+          provider, direction, started_at
+        ) VALUES (
+          $1, $2, $2, $3, $4,
+          $5, $6, 'in-progress', 'patient_inbound', 0,
+          'plivo', 'inbound', NOW()
+        ) ON CONFLICT DO NOTHING`,
+        [callerLeadId, CallUUID, fromNumber, toNumber, callerName, leadMatch.rows[0]?.company || 'Inbound Patient']
+      );
+    } catch (inbErr) {
+      console.warn('[Plivo Inbound Log Error]:', inbErr.message);
+    }
+  }
+
+  const callbackProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const callbackHost = req.get('host') || 'aura-ai-six-beta.vercel.app';
+  const recordingCallbackUrl = `${callbackProto}://${callbackHost}/api/clinic/dialer/plivo/recording?callUuid=${encodeURIComponent(CallUUID || '')}`;
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Record
+    recordSession="true"
+    fileFormat="mp3"
+    maxLength="900"
+    callbackUrl="${recordingCallbackUrl}"
+    callbackMethod="POST"
+  />
+  <Speak language="en-IN" voice="Polly.Aditi">Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Your consultation call is now connected.</Speak>
+  <Wait length="900" />
+</Response>`;
+  res.set('Content-Type', 'text/xml');
+  res.send(xml);
+});
+
+router.post('/dialer/plivo/inbound', async (req, res) => {
+  const { CallUUID, From, To } = req.body || {};
+  if (CallUUID) {
+    try {
+      const fromNumber = From || 'Inbound Caller';
+      const toNumber = To || '+917965852999';
+      const cleanPhone = fromNumber.replace(/\D/g, '').slice(-10);
+      const leadMatch = await db.query(
+        'SELECT id, first_name, last_name, company FROM leads WHERE phone LIKE $1 LIMIT 1',
+        [`%${cleanPhone}%`]
+      );
+      const callerName = leadMatch.rows[0]
+        ? [leadMatch.rows[0].first_name, leadMatch.rows[0].last_name].filter(Boolean).join(' ')
+        : `Patient (${fromNumber.slice(-4)})`;
+
+      await db.query(
+        `INSERT INTO ai_calls (
+          lead_id, conversation_id, call_sid, from_phone, to_phone,
+          lead_name, company_name, status, booking_type, duration_secs,
+          provider, direction, started_at
+        ) VALUES (
+          $1, $2, $2, $3, $4,
+          $5, $6, 'in-progress', 'patient_inbound', 0,
+          'plivo', 'inbound', NOW()
+        ) ON CONFLICT DO NOTHING`,
+        [leadMatch.rows[0]?.id || null, CallUUID, fromNumber, toNumber, callerName, leadMatch.rows[0]?.company || 'Inbound Consultation']
+      );
+    } catch (e) {
+      console.warn('[Plivo Inbound Webhook Error]:', e.message);
+    }
+  }
+
+  const callbackProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const callbackHost = req.get('host') || 'aura-ai-six-beta.vercel.app';
+  const recordingCallbackUrl = `${callbackProto}://${callbackHost}/api/clinic/dialer/plivo/recording?callUuid=${encodeURIComponent(CallUUID || '')}`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Record
+    recordSession="true"
+    fileFormat="mp3"
+    maxLength="900"
+    callbackUrl="${recordingCallbackUrl}"
+    callbackMethod="POST"
+  />
+  <Speak language="en-IN" voice="Polly.Aditi">Welcome to Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Please stay on the line while we connect you to our clinical coordinator.</Speak>
+  <Wait length="300" />
+</Response>`;
+  res.set('Content-Type', 'text/xml');
+  res.send(xml);
+});
+
+router.post('/dialer/plivo/hangup', async (req, res) => {
+  try {
+    const { CallUUID, Duration, CallStatus, RecordUrl, TotalCost, Rate } = req.body || {};
+    if (CallUUID) {
+      const upd = await db.query(
+        `UPDATE ai_calls
+            SET status = $1,
+                duration_secs = GREATEST(duration_secs, $2),
+                recording_url = COALESCE($3, recording_url),
+                call_cost = COALESCE($4, call_cost),
+                call_rate = COALESCE($5, call_rate),
+                updated_at = NOW()
+          WHERE call_sid = $6 OR conversation_id = $6
+          RETURNING id, recording_url`,
+        [
+          CallStatus === 'completed' ? 'completed' : (CallStatus || 'completed'),
+          Number(Duration) || 0,
+          RecordUrl || null,
+          TotalCost ? Number(TotalCost) : null,
+          Rate ? Number(Rate) : null,
+          CallUUID
+        ]
+      );
+      if (upd.rows.length > 0 && upd.rows[0].recording_url) {
+        transcribePlivoRecording(upd.rows[0].id, upd.rows[0].recording_url).catch(() => {});
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Plivo asynchronous recording callback
+router.post('/dialer/plivo/recording', async (req, res) => {
+  try {
+    const { CallUUID: bodyCallUUID, RecordUrl, record_url, recording_url, RecordingDuration, recording_duration } = req.body || {};
+    const CallUUID = bodyCallUUID || req.body?.call_uuid || req.query.callUuid;
+    const finalRecordUrl = RecordUrl || record_url || recording_url;
+    const finalRecordingDuration = RecordingDuration || recording_duration;
+    if (CallUUID && finalRecordUrl) {
+      const upd = await db.query(
+        `UPDATE ai_calls
+            SET recording_url = $1,
+                duration_secs = GREATEST(duration_secs, $2),
+                transcription_status = CASE WHEN transcript IS NOT NULL AND jsonb_typeof(transcript) = 'array' AND jsonb_array_length(transcript) > 0 THEN 'completed' ELSE 'pending' END,
+                transcription_error = NULL,
+                updated_at = NOW()
+          WHERE call_sid = $3 OR conversation_id = $3
+          RETURNING id`,
+        [finalRecordUrl, Math.round(Number(finalRecordingDuration) || 0), CallUUID]
+      );
+      if (upd.rows.length > 0) {
+        transcribePlivoRecording(upd.rows[0].id, finalRecordUrl).catch((error) => console.error('[Plivo callback transcription]', error.message));
+      }
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Stream Plivo recording securely with basic auth proxy
+router.get('/dialer/plivo/recording-stream/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const callRes = await db.query(
+      'SELECT id, recording_url, call_sid, conversation_id FROM ai_calls WHERE id = $1 OR call_sid = $1 OR conversation_id = $1 LIMIT 1',
+      [id]
+    );
+    if (callRes.rows.length === 0) return res.status(404).send('Call not found');
+
+    const rawUrl = callRes.rows[0].recording_url;
+    if (!rawUrl) return res.status(404).send('No recording available for this call');
+
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
+
+    const audioRes = await fetch(rawUrl, {
+      headers: rawUrl.includes('plivo.com') ? { Authorization: authHeader } : {}
+    });
+
+    if (!audioRes.ok) {
+      return res.status(audioRes.status).send('Could not fetch audio stream from Plivo');
+    }
+
+    res.set('Content-Type', audioRes.headers.get('content-type') || 'audio/mpeg');
+    res.set('Content-Length', audioRes.headers.get('content-length') || '');
+    res.set('Accept-Ranges', 'bytes');
+
+    const arrayBuf = await audioRes.arrayBuffer();
+    res.send(Buffer.from(arrayBuf));
+  } catch (err) {
+    console.error('[Plivo Recording Stream Error]:', err);
+    res.status(500).send(err.message);
+  }
+});
+
+// Helper: Transcribe Plivo audio using Gemini 2.5 Flash
+async function transcribePlivoRecording(callId, recordingUrl) {
+  if (!recordingUrl) return null;
+  const claim = await db.query(
+    `UPDATE ai_calls SET transcription_status = 'processing', transcription_error = NULL, updated_at = NOW()
+      WHERE id = $1
+        AND (COALESCE(transcription_status, 'pending') = 'pending'
+             OR (transcription_status = 'processing' AND updated_at < NOW() - INTERVAL '3 minutes'))
+        AND (transcript IS NULL OR jsonb_typeof(transcript) = 'null' OR transcript = '[]'::jsonb)
+      RETURNING id`, [callId]
+  );
+  if (!claim.rows.length) return null;
+  try {
+    if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured on the server');
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
+
+    const audioRes = await fetch(recordingUrl, {
+      headers: recordingUrl.includes('plivo.com') ? { Authorization: authHeader } : {}
+    });
+    if (!audioRes.ok) throw new Error(`Could not download Plivo recording: ${audioRes.status}`);
+
+    const arrayBuf = await audioRes.arrayBuffer();
+    const base64Audio = Buffer.from(arrayBuf).toString('base64');
+
+    const prompt = `You are an expert clinical conversation transcriptionist and analyst for Dr. Aditya Shah's Aura Laser & Cosmetic Clinic.
+Listen carefully to this phone call recording.
+Analyze the speech between the clinic coordinator/agent and the patient/caller.
+Produce a valid JSON object with:
+1. "transcript": Array of conversation turns. Each turn MUST be:
+   {
+     "speaker": "AI Coordinator" | "Patient" | "Clinic Doctor",
+     "text": "Exact words spoken (preserve Hindi, Gujarati, or English phrases accurately)",
+     "time": "MM:SS"
+   }
+2. "transcript_summary": 2-3 sentences summarizing what was discussed, doctor requested, branch, treatments, and call outcome.
+3. "sentiment": "Positive" | "Neutral" | "Negative"
+4. "outcome": "booked" | "connected" | "inquiry" | "follow_up" | "rescheduled" | "not_interested"
+
+Return ONLY valid JSON.`;
+
+    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const geminiRes = await fetch(geminiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { text: prompt },
+            { inlineData: { mimeType: 'audio/mp3', data: base64Audio } }
+          ]
+        }],
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.2 }
+      })
+    });
+
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      throw new Error(`Gemini API error: ${geminiRes.status} ${errText}`);
+    }
+
+    const geminiData = await geminiRes.json();
+    const rawText = geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+    const parsed = JSON.parse(rawText);
+
+    if (parsed.transcript && parsed.transcript.length > 0) {
+      await db.query(
+        `UPDATE ai_calls
+            SET transcript = $1,
+                transcript_summary = COALESCE($2, transcript_summary),
+                sentiment = COALESCE($3, sentiment),
+                outcome = COALESCE($4, outcome),
+                transcription_status = 'completed',
+                transcription_error = NULL,
+                updated_at = NOW()
+          WHERE id = $5`,
+        [
+          JSON.stringify(parsed.transcript),
+          parsed.transcript_summary || null,
+          parsed.sentiment || 'Neutral',
+          parsed.outcome || 'connected',
+          callId
+        ]
+      );
+      return parsed;
+    }
+    throw new Error('The transcription service returned no conversation turns');
+  } catch (err) {
+    console.error(`[Plivo Transcribe Error on call ${callId}]:`, err.message);
+    await db.query(`UPDATE ai_calls SET transcription_status = 'failed', transcription_error = $1, updated_at = NOW() WHERE id = $2 AND transcription_status = 'processing'`, [String(err.message || 'Transcription failed').slice(0, 1000), callId]).catch(() => {});
+  }
+  return null;
+}
+
+router.get('/dialer/settings', requireUser, async (req, res) => {
+  try {
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    res.json({
+      plivoConfigured: creds.isConfigured,
+      plivoCallerId: creds.callerId || '',
+      plivoAuthId: creds.authId ? `${creds.authId.slice(0, 6)}...` : '',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/dialer/settings', requireUser, async (req, res) => {
+  try {
+    const { plivoAuthId, plivoAuthToken, plivoCallerId } = req.body || {};
+    if (plivoAuthId) process.env.PLIVO_AUTH_ID = String(plivoAuthId).trim();
+    if (plivoAuthToken) process.env.PLIVO_AUTH_TOKEN = String(plivoAuthToken).trim();
+    if (plivoCallerId) process.env.PLIVO_CALLER_ID = String(plivoCallerId).trim();
+
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    res.json({ success: true, plivoConfigured: creds.isConfigured });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Call Review: Plivo & Sarvam Transactions (Inbound + Outbound)
+// ---------------------------------------------------------------------------
+router.get('/call-review', requireUser, async (req, res) => {
+  try {
+    const { provider, direction, search, branch } = req.query;
+
+    let queryText = `
+      SELECT ac.*, 
+             COALESCE(
+               NULLIF(NULLIF(NULLIF(ac.lead_name_english, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(ac.lead_name, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(bc.name_english, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(bc.name, '.'), '-'), ''),
+               NULLIF(NULLIF(NULLIF(l.name_english, '.'), '-'), ''),
+               NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''),
+               'Patient'
+             ) AS display_name,
+             COALESCE(ac.to_phone, l.phone, bc.phone_e164, '—') AS display_phone,
+             COALESCE(ac.company_name, l.company, bc.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
+             COALESCE(ac.provider, 'sarvam') AS provider,
+             COALESCE(ac.direction, 'outbound') AS direction,
+             jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count
+        FROM ai_calls ac
+        LEFT JOIN leads l ON (l.id = ac.lead_id OR l.phone = ac.to_phone OR l.whatsapp = ac.to_phone)
+        LEFT JOIN bulk_contacts bc ON (
+          bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ac.to_phone, ''), '\\D', '', 'g'), 10)
+          OR bc.phone_e164 = ac.to_phone
+        )
+       WHERE (l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)
+    `;
+    const params = [req.user.id];
+
+    if (provider && provider !== 'all') {
+      params.push(provider.toLowerCase());
+      queryText += ` AND LOWER(COALESCE(ac.provider, 'plivo')) = $${params.length}`;
+    }
+
+    if (direction && direction !== 'all') {
+      params.push(direction.toLowerCase());
+      queryText += ` AND LOWER(COALESCE(ac.direction, 'outbound')) = $${params.length}`;
+    }
+
+    if (branch) {
+      // Filter by branch: check if lead's pipeline_stage, source, or company matches branch
+      params.push(branch);
+      queryText += ` AND (l.pipeline_stage = $${params.length} OR l.source = $${params.length} OR l.company = $${params.length} OR ac.company_name = $${params.length})`;
+    }
+
+    if (search && search.trim()) {
+      params.push(`%${search.trim().toLowerCase()}%`);
+      queryText += ` AND (
+        LOWER(COALESCE(ac.lead_name, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(l.first_name, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(l.last_name, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.to_phone, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.from_phone, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.call_sid, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.conversation_id, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.transcript_summary, '')) LIKE $${params.length}
+      )`;
+    }
+
+    queryText += ` ORDER BY ac.started_at DESC NULLS LAST LIMIT 150`;
+
+    const r = await db.query(queryText, params);
+
+    // Compute KPI stats across all calls
+    let statsQuery = `
+      SELECT 
+        COUNT(*)::int AS total,
+        COUNT(CASE WHEN LOWER(COALESCE(direction, 'outbound')) = 'inbound' THEN 1 END)::int AS inbound,
+        COUNT(CASE WHEN LOWER(COALESCE(direction, 'outbound')) = 'outbound' THEN 1 END)::int AS outbound,
+        COUNT(CASE WHEN LOWER(COALESCE(provider, 'plivo')) = 'plivo' THEN 1 END)::int AS plivo,
+        COUNT(CASE WHEN LOWER(COALESCE(provider, 'plivo')) = 'sarvam' THEN 1 END)::int AS sarvam,
+        COALESCE(SUM(duration_secs), 0)::int AS total_duration
+      FROM ai_calls
+    `;
+    const statsParams = [];
+    
+    if (branch) {
+      statsQuery += ` WHERE company_name = $1`;
+      statsParams.push(branch);
+    }
+    
+    const statsRes = await db.query(statsQuery, statsParams);
+
+    const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
+    const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const baseUrl = `${rawProto}://${host}`;
+
+    const formattedCalls = r.rows.map(c => {
+      let rec = c.recording_url;
+      if (rec && rec.includes('plivo.com')) {
+        rec = `${baseUrl}/api/clinic/dialer/plivo/recording-stream/${c.id}`;
+      }
+      return {
+        ...c,
+        display_name: cleanEnglishName(c.display_name || c.lead_name || 'Patient'),
+        recording_url: rec
+      };
+    });
+
+    res.json({ 
+      calls: formattedCalls,
+      stats: statsRes.rows[0] || { total: 0, inbound: 0, outbound: 0, plivo: 0, sarvam: 0, total_duration: 0 }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/call-review/:id', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT ac.*, 
+              COALESCE(ac.lead_name, CONCAT_WS(' ', l.first_name, l.last_name), 'Patient') AS display_name,
+              COALESCE(ac.to_phone, l.phone, '—') AS display_phone,
+              COALESCE(ac.company_name, l.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
+              l.email,
+              COALESCE(ac.provider, 'plivo') AS provider,
+              COALESCE(ac.direction, 'outbound') AS direction
+         FROM ai_calls ac
+         LEFT JOIN leads l ON l.id = ac.lead_id
+        WHERE ac.id = $1 AND (l.user_id = $2 OR ac.lead_id IS NULL OR l.user_id IS NULL)`,
+      [req.params.id, req.user.id]
+    );
+    if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
+    const call = r.rows[0];
+    call.display_name = cleanEnglishName(call.display_name || call.lead_name || 'Patient');
+
+    const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
+    const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const baseUrl = `${rawProto}://${host}`;
+
+    const rawRecordingUrl = call.recording_url;
+    if (call.recording_url && call.recording_url.includes('plivo.com')) {
+      call.recording_url = `${baseUrl}/api/clinic/dialer/plivo/recording-stream/${call.id}`;
+    }
+
+    // Auto-fetch and cache Sarvam transcript if not already cached
+    if (call.provider === 'sarvam' && (!call.transcript || call.transcript.length === 0) && call.conversation_id) {
+      try {
+        const { fetchSarvamTranscript } = require('./sarvam');
+        const msgs = await fetchSarvamTranscript(call.conversation_id);
+        if (msgs && msgs.length > 0) {
+          call.transcript = msgs;
+          await db.query('UPDATE ai_calls SET transcript = $1 WHERE id = $2', [JSON.stringify(msgs), call.id]);
+          await db.query('UPDATE bulk_attempts SET transcript = $1 WHERE interaction_id = $2', [JSON.stringify(msgs), call.conversation_id]).catch(() => {});
+        }
+      } catch (err) {
+        console.warn('[Call Review] Could not fetch live Sarvam transcript:', err.message);
+      }
+    }
+
+    // Auto-transcribe Plivo calls if recording exists but transcript is missing
+    if (call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0) && ((call.transcription_status || 'pending') === 'pending' || (call.transcription_status === 'processing' && call.updated_at && new Date(call.updated_at).getTime() < Date.now() - 180000))) {
+      try {
+        const trResult = await transcribePlivoRecording(call.id, rawRecordingUrl);
+        if (trResult && trResult.transcript) {
+          call.transcript = trResult.transcript;
+          call.transcript_summary = trResult.transcript_summary || call.transcript_summary;
+          call.sentiment = trResult.sentiment || call.sentiment;
+          call.outcome = trResult.outcome || call.outcome;
+        }
+      } catch (err) {
+        console.warn('[Call Review] Plivo auto-transcription warning:', err.message);
+      }
+    }
+
+    // Fetch related/other calls for the same patient or phone number
+    let relatedCalls = [];
+    if (call.to_phone || call.lead_id) {
+      const cleanPhone = (call.to_phone || '').replace(/[^\d]/g, '');
+      const last10 = cleanPhone.length >= 10 ? cleanPhone.slice(-10) : cleanPhone;
+      const relRes = await db.query(
+        `SELECT ac.id, ac.provider, ac.direction, ac.duration_secs, ac.started_at, ac.status, 
+                ac.booking_type, ac.recording_url, ac.transcript_summary,
+                jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count
+           FROM ai_calls ac
+          WHERE ac.id != $1 
+            AND (
+              (ac.lead_id IS NOT NULL AND ac.lead_id = $2)
+              OR (ac.to_phone IS NOT NULL AND (ac.to_phone = $3 OR ac.to_phone LIKE $4))
+            )
+          ORDER BY ac.started_at DESC LIMIT 6`,
+        [call.id, call.lead_id || -1, call.to_phone || '', `%${last10}%`]
+      );
+      relatedCalls = relRes.rows;
+    }
+
+    res.json({ call, related_calls: relatedCalls });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Manual re-transcribe endpoint
+router.post('/call-review/:id/transcribe', requireUser, async (req, res) => {
+  try {
+    const callRes = await db.query('SELECT * FROM ai_calls WHERE id = $1', [req.params.id]);
+    if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
+    const call = callRes.rows[0];
+    if (!call.recording_url) return res.status(400).json({ error: 'No audio recording found for this call' });
+    await db.query(`UPDATE ai_calls SET transcription_status = 'pending', transcription_error = NULL WHERE id = $1 AND (transcript IS NULL OR jsonb_typeof(transcript) = 'null' OR transcript = '[]'::jsonb)`, [call.id]);
+
+    const result = await transcribePlivoRecording(call.id, call.recording_url);
+    if (!result) return res.status(500).json({ error: 'Failed to transcribe audio with AI' });
+
+    res.json({ success: true, ...result });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Agent hub (reuse Aura automations)
+// ---------------------------------------------------------------------------
+router.get('/agents', requireUser, async (req, res) => {
+  try {
+    const r = await db.query(
+      `SELECT id, name, trigger, description, active, runs, conversions, steps, created_at
+         FROM automations WHERE user_id = $1 ORDER BY created_at DESC LIMIT 50`,
+      [req.user.id]
+    );
+    res.json({ agents: r.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+module.exports = { router, ensureSchema, transcribePlivoRecording };
+, '\\1'), l.email)) AS phone,
+              COALESCE(
+                (SELECT NULLIF(TRIM(COALESCE(ac.lead_name_english, ac.lead_name)), '')
+                   FROM ai_calls ac
+                  WHERE ac.lead_id = l.id
+                    AND NULLIF(TRIM(COALESCE(ac.lead_name_english, ac.lead_name)), '') IS NOT NULL
+                    AND LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name))) NOT IN ('patient','unknown','unknown caller','unknown contact','busy for five')
+                    AND LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name))) NOT LIKE 'patient %'
+                    AND LOWER(TRIM(COALESCE(ac.lead_name_english, ac.lead_name))) NOT LIKE '% patient'
+                    AND COALESCE(ac.lead_name_english, ac.lead_name, '') !~ '[ऀ-ॿ]'
+                  ORDER BY ac.started_at DESC NULLS LAST LIMIT 1),
+                NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, 'Patient'), NULLIF(l.last_name, 'Patient'))), '')
+              ) AS display_name,
+              l.company, l.status,
               l.pipeline_stage, l.deal_value, l.created_at,
               ((SELECT COUNT(*)::int FROM clinic_appointments a WHERE a.lead_id = l.id) +
                (SELECT COUNT(*)::int FROM calendly_events ce WHERE 
