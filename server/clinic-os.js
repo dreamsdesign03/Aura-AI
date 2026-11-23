@@ -4116,7 +4116,7 @@ router.post('/dialer/plivo/answer', async (req, res) => {
       );
       const callerName = leadMatch.rows[0]
         ? [leadMatch.rows[0].first_name, leadMatch.rows[0].last_name].filter(Boolean).join(' ')
-        : `Patient (${fromNumber.slice(-4)})`;
+        : fromNumber;
       const callerLeadId = leadMatch.rows[0]?.id || null;
 
       await db.query(
@@ -4188,9 +4188,18 @@ router.post('/dialer/plivo/inbound', async (req, res) => {
     }
   }
 
+  const callbackProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const callbackHost = req.get('host') || 'aura-ai-six-beta.vercel.app';
+  const recordingCallbackUrl = `${callbackProto}://${callbackHost}/api/clinic/dialer/plivo/recording?callUuid=${encodeURIComponent(CallUUID || '')}`;
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <Response>
-  <Record recordSession="true" fileFormat="mp3" />
+  <Record
+    recordSession="true"
+    fileFormat="mp3"
+    maxLength="900"
+    callbackUrl="${recordingCallbackUrl}"
+    callbackMethod="POST"
+  />
   <Speak language="en-IN" voice="Polly.Aditi">Welcome to Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Please stay on the line while we connect you to our clinical coordinator.</Speak>
   <Wait length="300" />
 </Response>`;
