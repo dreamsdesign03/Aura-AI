@@ -316,6 +316,8 @@ function ensureSchema() {
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS outcome TEXT;
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS call_rate NUMERIC;
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS call_cost NUMERIC;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS transcription_status TEXT DEFAULT 'pending';
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS transcription_error TEXT;
 
     -- WhatsApp inbox safety: inbound webhooks arrive from numbers that are not
     -- in leads, so these constraints must be relaxed or messages are dropped.
@@ -4245,6 +4247,8 @@ router.post('/dialer/plivo/recording', async (req, res) => {
         `UPDATE ai_calls
             SET recording_url = $1,
                 duration_secs = GREATEST(duration_secs, $2),
+                transcription_status = CASE WHEN transcript IS NOT NULL AND jsonb_typeof(transcript) = 'array' AND jsonb_array_length(transcript) > 0 THEN 'completed' ELSE 'pending' END,
+                transcription_error = NULL,
                 updated_at = NOW()
           WHERE call_sid = $3 OR conversation_id = $3
           RETURNING id`,
@@ -4299,8 +4303,16 @@ router.get('/dialer/plivo/recording-stream/:id', async (req, res) => {
 
 // Helper: Transcribe Plivo audio using Gemini 2.5 Flash
 async function transcribePlivoRecording(callId, recordingUrl) {
-  if (!recordingUrl || !process.env.GEMINI_API_KEY) return null;
+  if (!recordingUrl) return null;
+  const claim = await db.query(
+    `UPDATE ai_calls SET transcription_status = 'processing', transcription_error = NULL, updated_at = NOW()
+      WHERE id = $1 AND COALESCE(transcription_status, 'pending') = 'pending'
+        AND (transcript IS NULL OR jsonb_typeof(transcript) = 'null' OR transcript = '[]'::jsonb)
+      RETURNING id`, [callId]
+  );
+  if (!claim.rows.length) return null;
   try {
+    if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured on the server');
     const plivo = require('./plivo');
     const creds = plivo.getPlivoCredentials();
     const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
@@ -4360,6 +4372,8 @@ Return ONLY valid JSON.`;
                 transcript_summary = COALESCE($2, transcript_summary),
                 sentiment = COALESCE($3, sentiment),
                 outcome = COALESCE($4, outcome),
+                transcription_status = 'completed',
+                transcription_error = NULL,
                 updated_at = NOW()
           WHERE id = $5`,
         [
@@ -4372,8 +4386,10 @@ Return ONLY valid JSON.`;
       );
       return parsed;
     }
+    throw new Error('The transcription service returned no conversation turns');
   } catch (err) {
     console.error(`[Plivo Transcribe Error on call ${callId}]:`, err.message);
+    await db.query(`UPDATE ai_calls SET transcription_status = 'failed', transcription_error = $1, updated_at = NOW() WHERE id = $2 AND transcription_status = 'processing'`, [String(err.message || 'Transcription failed').slice(0, 1000), callId]).catch(() => {});
   }
   return null;
 }
@@ -4563,7 +4579,7 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     }
 
     // Auto-transcribe Plivo calls if recording exists but transcript is missing
-    if (call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0)) {
+    if (call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0) && (call.transcription_status || 'pending') === 'pending') {
       try {
         const trResult = await transcribePlivoRecording(call.id, rawRecordingUrl);
         if (trResult && trResult.transcript) {
@@ -4611,6 +4627,7 @@ router.post('/call-review/:id/transcribe', requireUser, async (req, res) => {
     if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     const call = callRes.rows[0];
     if (!call.recording_url) return res.status(400).json({ error: 'No audio recording found for this call' });
+    await db.query(`UPDATE ai_calls SET transcription_status = 'pending', transcription_error = NULL WHERE id = $1 AND (transcript IS NULL OR jsonb_typeof(transcript) = 'null' OR transcript = '[]'::jsonb)`, [call.id]);
 
     const result = await transcribePlivoRecording(call.id, call.recording_url);
     if (!result) return res.status(500).json({ error: 'Failed to transcribe audio with AI' });
