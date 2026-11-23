@@ -377,8 +377,8 @@ router.get('/conversations', requireUserCookie, async (req, res) => {
       )`;
     }
 
-    const queryText = `${conversationSelect()}${where} ORDER BY ac.started_at DESC NULLS LAST LIMIT ${params.length + 1}`;
     params.push(limit);
+    const queryText = `${conversationSelect()}${where} ORDER BY ac.started_at DESC NULLS LAST LIMIT $${params.length}`;
     const [r, globalRows, totalResult] = await Promise.all([
       db.query(queryText, params),
       db.query(`${conversationSelect()}${baseWhere} ORDER BY ac.started_at DESC NULLS LAST LIMIT 5000`, [userId]),
