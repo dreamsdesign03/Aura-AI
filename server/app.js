@@ -69,6 +69,8 @@ function hashPassword(password, salt) {
  * so the login route must not depend on them having finished already.
  */
 async function ensureAdminAccountForLogin() {
+  // Keep this migration minimal and idempotent; Vercel may invoke login on a
+  // cold start before the normal background migration has completed.
   await db.query(`CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     first_name VARCHAR(255),
@@ -90,19 +92,35 @@ async function ensureAdminAccountForLogin() {
 
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = hashPassword(ADMIN_PASSWORD, salt);
-  await db.query(
-    `INSERT INTO users
-       (username, first_name, last_name, email, password_hash, password_salt, role, is_active, onboarding_completed, created_at)
-     VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, 'owner', true, true, NOW())
-     ON CONFLICT (email) DO UPDATE SET
-       username = EXCLUDED.username,
-       password_hash = EXCLUDED.password_hash,
-       password_salt = EXCLUDED.password_salt,
-       role = 'owner',
-       is_active = true,
-       onboarding_completed = true`,
-    [ADMIN_USERNAME, ADMIN_EMAIL, hash, salt]
+  // Match an existing admin by either canonical username or canonical/legacy
+  // email before inserting. This avoids ON CONFLICT(email) missing a row whose
+  // username is already unique, which was possible in older seeded databases.
+  const existing = await db.query(
+    `SELECT id FROM users
+      WHERE LOWER(COALESCE(username, '')) = $1
+         OR LOWER(COALESCE(email, '')) IN ($2, 'aurabackoffice123@gmail.com')
+      ORDER BY CASE WHEN LOWER(COALESCE(email, '')) = $2 THEN 0
+                    WHEN LOWER(COALESCE(username, '')) = $1 THEN 1 ELSE 2 END, id
+      LIMIT 1`,
+    [ADMIN_USERNAME.toLowerCase(), ADMIN_EMAIL.toLowerCase()]
   );
+
+  if (existing.rows.length) {
+    await db.query(
+      `UPDATE users SET username = $1, email = $2, first_name = 'Krishna',
+         last_name = 'Admin', password_hash = $3, password_salt = $4,
+         role = 'owner', is_active = true, onboarding_completed = true
+       WHERE id = $5`,
+      [ADMIN_USERNAME, ADMIN_EMAIL, hash, salt, existing.rows[0].id]
+    );
+  } else {
+    await db.query(
+      `INSERT INTO users
+         (username, first_name, last_name, email, password_hash, password_salt, role, is_active, onboarding_completed, created_at)
+       VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, 'owner', true, true, NOW())`,
+      [ADMIN_USERNAME, ADMIN_EMAIL, hash, salt]
+    );
+  }
 }
 
 /** Resolve the signed-in user + normalised role from the session cookie. */
