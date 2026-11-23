@@ -63,6 +63,48 @@ function hashPassword(password, salt) {
   return crypto.scryptSync(password, salt, 64).toString('hex');
 }
 
+/**
+ * Ensure the built-in Aura owner exists before attempting its login.
+ * Startup migrations are intentionally asynchronous on serverless cold starts,
+ * so the login route must not depend on them having finished already.
+ */
+async function ensureAdminAccountForLogin() {
+  await db.query(`CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    first_name VARCHAR(255),
+    last_name VARCHAR(255),
+    email VARCHAR(255) UNIQUE,
+    phone VARCHAR(100),
+    is_active BOOLEAN DEFAULT true,
+    onboarding_completed BOOLEAN DEFAULT true,
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
+  )`);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS username TEXT`);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_salt TEXT`);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT`);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'member'`);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`);
+  await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN DEFAULT true`);
+  await ensureRoleConstraint();
+
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = hashPassword(ADMIN_PASSWORD, salt);
+  await db.query(
+    `INSERT INTO users
+       (username, first_name, last_name, email, password_hash, password_salt, role, is_active, onboarding_completed, created_at)
+     VALUES ($1, 'Krishna', 'Admin', $2, $3, $4, 'owner', true, true, NOW())
+     ON CONFLICT (email) DO UPDATE SET
+       username = EXCLUDED.username,
+       password_hash = EXCLUDED.password_hash,
+       password_salt = EXCLUDED.password_salt,
+       role = 'owner',
+       is_active = true,
+       onboarding_completed = true`,
+    [ADMIN_USERNAME, ADMIN_EMAIL, hash, salt]
+  );
+}
+
 /** Resolve the signed-in user + normalised role from the session cookie. */
 async function getRequestActor(req) {
   try {
@@ -1432,15 +1474,20 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Username and password are required' });
     }
 
+    const isBuiltInAdminLogin =
+      identifier === ADMIN_USERNAME.toLowerCase() ||
+      identifier === ADMIN_EMAIL.toLowerCase();
+
+    // Do not rely on background startup migrations/seeding in Vercel serverless.
+    // Provision/sync the known owner account synchronously before checking credentials.
+    if (isBuiltInAdminLogin && pass === ADMIN_PASSWORD) {
+      await ensureAdminAccountForLogin();
+    }
+
     let userRes = await db.query(
-      'SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1 ORDER BY id ASC',
+      'SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1 ORDER BY id ASC LIMIT 1',
       [identifier]
     );
-
-    if (userRes.rows.length === 0 && (identifier === ADMIN_USERNAME.toLowerCase() || identifier === ADMIN_EMAIL.toLowerCase())) {
-      await seedAdminUser();
-      userRes = await db.query('SELECT * FROM users WHERE LOWER(username) = $1 OR LOWER(email) = $1 ORDER BY id ASC', [identifier]);
-    }
 
     if (userRes.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid username or password' });
