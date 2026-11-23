@@ -4307,7 +4307,9 @@ async function transcribePlivoRecording(callId, recordingUrl) {
   if (!recordingUrl) return null;
   const claim = await db.query(
     `UPDATE ai_calls SET transcription_status = 'processing', transcription_error = NULL, updated_at = NOW()
-      WHERE id = $1 AND COALESCE(transcription_status, 'pending') = 'pending'
+      WHERE id = $1
+        AND (COALESCE(transcription_status, 'pending') = 'pending'
+             OR (transcription_status = 'processing' AND updated_at < NOW() - INTERVAL '3 minutes'))
         AND (transcript IS NULL OR jsonb_typeof(transcript) = 'null' OR transcript = '[]'::jsonb)
       RETURNING id`, [callId]
   );
@@ -4580,7 +4582,7 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     }
 
     // Auto-transcribe Plivo calls if recording exists but transcript is missing
-    if (call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0) && (call.transcription_status || 'pending') === 'pending') {
+    if (call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0) && ((call.transcription_status || 'pending') === 'pending' || (call.transcription_status === 'processing' && call.updated_at && new Date(call.updated_at).getTime() < Date.now() - 180000))) {
       try {
         const trResult = await transcribePlivoRecording(call.id, rawRecordingUrl);
         if (trResult && trResult.transcript) {
