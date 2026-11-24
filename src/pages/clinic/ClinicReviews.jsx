@@ -2,11 +2,11 @@ import { useMemo, useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
-  Star, RefreshCw, Plus, MessageSquare, ChevronRight,
+  Star, RefreshCw, MessageSquare, ChevronRight,
   AlertCircle, CheckCircle2, Clock, User, Mail, MapPin, ExternalLink,
 } from 'lucide-react';
 import { clinicApi, dateLabel, datetimeLabel, fullName } from '@/clinic/api';
-import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi, Modal } from '@/clinic/ui';
+import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi } from '@/clinic/ui';
 
 const RATING_STARS = [1, 2, 3, 4, 5];
 
@@ -160,64 +160,8 @@ function ReplyForm({ reviewId, onSubmit, onCancel, busy }) {
   );
 }
 
-function AddReviewForm({ onSubmit, busy, onClose }) {
-  const [form, setForm] = useState({ author: '', rating: 5, channel: 'Google', branch: '', sourceUrl: '', body: '' });
-
-  return (
-    <form onSubmit={(e) => { e.preventDefault(); if (form.author.trim() && form.body.trim()) onSubmit(form); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div className="co-form-grid">
-        <div className="co-field">
-          <label className="co-label" htmlFor="co-rauthor">Author *</label>
-          <input id="co-rauthor" className="co-input" value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} placeholder="Patient name" required />
-        </div>
-        <div className="co-field">
-          <label className="co-label" htmlFor="co-rrating">Rating *</label>
-          <select id="co-rrating" className="co-input" value={form.rating} onChange={(e) => setForm({ ...form, rating: Number(e.target.value) })}>
-            <option value={5}>★★★★★ 5</option>
-            <option value={4}>★★★★ 4</option>
-            <option value={3}>★★★ 3</option>
-            <option value={2}>★★ 2</option>
-            <option value={1}>★ 1</option>
-          </select>
-        </div>
-        <div className="co-field">
-          <label className="co-label" htmlFor="co-rchannel">Channel</label>
-          <select id="co-rchannel" className="co-input" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
-            <option value="Google">Google</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-      </div>
-      <div className="co-form-grid">
-        <div className="co-field">
-          <label className="co-label" htmlFor="co-rbranch">Clinic branch</label>
-          <select id="co-rbranch" className="co-input" value={form.branch} onChange={(e) => setForm({ ...form, branch: e.target.value })}>
-            <option value="">Branch not specified</option>
-            {['Alkapuri, Vadodara', 'Manjalpur, Vadodara', 'Vasna-Bhayli, Vadodara', 'Waghodia Road, Vadodara', 'Majura Gate, Surat', 'Ranchi'].map((b) => <option key={b} value={b}>{b}</option>)}
-          </select>
-        </div>
-        <div className="co-field">
-          <label className="co-label" htmlFor="co-rurl">Original review URL</label>
-          <input id="co-rurl" type="url" className="co-input" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} placeholder="https://..." />
-        </div>
-      </div>
-      <div className="co-field">
-        <label className="co-label" htmlFor="co-rbody">Review text *</label>
-        <textarea id="co-rbody" rows="3" className="co-input" value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} placeholder="What did the patient say?" required />
-      </div>
-      <div className="co-row" style={{ justifyContent: 'flex-end' }}>
-        <button type="button" className="co-btn" onClick={onClose} disabled={busy}>Cancel</button>
-        <button type="submit" className="co-btn co-btn-primary" disabled={busy || !form.author.trim() || !form.body.trim()}>
-          {busy ? <span className="animate-spin">⟳</span> : <Plus size={13} />} Add review
-        </button>
-      </div>
-    </form>
-  );
-}
-
 export default function ClinicReviews() {
   const qc = useQueryClient();
-  const [addModal, setAddModal] = useState(false);
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
@@ -271,25 +215,11 @@ export default function ClinicReviews() {
     onSuccess: () => { setReplyingId(null); setReplyText(''); qc.invalidateQueries({ queryKey: ['clinic', 'reviews'] }); },
   });
 
-  const create = useMutation({
-    mutationFn: clinicApi.createReview,
-    onSuccess: () => { setAddModal(false); qc.invalidateQueries({ queryKey: ['clinic', 'reviews'] }); },
-  });
-
   return (
     <div className="clinic-os">
       <PageHead title="Reviews" subtitle="Monitor and reply to patient reviews across channels.">
-        <button type="button" className="co-btn co-btn-primary co-btn-sm" onClick={() => { setSyncMessage('Starting resumable Google review backfill…'); syncGoogle.mutate({ restart: false }); }} disabled={syncGoogle.isPending}>
-          <RefreshCw size={13} className={syncGoogle.isPending ? 'animate-spin' : ''} /> {syncGoogle.isPending ? 'Syncing all pages…' : 'Complete Google Reviews Sync'}
-        </button>
-        <button type="button" className="co-btn co-btn-sm" onClick={() => { setSyncMessage('Restarting the full Google review backfill…'); syncGoogle.mutate({ restart: true }); }} disabled={syncGoogle.isPending}>
-          Restart full sync
-        </button>
-        <button type="button" className="co-btn co-btn-sm" onClick={() => refetch()} disabled={isFetching}>
-          <RefreshCw size={13} className={isFetching ? 'animate-spin' : ''} /> Refresh
-        </button>
-        <button type="button" className="co-btn co-btn-primary co-btn-sm" onClick={() => setAddModal(true)}>
-          <Plus size={14} /> Add review
+        <button type="button" className="co-btn co-btn-primary co-btn-sm" onClick={() => { setSyncMessage('Syncing Google reviews…'); syncGoogle.mutate({ restart: false }); }} disabled={syncGoogle.isPending}>
+          <RefreshCw size={13} className={syncGoogle.isPending ? 'animate-spin' : ''} /> {syncGoogle.isPending ? 'Syncing reviews…' : 'Sync Google Reviews'}
         </button>
       </PageHead>
 
@@ -323,9 +253,9 @@ export default function ClinicReviews() {
         </div>
         {isLoading ? <Spinner /> : reviews.length === 0 ? (
           <EmptyState title="No reviews yet">
-            <p className="co-sm co-mut" style={{ marginTop: 6 }}>Import website testimonials or connect each verified Google Business Profile to sync branch reviews. No external reviews are fabricated.</p>
-            <button type="button" className="co-btn co-btn-primary" style={{ marginTop: 14 }} onClick={() => setAddModal(true)}>
-              <Plus size={13} /> Add first review
+            <p className="co-sm co-mut" style={{ marginTop: 6 }}>Connect each verified Google Business Profile to sync branch reviews.</p>
+            <button type="button" className="co-btn co-btn-primary" style={{ marginTop: 14 }} onClick={() => { setSyncMessage('Syncing Google reviews…'); syncGoogle.mutate({ restart: false }); }} disabled={syncGoogle.isPending}>
+              <RefreshCw size={13} className={syncGoogle.isPending ? 'animate-spin' : ''} /> {syncGoogle.isPending ? 'Syncing reviews…' : 'Sync Google Reviews'}
             </button>
           </EmptyState>
         ) : (
@@ -335,7 +265,7 @@ export default function ClinicReviews() {
                 key={r.id}
                 review={r}
                 replyingId={replyingId}
-                busy={reply.isPending || create.isPending}
+                busy={reply.isPending}
                 onReply={(review, text) => {
                   if (review && text) reply.mutate({ id: review.id, reply: text });
                   else if (review) setReplyingId(review.id);
@@ -346,12 +276,6 @@ export default function ClinicReviews() {
           </div>
         )}
       </Card>
-
-      {addModal ? (
-        <Modal title="Add Review" subtitle="Manually record a patient review." onClose={() => setAddModal(false)} width={560}>
-          <AddReviewForm onSubmit={create.mutate} busy={create.isPending} onClose={() => setAddModal(false)} />
-        </Modal>
-      ) : null}
     </div>
   );
 }
