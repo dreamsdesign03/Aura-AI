@@ -280,6 +280,7 @@ async function seedAdminUser() {
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS brand_color VARCHAR(50) DEFAULT '#D42370';`);
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS logo_base64 TEXT;`);
+    await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS lead_owner TEXT;`);
 
     // Ensure smtp_settings table exists
     await db.query(`
@@ -1942,6 +1943,7 @@ app.post('/api/leads', async (req, res) => {
     const source = body.source || 'manual';
     const status = body.status || 'New';
     const deal_value = body.deal_value ?? 0;
+    const lead_owner = (body.lead_owner || body.leadOwner || `${first_name} ${last_name}`.trim() || 'Contact').trim();
 
     let userId = null;
     if (userEmail) {
@@ -1954,10 +1956,10 @@ app.post('/api/leads', async (req, res) => {
     const insertRes = await db.query(
       `INSERT INTO leads (
         user_id, first_name, last_name, email, phone, company, designation, 
-        website, industry, country, city, source, status, deal_value, created_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())
+        website, industry, country, city, source, status, deal_value, lead_owner, created_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, NOW())
       RETURNING *`,
-      [userId, first_name, last_name, email, phone, company, designation, website, industry, country, city, source, status, deal_value]
+      [userId, first_name, last_name, email, phone, company, designation, website, industry, country, city, source, status, deal_value, lead_owner]
     );
 
     const resolvedUserId = userId || (await resolveUserId(userEmail, req.headers.cookie));
@@ -5770,6 +5772,7 @@ async function ensureBrandingTable() {
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS phone VARCHAR(100);`);
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS brand_color VARCHAR(50) DEFAULT '#D42370';`);
     await db.query(`ALTER TABLE branding_settings ADD COLUMN IF NOT EXISTS logo_base64 TEXT;`);
+    await db.query(`ALTER TABLE leads ADD COLUMN IF NOT EXISTS lead_owner TEXT;`);
   } catch (e) {
     console.error('Error ensuring branding_settings columns:', e.message);
   }

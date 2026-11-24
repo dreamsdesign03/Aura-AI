@@ -566,6 +566,7 @@ export default function LeadDetail() {
             <div className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Lead Info</div>
             <div className="space-y-2 text-xs">
               {[
+            ["Lead Owner", lead.lead_owner || lead.leadOwner || [lead.firstName, lead.lastName].filter(Boolean).join(" ") || "—"],
             ["Source", (lead.source ?? "").replace(/_/g, " ")],
             ["Industry", lead.industry],
             ["City", lead.city ?? "—"],

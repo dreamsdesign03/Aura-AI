@@ -820,6 +820,11 @@ export default function Leads() {
         const g = (k) => fd.get(k) ? String(fd.get(k)) : undefined;
         const keywordsRaw = g("keywords") ?? "";
         const keywords = keywordsRaw ? keywordsRaw.split(",").map((k) => k.trim()).filter(Boolean) : [];
+        const fn = String(fd.get("firstName") || "").trim();
+        const ln = String(fd.get("lastName") || "").trim();
+        const contactName = [fn, ln].filter(Boolean).join(" ").trim();
+        const leadOwnerVal = (g("leadOwner") || contactName || fn || "Contact").trim();
+
         createLead.mutate({
             data: {
                 firstName: String(fd.get("firstName")),
@@ -839,6 +844,8 @@ export default function Leads() {
                 companySize: g("companySize") ?? null,
                 annualRevenue: g("annualRevenue") ?? null,
                 source: g("source") ?? "manual",
+                leadOwner: leadOwnerVal,
+                lead_owner: leadOwnerVal,
                 keywords,
                 notes: g("notes") ?? null,
             },
@@ -1215,16 +1222,7 @@ export default function Leads() {
                 <option value="">ICP ▾</option>
                 {icpsData.map((icp) => <option key={icp.id} value={String(icp.id)}>{icp.name}</option>)}
               </select>)}
-            <select value={filterAssignedTo} onChange={(e) => setFilterAssignedTo(e.target.value)} className={cn("h-[36px] px-3 pr-7 text-[13px] font-semibold rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#A4285E]/20 appearance-none bg-no-repeat shadow-xs transition-all", filterAssignedTo ? "border-[#CB3273] bg-[#FDF2F8] text-[#A4285E]" : "border-[#CBD5E1] bg-white text-[#0F172A] hover:border-[#94A3B8]")} style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%23334155'%3E%3Cpath fill-rule='evenodd' d='M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z'/%3E%3C/svg%3E\")", backgroundPosition: "right 8px center", backgroundSize: "16px" }}>
-              <option value="">Contact Owner ▾</option>
-              <option value="me">Assigned to me</option>
-              {(teamMembers ?? []).map((m) => {
-            const name = `${m.firstName ?? ""} ${m.lastName ?? ""}`.trim() || m.email;
-            const c = assigneeCounts != null ? (assigneeCounts[m.id] ?? 0) : null;
-            return <option key={m.id} value={String(m.id)}>{c != null ? `${name} (${c})` : name}</option>;
-        })}
-            </select>
-            {(filterIndustry || filterCountry || filterSource || filterIcp || filterAssignedTo) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="h-[36px] flex items-center gap-1.5 text-[12px] text-[#A4285E] hover:text-[#831843] border border-[#F3D9E5] bg-[#FDF2F8] hover:bg-[#FBE9F1] rounded-lg px-3 transition-colors font-semibold whitespace-nowrap shadow-xs">
+            {(filterIndustry || filterCountry || filterSource || filterIcp) && (<button onClick={() => { setFilterIndustry(""); setFilterCountry(""); setFilterSource(""); setFilterIcp(""); setFilterAssignedTo(""); }} className="h-[36px] flex items-center gap-1.5 text-[12px] text-[#A4285E] hover:text-[#831843] border border-[#F3D9E5] bg-[#FDF2F8] hover:bg-[#FBE9F1] rounded-lg px-3 transition-colors font-semibold whitespace-nowrap shadow-xs">
                 <X className="w-3.5 h-3.5"/> Clear filters
               </button>)}
           </div>
@@ -1650,7 +1648,15 @@ export default function Leads() {
                   Contact Name
                 </th>
 
-                {/* 3. Phone Number */}
+                {/* 3. Lead Owner */}
+                <th
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "160px", minWidth: "160px" }}
+                >
+                  Lead Owner
+                </th>
+
+                {/* 4. Phone Number */}
                 <th
                   className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "150px", minWidth: "150px" }}
@@ -1745,14 +1751,14 @@ export default function Leads() {
               {isLoading ? (
                 Array.from({ length: 10 }).map((_, i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    <td colSpan={13} className="px-4 py-3">
+                    <td colSpan={14} className="px-4 py-3">
                       <div className="h-4 rounded bg-gray-100 animate-pulse" style={{ width: `${55 + i * 4}%` }}/>
                     </td>
                   </tr>
                 ))
               ) : pagedLeads.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className="text-center py-16 text-gray-400">
+                  <td colSpan={14} className="text-center py-16 text-gray-400">
                     No contacts match your filters
                   </td>
                 </tr>
@@ -1818,7 +1824,21 @@ export default function Leads() {
                       </div>
                     </td>
 
-                    {/* 3. Phone */}
+                    {/* 3. Lead Owner */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
+                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span
+                        className="text-gray-800 font-medium text-[12px] truncate block text-center"
+                        title={lead.lead_owner || lead.leadOwner || leadNameStr}
+                      >
+                        {lead.lead_owner || lead.leadOwner || leadNameStr || "—"}
+                      </span>
+                    </td>
+
+                    {/* 4. Phone */}
                     <td
                       className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
                       style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
@@ -2430,7 +2450,7 @@ export default function Leads() {
                   <label className="block text-[11px] text-gray-500 mb-1">Email *</label>
                   <input name="email" type="email" required className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-300"/>
                 </div>
-                <div className="grid grid-cols-2 gap-3 mt-3">
+                <div className="grid grid-cols-3 gap-3 mt-3">
                   <div>
                     <label className="block text-[11px] text-gray-500 mb-1">Phone *</label>
                     <input name="phone" required className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-300"/>
@@ -2438,6 +2458,10 @@ export default function Leads() {
                   <div>
                     <label className="block text-[11px] text-gray-500 mb-1">WhatsApp Number</label>
                     <input name="whatsapp" className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-300"/>
+                  </div>
+                  <div>
+                    <label className="block text-[11px] text-gray-500 mb-1">Lead Owner</label>
+                    <input name="leadOwner" placeholder="Defaults to contact name" className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-300"/>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3 mt-3">
