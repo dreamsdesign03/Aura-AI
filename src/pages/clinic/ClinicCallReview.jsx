@@ -583,24 +583,21 @@ export default function ClinicCallReview({ id }) {
             </EmptyState>
           ) : (
             <div className="co-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%', paddingBottom: 6 }}>
-              <table className="co-table" style={{ minWidth: 1140, width: '100%' }}>
+              <table className="co-table" style={{ width: '100%' }}>
                 <thead>
                   <tr>
-                    <th style={{ width: 155, minWidth: 155, paddingLeft: 18 }}>Provider & Direction</th>
-                    <th style={{ width: 210, minWidth: 210 }}>Patient / Caller</th>
-                    <th style={{ width: 175, minWidth: 175 }}>Telephony Route</th>
-                    <th style={{ width: 175, minWidth: 175 }}>Transaction Ref / SID</th>
-                    <th style={{ width: 165, minWidth: 165 }}>Started At</th>
-                    <th style={{ width: 85, minWidth: 85 }}>Duration</th>
-                    <th style={{ minWidth: 260 }}>Status & Outcome</th>
-                    <th style={{ width: 115, minWidth: 115, textAlign: 'right', paddingRight: 20 }}>Actions</th>
+                    <th style={{ width: 140, minWidth: 130, paddingLeft: 18 }}>Provider & Direction</th>
+                    <th style={{ width: 200, minWidth: 180 }}>Patient / Caller</th>
+                    <th style={{ width: 170, minWidth: 155 }}>Telephony Route</th>
+                    <th style={{ width: 150, minWidth: 140 }}>Started At</th>
+                    <th style={{ width: 75, minWidth: 70 }}>Duration</th>
+                    <th style={{ minWidth: 200 }}>Status & Outcome</th>
+                    <th style={{ width: 100, minWidth: 95, textAlign: 'right', paddingRight: 20 }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredCalls.map((c) => {
                     const patientName = getContactDisplayName(c);
-                    const sidRaw = c.call_sid || c.conversation_id || c.interaction_id || '—';
-                    const sidShort = sidRaw !== '—' && sidRaw.length > 20 ? `${sidRaw.slice(0, 18)}…` : sidRaw;
 
                     return (
                       <tr key={c.id}>
@@ -646,23 +643,6 @@ export default function ClinicCallReview({ id }) {
                               <Phone size={10} /> To: {c.to_phone || c.phone || '—'}
                             </span>
                           </div>
-                        </td>
-                        <td>
-                          <code
-                            title={sidRaw}
-                            style={{
-                              fontSize: 11,
-                              background: '#F1F5F9',
-                              padding: '3px 7px',
-                              borderRadius: 5,
-                              color: '#334155',
-                              display: 'inline-block',
-                              whiteSpace: 'nowrap',
-                              fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace',
-                            }}
-                          >
-                            {sidShort}
-                          </code>
                         </td>
                         <td style={{ whiteSpace: 'nowrap' }}>
                           {c.started_at ? `${dateLabel(c.started_at)} · ${timeLabel(c.started_at)}` : '—'}
