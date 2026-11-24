@@ -637,81 +637,6 @@ function LinkCallModal({ appointment, onClose, onLinked }) {
   );
 }
 
-function TaskQueue() {
-  const qc = useQueryClient();
-  const [title, setTitle] = useState('');
-  const [priority, setPriority] = useState('normal');
-  const { data, isLoading } = useQuery({
-    queryKey: ['clinic', 'tasks'],
-    queryFn: clinicApi.tasks,
-    refetchInterval: 8_000,
-    staleTime: 2_000,
-    refetchOnWindowFocus: true,
-  });
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['clinic'] });
-
-  const add = useMutation({
-    mutationFn: () => clinicApi.createTask({ title: title.trim(), priority }),
-    onSuccess: () => { setTitle(''); setPriority('normal'); invalidate(); },
-  });
-  const toggle = useMutation({
-    mutationFn: ({ id, status }) => clinicApi.setTaskStatus(id, status),
-    onSuccess: invalidate,
-  });
-
-  const tasks = data?.tasks || [];
-  const open = tasks.filter((t) => t.status === 'open');
-  const done = tasks.filter((t) => t.status !== 'open');
-
-  return (
-    <Card>
-      <CardHead title="Task queue" hint={`${open.length} open · ${done.length} done`} />
-      <form
-        className="co-row"
-        style={{ marginBottom: 12 }}
-        onSubmit={(e) => { e.preventDefault(); if (title.trim()) add.mutate(); }}
-      >
-        <input className="co-input" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Add a follow-up task…" aria-label="New task" />
-        <select value={priority} onChange={(e) => setPriority(e.target.value)} aria-label="Task priority" style={{ width: 120 }}>
-          <option value="normal">Normal</option>
-          <option value="high">High</option>
-        </select>
-        <button type="submit" className="co-btn co-btn-primary co-btn-sm" disabled={!title.trim() || add.isPending}>
-          <Plus size={13} /> Add
-        </button>
-      </form>
-
-      {isLoading ? <Spinner /> : tasks.length === 0 ? (
-        <p className="co-sm co-mut">No tasks yet. Add one above.</p>
-      ) : (
-        <div className="co-list">
-          {[...open, ...done].map((t) => (
-            <div className="co-list-item" key={t.id} style={{ alignItems: 'center', opacity: t.status === 'open' ? 1 : 0.55 }}>
-              <button
-                type="button"
-                className="co-btn co-btn-sm co-icon-btn"
-                style={{ borderRadius: 999 }}
-                aria-label={t.status === 'open' ? `Mark ${t.title} done` : `Reopen ${t.title}`}
-                onClick={() => toggle.mutate({ id: t.id, status: t.status === 'open' ? 'done' : 'open' })}
-              >
-                {t.status === 'open' ? <Check size={13} /> : <RefreshCw size={12} />}
-              </button>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 500, textDecoration: t.status === 'open' ? 'none' : 'line-through' }}>{t.title}</div>
-                <div className="co-xs co-mut">
-                  {t.priority === 'high' ? <span style={{ color: '#B45309', fontWeight: 600 }}>High priority</span> : 'Normal'}
-                  {t.due_at ? ` · due ${dateLabel(t.due_at)}` : ''}
-                </div>
-              </div>
-              {t.status !== 'open' ? <StatusChip status="done" /> : null}
-            </div>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-}
-
 export default function ClinicAppointments() {
   const qc = useQueryClient();
   const { selectedBranch } = useBranch();
@@ -1213,34 +1138,6 @@ export default function ClinicAppointments() {
           </Card>
         </div>
       )}
-
-      {/* Task Queue Section */}
-      <div className="co-split">
-        <TaskQueue />
-        <Card>
-          <CardHead title="Online Booking Integration" hint="Live scheduler sync" />
-          <div className="co-list">
-            <div className="co-list-item">
-              <span className="co-dot ok" />
-              <div className="co-sm">
-                Bookings made on your <a href="https://cal.com/aura-laser-cosmetic-clinic/30min" target="_blank" rel="noopener noreferrer" style={{ color: '#A4285E', fontWeight: 600, textDecoration: 'underline' }}>online booking page</a> sync automatically.
-              </div>
-            </div>
-            <div className="co-list-item">
-              <span className="co-dot ok" />
-              <div className="co-sm">Switch between <span className="co-strong">Calendar View</span> and <span className="co-strong">List View</span> at any time.</div>
-            </div>
-            <div className="co-list-item">
-              <span className="co-dot ok" />
-              <div className="co-sm">All attendees receive automated Google Calendar invites and email confirmations.</div>
-            </div>
-            <div className="co-list-item">
-              <span className="co-dot ok" />
-              <div className="co-sm">Zero mock data — showing verified live database records.</div>
-            </div>
-          </div>
-        </Card>
-      </div>
 
       {/* New Booking Modal */}
       {booking ? (
