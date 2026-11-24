@@ -6,12 +6,7 @@ export function BranchSelector({ className }) {
   const { branches, selectedBranch, setSelectedBranch, loading, refetch } = useBranch();
 
   if (branches.length === 0) {
-    return (
-      <div className={cn("flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl", className)}>
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span>Loading branches...</span>
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -44,25 +39,20 @@ export function BranchSelector({ className }) {
 }
 
 export function BranchSelectorWithRefresh({ className }) {
-  const { branches, selectedBranch, setSelectedBranch, loading, refetch } = useBranch();
+  const { branches, selectedBranch, setSelectedBranch, loading } = useBranch();
 
   if (branches.length === 0) {
-    return (
-      <div className={cn("flex items-center gap-2 px-3 py-2 text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-xl", className)}>
-        <Loader2 className="w-4 h-4 animate-spin" />
-        <span>Loading branches...</span>
-      </div>
-    );
+    return null;
   }
 
   return (
-    <div className={cn("flex items-center gap-2", className)}>
+    <div className={cn("relative inline-flex items-center", className)}>
       <select
         value={selectedBranch}
         onChange={(e) => setSelectedBranch(e.target.value)}
         disabled={loading}
         className={cn(
-          "appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-10 text-sm font-medium text-gray-900",
+          "appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2 pr-9 text-sm font-medium text-gray-900",
           "focus:outline-none focus:ring-2 focus:ring-pink-300 focus:border-transparent",
           "hover:border-gray-300 transition-colors",
           "cursor-pointer"
@@ -76,14 +66,9 @@ export function BranchSelectorWithRefresh({ className }) {
           </option>
         ))}
       </select>
-      <button
-        onClick={refetch}
-        disabled={loading}
-        className="p-2 text-gray-400 hover:text-pink-600 hover:bg-pink-50 rounded-lg transition-colors"
-        title="Refresh branches"
-      >
-        <Loader2 className={cn("w-4 h-4", loading && "animate-spin")} />
-      </button>
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+        <ChevronDown className="w-4 h-4" />
+      </div>
     </div>
   );
 }
