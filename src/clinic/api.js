@@ -35,6 +35,7 @@ export const clinicApi = {
   patients: (search, branch) => request(`/patients${search || branch ? `?${[search ? `search=${encodeURIComponent(search)}` : '', branch ? `branch=${encodeURIComponent(branch)}` : ''].filter(Boolean).join('&')}` : ''}`),
   patient: (id) => request(`/patients/${id}`),
   createPatient: (body) => request('/patients', { method: 'POST', body: JSON.stringify(body) }),
+  updatePatient: (id, body) => request(`/patients/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   deletePatient: (id) => request(`/patients/${id}`, { method: 'DELETE' }),
   updatePatientStage: (id, stage) => request(`/patients/${id}/stage`, { method: 'PATCH', body: JSON.stringify({ stage }) }),
   convertLead: (id, stage) => request(`/patients/convert-lead/${id}`, { method: 'POST', body: JSON.stringify({ stage }) }),

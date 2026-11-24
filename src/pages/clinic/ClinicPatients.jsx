@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Search, RefreshCw, Plus, Phone, Mail, CalendarDays, IndianRupee,
   StickyNote, Package, PhoneCall, ArrowUpRight, Check, Clock, Users, MessageCircle,
-  Filter, X, Compass, ArrowLeft, Trash2
+  Filter, X, Compass, ArrowLeft, Trash2, Pencil
 } from 'lucide-react';
 import { Link, useLocation, useRoute } from 'wouter';
 import { clinicApi, fullName, money, dateLabel, timeLabel, datetimeLabel } from '@/clinic/api';
@@ -146,7 +146,7 @@ function PackageForm({ leadId }) {
   );
 }
 
-export function PatientDrawer({ id, onClose, onDeleteClick }) {
+export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState('overview');
   const { data, isLoading, isError, error } = useQuery({
@@ -199,6 +199,14 @@ export function PatientDrawer({ id, onClose, onDeleteClick }) {
           {p?.phone ? (
             <a href={`tel:${p.phone}`} className="co-btn co-btn-sm co-icon-btn" aria-label="Call patient"><Phone size={14} /></a>
           ) : null}
+          <button
+            type="button"
+            className="co-btn co-btn-sm co-btn-ghost"
+            onClick={() => p && onEditClick?.(p)}
+            title="Edit Patient Details"
+          >
+            <Pencil size={13} /> Edit
+          </button>
           <button
             type="button"
             className="co-btn co-btn-sm co-btn-ghost"
@@ -427,6 +435,14 @@ export default function ClinicPatients() {
     }
   }, [params?.id]);
   const [addPatientOpen, setAddPatientOpen] = useState(false);
+  const [editPatient, setEditPatient] = useState(null);
+  const [editForm, setEditForm] = useState({
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    branch: 'Alkapuri Main Clinic',
+  });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [selectedStage, setSelectedStage] = useState(null);
 
@@ -511,6 +527,30 @@ export default function ClinicPatients() {
       const deletedId = deleteConfirm?.id;
       setDeleteConfirm(null);
       if (openId === deletedId) setOpenId(null);
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+      qc.invalidateQueries({ queryKey: ['leads'] });
+      refetch();
+    },
+  });
+
+  const handleStartEdit = (p) => {
+    const rawFirst = (p.first_name || '').trim();
+    const rawLast = (p.last_name || '').trim();
+    const isPlaceholder = !rawFirst || rawFirst === p.phone || /^\+?\d[\d\s-]{6,}$/.test(rawFirst) || rawFirst.toLowerCase() === 'patient';
+    setEditForm({
+      firstName: isPlaceholder ? '' : rawFirst,
+      lastName: rawLast,
+      phone: p.phone || '',
+      email: p.email && !isPlaceholderEmail(p.email) ? p.email : '',
+      branch: p.company || p.branch || 'Alkapuri Main Clinic',
+    });
+    setEditPatient(p);
+  };
+
+  const updatePatientMutation = useMutation({
+    mutationFn: ({ id, body }) => clinicApi.updatePatient(id, body),
+    onSuccess: () => {
+      setEditPatient(null);
       qc.invalidateQueries({ queryKey: ['clinic'] });
       qc.invalidateQueries({ queryKey: ['leads'] });
       refetch();
@@ -781,6 +821,15 @@ export default function ClinicPatients() {
                           <button
                             type="button"
                             className="co-btn co-btn-sm co-btn-ghost"
+                            onClick={() => handleStartEdit(p)}
+                            style={{ padding: '4px 8px' }}
+                            title="Edit patient name & details"
+                          >
+                            <Pencil size={12} /> Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="co-btn co-btn-sm co-btn-ghost"
                             onClick={() => setOpenId(p.id)}
                             style={{ padding: '4px 8px' }}
                           >
@@ -812,6 +861,7 @@ export default function ClinicPatients() {
           id={openId}
           onClose={() => setOpenId(null)}
           onDeleteClick={(pat) => setDeleteConfirm(pat)}
+          onEditClick={(pat) => handleStartEdit(pat)}
         />
       ) : null}
 
@@ -851,6 +901,118 @@ export default function ClinicPatients() {
               </button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {/* Edit Patient Modal */}
+      {editPatient && (
+        <Modal
+          title="Edit Patient Details"
+          subtitle={`Update name and contact details for ${getContactDisplayName(editPatient)}`}
+          onClose={() => setEditPatient(null)}
+        >
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!editForm.firstName.trim() && !editForm.lastName.trim() && !editForm.phone.trim()) return;
+              updatePatientMutation.mutate({
+                id: editPatient.id,
+                body: {
+                  firstName: editForm.firstName.trim(),
+                  lastName: editForm.lastName.trim(),
+                  phone: editForm.phone.trim(),
+                  email: editForm.email.trim(),
+                  company: editForm.branch,
+                  branch: editForm.branch,
+                },
+              });
+            }}
+            style={{ display: 'flex', flexDirection: 'column', gap: 14 }}
+          >
+            <div className="co-form-grid">
+              <div className="co-field">
+                <label className="co-label">First Name *</label>
+                <input
+                  className="co-input"
+                  required
+                  value={editForm.firstName}
+                  onChange={(e) => setEditForm({ ...editForm, firstName: e.target.value })}
+                  placeholder="e.g. Ramesh"
+                  autoFocus
+                />
+              </div>
+              <div className="co-field">
+                <label className="co-label">Last Name</label>
+                <input
+                  className="co-input"
+                  value={editForm.lastName}
+                  onChange={(e) => setEditForm({ ...editForm, lastName: e.target.value })}
+                  placeholder="e.g. Patel"
+                />
+              </div>
+            </div>
+
+            <div className="co-form-grid">
+              <div className="co-field">
+                <label className="co-label">Phone Number *</label>
+                <input
+                  className="co-input"
+                  required
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="+91 98765 43210"
+                />
+              </div>
+              <div className="co-field">
+                <label className="co-label">Email</label>
+                <input
+                  className="co-input"
+                  type="email"
+                  value={editForm.email}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  placeholder="patient@example.com"
+                />
+              </div>
+            </div>
+
+            <div className="co-form-grid">
+              <div className="co-field">
+                <label className="co-label">Clinic Branch</label>
+                <select
+                  value={editForm.branch}
+                  onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
+                >
+                  <option value="Alkapuri Main Clinic">Alkapuri Main Clinic</option>
+                  <option value="Vasna Branch">Vasna Branch</option>
+                  <option value="Virtual Consultation Hub">Virtual Consultation Hub</option>
+                </select>
+              </div>
+            </div>
+
+            {updatePatientMutation.isError && (
+              <p className="co-sm" style={{ color: '#B91C1C' }}>
+                {updatePatientMutation.error?.message || 'Could not update patient'}
+              </p>
+            )}
+
+            <div className="co-row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 10 }}>
+              <button
+                type="button"
+                className="co-btn"
+                onClick={() => setEditPatient(null)}
+                disabled={updatePatientMutation.isPending}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="co-btn co-btn-primary"
+                disabled={updatePatientMutation.isPending || !editForm.firstName.trim()}
+              >
+                {updatePatientMutation.isPending ? 'Saving to Database…' : 'Save Patient'}
+              </button>
+            </div>
+          </form>
         </Modal>
       )}
 

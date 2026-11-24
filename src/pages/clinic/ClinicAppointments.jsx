@@ -833,18 +833,6 @@ export default function ClinicAppointments() {
           {isSyncing ? 'Syncing…' : 'Sync bookings'}
         </button>
 
-        {/* Public Booking Page link */}
-        <a
-          href="https://cal.com/aura-laser-cosmetic-clinic/30min"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="co-btn co-btn-sm"
-          style={{ borderColor: '#F3D9E5', color: '#CB3273' }}
-          title="Open public booking link"
-        >
-          <ExternalLink size={13} /> Booking Page
-        </a>
-
         {/* New Booking */}
         <button type="button" className="co-btn co-btn-primary co-btn-sm" onClick={() => openBooking(null)}>
           <Plus size={14} /> New booking

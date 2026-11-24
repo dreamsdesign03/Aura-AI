@@ -1861,6 +1861,86 @@ router.delete('/patients/:id', requireUser, async (req, res) => {
   }
 });
 
+// Update patient details (name, phone, email, branch/company)
+router.patch('/patients/:id', requireUser, async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    const { firstName, lastName, name, phone, email, company, branch } = req.body || {};
+
+    let first = firstName;
+    let last = lastName;
+    if (first === undefined && last === undefined && name !== undefined) {
+      const parts = String(name || '').trim().split(/\s+/);
+      first = parts[0] || '';
+      last = parts.slice(1).join(' ') || '';
+    }
+
+    const updates = [];
+    const params = [leadId];
+
+    if (first !== undefined) {
+      params.push((first || '').trim());
+      updates.push(`first_name = $${params.length}`);
+    }
+    if (last !== undefined) {
+      params.push((last || '').trim());
+      updates.push(`last_name = $${params.length}`);
+    }
+    const fullNameClean = [first, last].filter(Boolean).join(' ').trim();
+    if (fullNameClean) {
+      params.push(cleanEnglishName(fullNameClean));
+      updates.push(`name_english = $${params.length}`);
+    }
+    if (phone !== undefined) {
+      params.push(phone ? String(phone).trim() : null);
+      updates.push(`phone = $${params.length}`);
+    }
+    if (email !== undefined) {
+      params.push(cleanEmail(email));
+      updates.push(`email = $${params.length}`);
+    }
+    if (company !== undefined || branch !== undefined) {
+      params.push(company || branch || null);
+      updates.push(`company = $${params.length}`);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields provided to update' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+
+    const q = `UPDATE leads SET ${updates.join(', ')} WHERE id = $1 RETURNING *`;
+    const r = await db.query(q, params);
+
+    if (r.rows.length === 0) {
+      return res.status(404).json({ error: 'Patient not found' });
+    }
+
+    const updated = r.rows[0];
+
+    // Cascade patient name to calls & appointments
+    if (fullNameClean) {
+      const displayClean = cleanEnglishName(fullNameClean);
+      await db.query(
+        `UPDATE ai_calls SET lead_name = $1, lead_name_english = $1, updated_at = NOW() WHERE lead_id = $2 OR to_phone = $3`,
+        [displayClean, leadId, updated.phone]
+      ).catch(() => {});
+
+      await db.query(
+        `UPDATE clinic_appointments SET patient_name = $1, updated_at = NOW() WHERE (phone = $2 OR patient_name = $2) AND (patient_name IS NULL OR patient_name = '' OR patient_name = phone OR patient_name = $2)`,
+        [displayClean, updated.phone]
+      ).catch(() => {});
+    }
+
+    await audit(req.user.id, 'updated', 'patient', leadId);
+    res.json({ success: true, patient: updated });
+  } catch (err) {
+    console.error('Error updating patient:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update patient care stage
 router.patch('/patients/:id/stage', requireUser, async (req, res) => {
   try {
