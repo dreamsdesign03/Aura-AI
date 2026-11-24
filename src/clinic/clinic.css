@@ -102,7 +102,7 @@
 .co-btn-ghost { background: transparent; border-color: transparent; color: var(--co-brand); }
 .co-btn-ghost:hover { background: var(--co-soft); }
 .co-btn-sm { height: 32px; padding: 0 11px; font-size: 12px; border-radius: 9px; }
-.co-icon-btn { width: 34px; height: 34px; padding: 0; flex: none; }
+.co-icon-btn { width: 50px; height: 36px; padding: 0; flex: none; }
 
 .aura-inbox-channel-scroll::-webkit-scrollbar,
 .aura-visibility-category-scroll::-webkit-scrollbar {

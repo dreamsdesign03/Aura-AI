@@ -232,6 +232,13 @@ textarea,
   z-index: 2;
 }
 
+.co-icon-btn {
+  width: 50px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  flex: none !important;
+}
+
 .aura-card:hover,
 .card:hover,
 .co-card:hover {
