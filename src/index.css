@@ -211,6 +211,25 @@ body {
   background: radial-gradient(circle at 30% 30%, #FBE9F1, transparent 70%);
   pointer-events: none;
   opacity: 0.8;
+  z-index: 0;
+}
+
+.aura-card > *,
+.card > *,
+.co-card > * {
+  position: relative;
+  z-index: 1;
+}
+
+.co-btn,
+button,
+input,
+select,
+textarea,
+.co-pill-tabs,
+.co-chip {
+  position: relative;
+  z-index: 2;
 }
 
 .aura-card:hover,

@@ -206,6 +206,11 @@
   background: radial-gradient(circle at 30% 30%, #FBE9F1, transparent 70%);
   pointer-events: none;
   opacity: 0.8;
+  z-index: 0;
+}
+.co-card > * {
+  position: relative;
+  z-index: 1;
 }
 .co-card:hover {
   border-color: #CB3273;
@@ -231,6 +236,11 @@
   content: ""; position: absolute; right: -24px; top: -24px; width: 86px; height: 86px;
   border-radius: 50%; background: radial-gradient(circle at 30% 30%, #FBE9F1, transparent 70%);
   pointer-events: none;
+  z-index: 0;
+}
+.co-kpi > * {
+  position: relative;
+  z-index: 1;
 }
 
 /* ---------- chips ---------- */

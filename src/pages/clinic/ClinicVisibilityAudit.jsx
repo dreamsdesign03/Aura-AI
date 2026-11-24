@@ -476,7 +476,7 @@ export default function ClinicVisibilityAudit() {
               <h1 className="text-xl font-bold text-gray-900 tracking-tight">Visibility Audit</h1>
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              How patients find each branch on Google, Maps and AI search · {lastScan ? <>last live scan <b>{lastScan}</b></> : <b>no live scan yet - click Scan All Live</b>}
+              How patients find each branch on Google, Maps and AI search{lastScan ? <> · last live scan <b>{lastScan}</b></> : ''}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -485,14 +485,6 @@ export default function ClinicVisibilityAudit() {
             </button>
             <button onClick={() => setShowAddModal(true)} className="co-btn co-btn-sm">
               <Plus className="w-3.5 h-3.5" /> Add Keyword
-            </button>
-            <button onClick={handleAiScan} className={`co-btn co-btn-sm ${isAiScanning ? "animate-pulse" : ""}`} style={{ color: '#7C3AED', borderColor: '#DDD6FE', background: '#F5F3FF' }}>
-              {isAiScanning ? <Square className="w-3.5 h-3.5" /> : <Bot className="w-3.5 h-3.5" />}
-              {isAiScanning ? `AI scan ${aiProgress?.current || 0}/${aiProgress?.total || 0} (Stop)` : "Scan AI Visibility"}
-            </button>
-            <button onClick={handleScanAll} className={`co-btn co-btn-primary co-btn-sm ${isScanning ? "animate-pulse" : ""}`}>
-              <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-spin" : ""}`} />
-              {isScanning ? `Scanning ${scanProgress?.current || 0}/${scanProgress?.total || 0} (Pause)` : "⚡ Scan All Live (One by One)"}
             </button>
           </div>
         </div>
