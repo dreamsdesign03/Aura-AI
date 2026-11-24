@@ -65,7 +65,7 @@ function ReviewCard({ review, onReply, replyingId, busy }) {
             border: review.channel?.toLowerCase() === 'google' ? '1px solid #BFDBFE' : '1px solid #E5E7EB',
           }}
         >
-          {review.channel || 'Website'}
+          {review.channel || 'Google'}
         </span>
 
         {review.branch ? (
@@ -161,7 +161,7 @@ function ReplyForm({ reviewId, onSubmit, onCancel, busy }) {
 }
 
 function AddReviewForm({ onSubmit, busy, onClose }) {
-  const [form, setForm] = useState({ author: '', rating: 5, channel: 'Website', branch: '', sourceUrl: '', body: '' });
+  const [form, setForm] = useState({ author: '', rating: 5, channel: 'Google', branch: '', sourceUrl: '', body: '' });
 
   return (
     <form onSubmit={(e) => { e.preventDefault(); if (form.author.trim() && form.body.trim()) onSubmit(form); }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -184,9 +184,6 @@ function AddReviewForm({ onSubmit, busy, onClose }) {
           <label className="co-label" htmlFor="co-rchannel">Channel</label>
           <select id="co-rchannel" className="co-input" value={form.channel} onChange={(e) => setForm({ ...form, channel: e.target.value })}>
             <option value="Google">Google</option>
-            <option value="Facebook">Facebook</option>
-            <option value="Practo">Practo</option>
-            <option value="JustDial">JustDial</option>
             <option value="Other">Other</option>
           </select>
         </div>
@@ -224,7 +221,6 @@ export default function ClinicReviews() {
   const [replyingId, setReplyingId] = useState(null);
   const [replyText, setReplyText] = useState('');
   const [branchFilter, setBranchFilter] = useState('all');
-  const [sourceFilter, setSourceFilter] = useState('all');
   const [syncMessage, setSyncMessage] = useState('');
 
   const { data, isLoading, isFetching, refetch } = useQuery({
@@ -234,7 +230,7 @@ export default function ClinicReviews() {
   });
 
   const reviews = data?.reviews || [];
-  const visibleReviews = reviews.filter((r) => (branchFilter === 'all' || (r.branch || 'Unassigned') === branchFilter) && (sourceFilter === 'all' || String(r.channel || 'Website').toLowerCase() === sourceFilter.toLowerCase()));
+  const visibleReviews = reviews.filter((r) => branchFilter === 'all' || (r.branch || 'Unassigned') === branchFilter);
   const branches = [...new Set(reviews.map((r) => r.branch || 'Unassigned'))].sort();
   const newCount = reviews.filter((r) => r.status === 'new').length;
   const repliedCount = reviews.filter((r) => r.status === 'replied').length;
@@ -306,41 +302,23 @@ export default function ClinicReviews() {
 
       {syncMessage ? <div className="co-xs co-mut" style={{ marginBottom: 10 }} role="status">{syncMessage}</div> : null}
       <Card rise="co-rise-2">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-            {/* Consistent Aura Pill Tabs for Review Sources */}
-            <div className="co-pill-tabs">
-              {['all', 'Google', 'Website', 'Facebook', 'Practo', 'JustDial'].map((src) => {
-                const isSel = sourceFilter.toLowerCase() === src.toLowerCase();
-                const c = src === 'all' ? reviews.length : reviews.filter((r) => (r.channel || '').toLowerCase() === src.toLowerCase()).length;
-                return (
-                  <button
-                    key={src}
-                    type="button"
-                    onClick={() => setSourceFilter(src)}
-                    className={`co-pill-tab ${isSel ? 'active' : ''}`}
-                  >
-                    <span>{src === 'all' ? 'All Sources' : src}</span>
-                    <span className="co-pill-badge">{c}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
-              <select
-                className="co-input"
-                style={{ width: 200, height: 38, borderRadius: 10, border: '1px solid #F3D9E5', fontWeight: 600, fontSize: 12 }}
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-              >
-                <option value="all">All clinic branches</option>
-                {branches.map((b) => <option key={b} value={b}>{b}</option>)}
-              </select>
-              <span className="co-xs co-mut" style={{ whiteSpace: 'nowrap' }}>
-                Showing {visibleReviews.length} of {reviews.length}
-              </span>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+          <div className="co-strong" style={{ fontSize: 14 }}>
+            Patient Reviews
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+            <select
+              className="co-input"
+              style={{ width: 200, height: 38, borderRadius: 10, border: '1px solid #F3D9E5', fontWeight: 600, fontSize: 12 }}
+              value={branchFilter}
+              onChange={(e) => setBranchFilter(e.target.value)}
+            >
+              <option value="all">All clinic branches</option>
+              {branches.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+            <span className="co-xs co-mut" style={{ whiteSpace: 'nowrap' }}>
+              Showing {visibleReviews.length} of {reviews.length}
+            </span>
           </div>
         </div>
         {isLoading ? <Spinner /> : reviews.length === 0 ? (
@@ -351,7 +329,7 @@ export default function ClinicReviews() {
             </button>
           </EmptyState>
         ) : (
-          visibleReviews.length === 0 ? <EmptyState title="No reviews for these filters"><p className="co-sm co-mut">Try another branch or source.</p></EmptyState> : <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))' }}>
+          visibleReviews.length === 0 ? <EmptyState title="No reviews for this branch"><p className="co-sm co-mut">Try selecting another clinic branch.</p></EmptyState> : <div style={{ display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 360px), 1fr))' }}>
             {visibleReviews.map((r) => (
               <ReviewCard
                 key={r.id}
