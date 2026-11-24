@@ -4632,23 +4632,23 @@ router.get('/call-review', requireUser, async (req, res) => {
              COALESCE(
                NULLIF(NULLIF(NULLIF(ac.lead_name_english, '.'), '-'), ''),
                NULLIF(NULLIF(NULLIF(ac.lead_name, '.'), '-'), ''),
-               NULLIF(NULLIF(NULLIF(bc.name_english, '.'), '-'), ''),
-               NULLIF(NULLIF(NULLIF(bc.name, '.'), '-'), ''),
                NULLIF(NULLIF(NULLIF(l.name_english, '.'), '-'), ''),
                NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''),
                'Patient'
              ) AS display_name,
-             COALESCE(ac.to_phone, l.phone, bc.phone_e164, '—') AS display_phone,
-             COALESCE(ac.company_name, l.company, bc.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
-             COALESCE(ac.provider, 'sarvam') AS provider,
+             COALESCE(ac.to_phone, l.phone, '—') AS display_phone,
+             COALESCE(ac.company_name, l.company, 'Aura Laser & Cosmetic Clinic') AS display_company,
+             COALESCE(ac.provider, 'plivo') AS provider,
              COALESCE(ac.direction, 'outbound') AS direction,
              jsonb_array_length(CASE WHEN jsonb_typeof(ac.transcript) = 'array' THEN ac.transcript ELSE '[]'::jsonb END) AS turn_count
         FROM ai_calls ac
-        LEFT JOIN leads l ON (l.id = ac.lead_id OR l.phone = ac.to_phone OR l.whatsapp = ac.to_phone)
-        LEFT JOIN bulk_contacts bc ON (
-          bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ac.to_phone, ''), '\\D', '', 'g'), 10)
-          OR bc.phone_e164 = ac.to_phone
-        )
+        LEFT JOIN LATERAL (
+          SELECT id, user_id, first_name, last_name, name_english, phone, company, pipeline_stage, source
+            FROM leads
+           WHERE id = ac.lead_id OR phone = ac.to_phone OR whatsapp = ac.to_phone
+           ORDER BY (id = ac.lead_id) DESC, updated_at DESC NULLS LAST
+           LIMIT 1
+        ) l ON true
        WHERE (${isSuper ? '1=1' : '(l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)'})
     `;
     const params = isSuper ? [] : [req.user.id];

@@ -155,8 +155,8 @@ export default function ClinicDialer() {
   const [syncPlivoMsg, setSyncPlivoMsg] = useState('');
 
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
-    queryKey: ['clinic', 'call-reviews', selectedBranch],
-    queryFn: () => clinicApi.callReviews({ branch: selectedBranch }),
+    queryKey: ['clinic', 'call-reviews', selectedBranch, 'plivo'],
+    queryFn: () => clinicApi.callReviews({ branch: selectedBranch, provider: 'plivo' }),
     refetchInterval: callPhase === 'connected' || callPhase === 'ringing' ? 3000 : 15000,
     staleTime: 2000,
     refetchOnWindowFocus: true,
