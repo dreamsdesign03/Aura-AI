@@ -64,10 +64,10 @@ export const INITIAL_STAGES_ROW_A = [
     n: 5,
     name: 'Book',
     does: 'Live online bookings, doctor consultation slots, 24h reminders',
-    measure: 'Booked Consultations',
-    value: '62',
+    measure: 'Booked Patients',
+    value: '4',
     target: '10+',
-    ok: true,
+    ok: false,
     href: '/clinic/appointments',
     stageKey: 'book',
     filterKeywords: ['book', 'booked', 'appointment', 'scheduled', 'new patient'],
@@ -166,8 +166,10 @@ export default function PatientJourneySection({
         ...s,
         measure: live.measure || s.measure,
         value: live.value !== undefined ? live.value : s.value,
+        subValue: live.subValue || (live.consultations && live.consultations !== live.value ? `(${live.consultations} bookings)` : undefined),
         target: live.target || s.target,
         ok: live.ok !== undefined ? live.ok : s.ok,
+        source: live.source || s.source,
       };
     });
   }, [stagesA, liveStats]);
@@ -180,8 +182,10 @@ export default function PatientJourneySection({
         ...s,
         measure: live.measure || s.measure,
         value: live.value !== undefined ? live.value : s.value,
+        subValue: live.subValue,
         target: live.target || s.target,
         ok: live.ok !== undefined ? live.ok : s.ok,
+        source: live.source || s.source,
       };
     });
   }, [stagesB, liveStats]);
@@ -359,9 +363,16 @@ export default function PatientJourneySection({
                 >
                   <div>
                     <p style={{ margin: 0, fontSize: 11.5, color: '#5F6B6D' }}>{s.measure}</p>
-                    <p style={{ margin: '2px 0 0', font: '600 22px Poppins, Inter, sans-serif', color: '#172326' }}>
-                      {s.value}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                      <p style={{ margin: '2px 0 0', font: '600 22px Poppins, Inter, sans-serif', color: '#172326' }}>
+                        {s.value}
+                      </p>
+                      {s.subValue && (
+                        <span style={{ fontSize: 11, color: '#64748B', fontWeight: 500 }}>
+                          {s.subValue}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ position: 'relative', display: 'inline-block' }}>
                     <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
@@ -395,7 +406,7 @@ export default function PatientJourneySection({
                 </div>
 
                 <div className="pj-st-action">
-                  <span>{isSelected ? '✓ Showing Patients' : `View Stage ${s.n} Patients`}</span>
+                  <span>{isSelected ? 'Showing Patients' : `View Stage ${s.n} Patients`}</span>
                   <ArrowUpRight size={12} />
                 </div>
               </div>
@@ -467,9 +478,16 @@ export default function PatientJourneySection({
                 >
                   <div>
                     <p style={{ margin: 0, fontSize: 11.5, color: '#5F6B6D' }}>{s.measure}</p>
-                    <p style={{ margin: '2px 0 0', font: '600 22px Poppins, Inter, sans-serif', color: '#172326' }}>
-                      {s.value}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, flexWrap: 'wrap' }}>
+                      <p style={{ margin: '2px 0 0', font: '600 22px Poppins, Inter, sans-serif', color: '#172326' }}>
+                        {s.value}
+                      </p>
+                      {s.subValue && (
+                        <span style={{ fontSize: 11, color: '#64748B', fontWeight: 500 }}>
+                          {s.subValue}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <div style={{ position: 'relative', display: 'inline-block' }}>
                     <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
@@ -503,7 +521,7 @@ export default function PatientJourneySection({
                 </div>
 
                 <div className="pj-st-action">
-                  <span>{isSelected ? '✓ Showing Patients' : `View Stage ${s.n} Patients`}</span>
+                  <span>{isSelected ? 'Showing Patients' : `View Stage ${s.n} Patients`}</span>
                   <ArrowUpRight size={12} />
                 </div>
               </div>

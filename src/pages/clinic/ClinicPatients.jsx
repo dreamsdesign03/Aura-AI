@@ -668,7 +668,7 @@ export default function ClinicPatients() {
                       Stage {selectedStage.n}: {selectedStage.name}
                     </h3>
                     <span className={`pj-badge ${selectedStage.ok ? 'on-target' : 'below-target'}`}>
-                      {selectedStage.measure}: {selectedStage.value} (Target {selectedStage.target})
+                      {selectedStage.measure}: {selectedStage.value} {selectedStage.subValue ? `${selectedStage.subValue} ` : ''}(Target {selectedStage.target})
                     </span>
                     <span
                       style={{

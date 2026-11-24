@@ -1535,8 +1535,8 @@ router.get('/journey-stats', requireUser, async (req, res) => {
 
     const qualify = qualifyRes.rows[0]?.c || 0;
 
-    // 5. Book: Confirmed appointments (clinic + Cal.com)
-    const [bookClinicRes, bookCalRes] = await Promise.all([
+    // 5. Book: Confirmed appointments (clinic + Cal.com) and booked patients
+    const [bookClinicRes, bookCalRes, patientListCountRes] = await Promise.all([
       db.query(
         `SELECT COUNT(*)::int as c
          FROM clinic_appointments a
@@ -1553,10 +1553,18 @@ router.get('/journey-stats', requireUser, async (req, res) => {
            AND c.status IN ('confirmed', 'arrived', 'in_consult', 'completed')
            ${branchFilter}`,
         [branchParam].filter(Boolean)
+      ),
+      db.query(
+        `SELECT COUNT(DISTINCT l.id)::int as c
+         FROM leads l
+         ${patientWhere}
+         ${branchFilter}`,
+        params
       )
     ]);
 
-    const book = (bookClinicRes.rows[0]?.c || 0) + (bookCalRes.rows[0]?.c || 0);
+    const totalConsultations = (bookClinicRes.rows[0]?.c || 0) + (bookCalRes.rows[0]?.c || 0);
+    const bookedPatients = patientListCountRes.rows[0]?.c || 0;
 
     // 6. Consult: Completed visits only
     const consultRes = await db.query(
@@ -1618,7 +1626,15 @@ router.get('/journey-stats', requireUser, async (req, res) => {
         engage: { value: `${engage}`, measure: 'Active Conversations (WhatsApp)', target: '5+', ok: engage >= 5, source: 'whatsapp_conversations (Active)' },
         capture: { value: `${capture}`, measure: 'Captured Contacts (Leads)', target: '100%', ok: true, source: 'leads table (Capture/Route stages)' },
         qualify: { value: `${qualify}`, measure: 'AI Screened Calls', target: '15+', ok: qualify >= 15, source: 'ai_calls (completed)' },
-        book: { value: `${book}`, measure: 'Booked Consultations', target: '10+', ok: book >= 10, source: 'clinic_appointments + calendly_events (confirmed/arrived)' },
+        book: {
+          value: `${bookedPatients}`,
+          consultations: `${totalConsultations}`,
+          subValue: totalConsultations > bookedPatients ? `(${totalConsultations} bookings)` : undefined,
+          measure: 'Booked Patients',
+          target: '10+',
+          ok: bookedPatients >= 10,
+          source: `${bookedPatients} patients with ${totalConsultations} booked consultations in Cal.com/Clinic`
+        },
         consult: { value: `${consult}`, measure: 'Completed Consultations', target: '5+', ok: consult >= 5, source: 'clinic_visits (completed)' },
         treat: { value: `${treat}`, measure: 'Active Care Patients', target: '10+', ok: treat >= 10, source: 'leads with packages/visits' },
         review: { value: `${review}`, measure: 'Google Reviews', target: '5+', ok: review >= 5, source: 'clinic_reviews' },
