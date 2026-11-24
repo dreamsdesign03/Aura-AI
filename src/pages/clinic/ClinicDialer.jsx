@@ -441,7 +441,7 @@ export default function ClinicDialer() {
       {/* Top Header */}
       <PageHead
         title="Dialer"
-        subtitle="Click-to-call your patients or dial directly with AI voice agents. Answered calls are recorded and analyzed."
+        subtitle="Direct click-to-call dialer for patient conversations. Calls are recorded and transcribed in call history."
       >
         <div className="co-row" style={{ gap: 8 }}>
           {/* Consistent Aura Pill Tabs for Dialer Navigation */}
@@ -877,108 +877,56 @@ export default function ClinicDialer() {
               </div>
             </Card>
 
-            {/* Right: Call Configuration & Routing Details */}
+            {/* Right: Phone Line Status & Recent Calls */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <Card>
-                <CardHead
-                  title="Call Configuration & Context"
-                  hint="Tailors AI voice persona and clinical notes"
-                />
-
-                <div className="co-form-grid" style={{ marginTop: 12 }}>
-                  <div className="co-field">
-                    <label className="co-label">Conversation Type *</label>
-                    <select
-                      value={conversationType}
-                      onChange={(e) => setConversationType(e.target.value)}
-                      disabled={isBusy}
-                    >
-                      {CONVERSATION_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="co-field">
-                    <label className="co-label">Doctor Assignment *</label>
-                    <select
-                      value={doctor}
-                      onChange={(e) => setDoctor(e.target.value)}
-                      disabled={isBusy}
-                    >
-                      {DOCTORS.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="co-field co-span-2">
-                    <label className="co-label">Clinic Branch</label>
-                    <select
-                      value={branch}
-                      onChange={(e) => setBranch(e.target.value)}
-                      disabled={isBusy}
-                    >
-                      {branches.map((b) => (
-                        <option key={b.name} value={b.name}>
-                          {b.name}{b.isDefault ? ' (Default)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {!settingsData?.plivoConfigured && (
-                    <div
-                      className="co-field co-span-2"
-                      style={{
-                        background: '#FEF3C7',
-                        border: '1px solid #FDE68A',
-                        borderRadius: 8,
-                        padding: '10px 12px',
-                        color: '#92400E',
-                        fontSize: 12,
-                      }}
-                    >
-                      <div className="co-spread">
-                        <span><b>Plivo not configured yet.</b> Enter your Plivo Auth ID, Token & Number to make real calls.</span>
-                        <button
-                          type="button"
-                          className="co-btn co-btn-sm"
-                          style={{ height: 26, fontSize: 11 }}
-                          onClick={() => setActiveTab('settings')}
-                        >
-                          Configure Now →
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Legal Recording Notice compliance */}
+              {settingsData?.plivoConfigured ? (
                 <div
+                  className="co-card"
                   style={{
-                    marginTop: 18,
-                    background: '#FDF3F8',
-                    border: '1px solid #F3D9E5',
-                    borderRadius: 10,
-                    padding: '12px 14px',
+                    background: '#F0FDF4',
+                    border: '1px solid #BBF7D0',
+                    padding: '12px 16px',
+                    borderRadius: 12,
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: 10,
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
                   }}
                 >
-                  <ShieldCheck size={18} style={{ color: '#A4285E', marginTop: 2, flexShrink: 0 }} />
-                  <div className="co-xs" style={{ color: '#6B7280', lineHeight: 1.5 }}>
-                    <b style={{ color: '#1E293B' }}>Compliance Notice v1.4:</b> All outbound voice calls
-                    initiated through Aura Clinic OS are recorded, transcribed, and evaluated by AI for
-                    treatment accuracy, consultation history, and NABH clinical standards.
+                  <div className="co-row" style={{ gap: 10 }}>
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#22C55E' }} />
+                    <span className="co-sm" style={{ color: '#15803D', fontWeight: 600 }}>
+                      Plivo Line Active ({settingsData.plivoCallerId || '+918065587555'})
+                    </span>
                   </div>
+                  <span className="co-xs co-mut">Outbound Calling Ready</span>
                 </div>
-              </Card>
+              ) : (
+                <div
+                  className="co-card"
+                  style={{
+                    background: '#FEF3C7',
+                    border: '1px solid #FDE68A',
+                    padding: '12px 16px',
+                    borderRadius: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <div className="co-row" style={{ gap: 8, color: '#92400E' }}>
+                    <AlertCircle size={16} />
+                    <span className="co-sm" style={{ fontWeight: 600 }}>Plivo not configured yet</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="co-btn co-btn-sm"
+                    style={{ height: 26, fontSize: 11 }}
+                    onClick={() => setActiveTab('settings')}
+                  >
+                    Configure Now →
+                  </button>
+                </div>
+              )}
 
               {/* Recent Outbound Calls Snapshot */}
               <Card>
@@ -994,14 +942,14 @@ export default function ClinicDialer() {
                 </div>
 
                 {recentCalls.length === 0 ? (
-                  <div className="co-empty" style={{ padding: '20px 0' }}>
+                  <div className="co-empty" style={{ padding: '24px 0' }}>
                     <div className="co-empty-title">No recent calls</div>
-                    <div className="co-sm co-mut">Enter a number and press Call to log your first conversation.</div>
+                    <div className="co-sm co-mut">Enter a number and press Call to place your first conversation.</div>
                   </div>
                 ) : (
                   <div className="co-list">
-                    {recentCalls.slice(0, 4).map((c) => (
-                      <div key={c.id} className="co-list-item" style={{ padding: '8px 0' }}>
+                    {recentCalls.slice(0, 8).map((c) => (
+                      <div key={c.id} className="co-list-item" style={{ padding: '10px 0' }}>
                         <div className="co-spread" style={{ width: '100%' }}>
                           <div>
                             <div className="co-strong" style={{ fontSize: 13 }}>
@@ -1021,6 +969,9 @@ export default function ClinicDialer() {
                                 {c.status}
                               </span>
                               <span className="co-xs co-mut">{formatDuration(c.duration_secs)}</span>
+                              {c.started_at && (
+                                <span className="co-xs co-mut">· {new Date(c.started_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              )}
                             </div>
                           </div>
                           <div className="co-row" style={{ gap: 6 }}>
@@ -1038,9 +989,9 @@ export default function ClinicDialer() {
                             <Link
                               href={`/clinic/call-review/${c.id}`}
                               className="co-btn co-btn-sm co-btn-ghost"
-                              title="Review Call"
+                              title="Review Call Transcript"
                             >
-                              Review
+                              Transcript
                             </Link>
                           </div>
                         </div>
