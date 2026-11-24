@@ -152,14 +152,29 @@ export default function ClinicDialer() {
   const leads = leadsData?.leads || [];
 
   // Fetch call history
+  const [syncPlivoMsg, setSyncPlivoMsg] = useState('');
+
   const { data: historyData, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
     queryKey: ['clinic', 'call-reviews', selectedBranch],
-    queryFn: () => clinicApi.callReviews(selectedBranch || undefined),
+    queryFn: () => clinicApi.callReviews({ branch: selectedBranch }),
     refetchInterval: callPhase === 'connected' || callPhase === 'ringing' ? 3000 : 15000,
     staleTime: 2000,
     refetchOnWindowFocus: true,
   });
   const recentCalls = historyData?.calls || [];
+
+  const syncPlivoMutation = useMutation({
+    mutationFn: clinicApi.syncPlivoCalls,
+    onSuccess: (data) => {
+      setSyncPlivoMsg(`Plivo calls synced: ${data.checked || 0} checked · ${data.imported || 0} new · ${data.updated || 0} updated`);
+      setTimeout(() => setSyncPlivoMsg(''), 6000);
+      refetchHistory();
+    },
+    onError: (err) => {
+      setSyncPlivoMsg(`Plivo sync error: ${err.message}`);
+      setTimeout(() => setSyncPlivoMsg(''), 6000);
+    },
+  });
 
   // Fetch Plivo Dialer Settings
   const { data: settingsData, refetch: refetchSettings } = useQuery({
@@ -932,14 +947,32 @@ export default function ClinicDialer() {
               <Card>
                 <div className="co-spread" style={{ marginBottom: 12 }}>
                   <CardHead title="Recent Calls" hint={`${recentCalls.length} logged`} />
-                  <button
-                    type="button"
-                    className="co-btn co-btn-sm co-btn-ghost"
-                    onClick={() => setActiveTab('history')}
-                  >
-                    View All →
-                  </button>
+                  <div className="co-row" style={{ gap: 6 }}>
+                    <button
+                      type="button"
+                      className="co-btn co-btn-sm co-btn-ghost"
+                      onClick={() => syncPlivoMutation.mutate()}
+                      disabled={syncPlivoMutation.isPending}
+                      title="Sync calls from Plivo"
+                    >
+                      <RefreshCw size={12} className={syncPlivoMutation.isPending ? 'animate-spin' : ''} />
+                      {syncPlivoMutation.isPending ? 'Syncing…' : 'Sync Plivo'}
+                    </button>
+                    <button
+                      type="button"
+                      className="co-btn co-btn-sm co-btn-ghost"
+                      onClick={() => setActiveTab('history')}
+                    >
+                      View All →
+                    </button>
+                  </div>
                 </div>
+
+                {syncPlivoMsg ? (
+                  <div className="co-xs" style={{ marginBottom: 10, color: '#15803D', fontWeight: 600 }}>
+                    {syncPlivoMsg}
+                  </div>
+                ) : null}
 
                 {recentCalls.length === 0 ? (
                   <div className="co-empty" style={{ padding: '24px 0' }}>
@@ -1114,22 +1147,39 @@ export default function ClinicDialer() {
         <Card>
           <div className="co-spread" style={{ marginBottom: 14 }}>
             <CardHead title="Dialer Call History" hint={`${recentCalls.length} recorded calls`} />
-            <button
-              type="button"
-              className="co-btn co-btn-sm"
-              onClick={() => refetchHistory()}
-              disabled={historyLoading}
-            >
-              <RefreshCw size={12} className={historyLoading ? 'animate-spin' : ''} /> Refresh
-            </button>
+            <div className="co-row" style={{ gap: 8 }}>
+              <button
+                type="button"
+                className="co-btn co-btn-primary co-btn-sm"
+                onClick={() => syncPlivoMutation.mutate()}
+                disabled={syncPlivoMutation.isPending}
+              >
+                <RefreshCw size={12} className={syncPlivoMutation.isPending ? 'animate-spin' : ''} />
+                {syncPlivoMutation.isPending ? 'Syncing Plivo Calls…' : 'Sync Plivo Calls'}
+              </button>
+              <button
+                type="button"
+                className="co-btn co-btn-sm"
+                onClick={() => refetchHistory()}
+                disabled={historyLoading}
+              >
+                <RefreshCw size={12} className={historyLoading ? 'animate-spin' : ''} /> Refresh
+              </button>
+            </div>
           </div>
+
+          {syncPlivoMsg ? (
+            <div className="co-xs" style={{ marginBottom: 12, padding: '8px 12px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, color: '#15803D', fontWeight: 600 }}>
+              {syncPlivoMsg}
+            </div>
+          ) : null}
 
           {historyLoading ? (
             <Spinner label="Loading call records…" />
           ) : recentCalls.length === 0 ? (
             <EmptyState title="No calls recorded yet">
               <p className="co-sm co-mut" style={{ marginTop: 6 }}>
-                Outbound AI calls placed from this dialer will appear here with recording playbacks and transcripts.
+                Calls placed from this dialer will appear here with recording playbacks and transcripts.
               </p>
               <button
                 type="button"
@@ -1147,7 +1197,8 @@ export default function ClinicDialer() {
                   <tr>
                     <th>Patient / Contact</th>
                     <th>Destination Phone</th>
-                    <th>Conversation Type</th>
+                    <th>Provider</th>
+                    <th>Type</th>
                     <th>Outcome</th>
                     <th>Duration</th>
                     <th>Started At</th>
@@ -1170,8 +1221,23 @@ export default function ClinicDialer() {
                         <span className="font-mono text-xs">{c.to_phone || '—'}</span>
                       </td>
                       <td>
+                        <span
+                          className="co-chip"
+                          style={{
+                            fontSize: 10,
+                            padding: '1px 6px',
+                            background: c.provider === 'plivo' ? '#F0FDF4' : '#EFF6FF',
+                            color: c.provider === 'plivo' ? '#15803D' : '#1D4ED8',
+                            border: c.provider === 'plivo' ? '1px solid #BBF7D0' : '1px solid #BFDBFE',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {c.provider === 'plivo' ? 'Plivo' : (c.provider || 'Plivo')}
+                        </span>
+                      </td>
+                      <td>
                         <span className="co-chip co-c-n" style={{ textTransform: 'capitalize' }}>
-                          {(c.booking_type || 'consultation').replace(/_/g, ' ')}
+                          {(c.booking_type || c.direction || 'call').replace(/_/g, ' ')}
                         </span>
                       </td>
                       <td>

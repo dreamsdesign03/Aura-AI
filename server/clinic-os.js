@@ -4501,12 +4501,131 @@ router.post('/dialer/settings', requireUser, async (req, res) => {
   }
 });
 
+router.post('/dialer/sync-plivo', requireUser, async (req, res) => {
+  try {
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    if (!creds.isConfigured) {
+      return res.status(503).json({ error: 'Plivo credentials are not configured.' });
+    }
+
+    const auth = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
+    const base = `https://api.plivo.com/v1/Account/${encodeURIComponent(creds.authId)}`;
+    const headers = { Authorization: auth, Accept: 'application/json' };
+
+    // Fetch up to 60 recent calls from Plivo CDR
+    const calls = [];
+    for (let page = 0; page < 3; page++) {
+      const url = new URL(`${base}/Call/`);
+      url.searchParams.set('limit', '20');
+      url.searchParams.set('offset', String(page * 20));
+      const response = await fetch(url, { headers });
+      if (!response.ok) break;
+      const payload = await response.json();
+      const rows = payload.objects || [];
+      calls.push(...rows);
+      if (!rows.length || rows.length < 20) break;
+    }
+
+    // Fetch recordings
+    const recordings = new Map();
+    for (let page = 0; page < 3; page++) {
+      const url = new URL(`${base}/Recording/`);
+      url.searchParams.set('limit', '20');
+      url.searchParams.set('offset', String(page * 20));
+      const response = await fetch(url, { headers });
+      if (!response.ok) break;
+      const payload = await response.json();
+      const rows = payload.objects || [];
+      for (const item of rows) {
+        const uuid = item.call_uuid || item.call_uuid_id;
+        const recordingUrl = item.recording_url || item.url;
+        if (uuid && recordingUrl) recordings.set(uuid, recordingUrl);
+      }
+      if (!rows.length || rows.length < 20) break;
+    }
+
+    let imported = 0;
+    let updated = 0;
+    for (const call of calls) {
+      const uuid = call.call_uuid;
+      const from = call.from_number || call.from || '';
+      const to = call.to_number || call.to || '';
+      if (!uuid || (!from && !to)) continue;
+
+      const direction = String(call.call_direction || call.direction || 'outbound').toLowerCase();
+      const phone = direction === 'inbound' ? from : to;
+      const digits = String(phone).replace(/\D/g, '').slice(-10);
+
+      const lead = digits ? await db.query(
+        `SELECT id, first_name, last_name, company FROM leads
+          WHERE RIGHT(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g'), 10) = $1
+          ORDER BY updated_at DESC NULLS LAST LIMIT 1`, [digits]
+      ) : { rows: [] };
+
+      const contactName = lead.rows[0]
+        ? [lead.rows[0].first_name, lead.rows[0].last_name].filter(Boolean).join(' ').trim()
+        : phone;
+      const company = lead.rows[0]?.company || 'Alkapuri branch';
+      const recordUrl = recordings.get(uuid) || null;
+      const duration = Number(call.call_duration || call.bill_duration || 0) || 0;
+      const started = call.initiation_time || call.answer_time || call.end_time || new Date().toISOString();
+      const status = call.hangup_cause_name
+        ? (String(call.hangup_cause_name).toLowerCase().includes('normal') ? 'completed' : String(call.hangup_cause_name).toLowerCase())
+        : 'completed';
+
+      const exists = await db.query('SELECT id, recording_url, transcript FROM ai_calls WHERE call_sid = $1 OR conversation_id = $1 LIMIT 1', [uuid]);
+      let callId;
+      if (exists.rows.length) {
+        callId = exists.rows[0].id;
+        await db.query(
+          `UPDATE ai_calls SET
+             lead_id = COALESCE(lead_id, $1),
+             from_phone = COALESCE(from_phone, $2),
+             to_phone = COALESCE(to_phone, $3),
+             lead_name = CASE WHEN lead_name IS NULL OR lead_name = '' OR LOWER(lead_name) IN ('patient','unknown caller') THEN $4 ELSE lead_name END,
+             provider = 'plivo',
+             direction = $5,
+             duration_secs = GREATEST(COALESCE(duration_secs, 0), $6),
+             recording_url = COALESCE($7, recording_url),
+             status = CASE WHEN status IN ('ringing','in-progress') THEN $8 ELSE status END,
+             updated_at = NOW()
+           WHERE id = $9`,
+          [lead.rows[0]?.id || null, from, to, contactName, direction, duration, recordUrl, status, callId]
+        );
+        updated++;
+      } else {
+        const inserted = await db.query(
+          `INSERT INTO ai_calls
+            (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name,
+             status, booking_type, duration_secs, provider, direction, recording_url, started_at, created_at, updated_at)
+           VALUES ($1,$2,$2,$3,$4,$5,$6,$7,'patient_consultation',$8,'plivo',$9,$10,$11,NOW(),NOW())
+           RETURNING id`,
+          [lead.rows[0]?.id || null, uuid, from, to, contactName, company, status, duration, direction, recordUrl, started]
+        );
+        callId = inserted.rows[0]?.id;
+        imported++;
+      }
+
+      if (recordUrl && callId && (!exists.rows[0]?.transcript || exists.rows[0]?.transcript === '[]')) {
+        transcribePlivoRecording(callId, recordUrl).catch(() => {});
+      }
+    }
+
+    res.json({ success: true, checked: calls.length, imported, updated, recordingsFound: recordings.size });
+  } catch (err) {
+    console.error('[Dialer Plivo sync error]:', err);
+    res.status(502).json({ error: err.message || 'Could not sync Plivo call history' });
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Call Review: Plivo & Sarvam Transactions (Inbound + Outbound)
 // ---------------------------------------------------------------------------
 router.get('/call-review', requireUser, async (req, res) => {
   try {
     const { provider, direction, search, branch } = req.query;
+    const isSuper = req.user.role === 'owner' || req.user.role === 'admin';
 
     let queryText = `
       SELECT ac.*, 
@@ -4530,9 +4649,9 @@ router.get('/call-review', requireUser, async (req, res) => {
           bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ac.to_phone, ''), '\\D', '', 'g'), 10)
           OR bc.phone_e164 = ac.to_phone
         )
-       WHERE (l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)
+       WHERE (${isSuper ? '1=1' : '(l.user_id = $1 OR ac.lead_id IS NULL OR l.user_id IS NULL)'})
     `;
-    const params = [req.user.id];
+    const params = isSuper ? [] : [req.user.id];
 
     if (provider && provider !== 'all') {
       params.push(provider.toLowerCase());
@@ -4544,10 +4663,16 @@ router.get('/call-review', requireUser, async (req, res) => {
       queryText += ` AND LOWER(COALESCE(ac.direction, 'outbound')) = $${params.length}`;
     }
 
-    if (branch) {
-      // Filter by branch: check if lead's pipeline_stage, source, or company matches branch
-      params.push(branch);
-      queryText += ` AND (l.pipeline_stage = $${params.length} OR l.source = $${params.length} OR l.company = $${params.length} OR ac.company_name = $${params.length})`;
+    if (branch && branch !== 'all') {
+      const cleanBranch = branch.replace(/\s*\(Default\)\s*/i, '').trim();
+      params.push(`%${cleanBranch.toLowerCase()}%`);
+      queryText += ` AND (
+        LOWER(COALESCE(l.company, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.company_name, '')) LIKE $${params.length} OR
+        LOWER(COALESCE(ac.booking_type, '')) LIKE $${params.length} OR
+        COALESCE(ac.company_name, '') = '' OR
+        LOWER(COALESCE(ac.company_name, '')) LIKE '%aura%'
+      )`;
     }
 
     if (search && search.trim()) {
@@ -4581,9 +4706,10 @@ router.get('/call-review', requireUser, async (req, res) => {
     `;
     const statsParams = [];
     
-    if (branch) {
-      statsQuery += ` WHERE company_name = $1`;
-      statsParams.push(branch);
+    if (branch && branch !== 'all') {
+      const cleanBranch = branch.replace(/\s*\(Default\)\s*/i, '').trim();
+      statsQuery += ` WHERE (LOWER(COALESCE(company_name, '')) LIKE $1 OR LOWER(COALESCE(company_name, '')) LIKE '%aura%' OR COALESCE(company_name, '') = '')`;
+      statsParams.push(`%${cleanBranch.toLowerCase()}%`);
     }
     
     const statsRes = await db.query(statsQuery, statsParams);

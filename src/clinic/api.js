@@ -115,16 +115,18 @@ export const clinicApi = {
 
   // Call review
   callReviews: (params = {}) => {
+    const p = typeof params === 'string' ? { branch: params } : (params || {});
     const qs = new URLSearchParams();
-    if (params.provider && params.provider !== 'all') qs.set('provider', params.provider);
-    if (params.direction && params.direction !== 'all') qs.set('direction', params.direction);
-    if (params.search) qs.set('search', params.search);
-    if (params.branch) qs.set('branch', params.branch);
+    if (p.provider && p.provider !== 'all') qs.set('provider', p.provider);
+    if (p.direction && p.direction !== 'all') qs.set('direction', p.direction);
+    if (p.search) qs.set('search', p.search);
+    if (p.branch && p.branch !== 'all') qs.set('branch', p.branch);
     const qStr = qs.toString();
     return request(`/call-review${qStr ? `?${qStr}` : ''}`);
   },
   callReview: (id) => request(`/call-review/${id}`),
   transcribeCall: (id) => request(`/call-review/${id}/transcribe`, { method: 'POST' }),
+  syncPlivoCalls: () => request('/dialer/sync-plivo', { method: 'POST' }),
 
   // Visits
   visits: (leadId) => request(`/visits${leadId ? `?leadId=${encodeURIComponent(leadId)}` : ''}`),
