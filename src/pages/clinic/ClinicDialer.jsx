@@ -551,7 +551,7 @@ export default function ClinicDialer() {
                     <div className="co-xs co-mut" style={{ marginTop: 4 }}>
                       <span>Destination: <b>{number || matchedContact?.phone}</b></span> ·{' '}
                       <span>Doctor: <b>{DOCTORS.find((d) => d.id === doctor)?.name.split('(')[0]}</b></span> ·{' '}
-                      <span>{telephonyEngine === 'plivo' ? '📞 Plivo Voice (Real Call)' : telephonyEngine === 'sarvam' ? '🤖 Sarvam Voice' : '⚡ Mock Simulation'}</span>
+                      <span>📞 Plivo Voice</span>
                     </div>
                   </div>
                 </div>
@@ -916,7 +916,7 @@ export default function ClinicDialer() {
                     </select>
                   </div>
 
-                  <div className="co-field">
+                  <div className="co-field co-span-2">
                     <label className="co-label">Clinic Branch</label>
                     <select
                       value={branch}
@@ -931,47 +931,7 @@ export default function ClinicDialer() {
                     </select>
                   </div>
 
-                  <div className="co-field co-span-2">
-                    <div className="co-spread">
-                      <label className="co-label">Telephony Engine</label>
-                      {telephonyEngine === 'plivo' && (
-                        <span className="co-xs" style={{ color: settingsData?.plivoConfigured ? '#15803D' : '#B45309' }}>
-                          {settingsData?.plivoConfigured ? `● Plivo Ready (${settingsData.plivoCallerId || 'Configured'})` : '⚠️ Credentials Needed'}
-                        </span>
-                      )}
-                    </div>
-                    <div className="co-row" style={{ gap: 8, marginTop: 4 }}>
-                      <button
-                        type="button"
-                        className={`co-btn co-btn-sm ${telephonyEngine === 'plivo' ? 'co-btn-primary' : ''}`}
-                        onClick={() => setTelephonyEngine('plivo')}
-                        disabled={isBusy}
-                        style={{ flex: 1.2 }}
-                      >
-                        📞 Plivo (Real Call)
-                      </button>
-                      <button
-                        type="button"
-                        className={`co-btn co-btn-sm ${telephonyEngine === 'sarvam' ? 'co-btn-primary' : ''}`}
-                        onClick={() => setTelephonyEngine('sarvam')}
-                        disabled={isBusy}
-                        style={{ flex: 1 }}
-                      >
-                        🤖 Sarvam Voice
-                      </button>
-                      <button
-                        type="button"
-                        className={`co-btn co-btn-sm ${telephonyEngine === 'mock' ? 'co-btn-primary' : ''}`}
-                        onClick={() => setTelephonyEngine('mock')}
-                        disabled={isBusy}
-                        style={{ flex: 1 }}
-                      >
-                        ⚡ Mock Test
-                      </button>
-                    </div>
-                  </div>
-
-                  {telephonyEngine === 'plivo' && !settingsData?.plivoConfigured && (
+                  {!settingsData?.plivoConfigured && (
                     <div
                       className="co-field co-span-2"
                       style={{
@@ -994,22 +954,6 @@ export default function ClinicDialer() {
                           Configure Now →
                         </button>
                       </div>
-                    </div>
-                  )}
-
-                  {telephonyEngine === 'mock' && (
-                    <div className="co-field co-span-2">
-                      <label className="co-label">Mock Call Outcome (Simulation)</label>
-                      <select
-                        value={mockOutcome}
-                        onChange={(e) => setMockOutcome(e.target.value)}
-                        disabled={isBusy}
-                      >
-                        <option value="connected">Answered & Completed (Full clinical dialogue)</option>
-                        <option value="busy">Busy Signal (Subscriber line occupied)</option>
-                        <option value="no-answer">No Answer (Timeout after ringing)</option>
-                        <option value="failed">Failed / Carrier Connection Error</option>
-                      </select>
                     </div>
                   )}
                 </div>
