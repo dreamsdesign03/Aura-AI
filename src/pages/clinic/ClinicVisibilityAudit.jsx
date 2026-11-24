@@ -42,7 +42,7 @@ const api = async (path, method = "GET", body) => {
   const cleanPath = (!path || path === "/" || path === "") ? "" : (path.startsWith("/") ? path : `/${path}`);
   const fullUrl = `/api/visibility-audit${cleanPath}`;
 
-  console.log(`%c[VisibilityAudit API] 📡 ${method} ${fullUrl}`, "color: #ec4899; font-weight: bold;", body || "");
+  console.log(`%c[VisibilityAudit API] ${method} ${fullUrl}`, "color: #ec4899; font-weight: bold;", body || "");
 
   try {
     const res = await fetch(fullUrl, {
@@ -52,26 +52,26 @@ const api = async (path, method = "GET", body) => {
       body: body ? JSON.stringify(body) : undefined,
     });
 
-    console.log(`%c[VisibilityAudit API] 📥 Status: ${res.status} for ${fullUrl}`, res.ok ? "color: #10b981;" : "color: #ef4444; font-weight: bold;");
+    console.log(`%c[VisibilityAudit API] Status: ${res.status} for ${fullUrl}`, res.ok ? "color: #10b981;" : "color: #ef4444; font-weight: bold;");
 
     let json = {};
     try { json = await res.json(); } catch (parseErr) {
-      console.warn(`[VisibilityAudit API] ⚠️ Non-JSON response for ${fullUrl}:`, parseErr);
+      console.warn(`[VisibilityAudit API] Non-JSON response for ${fullUrl}:`, parseErr);
     }
 
     if (!res.ok || json.success === false) {
       const errMsg = json.error || `Request failed (${res.status})`;
-      console.error(`%c[VisibilityAudit API Error] ❌ ${method} ${fullUrl} -> ${errMsg}`, "color: #dc2626; font-weight: bold;", json);
+      console.error(`%c[VisibilityAudit API Error] ${method} ${fullUrl} -> ${errMsg}`, "color: #dc2626; font-weight: bold;", json);
       const e = new Error(errMsg);
       e.code = json.code;
       e.status = res.status;
       throw e;
     }
 
-    console.log(`%c[VisibilityAudit API Success] ✅ ${method} ${fullUrl}:`, "color: #059669;", json);
+    console.log(`%c[VisibilityAudit API Success] ${method} ${fullUrl}:`, "color: #059669;", json);
     return json;
   } catch (err) {
-    console.error(`%c[VisibilityAudit Network Error] 💥 ${method} ${fullUrl}:`, "color: #b91c1c; font-weight: bold;", err);
+    console.error(`%c[VisibilityAudit Network Error] ${method} ${fullUrl}:`, "color: #b91c1c; font-weight: bold;", err);
     throw err;
   }
 };
@@ -100,7 +100,7 @@ function RankBadge({ rank, scanned, label }) {
           : "bg-gray-100 text-gray-700 border-gray-200";
   return (
     <span className={`inline-flex items-center justify-center min-w-[40px] px-2 py-0.5 rounded-full font-bold text-xs border ${cls}`}>
-      {rank === 1 ? "🏆 #1" : `#${rank}`}
+      #{rank}
     </span>
   );
 }
@@ -163,10 +163,10 @@ export default function ClinicVisibilityAudit() {
   const explorerRef = useRef(null);
 
   const loadData = async (silent = false) => {
-    console.log("%c[VisibilityAudit] 🔄 Loading audit data from server...", "color: #8b5cf6; font-weight: bold;");
+    console.log("%c[VisibilityAudit] Loading audit data from server...", "color: #8b5cf6; font-weight: bold;");
     try {
       const json = await api("");
-      console.log("%c[VisibilityAudit] 📊 Audit data loaded successfully:", "color: #10b981; font-weight: bold;", {
+      console.log("%c[VisibilityAudit] Audit data loaded successfully:", "color: #10b981; font-weight: bold;", {
         totalKeywords: json.keywords?.length,
         config: json.config,
         summary: json.summary,
@@ -174,7 +174,7 @@ export default function ClinicVisibilityAudit() {
       });
       setData(json);
     } catch (err) {
-      console.error("%c[VisibilityAudit] ❌ loadData failed:", "color: #ef4444; font-weight: bold;", err);
+      console.error("%c[VisibilityAudit] loadData failed:", "color: #ef4444; font-weight: bold;", err);
       if (!silent) toast({ title: "Failed to load audit data", description: err.message, variant: "destructive" });
     } finally {
       setLoading(false);
@@ -224,9 +224,9 @@ export default function ClinicVisibilityAudit() {
 
   // ── Single keyword LIVE check ──────────────────────────────────────────────
   const checkOne = async (item) => {
-    console.log(`%c[VisibilityAudit] 🔍 Checking keyword live: "${item.keyword}" (${item.branch})`, "color: #3b82f6;");
+    console.log(`%c[VisibilityAudit] Checking keyword live: "${item.keyword}" (${item.branch})`, "color: #3b82f6;");
     const json = await api("/check-keyword", "POST", { id: item.id });
-    console.log(`%c[VisibilityAudit] 🎯 Check result for "${item.keyword}":`, "color: #10b981;", {
+    console.log(`%c[VisibilityAudit] Check result for "${item.keyword}":`, "color: #10b981;", {
       maps_rank: json.keyword?.maps_rank,
       organic_rank: json.keyword?.organic_rank,
       rating: json.keyword?.rating,
@@ -272,7 +272,7 @@ export default function ClinicVisibilityAudit() {
     }
     const list = filteredKeywords.length ? filteredKeywords : keywords;
     if (!list.length) return;
-    console.log(`%c[VisibilityAudit] 🚀 Starting live scan for ${list.length} keywords...`, "color: #ec4899; font-weight: bold;");
+    console.log(`%c[VisibilityAudit] Starting live scan for ${list.length} keywords...`, "color: #ec4899; font-weight: bold;");
     stopRef.current = false;
     setIsScanning(true);
     setLiveFeed([]);
@@ -302,7 +302,7 @@ export default function ClinicVisibilityAudit() {
     }
     setCheckingId(null); setIsScanning(false); setScanProgress(null);
     await loadData(true);
-    console.log(`%c[VisibilityAudit] 🏁 Scan finished. Done: ${done}, Failed: ${failed}`, "color: #10b981; font-weight: bold;");
+    console.log(`%c[VisibilityAudit] Scan finished. Done: ${done}, Failed: ${failed}`, "color: #10b981; font-weight: bold;");
     toast({
       title: fatal ? "Scan stopped" : stopRef.current ? "Scan paused" : "Scan complete",
       description: fatal || `Checked ${done} of ${list.length} keywords live on Google${failed ? ` · ${failed} failed` : ""}.`,
@@ -313,19 +313,19 @@ export default function ClinicVisibilityAudit() {
   // ── AI visibility scan (sequential per engine, respects RPM limits) ─────────────────────────────────────
   const handleAiScan = async () => {
     if (isAiScanning) {
-      console.log("%c[VisibilityAudit] ⏸️ User paused AI scan", "color: #f59e0b; font-weight: bold;");
+      console.log("%c[VisibilityAudit] User paused AI scan", "color: #f59e0b; font-weight: bold;");
       stopAiRef.current = true;
       return;
     }
     const availableEngines = ENGINE_ORDER.filter((e) => config.engines?.[e]?.configured && !disabledEngines.has(e));
     if (!availableEngines.length) {
-      console.warn("[VisibilityAudit] ⚠️ AI scan attempted but no engine configured or all disabled.");
+      console.warn("[VisibilityAudit] AI scan attempted but no engine configured or all disabled.");
       toast({ title: "No AI engine available", description: "All configured engines have hit quota limits. Check back later or add credits.", variant: "destructive" });
       return;
     }
     const tasks = [];
     for (const q of data.aiQuestions) for (const e of availableEngines) tasks.push({ q, e });
-    console.log(`%c[VisibilityAudit] 🤖 Starting AI scan for ${tasks.length} checks across [${availableEngines.join(", ")}]...`, "color: #8b5cf6; font-weight: bold;");
+    console.log(`%c[VisibilityAudit] Starting AI scan for ${tasks.length} checks across [${availableEngines.join(", ")}]...`, "color: #8b5cf6; font-weight: bold;");
     stopAiRef.current = false;
     setIsAiScanning(true);
     setShowAiDetail(true);
@@ -347,7 +347,7 @@ export default function ClinicVisibilityAudit() {
         const now = Date.now();
         const wait = Math.max(0, minInterval - (now - lastRequestTime));
         if (wait > 0) {
-          console.log(`[VisibilityAudit AI] ⏳ Rate limiting ${ENGINE_SHORT[e]}: waiting ${wait}ms`);
+          console.log(`[VisibilityAudit AI] Rate limiting ${ENGINE_SHORT[e]}: waiting ${wait}ms`);
           await new Promise(r => setTimeout(r, wait));
         }
         lastRequestTime = Date.now();
@@ -367,7 +367,7 @@ export default function ClinicVisibilityAudit() {
           failed++;
           // If quota/credits exhausted, disable this engine for the rest of this scan
           if (err.code === 'INSUFFICIENT_CREDITS' || err.code === 'RATE_LIMITED') {
-            console.warn(`[VisibilityAudit AI] 🚫 Disabling ${ENGINE_SHORT[e]} for this session: ${err.message}`);
+            console.warn(`[VisibilityAudit AI] Disabling ${ENGINE_SHORT[e]} for this session: ${err.message}`);
             setDisabledEngines(prev => new Set([...prev, e]));
             setEngineWarnings(prev => ({
               ...prev,
@@ -385,14 +385,14 @@ export default function ClinicVisibilityAudit() {
     await worker();
     setIsAiScanning(false); setAiProgress(null);
     await loadData(true);
-    console.log(`%c[VisibilityAudit] 🏁 AI scan completed. Answers checked: ${done}, Failed: ${failed}`, "color: #8b5cf6; font-weight: bold;");
+    console.log(`%c[VisibilityAudit] AI scan completed. Answers checked: ${done}, Failed: ${failed}`, "color: #8b5cf6; font-weight: bold;");
     const msg = stopAiRef.current ? "AI scan paused" : failed ? `AI scan complete · ${done} checked, ${failed} failed` : `AI scan complete · ${done} answers checked`;
     toast({ title: stopAiRef.current ? "AI scan paused" : "AI scan complete", description: msg, variant: failed && !stopAiRef.current ? "destructive" : undefined });
   };
 
   const handleSaveRank = async (id) => {
     const n = parseInt(editingVal, 10);
-    console.log(`%c[VisibilityAudit] ✏️ Setting manual rank for id ${id} -> #${n}`, "color: #f59e0b; font-weight: bold;");
+    console.log(`%c[VisibilityAudit] Setting manual rank for id ${id} -> #${n}`, "color: #f59e0b; font-weight: bold;");
     setEditingId(null);
     if (!n || n < 1 || n > 100) return;
     try {
@@ -683,7 +683,7 @@ export default function ClinicVisibilityAudit() {
                           return (
                             <td key={e} className="py-2.5 px-3 text-center" title={r?.snippet || ""}>
                               {disabled ? (
-                                <span className="text-[10px] text-amber-600 font-semibold" title="Quota/rate limit reached">⛔</span>
+                                <span className="text-[10px] text-amber-600 font-semibold" title="Quota/rate limit reached">Limit</span>
                               ) : !r ? (
                                 <span className="text-gray-300">-</span>
                               ) : !r.answered ? (
