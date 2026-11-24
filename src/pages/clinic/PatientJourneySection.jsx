@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import {
   Sparkles, CheckCircle2, AlertCircle, ArrowUpRight, Sliders,
   X, Check, RotateCcw, CalendarDays,
-  Target, Shield, ExternalLink, Activity, Users, Filter, Info
+  Target, Shield, ExternalLink, Activity, Users, Filter
 } from 'lucide-react';
 import { Modal } from '@/clinic/ui';
 import { clinicApi } from '@/clinic/api';
@@ -374,34 +374,12 @@ export default function PatientJourneySection({
                       )}
                     </div>
                   </div>
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <div>
                     <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
                       Target
                       <br />
                       <b style={{ color: '#2E3B3E' }}>{s.target}</b>
                     </span>
-                    {s.source && (
-                      <div style={{ position: 'relative', display: 'inline-block', marginLeft: 6 }}>
-                        <Info size={12} style={{ color: '#5F6B6D', cursor: 'help', verticalAlign: 'middle' }} />
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          marginBottom: 6,
-                          padding: '6px 10px',
-                          background: '#1E293B',
-                          color: '#fff',
-                          fontSize: 11,
-                          borderRadius: 4,
-                          whiteSpace: 'nowrap',
-                          zIndex: 10,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                        }}>
-                          Source: {s.source}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
@@ -489,34 +467,12 @@ export default function PatientJourneySection({
                       )}
                     </div>
                   </div>
-                  <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <div>
                     <span style={{ fontSize: 11.5, textAlign: 'right', color: '#5F6B6D' }}>
                       Target
                       <br />
                       <b style={{ color: '#2E3B3E' }}>{s.target}</b>
                     </span>
-                    {s.source && (
-                      <div style={{ position: 'relative', display: 'inline-block', marginLeft: 6 }}>
-                        <Info size={12} style={{ color: '#5F6B6D', cursor: 'help', verticalAlign: 'middle' }} />
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '100%',
-                          left: '50%',
-                          transform: 'translateX(-50%)',
-                          marginBottom: 6,
-                          padding: '6px 10px',
-                          background: '#1E293B',
-                          color: '#fff',
-                          fontSize: 11,
-                          borderRadius: 4,
-                          whiteSpace: 'nowrap',
-                          zIndex: 10,
-                          boxShadow: '0 4px 12px rgba(0,0,0,0.15)'
-                        }}>
-                          Source: {s.source}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
 
