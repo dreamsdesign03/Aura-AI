@@ -4701,6 +4701,8 @@ router.get('/call-review', requireUser, async (req, res) => {
         COUNT(CASE WHEN LOWER(COALESCE(direction, 'outbound')) = 'outbound' THEN 1 END)::int AS outbound,
         COUNT(CASE WHEN LOWER(COALESCE(provider, 'plivo')) = 'plivo' THEN 1 END)::int AS plivo,
         COUNT(CASE WHEN LOWER(COALESCE(provider, 'plivo')) = 'sarvam' THEN 1 END)::int AS sarvam,
+        COUNT(CASE WHEN recording_url IS NOT NULL AND TRIM(recording_url) != '' THEN 1 END)::int AS recordings,
+        COUNT(CASE WHEN LOWER(COALESCE(outcome, '')) IN ('booked', 'appointment_booked', 'confirmed') OR LOWER(COALESCE(booking_type, '')) IN ('appointment', 'consultation', 'booked') THEN 1 END)::int AS booked,
         COALESCE(SUM(duration_secs), 0)::int AS total_duration
       FROM ai_calls
     `;
@@ -4732,7 +4734,7 @@ router.get('/call-review', requireUser, async (req, res) => {
 
     res.json({ 
       calls: formattedCalls,
-      stats: statsRes.rows[0] || { total: 0, inbound: 0, outbound: 0, plivo: 0, sarvam: 0, total_duration: 0 }
+      stats: statsRes.rows[0] || { total: 0, inbound: 0, outbound: 0, plivo: 0, sarvam: 0, recordings: 0, booked: 0, total_duration: 0 }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -348,15 +348,16 @@ export default function ClinicCallReview({ id }) {
 
   if (!activeId) {
     const rawCalls = listQuery.data?.calls || [];
-    const stats = listQuery.data?.stats || {
-      total: rawCalls.length,
-      inbound: rawCalls.filter(c => (c.direction || 'outbound').toLowerCase() === 'inbound').length,
-      outbound: rawCalls.filter(c => (c.direction || 'outbound').toLowerCase() === 'outbound').length,
-      plivo: rawCalls.filter(c => (c.provider || 'plivo').toLowerCase() === 'plivo').length,
-      sarvam: rawCalls.filter(c => (c.provider || '').toLowerCase() === 'sarvam').length,
-      recordings: rawCalls.filter(c => !!c.recording_url).length,
-      booked: rawCalls.filter(isBookedCall).length,
-      total_duration: rawCalls.reduce((s, c) => s + (c.duration_secs || 0), 0),
+    const serverStats = listQuery.data?.stats || {};
+    const stats = {
+      total: serverStats.total ?? rawCalls.length,
+      inbound: serverStats.inbound ?? rawCalls.filter(c => (c.direction || 'outbound').toLowerCase() === 'inbound').length,
+      outbound: serverStats.outbound ?? rawCalls.filter(c => (c.direction || 'outbound').toLowerCase() === 'outbound').length,
+      plivo: serverStats.plivo ?? rawCalls.filter(c => (c.provider || 'plivo').toLowerCase() === 'plivo').length,
+      sarvam: serverStats.sarvam ?? rawCalls.filter(c => (c.provider || '').toLowerCase() === 'sarvam').length,
+      recordings: serverStats.recordings ?? rawCalls.filter(c => !!c.recording_url).length,
+      booked: serverStats.booked ?? rawCalls.filter(isBookedCall).length,
+      total_duration: serverStats.total_duration ?? rawCalls.reduce((s, c) => s + (c.duration_secs || 0), 0),
     };
 
     const filteredCalls = rawCalls.filter(c => {
@@ -508,7 +509,7 @@ export default function ClinicCallReview({ id }) {
                     className={`co-pill-tab ${active ? 'active' : ''}`}
                   >
                     <span>{f.label}</span>
-                    <span className="co-pill-badge">{f.count}</span>
+                    <span className="co-pill-badge">{f.count ?? 0}</span>
                   </button>
                 );
               })}
