@@ -353,35 +353,21 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
           </span>
         </div>
 
-        {/* Phone Number with Action Logos */}
+        {/* Phone Number */}
         {phoneNum && (
           <div className="flex items-center justify-between text-[11px] py-0.5 text-gray-500">
             <span className="text-gray-400 font-medium">Phone:</span>
-            <div className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="font-mono text-gray-800 font-medium text-[11px]">{phoneNum}</span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPhoneCall ? onPhoneCall(lead) : (window.location.href = `tel:${phoneNum}`);
-                }}
-                className="w-5 h-5 rounded bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center transition-colors shrink-0 shadow-xs"
-                title={`Call ${name} (${phoneNum})`}
-              >
-                <Phone className="w-2.5 h-2.5 text-pink-600" />
-              </button>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSendWhatsApp?.(lead);
-                }}
-                className="w-5 h-5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center transition-colors shrink-0 shadow-xs"
-                title={`Send WhatsApp message to ${name} (${phoneNum})`}
-              >
-                <MessageCircle className="w-2.5 h-2.5 text-emerald-600" />
-              </button>
-            </div>
+            <span className="font-mono text-gray-800 font-medium text-[11px]">{phoneNum}</span>
+          </div>
+        )}
+
+        {/* Email */}
+        {cleanEmail(lead.email) && (
+          <div className="flex items-center justify-between text-[11px] py-0.5 text-gray-500">
+            <span className="text-gray-400 font-medium">Email:</span>
+            <span className="text-gray-800 font-medium text-[11px] truncate max-w-[140px]" title={cleanEmail(lead.email)}>
+              {cleanEmail(lead.email)}
+            </span>
           </div>
         )}
 
@@ -445,40 +431,33 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
       </div>
 
       {/* Action icons row */}
-      <div className="px-2.5 py-1.5 border-t border-gray-100 flex items-center gap-1 bg-gray-50/50" onClick={(e) => e.stopPropagation()}>
+      <div className="px-2.5 py-1.5 border-t border-gray-100 flex items-center gap-1.5 bg-gray-50/50" onClick={(e) => e.stopPropagation()}>
         {/* Phone Call */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPhoneCall ? onPhoneCall(lead) : (window.location.href = `tel:${phoneNum}`);
-          }}
-          disabled={!phoneNum}
-          className={cn(
-            "p-1.5 rounded bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 transition-colors shadow-2xs",
-            !phoneNum && "opacity-30 cursor-not-allowed"
-          )}
-          title={phoneNum ? `Call ${name} (${phoneNum})` : "No phone available"}
-        >
-          <Phone className="w-3.5 h-3.5 text-pink-600" />
-        </button>
-
-        {/* WhatsApp Integration */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSendWhatsApp?.(lead);
-          }}
-          disabled={!phoneNum}
-          className={cn(
-            "p-1.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs",
-            !phoneNum && "opacity-30 cursor-not-allowed"
-          )}
-          title={phoneNum ? `Send WhatsApp message to ${name}` : "No phone available"}
-        >
-          <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
-        </button>
+        {phoneNum ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPhoneCall ? onPhoneCall(lead) : (window.location.href = `tel:${phoneNum}`);
+            }}
+            className="p-1.5 rounded bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 transition-colors shadow-2xs"
+            title={`AI Voice Call to ${name} (${phoneNum})`}
+          >
+            <Phone className="w-3.5 h-3.5 text-pink-600" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="p-1.5 rounded bg-gray-50 text-gray-400 hover:bg-gray-100 border border-gray-200 transition-colors shadow-2xs"
+            title="No phone available"
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.error(`No phone number for ${name}`);
+            }}
+          >
+            <Phone className="w-3.5 h-3.5 text-gray-400" />
+          </button>
+        )}
 
         {/* Add Activity / Meeting */}
         <button
@@ -494,7 +473,7 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
         </button>
 
         {/* Send Email Integration */}
-        {cleanEmail(lead.email) && (
+        {cleanEmail(lead.email) ? (
           <button
             type="button"
             onClick={(e) => {
@@ -505,6 +484,45 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
             title={`Send email to ${name} (${cleanEmail(lead.email)})`}
           >
             <Mail className="w-3.5 h-3.5 text-blue-600" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="p-1.5 rounded bg-gray-50 text-gray-400 hover:bg-gray-100 border border-gray-200 transition-colors shadow-2xs"
+            title="No email available"
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.error(`No email address for ${name}`);
+            }}
+          >
+            <Mail className="w-3.5 h-3.5 text-gray-400" />
+          </button>
+        )}
+
+        {/* WhatsApp Integration */}
+        {phoneNum ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSendWhatsApp?.(lead);
+            }}
+            className="p-1.5 rounded bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 transition-colors shadow-2xs"
+            title={`Send WhatsApp message to ${name} (${phoneNum})`}
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-emerald-600" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="p-1.5 rounded bg-gray-50 text-gray-400 hover:bg-gray-100 border border-gray-200 transition-colors shadow-2xs"
+            title="No phone number for WhatsApp"
+            onClick={(e) => {
+              e.stopPropagation();
+              toast.error(`No phone number for ${name}`);
+            }}
+          >
+            <MessageCircle className="w-3.5 h-3.5 text-gray-400" />
           </button>
         )}
 
