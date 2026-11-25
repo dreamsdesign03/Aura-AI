@@ -4038,7 +4038,7 @@ router.post('/dialer/call', requireUser, async (req, res) => {
 
     const transcriptsByOutcome = {
       connected: [
-        { speaker: 'AI', text: `Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ketki, your AI clinical coordinator.` },
+        { speaker: 'AI', text: `Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ria, your AI clinical coordinator.` },
         { speaker: 'Patient', text: `Hello! Yes, I was inquiring regarding ${label.toLowerCase()}.` },
         { speaker: 'AI', text: `Certainly! Our team will ensure you receive personalized care. I have updated your consultation notes for ${doctor || 'the clinical team'} at ${branch || 'Alkapuri Main'}.` },
         { speaker: 'Patient', text: 'Thank you so much, that sounds wonderful.' },

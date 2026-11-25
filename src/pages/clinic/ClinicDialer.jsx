@@ -42,7 +42,7 @@ const DOCTORS = [
   { id: 'dr_aditya', name: 'Dr. Aditya Shah (Chief Dermatologist)' },
   { id: 'dr_sneha', name: 'Dr. Sneha Parikh (Aesthetic Physician)' },
   { id: 'dr_rohan', name: 'Dr. Rohan Mehta (Cosmetic Surgeon)' },
-  { id: 'clinic_ai', name: 'Ketki (AI Clinical Voice Coordinator)' },
+  { id: 'clinic_ai', name: 'Ria (AI Clinical Voice Coordinator)' },
 ];
 
 // DTMF audio feedback generator using Web Audio API
@@ -374,7 +374,7 @@ export default function ClinicDialer() {
 
     const isMockMode = telephonyEngine === 'mock';
     const fullTranscript = isMockMode ? [
-      { speaker: 'AI', text: `[Simulation] Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ketki, your AI clinical coordinator.` },
+      { speaker: 'AI', text: `[Simulation] Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser & Cosmetic Clinic. I am Ria, your AI clinical coordinator.` },
       { speaker: 'Patient', text: `[Simulation] Hello! Yes, I was inquiring regarding ${label.toLowerCase()}.` },
       { speaker: 'AI', text: `[Simulation] Certainly! Our team will ensure you receive personalized care. I have updated your consultation notes for ${docObj?.name || 'the clinical team'} at ${branchObj?.name || 'Alkapuri Main'}.` },
       { speaker: 'Patient', text: '[Simulation] Thank you so much, that sounds wonderful.' },

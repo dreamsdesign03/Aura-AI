@@ -401,13 +401,13 @@ function BulkCallDetail({ id, onBack }) {
               <p className="text-sm text-gray-600 mb-6">
                 {campaign.sarvam_settings ? (
                   <>
-                    {pending} contacts will be called by Ketki (AI) at {campaign.sarvam_settings.attemptsPerSecond} call(s)/sec.<br /><br />
+                    {pending} contacts will be called by Ria (AI) at {campaign.sarvam_settings.attemptsPerSecond} call(s)/sec.<br /><br />
                     Calling hours: {campaign.sarvam_settings.startTime} - {campaign.sarvam_settings.endTime} IST.<br />
                     {campaign.sarvam_settings.retry?.enabled ? `Retries: ${campaign.sarvam_settings.retry.maxRetries}` : 'No retries'}
                   </>
                 ) : (
                   <>
-                    {pending} contacts will be called one by one by Ketki (AI).<br /><br />
+                    {pending} contacts will be called one by one by Ria (AI).<br /><br />
                     Calling hours: 10:00 AM - 7:30 PM IST.
                   </>
                 )}
@@ -715,7 +715,7 @@ function CallConversation({ interactionId, fallbackTranscript, recordingUrl }) {
               const isUser = m.role === 'user' || m.speaker === 'user';
               return (
                 <div key={idx} className={`text-[11px] leading-relaxed p-2.5 rounded-lg ${isUser ? 'bg-blue-50 text-blue-900 text-right' : 'bg-pink-50 text-pink-900'}`}>
-                  <div className="font-semibold text-[10px] text-gray-500 mb-0.5">{isUser ? 'User / Patient' : 'Ketki (AI Coordinator)'}:</div>
+                  <div className="font-semibold text-[10px] text-gray-500 mb-0.5">{isUser ? 'User / Patient' : 'Ria (AI Coordinator)'}:</div>
                   <div className="whitespace-pre-wrap">{text}</div>
                   {indic && (
                     <div className="text-[10px] text-gray-500 mt-1 pt-1 border-t border-black/5 italic">{indic}</div>

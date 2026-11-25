@@ -201,7 +201,7 @@ export default function Leads() {
             if (res.ok && data.success) {
                 const callLabel = callMethod === "plivo"
                     ? "Direct Plivo telephony call"
-                    : (agentType === "makeup_artist" ? "AI Call (Misha - Skinnonest)" : "AI Call (Ketki - Aura Clinic)");
+                    : (agentType === "makeup_artist" ? "AI Call (Misha - Skinnonest)" : "AI Call (Ria - Aura Clinic)");
                 toast({
                     title: "Call initiated",
                     description: `${callLabel} dispatched to ${leadName} (${leadPhone}).`,
@@ -3664,7 +3664,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
                   </div>
                 </button>
 
-                {/* Customer / Patient Coordinator (Ketki) */}
+                {/* Customer / Patient Coordinator (Ria) */}
                 <button
                   type="button"
                   onClick={() => setAgentType("customer")}
@@ -3677,7 +3677,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                      <span className="font-bold text-xs text-gray-900">Customer / Patient (Ketki · Aura Clinic)</span>
+                      <span className="font-bold text-xs text-gray-900">Customer / Patient (Ria · Aura Clinic)</span>
                     </div>
                     <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
                       Conversatio-cc27549a-e502
@@ -3749,7 +3749,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
                   ? "Start Plivo Call"
                   : agentType === "makeup_artist"
                   ? "Start AI Call (Misha)"
-                  : "Start AI Call (Ketki)"}
+                  : "Start AI Call (Ria)"}
               </>
             )}
           </button>
@@ -3855,11 +3855,11 @@ function AiCallHistoryView({ leadId, leadPhone }) {
     if (combo.includes("misha") || combo.includes("skinnonest") || combo.includes("vishw")) {
       return "Misha (Skinnonest AI)";
     }
-    if (combo.includes("ketki") || combo.includes("aura") || combo.includes("dr. aditya")) {
-      return "Ketki (Aura Clinic AI)";
+    if (combo.includes("ria") || combo.includes("ketki") || combo.includes("aura") || combo.includes("dr. aditya")) {
+      return "Ria (Aura Clinic AI)";
     }
     if (bookingType === "bulk_campaign") {
-      return "Ketki (Bulk AI)";
+      return "Ria (Bulk AI)";
     }
     return "Aura AI Voice Assistant";
   };
@@ -3886,7 +3886,7 @@ function AiCallHistoryView({ leadId, leadPhone }) {
         </span>
       );
     }
-    if (bookingType === "patient_consultation" || call.agentType === "customer" || agentName.toLowerCase().includes("ketki")) {
+    if (bookingType === "patient_consultation" || call.agentType === "customer" || agentName.toLowerCase().includes("ria") || agentName.toLowerCase().includes("ketki")) {
       return (
         <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
           Patient Consultation

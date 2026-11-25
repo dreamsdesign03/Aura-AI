@@ -160,7 +160,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                      <span className="font-bold text-xs text-gray-900">Customer / Patient (Ketki · Aura Clinic)</span>
+                      <span className="font-bold text-xs text-gray-900">Customer / Patient (Ria · Aura Clinic)</span>
                     </div>
                     <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
                       Conversatio-cc27549a-e502
@@ -232,7 +232,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
                   ? "Start Plivo Call"
                   : agentType === "makeup_artist"
                   ? "Start AI Call (Misha)"
-                  : "Start AI Call (Ketki)"}
+                  : "Start AI Call (Ria)"}
               </>
             )}
           </button>

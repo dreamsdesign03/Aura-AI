@@ -92,7 +92,7 @@ router.post('/', async (req, res) => {
     const resolvedAgentType = agentType || (appId === 'Misha-Skinn-4e9816f8-ead9' ? 'makeup_artist' : 'customer');
     const isMisha = resolvedAgentType === 'makeup_artist' || appId === 'Misha-Skinn-4e9816f8-ead9';
     const agentAppId = isMisha ? 'Misha-Skinn-4e9816f8-ead9' : (appId || process.env.SARVAM_APP_ID);
-    const agentDisplayName = isMisha ? 'Misha (Skinnonest AI)' : 'Ketki (AI)';
+    const agentDisplayName = isMisha ? 'Misha (Skinnonest AI)' : 'Ria (AI)';
 
     const sarvamRes = await dispatchSarvamCall({
       phoneE164: check.e164,

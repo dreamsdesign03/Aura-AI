@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Clock, Video, Calendar, User, Copy, Check } from "lucide-react";
+import { Clock, Video, Calendar, User, Copy, Check, Sparkles } from "lucide-react";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
 export default function Booking() {
     const [copied, setCopied] = useState(false);
+    const [bookingTab, setBookingTab] = useState("ria"); // "ria" | "misha"
     const bookingUrl = typeof window !== "undefined"
         ? window.location.href.split("?")[0]
         : "";
@@ -20,7 +21,9 @@ export default function Booking() {
             <Calendar className="w-5 h-5 text-white"/>
           </div>
           <div>
-            <div className="text-white font-bold text-[15px] leading-tight">Aura Laser &amp; Cosmetic Clinic</div>
+            <div className="text-white font-bold text-[15px] leading-tight">
+              {bookingTab === "ria" ? "Aura Laser & Cosmetic Clinic" : "Skinnonest Cosmeceutical Skincare"}
+            </div>
             <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.5)" }}>aurai.clinic · Skinnonest</div>
           </div>
         </div>
@@ -30,49 +33,123 @@ export default function Booking() {
         </button>
       </header>
 
-      {/* Card */}
-      <div className="flex-1 flex items-start justify-center px-4 py-6">
+      {/* Main Container */}
+      <div className="flex-1 flex flex-col items-center justify-start px-4 py-4 md:py-6 gap-4">
+        {/* Dual Calendar Switcher */}
+        <div className="w-full max-w-5xl flex items-center justify-center p-1.5 rounded-2xl border" style={{ background: "rgba(255,255,255,0.06)", borderColor: "rgba(255,255,255,0.12)" }}>
+          <div className="grid grid-cols-2 gap-2 w-full">
+            <button
+              type="button"
+              onClick={() => setBookingTab("ria")}
+              className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs md:text-sm font-bold transition-all ${
+                bookingTab === "ria"
+                  ? "bg-pink-600 text-white shadow-lg"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <User className="w-4 h-4" />
+              <span>1. Appointment with Ria (Aura Clinic Consultation)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setBookingTab("misha")}
+              className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-xs md:text-sm font-bold transition-all ${
+                bookingTab === "misha"
+                  ? "bg-purple-600 text-white shadow-lg"
+                  : "text-white/70 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>2. Makeup Appointment · Skinnonest Misha</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Card */}
         <div className="w-full max-w-5xl rounded-2xl overflow-hidden shadow-2xl" style={{ background: "#fff" }}>
           <div className="flex flex-col md:flex-row">
 
             {/* Left panel */}
-            <div className="md:w-72 flex-shrink-0 p-8" style={{ background: "linear-gradient(160deg, #A4285E 0%, #2A0A18 100%)" }}>
-              <div className="w-12 h-12 rounded-xl mb-5 flex items-center justify-center" style={{ background: "rgba(255,255,255,0.12)" }}>
-                <User className="w-6 h-6 text-white"/>
-              </div>
-              <div className="text-white font-bold text-[18px] leading-snug mb-1">Dr. Aditya Shah</div>
-              <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Founder · Aura Laser &amp; Cosmetic Clinic</div>
-              <div className="text-[13px] mb-5 font-semibold" style={{ color: "#CB3273" }}>Dermatologist-backed · Skinnonest</div>
+            {bookingTab === "ria" ? (
+              <div className="md:w-72 flex-shrink-0 p-8" style={{ background: "linear-gradient(160deg, #A4285E 0%, #2A0A18 100%)" }}>
+                <div className="w-12 h-12 rounded-xl mb-5 flex items-center justify-center" style={{ background: "rgba(255,255,255,0.12)" }}>
+                  <User className="w-6 h-6 text-white"/>
+                </div>
+                <div className="text-white font-bold text-[18px] leading-snug mb-1">Dr. Aditya Shah</div>
+                <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Founder · Aura Laser &amp; Cosmetic Clinic</div>
+                <div className="text-[13px] mb-3 font-semibold" style={{ color: "#CB3273" }}>Dermatologist-backed · Skinnonest</div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-pink-500/25 mb-4 border border-pink-400/30">
+                  <User className="w-3.5 h-3.5" /> Coordinated by Ria (Aura AI)
+                </div>
 
-              <div className="text-[13px] mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
-                Book a free 30-minute consultation with Dr. Aditya Shah to discuss your skin, hair &amp; laser treatment needs — personalised care, visible results.
-              </div>
+                <div className="text-[13px] mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  Book a free 30-minute consultation with Dr. Aditya Shah to discuss your skin, hair &amp; laser treatment needs — personalised care, visible results.
+                </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-2.5">
-                  <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "#CB3273" }}/>
-                  <span className="text-[13px] text-white">30 minutes</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Video className="w-4 h-4 flex-shrink-0" style={{ color: "#CB3273" }}/>
-                  <span className="text-[13px] text-white">Google Meet / In-person (Vadodara)</span>
-                </div>
-                <div className="flex items-center gap-2.5">
-                  <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: "#CB3273" }}/>
-                  <span className="text-[13px] text-white">Instant Online Booking</span>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <Clock className="w-4 h-4 flex-shrink-0" style={{ color: "#CB3273" }}/>
+                    <span className="text-[13px] text-white">30 minutes</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Video className="w-4 h-4 flex-shrink-0" style={{ color: "#CB3273" }}/>
+                    <span className="text-[13px] text-white">Google Meet / In-person (Vadodara)</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Calendar className="w-4 h-4 flex-shrink-0" style={{ color: "#CB3273" }}/>
+                    <span className="text-[13px] text-white">Instant Online Booking</span>
+                  </div>
                 </div>
               </div>
-            </div>
+            ) : (
+              <div className="md:w-72 flex-shrink-0 p-8" style={{ background: "linear-gradient(160deg, #6B21A8 0%, #1E1B4B 100%)" }}>
+                <div className="w-12 h-12 rounded-xl mb-5 flex items-center justify-center font-bold text-white text-lg" style={{ background: "rgba(255,255,255,0.12)" }}>
+                  SK
+                </div>
+                <div className="text-white font-bold text-[18px] leading-snug mb-1">Vishw</div>
+                <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Skinnonest Brand Representative</div>
+                <div className="text-[13px] mb-3 font-semibold text-purple-300">Derma &amp; Cosmeceutical Skincare</div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-purple-500/25 mb-4 border border-purple-400/30">
+                  <Sparkles className="w-3.5 h-3.5" /> Coordinated by Misha (Skinnonest AI)
+                </div>
+
+                <div className="text-[13px] mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
+                  Skinnonest derma and cosmeceutical partnership meeting for makeup artists, salons &amp; skin clinics. Review product ranges, free trial samples &amp; partnership terms.
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2.5">
+                    <Clock className="w-4 h-4 flex-shrink-0 text-purple-300"/>
+                    <span className="text-[13px] text-white">30 minutes</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Video className="w-4 h-4 flex-shrink-0 text-purple-300"/>
+                    <span className="text-[13px] text-white">Google Meet Online Meeting</span>
+                  </div>
+                  <div className="flex items-center gap-2.5">
+                    <Calendar className="w-4 h-4 flex-shrink-0 text-purple-300"/>
+                    <span className="text-[13px] text-white">Instant Online Booking</span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Right panel — Calendly embed */}
             <div className="flex-1 p-6 md:p-8 flex flex-col min-w-0">
               <div className="mb-4">
-                <div className="text-[17px] font-bold" style={{ color: "#111827" }}>Schedule your call</div>
+                <div className="text-[17px] font-bold" style={{ color: "#111827" }}>
+                  {bookingTab === "ria" ? "Schedule Clinic Consultation (with Ria)" : "Schedule Makeup & Salon Partnership (with Misha)"}
+                </div>
                 <div className="text-[13px] mt-0.5" style={{ color: "#6B7280" }}>
                   Pick a time that works for you — confirmation &amp; calendar invite are sent automatically.
                 </div>
               </div>
-              <CalendlyEmbed height={750}/>
+              <CalendlyEmbed
+                url={bookingTab === "ria"
+                  ? "https://cal.com/aura-laser-cosmetic-clinic/30min"
+                  : "https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest"}
+                height={750}
+              />
             </div>
           </div>
         </div>
@@ -80,7 +157,7 @@ export default function Booking() {
 
       {/* Footer */}
       <div className="py-4 text-center text-[11px]" style={{ color: "rgba(255,255,255,0.3)" }}>
-        Powered by Aura AI · Aura Laser &amp; Cosmetic Clinic · auriai.clinic
+        Powered by Aura AI · Aura Laser &amp; Cosmetic Clinic · Skinnonest · auriai.clinic
       </div>
     </div>);
 }

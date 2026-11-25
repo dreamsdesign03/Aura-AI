@@ -67,7 +67,7 @@ function getIstDates() {
 }
 
 // Agent variables sent to Sarvam outbound agent.
-// For Ketki (default/customer): userName, userPhone, userEmail.
+// For Ria (default/customer): userName, userPhone, userEmail.
 // For Misha (makeup_artist): userName, userPhone, userCity, appointment_datetime, etc.
 function buildAgentVars({ name, phone, email, city, agentType, existingAppointmentDateTime, appointmentDatetime } = {}) {
   const vars = {};
@@ -109,7 +109,7 @@ function buildOutboundGreeting(name, isMisha = false) {
   if (isMisha) {
     return 'Hello! This is Misha from Skinnonest. Do you have two minutes to talk?';
   }
-  return 'Hello! This is Ketki from Aura Laser and Cosmetic Clinic. Do you have two minutes to talk?';
+  return 'Hello! This is Ria from Aura Laser and Cosmetic Clinic. Do you have two minutes to talk?';
 }
 
 // Mask emails and long digit runs before logging upstream payloads.
@@ -187,7 +187,7 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata, appId, appVersion
   }
 
   console.log('[Sarvam] POST ' + url);
-  console.log('[Sarvam] agent: ' + (isMisha ? 'Misha-Skinn (makeup_artist)' : 'Ketki (customer)'));
+  console.log('[Sarvam] agent: ' + (isMisha ? 'Misha-Skinn (makeup_artist)' : 'Ria (customer)'));
   console.log('[Sarvam] vars sent: ' + (Object.keys(body.app_config.agent_variables).length ? Object.keys(body.app_config.agent_variables).join(', ') : '(none)'));
   console.log('[Sarvam] greeting override: ' + (greeting ? 'yes' : 'no'));
   console.log('[Sarvam] config ' + JSON.stringify({

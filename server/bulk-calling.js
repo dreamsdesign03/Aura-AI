@@ -533,7 +533,7 @@ function extractNameFromTranscript(transcript) {
   // Pattern: intro phrase followed by 1–3 words (Latin or common Indic characters)
   const NAME_RE = /(?:my name is|name is|mera naam|this is|i am|i'm)\s+([\p{L}\d'-]+(?:\s+[\p{L}\d'-]+){0,2})/iu;
   const AGENT_ROLES = /^(agent|assistant|bot|system|ai)$/i;
-  const BAD_NAMES = /^(riya|ketki|aura|hello|speaking|from|sure|sorry|okay|yes|no)$/i;
+  const BAD_NAMES = /^(ria|riya|ketki|misha|aura|hello|speaking|from|sure|sorry|okay|yes|no)$/i;
 
   let lastMatch = null;
   for (const turn of transcript) {
@@ -639,7 +639,7 @@ async function resolveAttempt(attempt, callStatus, outcome, summary, sentiment, 
       const lead = lr.rows[0];
       const activityDetail = `Status: ${callStatus} | Sentiment: ${sentiment} \nSummary: ${summary}` + (recordingUrl ? `\nRecording: ${recordingUrl}` : '');
       await db.query(
-        'INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail) VALUES ($1, \'Ketki (AI)\', \'call_completed\', $2, $3, $4, $5)',
+        'INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail) VALUES ($1, \'Ria (AI)\', \'call_completed\', $2, $3, $4, $5)',
         [lead.user_id, callStatus, [lead.first_name, lead.last_name].filter(Boolean).join(' '), lead.company, activityDetail]
       );
     }

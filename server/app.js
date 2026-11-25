@@ -3106,7 +3106,7 @@ app.post('/api/ai-call', async (req, res) => {
 
         await db.query(`
           INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail)
-          VALUES ($1, 'Ketki (AI)', 'call_started', 'queued', $2, $3, $4)
+          VALUES ($1, 'Ria (AI)', 'call_started', 'queued', $2, $3, $4)
         `, [lead.user_id, leadName === 'none' ? 'Lead' : leadName, company || lead.company || '', `AI call dispatched to ${toNumber}`])
           .catch(err => console.error('[AI Call] agent_activity insert error:', err.message));
         console.log('[AI Call] agent_activity INSERT attempted');
@@ -3246,7 +3246,7 @@ app.get('/api/ai-calls', async (req, res) => {
         bookingType: c.booking_type || 'single_call',
         direction: c.direction || 'outbound',
         provider: c.provider || 'sarvam',
-        agentName: c.agent_name || (c.provider === 'plivo' ? 'Plivo Telephony' : 'Ketki (Aura Clinic AI)'),
+        agentName: c.agent_name || (c.provider === 'plivo' ? 'Plivo Telephony' : 'Ria (Aura Clinic AI)'),
         agentType: c.agent_type || (c.provider === 'plivo' ? 'plivo' : 'customer'),
         startedAt: c.started_at || c.created_at,
         duration: c.duration_secs || 0,

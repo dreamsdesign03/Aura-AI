@@ -2,16 +2,34 @@ import { Fragment, useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
 import {
-  ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Clock,
+  ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Calendar, Clock,
   Check, Trash2, MapPin, Phone, IndianRupee, List, ExternalLink,
   Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User,
   Play, Pause, Volume2, Download, MessageSquare, PhoneOff, Link2,
 } from 'lucide-react';
+import CalEmbed from '@/components/CalEmbed';
 import { clinicApi, fullName, money, timeLabel, dateLabel, cleanEnglishName, cleanEnglishTreatment } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
 import { cleanEmail } from '@/lib/emails';
 import { useBranch } from '@/contexts/BranchContext';
+
+export function getAppointmentCategory(a) {
+  if (!a) return 'ria';
+  const text = `${a.treatment || ''} ${a.notes || ''} ${a.patient_name || ''} ${a.branch || ''} ${a.source || ''} ${a.event_name || ''} ${a.provider || ''}`.toLowerCase();
+  if (
+    text.includes('misha') ||
+    text.includes('skinnonest') ||
+    text.includes('makeup') ||
+    text.includes('salon') ||
+    text.includes('vishw') ||
+    text.includes('cosmeceutical') ||
+    text.includes('partnership')
+  ) {
+    return 'misha';
+  }
+  return 'ria';
+}
 
 const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 08:00 → 20:00
 const STATUS_ACTIONS = [
@@ -172,15 +190,16 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
   const base = initial?.startsAt ? new Date(initial.startsAt) : new Date();
   const [form, setForm] = useState({
     leadId: '',
+    category: initial?.category || 'ria',
     patientName: initial?.patientName || '',
     phone: initial?.phone || '',
-    treatment: initial?.treatment || '',
-    branch: initial?.branch || '',
+    treatment: initial?.treatment || (initial?.category === 'misha' ? 'Makeup Artist & Salon Partnership' : 'Clinical Consultation'),
+    branch: initial?.branch || (initial?.category === 'misha' ? 'Online (Google Meet)' : 'Alkapuri Main Clinic'),
     date: toDateInput(base),
     time: initial?.startsAt ? toTimeInput(base) : '10:00',
-    durationMin: 45,
+    durationMin: 30,
     amount: 0,
-    notes: '',
+    notes: initial?.notes || '',
     sendConfirmation: true,
   });
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
@@ -199,16 +218,17 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
     e.preventDefault();
     if (!form.patientName.trim()) return;
     const startsAt = new Date(`${form.date}T${form.time}:00`);
+    const noteSuffix = form.category === 'misha' ? ' [Skinnonest Makeup Appointment · Misha & Vishw]' : ' [Aura Clinic Consultation · Ria & Dr. Aditya Shah]';
     onSubmit({
       leadId: form.leadId ? Number(form.leadId) : null,
       patientName: form.patientName.trim(),
       phone: form.phone || null,
-      treatment: form.treatment || null,
+      treatment: form.treatment || (form.category === 'misha' ? 'Skinnonest Makeup Partnership' : 'Clinical Consultation'),
       branch: form.branch || null,
       startsAt: startsAt.toISOString(),
-      durationMin: Number(form.durationMin) || 45,
+      durationMin: Number(form.durationMin) || 30,
       amount: Number(form.amount) || 0,
-      notes: form.notes || null,
+      notes: (form.notes ? `${form.notes} ${noteSuffix}` : noteSuffix).trim(),
       sendConfirmation: form.sendConfirmation,
     });
   }
@@ -216,6 +236,26 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div className="co-form-grid">
+        <div className="co-field co-span-2">
+          <label className="co-label" htmlFor="co-category">Appointment Calendar *</label>
+          <select
+            id="co-category"
+            className="co-input font-medium"
+            value={form.category}
+            onChange={(e) => {
+              const cat = e.target.value;
+              setForm((f) => ({
+                ...f,
+                category: cat,
+                treatment: cat === 'misha' ? 'Makeup Artist & Salon Partnership' : 'Clinical Consultation',
+                branch: cat === 'misha' ? 'Online (Google Meet)' : 'Alkapuri Main Clinic',
+              }));
+            }}
+          >
+            <option value="ria">Appointment with Ria · Aura Clinic (Normal Booking · Dr. Aditya Shah)</option>
+            <option value="misha">Makeup Appointment · Skinnonest Misha (Makeup Artists & Salons · Vishw)</option>
+          </select>
+        </div>
         <div className="co-field co-span-2">
           <label className="co-label" htmlFor="co-patient">Link to patient (optional)</label>
           <select id="co-patient" value={form.leadId} onChange={(e) => pickPatient(e.target.value)}>
@@ -303,6 +343,15 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
           <StatusChip status={appointment.status} />
+          {getAppointmentCategory(appointment) === 'misha' ? (
+            <span className="co-chip" style={{ background: '#F5F3FF', color: '#7C3AED', borderColor: '#DDD6FE', fontWeight: 700 }}>
+              <Sparkles size={11} /> Skinnonest Makeup Appointment · Misha &amp; Vishw
+            </span>
+          ) : (
+            <span className="co-chip" style={{ background: '#FDF2F8', color: '#CB3273', borderColor: '#FBCFE8', fontWeight: 700 }}>
+              <User size={11} /> Aura Clinic Consultation · Ria &amp; Dr. Aditya Shah
+            </span>
+          )}
           {appointment.source ? (
             <span className="co-chip co-c-p" style={{ fontWeight: 600 }}>
               <CalendarDays size={11} /> {appointment.source}
@@ -675,6 +724,8 @@ export default function ClinicAppointments() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState('');
+  const [calendarFilter, setCalendarFilter] = useState('all'); // 'all' | 'ria' | 'misha'
+  const [onlineCalendarTab, setOnlineCalendarTab] = useState('ria'); // 'ria' | 'misha'
 
   const weekStart = useMemo(() => startOfWeek(anchor), [anchor]);
   const from = useMemo(() => weekStart.toISOString(), [weekStart]);
@@ -749,9 +800,20 @@ export default function ClinicAppointments() {
   const weekRows = appts.data?.appointments || [];
   const allRows = appts.data?.all_appointments || appts.data?.appointments || [];
 
+  const riaCount = useMemo(() => allRows.filter((a) => getAppointmentCategory(a) === 'ria').length, [allRows]);
+  const mishaCount = useMemo(() => allRows.filter((a) => getAppointmentCategory(a) === 'misha').length, [allRows]);
+
+  const categoryWeekRows = useMemo(() => {
+    if (calendarFilter === 'ria') return weekRows.filter((a) => getAppointmentCategory(a) === 'ria');
+    if (calendarFilter === 'misha') return weekRows.filter((a) => getAppointmentCategory(a) === 'misha');
+    return weekRows;
+  }, [weekRows, calendarFilter]);
+
   // Filtered list view bookings
   const filteredList = useMemo(() => {
     return allRows.filter((a) => {
+      if (calendarFilter === 'ria' && getAppointmentCategory(a) !== 'ria') return false;
+      if (calendarFilter === 'misha' && getAppointmentCategory(a) !== 'misha') return false;
       if (statusFilter !== 'all' && a.status !== statusFilter) return false;
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase().trim();
@@ -764,11 +826,11 @@ export default function ClinicAppointments() {
       }
       return true;
     });
-  }, [allRows, statusFilter, searchQuery]);
+  }, [allRows, calendarFilter, statusFilter, searchQuery]);
 
   const byCell = useMemo(() => {
     const map = {};
-    for (const a of weekRows) {
+    for (const a of categoryWeekRows) {
       const d = new Date(a.starts_at);
       const di = days.findIndex((x) => sameDay(x, d));
       if (di < 0) continue;
@@ -776,9 +838,9 @@ export default function ClinicAppointments() {
       (map[key] = map[key] || []).push(a);
     }
     return map;
-  }, [weekRows, days]);
+  }, [categoryWeekRows, days]);
 
-  const away = weekRows.filter((a) => {
+  const away = categoryWeekRows.filter((a) => {
     const d = new Date(a.starts_at);
     return !days.some((x) => sameDay(x, d)) || d.getHours() < HOURS[0] || d.getHours() > HOURS[HOURS.length - 1];
   });
@@ -786,7 +848,7 @@ export default function ClinicAppointments() {
   const openBooking = (startsAt) => {
     setError('');
     const fallback = new Date(days[0].getFullYear(), days[0].getMonth(), days[0].getDate(), 10, 0, 0, 0);
-    setBooking(startsAt ? { startsAt } : { startsAt: fallback.toISOString() });
+    setBooking(startsAt ? { startsAt, category: calendarFilter === 'misha' ? 'misha' : 'ria' } : { startsAt: fallback.toISOString(), category: calendarFilter === 'misha' ? 'misha' : 'ria' });
   };
 
   // Jump anchor to most recent booking
@@ -797,7 +859,7 @@ export default function ClinicAppointments() {
   };
 
   return (
-    <div className="clinic-os">
+    <div className="clinic-os" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <PageHead
         title="Appointments & Meetings"
         subtitle="Live online bookings, clinical consultations & schedule without demo data."
@@ -817,6 +879,13 @@ export default function ClinicAppointments() {
             className={`co-pill-tab ${viewMode === 'list' ? 'active' : ''}`}
           >
             <List size={13} /> List View <span className="co-pill-badge">{allRows.length}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => handleViewChange('online_booking')}
+            className={`co-pill-tab ${viewMode === 'online_booking' ? 'active' : ''}`}
+          >
+            <Calendar size={13} /> Online Booking Calendars
           </button>
         </div>
 
@@ -842,6 +911,170 @@ export default function ClinicAppointments() {
       {syncFeedback ? (
         <div style={{ padding: '8px 14px', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, fontSize: 13, color: '#166534', display: 'flex', alignItems: 'center', gap: 8 }}>
           <CheckCircle2 size={15} /> {syncFeedback}
+        </div>
+      ) : null}
+
+      {/* Dual Calendar Switcher */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '10px 14px', background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11.5, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Calendars:
+          </span>
+          <button
+            type="button"
+            onClick={() => setCalendarFilter('all')}
+            className={`co-pill-tab ${calendarFilter === 'all' ? 'active' : ''}`}
+            style={{ fontWeight: 600, fontSize: 12 }}
+          >
+            All Appointments ({allRows.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCalendarFilter('ria')}
+            className={`co-pill-tab ${calendarFilter === 'ria' ? 'active' : ''}`}
+            style={calendarFilter === 'ria' ? { background: '#CB3273', color: '#FFFFFF', borderColor: '#CB3273', fontWeight: 700, fontSize: 12 } : { fontWeight: 600, fontSize: 12 }}
+          >
+            <User size={13} /> 1. Appointment with Ria (Normal Booking · {riaCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setCalendarFilter('misha')}
+            className={`co-pill-tab ${calendarFilter === 'misha' ? 'active' : ''}`}
+            style={calendarFilter === 'misha' ? { background: '#7C3AED', color: '#FFFFFF', borderColor: '#7C3AED', fontWeight: 700, fontSize: 12 } : { fontWeight: 600, fontSize: 12 }}
+          >
+            <Sparkles size={13} /> 2. Makeup Appointment · Skinnonest Misha ({mishaCount})
+          </button>
+        </div>
+
+        {viewMode !== 'online_booking' ? (
+          <button
+            type="button"
+            onClick={() => handleViewChange('online_booking')}
+            className="co-btn co-btn-sm"
+            style={{ color: '#CB3273', borderColor: '#F3D9E5', fontWeight: 600 }}
+          >
+            <Calendar size={13} /> Open Live Booking Calendars →
+          </button>
+        ) : null}
+      </div>
+
+      {/* ── View 3: Online Booking Calendars (Dual Embed) ──────────── */}
+      {viewMode === 'online_booking' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Calendar Picker Tabs */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-3.5 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setOnlineCalendarTab('ria')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                  onlineCalendarTab === 'ria'
+                    ? 'bg-pink-600 text-white border-pink-600 shadow-xs'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200'
+                }`}
+              >
+                <User size={14} />
+                <span>1. Appointment with Ria (Normal Clinic Booking · Dr. Aditya Shah)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOnlineCalendarTab('misha')}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                  onlineCalendarTab === 'misha'
+                    ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                    : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200'
+                }`}
+              >
+                <Sparkles size={14} />
+                <span>2. Makeup Appointment · Skinnonest Misha (Makeup Artists &amp; Salons)</span>
+              </button>
+            </div>
+
+            <a
+              href={onlineCalendarTab === 'ria' ? 'https://cal.com/aura-laser-cosmetic-clinic/30min' : 'https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-3 py-1.5 rounded-lg transition-colors border border-pink-200"
+            >
+              Open Direct Booking Page <ExternalLink size={12} />
+            </a>
+          </div>
+
+          {/* Calendar Embed Container */}
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col md:flex-row">
+            {/* Host Details Side Panel */}
+            {onlineCalendarTab === 'ria' ? (
+              <div className="md:w-72 flex-shrink-0 p-6 md:p-8 border-b md:border-b-0 md:border-r border-gray-100" style={{ background: 'linear-gradient(160deg, #A4285E 0%, #2A0A18 100%)' }}>
+                <div className="w-12 h-12 rounded-xl mb-4 flex items-center justify-center font-bold text-white text-base shadow-xs" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                  AS
+                </div>
+                <div className="text-white font-bold text-base leading-snug mb-0.5">Dr. Aditya Shah</div>
+                <div className="text-xs text-pink-200 font-medium mb-1">Founder · Aura Laser &amp; Cosmetic Clinic</div>
+                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-white px-2 py-0.5 rounded bg-pink-500/30 mb-4">
+                  <User size={12} /> Coordinated by Ria (Aura AI)
+                </div>
+
+                <p className="text-xs text-pink-100/80 leading-relaxed mb-5">
+                  Book a free 30-minute consultation with Dr. Aditya Shah to discuss clinical skin, hair &amp; laser treatment needs — personalised care, visible results.
+                </p>
+
+                <div className="space-y-2.5 text-xs text-white">
+                  <div className="flex items-center gap-2">
+                    <Clock size={13} className="text-pink-300 flex-shrink-0" />
+                    <span>30 minutes</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Video size={13} className="text-pink-300 flex-shrink-0" />
+                    <span>Google Meet / In-person (Vadodara)</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar size={13} className="text-pink-300 flex-shrink-0" />
+                    <span>Live Online Booking (Cal.com)</span>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="md:w-72 flex-shrink-0 p-6 md:p-8 border-b md:border-b-0 md:border-r border-gray-100" style={{ background: 'linear-gradient(160deg, #6B21A8 0%, #1E1B4B 100%)' }}>
+                <div className="w-12 h-12 rounded-xl mb-4 flex items-center justify-center font-bold text-white text-base shadow-xs" style={{ background: 'rgba(255,255,255,0.15)' }}>
+                  SK
+                </div>
+                <div className="text-white font-bold text-base leading-snug mb-0.5">Vishw</div>
+                <div className="text-xs text-purple-200 font-medium mb-1">Skinnonest Brand Representative</div>
+                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-white px-2 py-0.5 rounded bg-purple-500/30 mb-4">
+                  <Sparkles size={12} /> Coordinated by Misha (Skinnonest AI)
+                </div>
+
+                <p className="text-xs text-purple-100/80 leading-relaxed mb-5">
+                  Skinnonest derma &amp; cosmeceutical skincare partnership meeting for makeup artists, salons &amp; skin clinics. Review product ranges, free trial samples &amp; partnership terms.
+                </p>
+
+                <div className="space-y-2.5 text-xs text-white">
+                  <div className="flex items-center gap-2">
+                    <Clock size={13} className="text-purple-300 flex-shrink-0" />
+                    <span>30 minutes</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Video size={13} className="text-purple-300 flex-shrink-0" />
+                    <span>Google Meet Online Call</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Calendar size={13} className="text-purple-300 flex-shrink-0" />
+                    <span>Live Online Booking (Cal.com)</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Cal.com Embed */}
+            <div className="flex-1 p-4 md:p-6 bg-white min-w-0">
+              <CalEmbed
+                url={onlineCalendarTab === 'ria'
+                  ? 'https://cal.com/aura-laser-cosmetic-clinic/30min'
+                  : 'https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest'}
+                height={720}
+              />
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -908,21 +1141,30 @@ export default function ClinicAppointments() {
                           onClick={() => openBooking(new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0).toISOString())}
                           role="presentation"
                         >
-                          {items.map((a) => (
-                            <button
-                              key={a.id}
-                              type="button"
-                              className={`co-slot ${a.status}`}
-                              onClick={(e) => { e.stopPropagation(); setSelected(a); }}
-                              title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)}`}
-                            >
-                              {getContactDisplayName(a)}
-                              <small>
-                                {timeLabel(a.starts_at)}{a.treatment ? ` · ${cleanEnglishTreatment(a.treatment)}` : ''}
-                                {a.branch ? ` · ${a.branch}` : ''}
-                              </small>
-                            </button>
-                          ))}
+                          {items.map((a) => {
+                            const isMisha = getAppointmentCategory(a) === 'misha';
+                            return (
+                              <button
+                                key={a.id}
+                                type="button"
+                                className={`co-slot ${a.status}`}
+                                onClick={(e) => { e.stopPropagation(); setSelected(a); }}
+                                title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)} (${isMisha ? 'Misha · Skinnonest' : 'Ria · Aura Clinic'})`}
+                                style={isMisha ? { borderLeft: '3px solid #7C3AED', background: '#F5F3FF' } : { borderLeft: '3px solid #CB3273' }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+                                  <span style={{ fontWeight: 600 }}>{getContactDisplayName(a)}</span>
+                                  <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 4, background: isMisha ? '#EDE9FE' : '#FCE7F3', color: isMisha ? '#6D28D9' : '#BE185D' }}>
+                                    {isMisha ? 'Misha' : 'Ria'}
+                                  </span>
+                                </div>
+                                <small>
+                                  {timeLabel(a.starts_at)}{a.treatment ? ` · ${cleanEnglishTreatment(a.treatment)}` : ''}
+                                  {a.branch ? ` · ${a.branch}` : ''}
+                                </small>
+                              </button>
+                            );
+                          })}
                         </div>
                       );
                     })}
@@ -995,6 +1237,7 @@ export default function ClinicAppointments() {
                 <thead>
                   <tr>
                     <th>Date &amp; Time</th>
+                    <th>Calendar / Coordinator</th>
                     <th>Attendee / Patient</th>
                     <th>Contact Info</th>
                     <th>Treatment / Purpose</th>
@@ -1007,7 +1250,7 @@ export default function ClinicAppointments() {
                 <tbody>
                   {filteredList.length === 0 ? (
                     <tr>
-                      <td colSpan="8">
+                      <td colSpan="9">
                         <div className="co-empty" style={{ padding: '36px 16px' }}>
                           <CalendarDays size={28} style={{ color: '#CBD5E1', marginBottom: 8 }} />
                           <div style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>No bookings found</div>
@@ -1038,6 +1281,17 @@ export default function ClinicAppointments() {
                             <div style={{ fontSize: 11, color: '#64748B', fontWeight: 500 }}>
                               {timeLabel(a.starts_at)} IST
                             </div>
+                          </td>
+                          <td style={{ whiteSpace: 'nowrap' }}>
+                            {getAppointmentCategory(a) === 'misha' ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
+                                <Sparkles size={11} /> Makeup (Misha)
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#FDF2F8', color: '#CB3273', border: '1px solid #FBCFE8' }}>
+                                <User size={11} /> Clinic (Ria)
+                              </span>
+                            )}
                           </td>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

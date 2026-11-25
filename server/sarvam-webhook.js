@@ -97,7 +97,7 @@ async function handleDirectCallWebhook(payload) {
 
   const resolvedAgentName = isMishaWebhook
     ? 'Misha (Skinnonest AI)'
-    : (payload.metadata?.agent_name || payload.webhook_config?.metadata?.agent_name || 'Ketki (Aura Clinic AI)');
+    : (payload.metadata?.agent_name || payload.webhook_config?.metadata?.agent_name || 'Ria (Aura Clinic AI)');
   const resolvedAgentType = isMishaWebhook
     ? 'makeup_artist'
     : (payload.metadata?.agent_type || payload.webhook_config?.metadata?.agent_type || 'customer');
@@ -195,7 +195,7 @@ async function handleDirectCallWebhook(payload) {
   if (lead.user_id != null) {
     const activityDetail = `Status: ${callStatus} | Sentiment: ${sentiment} \nSummary: ${summary}` + (recUrl ? `\nRecording: ${recUrl}` : '');
     await db.query(
-      'INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail) VALUES ($1, \'Ketki (AI)\', \'call_completed\', $2, $3, $4, $5)',
+      'INSERT INTO agent_activity (user_id, agent_name, activity_type, status, lead_name, company_name, detail) VALUES ($1, \'Ria (AI)\', \'call_completed\', $2, $3, $4, $5)',
       [lead.user_id, callStatus || 'completed', [lead.first_name, lead.last_name].filter(Boolean).join(' ') || 'AI Caller', lead.company, activityDetail]
     );
   }

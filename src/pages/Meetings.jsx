@@ -195,25 +195,70 @@ function HostPanel({ selectedDate, selectedTimeLabel }) {
 }
 // ── Booking Widget (online scheduler embed) ───────────────────────────────────
 function BookingWidget() {
-    return (<div className="max-w-6xl mx-auto py-6 px-4">
+    const [bookingTab, setBookingTab] = useState("ria"); // "ria" | "misha"
+    return (<div className="max-w-6xl mx-auto py-6 px-4 space-y-4">
+      {/* Dual Calendar Switcher */}
+      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-3 flex flex-col md:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => setBookingTab("ria")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+              bookingTab === "ria"
+                ? "bg-pink-600 text-white border-pink-600 shadow-sm"
+                : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+            )}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>1. Appointment with Ria (Aura Clinic · Dr. Aditya Shah)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setBookingTab("misha")}
+            className={cn(
+              "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all border",
+              bookingTab === "misha"
+                ? "bg-purple-600 text-white border-purple-600 shadow-sm"
+                : "bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200"
+            )}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>2. Makeup Appointment · Skinnonest Misha (Makeup Artists &amp; Salons)</span>
+          </button>
+        </div>
+        <a
+          href={bookingTab === "ria" ? "https://cal.com/aura-laser-cosmetic-clinic/30min" : "https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest"}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-3 py-1.5 rounded-lg transition-colors border border-pink-200"
+        >
+          Open Booking Link <ExternalLink className="w-3.5 h-3.5"/>
+        </a>
+      </div>
+
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xl p-6 md:p-8">
         <div className="mb-5 flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-gray-100 pb-4">
           <div>
             <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span>Schedule Clinic Consultation</span>
+              <span>{bookingTab === "ria" ? "Schedule Clinic Consultation (with Ria)" : "Schedule Makeup & Salon Partnership (with Misha)"}</span>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-pink-50 text-pink-700 border border-pink-200">
                 Live
               </span>
             </div>
             <div className="text-xs text-gray-500 mt-0.5">
-              Pick a time — instant confirmation &amp; calendar invite are sent automatically.
+              {bookingTab === "ria"
+                ? "Pick a consultation slot with Dr. Aditya Shah — confirmation & calendar invite are sent automatically."
+                : "Pick a partnership slot with Vishw for Skinnonest cosmeceutical derma range & trial samples."}
             </div>
           </div>
-          <a href="https://cal.com/aura-laser-cosmetic-clinic/30min" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-3 py-1.5 rounded-lg transition-colors border border-pink-200">
-            Open Booking Page <ExternalLink className="w-3.5 h-3.5"/>
-          </a>
         </div>
-        <CalendlyEmbed height={720}/>
+        <CalendlyEmbed
+          url={bookingTab === "ria"
+            ? "https://cal.com/aura-laser-cosmetic-clinic/30min"
+            : "https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest"}
+          height={720}
+        />
       </div>
     </div>);
 }

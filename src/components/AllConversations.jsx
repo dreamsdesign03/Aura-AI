@@ -424,7 +424,7 @@ function ConversationCard({ conversation: c, expanded, detail, loadingDetail, on
                         }`}
                       >
                         <div className="font-semibold text-[10px] text-gray-500 mb-0.5">
-                          {system ? 'System' : user ? 'User / Patient' : 'Ketki (AI Coordinator)'}
+                          {system ? 'System' : user ? 'User / Patient' : 'Ria (AI Coordinator)'}
                         </div>
                         <div className="whitespace-pre-wrap">{text}</div>
                         {indic && (
