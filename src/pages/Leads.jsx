@@ -1665,7 +1665,7 @@ export default function Leads() {
                 {/* 4. Phone Number */}
                 <th
                   className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "150px", minWidth: "150px" }}
+                  style={{ width: "180px", minWidth: "180px" }}
                 >
                   Phone Number
                 </th>
@@ -1846,14 +1846,31 @@ export default function Leads() {
 
                     {/* 4. Phone */}
                     <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
-                      style={{ width: "150px", minWidth: "150px", maxWidth: "150px" }}
+                      className="px-3 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
+                      style={{ width: "180px", minWidth: "180px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {cleanPhone ? (
-                        <span className="text-gray-800 font-medium text-[12px] truncate block text-center" title={cleanPhone}>
-                          {cleanPhone}
-                        </span>
+                        <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
+                          <span className="text-gray-800 font-medium text-[12px] font-mono tracking-tight" title={cleanPhone}>
+                            {cleanPhone}
+                          </span>
+                          <button
+                            type="button"
+                            disabled={lead.do_not_call}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setConfirmCallLead(lead);
+                            }}
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[11px] font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center leading-normal gap-1 transition-colors shrink-0 shadow-xs",
+                              lead.do_not_call && "opacity-30 cursor-not-allowed"
+                            )}
+                            title={`Call ${leadNameStr} (${cleanPhone})`}
+                          >
+                            <Phone className="w-2.5 h-2.5" /> Call
+                          </button>
+                        </div>
                       ) : (
                         <span className="text-gray-300">—</span>
                       )}
@@ -1889,18 +1906,6 @@ export default function Leads() {
                             <span className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
                             Not Called
                           </span>
-                          <button
-                            type="button"
-                            disabled={lead.do_not_call}
-                            onClick={() => setConfirmCallLead(lead)}
-                            className={cn(
-                              "px-2 py-1 rounded text-[10.5px] font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center leading-none gap-1 transition-colors shrink-0",
-                              lead.do_not_call && "opacity-30 cursor-not-allowed"
-                            )}
-                            title={`Start AI Call to ${leadNameStr}`}
-                          >
-                            <Phone className="w-2.5 h-2.5" /> Call
-                          </button>
                         </div>
                       ) : (
                         <span className="text-gray-300 text-[11px]">—</span>
@@ -3514,7 +3519,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
   const company = lead.company || "—";
   const city = lead.city || lead.branch || "Vadodara";
   const alreadyCalled = Boolean(lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall);
-  const [allowDuplicate, setAllowDuplicate] = useState(false);
+  const [allowDuplicate, setAllowDuplicate] = useState(true);
   const [callMethod, setCallMethod] = useState("sarvam"); // "sarvam" | "plivo"
   const [agentType, setAgentType] = useState("makeup_artist"); // "makeup_artist" | "customer"
 
