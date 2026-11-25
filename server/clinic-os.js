@@ -824,7 +824,7 @@ router.get('/overview', requireUser, async (req, res) => {
 router.get('/appointments', requireUser, async (req, res) => {
   try {
     const userId = req.user.id;
-    const accessRole = req.user.accessRole || 'executive';
+    const accessRole = normalizeRole(req.user.role, req.user);
     // Admin & Leader see all appointments (team view); Executive sees only own + unassigned
     const isTeamView = accessRole === 'admin' || accessRole === 'leader';
     
@@ -833,7 +833,7 @@ router.get('/appointments', requireUser, async (req, res) => {
     const to = safeDate(req.query.to) || (() => { const d = new Date(); d.setDate(d.getDate() + 60); return d; })();
     const branchFilter = normalizeBranch(req.query.branch);
 
-    const calWhere = isTeamView ? '' : 'WHERE (ce.user_id = $1 OR ce.user_id IS NULL)';
+    const calWhere = isTeamView ? 'WHERE' : 'WHERE (ce.user_id = $1 OR ce.user_id IS NULL) AND';
     const clinicWhere = isTeamView ? '' : 'WHERE (a.user_id = $1 OR a.user_id IS NULL)';
     const calParams = isTeamView ? [] : [userId];
     const clinicParams = isTeamView ? [] : [userId];
@@ -859,7 +859,7 @@ router.get('/appointments', requireUser, async (req, res) => {
                   ce.invitee_name
                 ) AS resolved_patient_name
            FROM calendly_events ce
-          ${calWhere} AND COALESCE(ce.is_deleted, false) = false
+          ${calWhere} COALESCE(ce.is_deleted, false) = false
           ORDER BY ce.start_time DESC`,
         calParams
       ),
