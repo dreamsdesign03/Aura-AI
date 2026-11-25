@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Calendar, Clock,
   Check, Trash2, MapPin, Phone, IndianRupee, List, ExternalLink,
-  Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User,
+  Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User, Users,
   Play, Pause, Volume2, Download, MessageSquare, PhoneOff, Link2,
 } from 'lucide-react';
 import CalEmbed from '@/components/CalEmbed';
@@ -325,8 +325,10 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [linkOpen, setLinkOpen] = useState(false);
 
+  const isMisha = getAppointmentCategory(appointment) === 'misha';
+  const hostName = appointment.provider || (isMisha ? 'Vishw' : 'Dr. Aditya Shah');
   const cleanPh = (appointment.phone || '').replace(/[^0-9]/g, '');
-  const isMeet = appointment.meeting_link && appointment.meeting_link.startsWith('http');
+  const isMeet = (appointment.meeting_link && appointment.meeting_link.startsWith('http')) || isMisha;
   const patientCleanName = getContactDisplayName({ patient_name: appointment.patient_name, patient_name_english: appointment.patient_name_english, patient_name_original: appointment.patient_name_original });
   const cleanTreatment = cleanEnglishTreatment(appointment.treatment);
   const turns = parseApptTurns(appointment.transcript);
@@ -334,7 +336,7 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
 
   return (
     <Modal
-      title={patientCleanName}
+      title={`Meeting: ${hostName} & ${patientCleanName}`}
       subtitle={`${dateLabel(appointment.starts_at)} · ${timeLabel(appointment.starts_at)}${cleanTreatment ? ` · ${cleanTreatment}` : ''}`}
       onClose={onClose}
       width={580}
@@ -342,28 +344,38 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div className="co-row" style={{ flexWrap: 'wrap', gap: 8 }}>
           <StatusChip status={appointment.status} />
-          {getAppointmentCategory(appointment) === 'misha' ? (
+          {isMisha ? (
             <span className="co-chip" style={{ background: '#F5F3FF', color: '#7C3AED', borderColor: '#DDD6FE', fontWeight: 700 }}>
-              <Sparkles size={11} /> Skinnonest Makeup Appointment · Misha &amp; Vishw
+              <Sparkles size={11} /> Meeting: Vishw &amp; {patientCleanName}
             </span>
           ) : (
             <span className="co-chip" style={{ background: '#FDF2F8', color: '#CB3273', borderColor: '#FBCFE8', fontWeight: 700 }}>
-              <User size={11} /> Aura Clinic Consultation · Ria &amp; Dr. Aditya Shah
+              <User size={11} /> Consultation: Dr. Aditya Shah &amp; {patientCleanName}
             </span>
           )}
+          <span className="co-chip" style={{ background: isMisha ? '#FAF5FF' : '#FFF1F2', color: isMisha ? '#6B21A8' : '#9F1239', borderColor: isMisha ? '#E9D5FF' : '#FECDD3', fontWeight: 600 }}>
+            <Sparkles size={11} /> Coordinated by {isMisha ? 'Misha (Skinnonest AI)' : 'Ria (Aura AI)'}
+          </span>
           {appointment.source ? (
             <span className="co-chip co-c-p" style={{ fontWeight: 600 }}>
               <CalendarDays size={11} /> {appointment.source}
             </span>
           ) : null}
-          {appointment.branch ? (
+          {isMeet ? (
+            <span className="co-chip co-c-b" style={{ background: '#EFF6FF', color: '#1D4ED8', borderColor: '#BFDBFE', fontWeight: 600 }}>
+              <Video size={11} /> Google Meet (Online Call)
+            </span>
+          ) : appointment.branch ? (
             <span className="co-chip co-c-n"><MapPin size={11} /> {appointment.branch}</span>
           ) : (
             <span className="co-chip co-c-n" style={{ color: '#64748B' }}><MapPin size={11} /> Unassigned branch</span>
           )}
-          {appointment.provider ? (
-            <span className="co-chip co-c-n"><User size={11} /> {appointment.provider}</span>
-          ) : null}
+          <span className="co-chip co-c-n" style={{ fontWeight: 600 }}>
+            <User size={11} /> Host: {hostName}
+          </span>
+          <span className="co-chip co-c-n" style={{ fontWeight: 600 }}>
+            <Users size={11} /> Attendee: {patientCleanName}
+          </span>
           {appointment.phone ? (
             <a href={`tel:${appointment.phone}`} className="co-chip co-c-p"><Phone size={11} /> {appointment.phone}</a>
           ) : null}
@@ -1283,13 +1295,23 @@ export default function ClinicAppointments() {
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {getAppointmentCategory(a) === 'misha' ? (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
-                                <Sparkles size={11} /> Makeup (Misha)
-                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
+                                  <Sparkles size={11} /> Vishw &amp; {getContactDisplayName(a)}
+                                </span>
+                                <span style={{ fontSize: 9.5, color: '#64748B', fontWeight: 500, paddingLeft: 4 }}>
+                                  via Misha (AI Voice)
+                                </span>
+                              </div>
                             ) : (
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#FDF2F8', color: '#CB3273', border: '1px solid #FBCFE8' }}>
-                                <User size={11} /> Clinic (Ria)
-                              </span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#FDF2F8', color: '#CB3273', border: '1px solid #FBCFE8' }}>
+                                  <User size={11} /> Dr. Aditya &amp; {getContactDisplayName(a)}
+                                </span>
+                                <span style={{ fontSize: 9.5, color: '#64748B', fontWeight: 500, paddingLeft: 4 }}>
+                                  via Ria (Aura AI)
+                                </span>
+                              </div>
                             )}
                           </td>
                           <td>
@@ -1338,12 +1360,12 @@ export default function ClinicAppointments() {
                             ) : null}
                           </td>
                           <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>
-                            {isMeet ? (
+                            {isMeet || getAppointmentCategory(a) === 'misha' ? (
                               <a
-                                href={a.meeting_link}
+                                href={a.meeting_link || 'https://meet.google.com'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(e) => { if (!a.meeting_link) e.preventDefault(); e.stopPropagation(); }}
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: '#2563EB', fontWeight: 500 }}
                               >
                                 <Video size={12} /> Google Meet <ExternalLink size={10} />

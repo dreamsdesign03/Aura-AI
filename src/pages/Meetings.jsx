@@ -448,6 +448,11 @@ function AdminView() {
               <div className="flex items-start justify-between mb-4">
                 <div>
                   <div className="text-base font-bold text-gray-900">{cleanEnglishName(active.name)}</div>
+                  {active.provider ? (
+                    <div className="text-xs font-semibold text-purple-700 mt-0.5">
+                      Meeting with {active.provider} · Coordinated by {/vishw/i.test(active.provider) ? 'Misha (AI Voice Agent)' : 'Ria (Aura AI)'}
+                    </div>
+                  ) : null}
                   {cleanEmail(active.email) && (
                     <div className="text-sm text-gray-500">{cleanEmail(active.email)}</div>
                   )}
