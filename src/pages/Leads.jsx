@@ -1665,7 +1665,7 @@ export default function Leads() {
                 {/* 4. Phone Number */}
                 <th
                   className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "260px", minWidth: "260px" }}
+                  style={{ width: "190px", minWidth: "190px" }}
                 >
                   Phone Number
                 </th>
@@ -1847,7 +1847,7 @@ export default function Leads() {
                     {/* 4. Phone */}
                     <td
                       className="px-3 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
-                      style={{ width: "260px", minWidth: "260px" }}
+                      style={{ width: "190px", minWidth: "190px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {cleanPhone ? (
@@ -1863,12 +1863,13 @@ export default function Leads() {
                               setConfirmCallLead(lead);
                             }}
                             className={cn(
-                              "px-2 py-0.5 rounded text-[11px] font-semibold bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center leading-normal gap-1 transition-colors shrink-0 shadow-xs",
+                              "w-6 h-6 rounded-md bg-pink-50 text-pink-700 hover:bg-pink-100 border border-pink-200 inline-flex items-center justify-center transition-colors shrink-0 shadow-xs",
                               lead.do_not_call && "opacity-30 cursor-not-allowed"
                             )}
                             title={`Call ${leadNameStr} (${cleanPhone})`}
+                            aria-label={`Call ${leadNameStr}`}
                           >
-                            <Phone className="w-2.5 h-2.5" /> Call
+                            <Phone className="w-3 h-3 text-pink-600" />
                           </button>
                           <button
                             type="button"
@@ -1878,12 +1879,13 @@ export default function Leads() {
                               if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
                             }}
                             className={cn(
-                              "px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center leading-normal gap-1 transition-colors shrink-0 shadow-xs",
+                              "w-6 h-6 rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center transition-colors shrink-0 shadow-xs",
                               hasOwnWhatsAppNumber(lead) && "opacity-30 cursor-not-allowed"
                             )}
                             title={`Send WhatsApp message to ${leadNameStr} (${cleanPhone})`}
+                            aria-label={`Send WhatsApp message to ${leadNameStr}`}
                           >
-                            <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
+                            <MessageCircle className="w-3 h-3 text-emerald-600" />
                           </button>
                         </div>
                       ) : (
