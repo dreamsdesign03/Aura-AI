@@ -977,6 +977,8 @@ async function syncCalComBookings(userId) {
     const notes = b.description || bfr.notes || '';
     const isSkinnonest = isSkinnonestBooking(b);
     const resolved = resolveBookingFields(b);
+    resolved.metadata = resolved.metadata || {};
+    if (b.uid) resolved.metadata.cal_uid = b.uid;
     if (isSkinnonest) {
       resolved.concern = resolved.concern || 'Skinnonest Makeup Artist Partnership';
       resolved.provider = resolved.provider || 'Vishw';

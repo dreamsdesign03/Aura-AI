@@ -21,6 +21,11 @@ const {
 } = require('./whatsapp');
 const { updateContactName } = require('./contact-name');
 const {
+  resolveCalBookingUid,
+  rescheduleCalBooking,
+  cancelCalBooking,
+} = require('./cal-service');
+const {
   normalizeBranch,
   isValidBranch,
   parseBranchFromNotes,
@@ -1033,6 +1038,8 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
       const attendee = (b.attendees && b.attendees[0]) || {};
       const bfr = b.bookingFieldsResponses || {};
       const resolved = resolveBookingFields(b);
+      resolved.metadata = resolved.metadata || {};
+      if (b.uid) resolved.metadata.cal_uid = b.uid;
 
       if (isSkinnonest) {
         resolved.concern = resolved.concern || 'Skinnonest Makeup Artist Partnership';
@@ -1238,24 +1245,73 @@ router.patch('/appointments/:id', requireUser, async (req, res) => {
     const { status, startsAt } = req.body || {};
     
     // Check if it's in calendly_events (Cal.com booking)
-    const calCheck = await db.query('SELECT id, calendly_uri FROM calendly_events WHERE id = $1', [req.params.id]);
+    const calCheck = await db.query('SELECT * FROM calendly_events WHERE id = $1', [req.params.id]);
     if (calCheck.rows.length > 0) {
-      const sets = [];
-      const vals = [];
-      if (status) {
-        vals.push(status);
-        sets.push(`status = $${vals.length}`);
-      }
+      const calRow = calCheck.rows[0];
+      const calUid = await resolveCalBookingUid(calRow);
+
+      let newStart = calRow.start_time;
+      let newEnd = calRow.end_time;
+      let newMeetingUrl = calRow.meeting_link;
+      let newCalUid = calUid;
+      let newUri = calRow.calendly_uri;
+
+      // 1. Reschedule in Cal.com if new start time provided
       if (startsAt) {
-        vals.push(new Date(startsAt).toISOString());
-        sets.push(`start_time = $${vals.length}`);
+        const targetIso = new Date(startsAt).toISOString();
+        if (calUid) {
+          const calResult = await rescheduleCalBooking(calUid, targetIso);
+          if (calResult.ok && calResult.data) {
+            newStart = calResult.data.start || targetIso;
+            newEnd = calResult.data.end || new Date(new Date(newStart).getTime() + 30 * 60000).toISOString();
+            if (calResult.data.meetingUrl || calResult.data.location) {
+              newMeetingUrl = calResult.data.meetingUrl || calResult.data.location;
+            }
+            if (calResult.data.uid) newCalUid = calResult.data.uid;
+            if (calResult.data.id || calResult.data.uid) newUri = `cal_${calResult.data.id || calResult.data.uid}`;
+          } else {
+            console.warn('[PATCH /appointments/:id] Cal.com reschedule warning:', calResult.error);
+            newStart = targetIso;
+            newEnd = new Date(new Date(targetIso).getTime() + 30 * 60000).toISOString();
+          }
+        } else {
+          newStart = targetIso;
+          newEnd = new Date(new Date(targetIso).getTime() + 30 * 60000).toISOString();
+        }
       }
-      if (sets.length > 0) {
-        vals.push(req.params.id);
-        await db.query(`UPDATE calendly_events SET ${sets.join(', ')} WHERE id = $${vals.length}`, vals);
+
+      // 2. Cancel in Cal.com if status changed to cancelled / canceled / rejected
+      let newStatus = calRow.status || 'confirmed';
+      if (status) {
+        newStatus = status;
+        if (/cancelled|canceled|rejected/.test(status) && calUid) {
+          await cancelCalBooking(calUid, 'Cancelled from Aura Clinic dashboard').catch(err => {
+            console.warn('[PATCH /appointments/:id] Cal.com cancel error:', err.message);
+          });
+        }
       }
-      await audit(uid, 'updated', 'cal_booking', req.params.id, status || 'rescheduled');
-      return res.json({ ok: true });
+
+      // 3. Update database row
+      const updatedMeta = {
+        ...(calRow.metadata || {}),
+        cal_uid: newCalUid,
+      };
+
+      const updated = await db.query(`
+        UPDATE calendly_events
+        SET start_time = $1,
+            end_time = $2,
+            status = $3,
+            meeting_link = $4,
+            calendly_uri = $5,
+            metadata = $6
+        WHERE id = $7
+        RETURNING *
+      `, [newStart, newEnd, newStatus, newMeetingUrl, newUri, JSON.stringify(updatedMeta), req.params.id]);
+
+      await audit(uid, 'updated', 'cal_booking', req.params.id, status || (startsAt ? `rescheduled to ${newStart}` : 'updated'));
+      const mapped = mapCalRowToClinic(updated.rows[0]);
+      return res.json({ ok: true, appointment: mapped });
     }
 
     // Otherwise update clinic_appointments
@@ -1286,8 +1342,15 @@ router.patch('/appointments/:id', requireUser, async (req, res) => {
 
 router.delete('/appointments/:id', requireUser, async (req, res) => {
   try {
-    const calCheck = await db.query('SELECT id, calendly_uri FROM calendly_events WHERE id = $1', [req.params.id]);
+    const calCheck = await db.query('SELECT * FROM calendly_events WHERE id = $1', [req.params.id]);
     if (calCheck.rows.length > 0) {
+      const calRow = calCheck.rows[0];
+      const calUid = await resolveCalBookingUid(calRow);
+      if (calUid) {
+        await cancelCalBooking(calUid, 'Deleted from Aura Clinic dashboard').catch(err => {
+          console.warn('[DELETE /appointments/:id] Cal.com cancel error:', err.message);
+        });
+      }
       await db.query('UPDATE calendly_events SET is_deleted = TRUE, status = $1 WHERE id = $2', ['cancelled', req.params.id]);
       await audit(req.user.id, 'deleted', 'cal_booking', req.params.id);
       return res.json({ ok: true });

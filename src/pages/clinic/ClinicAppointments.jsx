@@ -318,7 +318,7 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
   );
 }
 
-function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDelete, onLinkedCall, busy }) {
+function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDelete, onLinkedCall, busy, error }) {
   const [reschedule, setReschedule] = useState(false);
   const [date, setDate] = useState(toDateInput(new Date(appointment.starts_at)));
   const [time, setTime] = useState(toTimeInput(new Date(appointment.starts_at)));
@@ -563,12 +563,18 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
                   disabled={busy}
                   onClick={() => onReschedule(new Date(`${date}T${time}:00`).toISOString())}
                 >
-                  Save new time
+                  {busy ? 'Saving & syncing with Cal.com...' : 'Save new time'}
                 </button>
               </div>
             </div>
           ) : null}
         </div>
+
+        {error ? (
+          <div style={{ padding: '8px 12px', borderRadius: 8, background: '#FEF2F2', border: '1px solid #FECACA', color: '#B91C1C', fontSize: 12, fontWeight: 500 }}>
+            {error}
+          </div>
+        ) : null}
 
         <div className="co-spread" style={{ borderTop: '1px solid #F3D9E5', paddingTop: 14 }}>
           {confirmDelete ? (
@@ -1402,7 +1408,8 @@ export default function ClinicAppointments() {
         <AppointmentPanel
           appointment={selected}
           busy={update.isPending || remove.isPending}
-          onClose={() => setSelected(null)}
+          error={error}
+          onClose={() => { setSelected(null); setError(''); }}
           onStatus={(status) => update.mutate({ id: selected.id, body: { status } })}
           onReschedule={(startsAt) => update.mutate({ id: selected.id, body: { startsAt } })}
           onDelete={() => remove.mutate(selected.id)}
