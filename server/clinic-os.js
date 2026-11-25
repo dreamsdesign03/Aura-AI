@@ -842,22 +842,25 @@ router.get('/appointments', requireUser, async (req, res) => {
       db.query(
         `SELECT ce.*,
                 COALESCE(
-                  NULLIF(NULLIF(NULLIF(bc.name_english, '.'), '-'), ''),
-                  NULLIF(NULLIF(NULLIF(bc.name, '.'), '-'), ''),
-                  NULLIF(NULLIF(NULLIF(l.name_english, '.'), '-'), ''),
-                  NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), ''),
+                  (SELECT NULLIF(NULLIF(NULLIF(bc.name_english, '.'), '-'), '')
+                     FROM bulk_contacts bc
+                    WHERE bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
+                    LIMIT 1),
+                  (SELECT NULLIF(NULLIF(NULLIF(l.name_english, '.'), '-'), '')
+                     FROM leads l
+                    WHERE (l.phone LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
+                           OR l.whatsapp LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10))
+                    LIMIT 1),
+                  (SELECT NULLIF(TRIM(CONCAT_WS(' ', NULLIF(l.first_name, '.'), NULLIF(l.last_name, '.'))), '')
+                     FROM leads l
+                    WHERE (l.phone LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
+                           OR l.whatsapp LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10))
+                    LIMIT 1),
                   ce.invitee_name
                 ) AS resolved_patient_name
            FROM calendly_events ce
-           LEFT JOIN leads l ON (
-             l.phone LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
-             OR l.whatsapp LIKE '%' || RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
-           )
-           LEFT JOIN bulk_contacts bc ON (
-             bc.phone10 = RIGHT(REGEXP_REPLACE(COALESCE(ce.questions->>'Phone / WhatsApp', ce.questions->>'phone', ''), '\\D', '', 'g'), 10)
-           )
-           ${calWhere} AND COALESCE(ce.is_deleted, false) = false
-           ORDER BY ce.start_time DESC`,
+          ${calWhere} AND COALESCE(ce.is_deleted, false) = false
+          ORDER BY ce.start_time DESC`,
         calParams
       ),
       db.query(
@@ -1012,6 +1015,17 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
     const body = await calRes.json();
     const bookings = body.data || [];
     let added = 0, updated = 0;
+
+    const activeUris = bookings.map(b => `cal_${b.id || b.uid}`);
+    if (activeUris.length > 0) {
+      await db.query(
+        `UPDATE calendly_events
+            SET is_deleted = TRUE
+          WHERE source = 'cal.com'
+            AND calendly_uri != ALL($1::text[])`,
+        [activeUris]
+      );
+    }
 
     for (const b of bookings) {
       const isSkinnonest = isSkinnonestBooking(b);

@@ -930,6 +930,16 @@ async function syncCalComBookings(userId) {
   let updated = 0;
 
   const presentUris = new Set(bookings.map(b => `cal_${b.id || b.uid}`));
+  const activeUris = Array.from(presentUris);
+  if (activeUris.length > 0) {
+    await db.query(
+      `UPDATE calendly_events
+          SET is_deleted = TRUE
+        WHERE source = 'cal.com'
+          AND calendly_uri != ALL($1::text[])`,
+      [activeUris]
+    );
+  }
 
   for (const b of bookings) {
     const bookingUri = `cal_${b.id || b.uid}`;
