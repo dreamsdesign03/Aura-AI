@@ -1665,7 +1665,7 @@ export default function Leads() {
                 {/* 4. Phone Number */}
                 <th
                   className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "180px", minWidth: "180px" }}
+                  style={{ width: "260px", minWidth: "260px" }}
                 >
                   Phone Number
                 </th>
@@ -1847,7 +1847,7 @@ export default function Leads() {
                     {/* 4. Phone */}
                     <td
                       className="px-3 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
-                      style={{ width: "180px", minWidth: "180px" }}
+                      style={{ width: "260px", minWidth: "260px" }}
                       onClick={(e) => e.stopPropagation()}
                     >
                       {cleanPhone ? (
@@ -1869,6 +1869,21 @@ export default function Leads() {
                             title={`Call ${leadNameStr} (${cleanPhone})`}
                           >
                             <Phone className="w-2.5 h-2.5" /> Call
+                          </button>
+                          <button
+                            type="button"
+                            disabled={hasOwnWhatsAppNumber(lead)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (!hasOwnWhatsAppNumber(lead)) setTplLeads([lead]);
+                            }}
+                            className={cn(
+                              "px-2 py-0.5 rounded text-[11px] font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 inline-flex items-center justify-center leading-normal gap-1 transition-colors shrink-0 shadow-xs",
+                              hasOwnWhatsAppNumber(lead) && "opacity-30 cursor-not-allowed"
+                            )}
+                            title={`Send WhatsApp message to ${leadNameStr} (${cleanPhone})`}
+                          >
+                            <MessageCircle className="w-2.5 h-2.5" /> WhatsApp
                           </button>
                         </div>
                       ) : (
