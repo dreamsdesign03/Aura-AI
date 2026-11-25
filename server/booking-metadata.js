@@ -50,8 +50,10 @@ function isSkinnonestBooking(booking) {
   if (!booking) return false;
   if (booking.eventType?.slug === 'skinnonest') return true;
   if (booking.eventTypeId === 8029367) return true;
-  const name = `${booking.event_name || ''} ${booking.title || ''} ${booking.description || ''} ${JSON.stringify(booking.metadata || {})}`.toLowerCase();
-  return name.includes('skinnonest') || name.includes('misha');
+  if (booking.metadata?.event_slug === 'skinnonest' || booking.metadata?.coordinator === 'Misha') return true;
+  if (typeof booking.title === 'string' && /^skinnonest\b/i.test(booking.title.trim())) return true;
+  if (typeof booking.event_name === 'string' && /^skinnonest\b/i.test(booking.event_name.trim())) return true;
+  return false;
 }
 
 function bookingMetadata(booking) {
@@ -182,4 +184,5 @@ module.exports = {
   resolveInteractionId,
   resolveBookingCreatedAt,
   resolveBookingFields,
+  isSkinnonestBooking,
 };

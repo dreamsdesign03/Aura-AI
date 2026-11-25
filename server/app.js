@@ -38,7 +38,7 @@ const { registerWhatsAppRoutes } = require('./whatsapp');
 const aiCallsApi = require('./ai-calls');
 const sarvamWebhookApi = require('./sarvam-webhook');
 const { cleanEnglishName } = require('./call-utils');
-const { resolveBookingFields } = require('./booking-metadata');
+const { resolveBookingFields, isSkinnonestBooking } = require('./booking-metadata');
 const { normalizeRole, isAdminRole } = require('./permissions');
 const { ensureMetaSchema } = require('./meta');
 ensureMetaSchema().catch((e) => console.error('[Meta Init]', e.message));
@@ -897,6 +897,11 @@ function mapCalendlyToAppointment(row) {
     source: 'cal.com',
     calendlyUri: row.calendly_uri,
     createdAt: row.created_at,
+    event_name: row.event_name,
+    treatment: row.resolved_concern || row.event_name || 'Clinic Consultation',
+    concern: row.resolved_concern,
+    provider: row.resolved_provider,
+    metadata: row.metadata || null,
   };
 }
 
@@ -960,7 +965,7 @@ async function syncCalComBookings(userId) {
     }
 
     const notes = b.description || bfr.notes || '';
-    const isSkinnonest = (b.eventType?.slug === 'skinnonest') || (b.eventTypeId === 8029367) || /skinnonest/i.test(b.title || '');
+    const isSkinnonest = isSkinnonestBooking(b);
     const resolved = resolveBookingFields(b);
     if (isSkinnonest) {
       resolved.concern = resolved.concern || 'Skinnonest Makeup & Salon Partnership';

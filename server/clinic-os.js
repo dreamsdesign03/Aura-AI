@@ -32,6 +32,7 @@ const {
   resolveSource,
   resolveBookingFields,
   bookingMetadata,
+  isSkinnonestBooking,
 } = require('./booking-metadata');
 const {
   phoneLast10: callPhoneLast10,
@@ -879,7 +880,13 @@ router.get('/appointments', requireUser, async (req, res) => {
     }));
     let all = [...mappedCal, ...mappedClinic].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
     if (branchFilter) {
-      all = all.filter(a => normalizeBranch(a.branch) === branchFilter);
+      all = all.filter(a => {
+        const b = normalizeBranch(a.branch);
+        // Appointments without a physical branch (e.g. online consultations, Skinnonest Misha partnerships)
+        // are clinic-wide / virtual and remain visible under any branch.
+        if (!b) return true;
+        return b === branchFilter;
+      });
     }
 
     // Attach only the call that actually booked this appointment. The old
@@ -1007,7 +1014,7 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
     let added = 0, updated = 0;
 
     for (const b of bookings) {
-      const isSkinnonest = (b.eventType?.slug === 'skinnonest') || (b.eventTypeId === 8029367) || /skinnonest/i.test(b.title || '');
+      const isSkinnonest = isSkinnonestBooking(b);
       const bookingUri = `cal_${b.id || b.uid}`;
       const attendee = (b.attendees && b.attendees[0]) || {};
       const bfr = b.bookingFieldsResponses || {};

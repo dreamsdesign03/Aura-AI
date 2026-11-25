@@ -16,16 +16,15 @@ import { useBranch } from '@/contexts/BranchContext';
 
 export function getAppointmentCategory(a) {
   if (!a) return 'ria';
-  const text = `${a.treatment || ''} ${a.notes || ''} ${a.patient_name || ''} ${a.branch || ''} ${a.source || ''} ${a.event_name || ''} ${a.provider || ''}`.toLowerCase();
-  if (
-    text.includes('misha') ||
-    text.includes('skinnonest') ||
-    text.includes('makeup') ||
-    text.includes('salon') ||
-    text.includes('vishw') ||
-    text.includes('cosmeceutical') ||
-    text.includes('partnership')
-  ) {
+  const md = a.booking_metadata || a.metadata || {};
+  if (md.coordinator === 'Misha' || md.event_slug === 'skinnonest' || md.agent_type === 'makeup_artist') return 'misha';
+  if (md.coordinator === 'Ria' || md.agent_type === 'consultation') return 'ria';
+  if (/vishw/i.test(a.provider || '')) return 'misha';
+  if (/aditya/i.test(a.provider || '')) return 'ria';
+
+  const ev = (a.event_name || '').toLowerCase();
+  const tr = (a.treatment || a.concern || '').toLowerCase();
+  if (ev.startsWith('skinnonest') || ev.includes('makeup') || tr.includes('makeup') || tr.includes('partnership')) {
     return 'misha';
   }
   return 'ria';
