@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Clock, Video, Calendar, User, Copy, Check, Sparkles } from "lucide-react";
+import { Clock, Video, Calendar, User, Copy, Check, Handshake } from "lucide-react";
 import CalendlyEmbed from "@/components/CalendlyEmbed";
 export default function Booking() {
     const [copied, setCopied] = useState(false);
@@ -59,8 +59,8 @@ export default function Booking() {
                   : "text-white/70 hover:text-white hover:bg-white/5"
               }`}
             >
-              <Sparkles className="w-4 h-4" />
-              <span>2. Makeup Appointment · Skinnonest Misha</span>
+              <Handshake className="w-4 h-4" />
+              <span>2. Makeup Artist Partnership · Skinnonest Vishw</span>
             </button>
           </div>
         </div>

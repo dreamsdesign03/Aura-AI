@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import {
   ChevronLeft, ChevronRight, Plus, RefreshCw, CalendarDays, Calendar, Clock,
   Check, Trash2, MapPin, Phone, IndianRupee, List, ExternalLink,
-  Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User, Users,
+  Search, Video, MessageCircle, Mail, Sparkles, Filter, CheckCircle2, User, Users, Handshake,
   Play, Pause, Volume2, Download, MessageSquare, PhoneOff, Link2,
 } from 'lucide-react';
 import CalEmbed from '@/components/CalEmbed';
@@ -251,8 +251,8 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
               }));
             }}
           >
-            <option value="ria">Appointment with Ria · Aura Clinic (Normal Booking · Dr. Aditya Shah)</option>
-            <option value="misha">Makeup Appointment · Skinnonest Misha (Makeup Artists & Salons · Vishw)</option>
+            <option value="ria">Clinic Consultation · Dr. Aditya Shah</option>
+            <option value="misha">Makeup Artist Partnership · Skinnonest Vishw</option>
           </select>
         </div>
         <div className="co-field co-span-2">
@@ -346,7 +346,7 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
           <StatusChip status={appointment.status} />
           {isMisha ? (
             <span className="co-chip" style={{ background: '#F5F3FF', color: '#7C3AED', borderColor: '#DDD6FE', fontWeight: 700 }}>
-              <Sparkles size={11} /> Meeting: Vishw &amp; {patientCleanName}
+              <Handshake size={11} /> Meeting: Vishw &amp; {patientCleanName}
             </span>
           ) : (
             <span className="co-chip" style={{ background: '#FDF2F8', color: '#CB3273', borderColor: '#FBCFE8', fontWeight: 700 }}>
@@ -948,7 +948,7 @@ export default function ClinicAppointments() {
             className={`co-pill-tab ${calendarFilter === 'ria' ? 'active' : ''}`}
             style={calendarFilter === 'ria' ? { background: '#CB3273', color: '#FFFFFF', borderColor: '#CB3273', fontWeight: 700, fontSize: 12 } : { fontWeight: 600, fontSize: 12 }}
           >
-            <User size={13} /> 1. Appointment with Ria (Normal Booking · {riaCount})
+            <User size={13} /> 1. Consultation · Dr. Aditya Shah ({riaCount})
           </button>
           <button
             type="button"
@@ -956,7 +956,7 @@ export default function ClinicAppointments() {
             className={`co-pill-tab ${calendarFilter === 'misha' ? 'active' : ''}`}
             style={calendarFilter === 'misha' ? { background: '#7C3AED', color: '#FFFFFF', borderColor: '#7C3AED', fontWeight: 700, fontSize: 12 } : { fontWeight: 600, fontSize: 12 }}
           >
-            <Sparkles size={13} /> 2. Makeup Appointment · Skinnonest Misha ({mishaCount})
+            <Handshake size={13} /> 2. Makeup Artist Partnership · Vishw ({mishaCount})
           </button>
         </div>
 
@@ -988,7 +988,7 @@ export default function ClinicAppointments() {
                 }`}
               >
                 <User size={14} />
-                <span>1. Appointment with Ria (Normal Clinic Booking · Dr. Aditya Shah)</span>
+                <span>1. Clinic Consultation · Dr. Aditya Shah</span>
               </button>
               <button
                 type="button"
@@ -999,8 +999,8 @@ export default function ClinicAppointments() {
                     : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border-gray-200'
                 }`}
               >
-                <Sparkles size={14} />
-                <span>2. Makeup Appointment · Skinnonest Misha (Makeup Artists &amp; Salons)</span>
+                <Handshake size={14} />
+                <span>2. Makeup Artist Partnership · Skinnonest Vishw</span>
               </button>
             </div>
 
@@ -1157,13 +1157,14 @@ export default function ClinicAppointments() {
                                 type="button"
                                 className={`co-slot ${a.status}`}
                                 onClick={(e) => { e.stopPropagation(); setSelected(a); }}
-                                title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)} (${isMisha ? 'Misha · Skinnonest' : 'Ria · Aura Clinic'})`}
+                                title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)} (${isMisha ? 'Vishw · Skinnonest' : 'Dr. Aditya Shah · Aura Clinic'})`}
                                 style={isMisha ? { borderLeft: '3px solid #7C3AED', background: '#F5F3FF' } : { borderLeft: '3px solid #CB3273' }}
                               >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
                                   <span style={{ fontWeight: 600 }}>{getContactDisplayName(a)}</span>
-                                  <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 4px', borderRadius: 4, background: isMisha ? '#EDE9FE' : '#FCE7F3', color: isMisha ? '#6D28D9' : '#BE185D' }}>
-                                    {isMisha ? 'Misha' : 'Ria'}
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2.5, fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: isMisha ? '#EDE9FE' : '#FCE7F3', color: isMisha ? '#6D28D9' : '#BE185D' }}>
+                                    {isMisha ? <Handshake size={9} /> : <User size={9} />}
+                                    {isMisha ? 'Vishw' : 'Dr. Aditya'}
                                   </span>
                                 </div>
                                 <small>
@@ -1293,7 +1294,7 @@ export default function ClinicAppointments() {
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {getAppointmentCategory(a) === 'misha' ? (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
-                                <Sparkles size={11} /> Vishw &amp; {getContactDisplayName(a)}
+                                <Handshake size={11} /> Vishw &amp; {getContactDisplayName(a)}
                               </span>
                             ) : (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#FDF2F8', color: '#CB3273', border: '1px solid #FBCFE8' }}>
