@@ -57,8 +57,8 @@ router.post('/', async (req, res) => {
       });
 
       const inserted = await db.query(
-        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, started_at)
-         VALUES ($1, $2, $2, $3, $4, $5, $6, 'ringing', 'single_call', 'plivo', 'outbound', NOW())
+        `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, agent_name, agent_type, started_at)
+         VALUES ($1, $2, $2, $3, $4, $5, $6, 'ringing', 'single_call', 'plivo', 'outbound', 'Plivo Telephony', 'plivo', NOW())
          RETURNING *`,
         [lead.id, plivoResult.callUuid, plivoResult.from, plivoResult.to, leadName === 'none' ? 'Lead' : leadName, lead.company]
       );
@@ -122,6 +122,21 @@ router.post('/', async (req, res) => {
       SET last_ai_call_status = 'queued', last_ai_call_at = NOW(), last_ai_call_request_id = $1
       WHERE id = $2
     `, [requestId, lead.id]);
+
+    await db.query(`
+      INSERT INTO ai_calls (
+        lead_id, conversation_id, call_sid, to_phone, lead_name, company_name, status,
+        booking_type, provider, direction, agent_name, agent_type, started_at
+      ) VALUES (
+        $1, $2, $2, $3, $4, $5, 'queued',
+        'single_call', 'sarvam', 'outbound', $6, $7, NOW()
+      )
+      ON CONFLICT (conversation_id) DO UPDATE SET
+        agent_name = EXCLUDED.agent_name,
+        agent_type = EXCLUDED.agent_type,
+        status = EXCLUDED.status,
+        updated_at = NOW()
+    `, [lead.id, requestId, check.e164, leadName === 'none' ? 'Lead' : leadName, lead.company, agentDisplayName, resolvedAgentType]);
 
     if (lead.user_id != null) {
       await db.query(`

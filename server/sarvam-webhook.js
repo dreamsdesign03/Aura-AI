@@ -87,9 +87,24 @@ async function handleDirectCallWebhook(payload) {
   const transcript = payload.interaction_transcript ? JSON.stringify(payload.interaction_transcript) : null;
   const bookingType = isInbound ? 'inbound_call' : 'single_call';
 
+  const isMishaWebhook = payload.app_id === 'Misha-Skinn-4e9816f8-ead9'
+    || payload.metadata?.app_id === 'Misha-Skinn-4e9816f8-ead9'
+    || payload.webhook_config?.metadata?.app_id === 'Misha-Skinn-4e9816f8-ead9'
+    || payload.metadata?.agent_type === 'makeup_artist'
+    || payload.webhook_config?.metadata?.agent_type === 'makeup_artist'
+    || /misha|skinnonest/i.test(summary || '')
+    || /misha|skinnonest/i.test(transcript || '');
+
+  const resolvedAgentName = isMishaWebhook
+    ? 'Misha (Skinnonest AI)'
+    : (payload.metadata?.agent_name || payload.webhook_config?.metadata?.agent_name || 'Ketki (Aura Clinic AI)');
+  const resolvedAgentType = isMishaWebhook
+    ? 'makeup_artist'
+    : (payload.metadata?.agent_type || payload.webhook_config?.metadata?.agent_type || 'customer');
+
   // Upsert ai_calls keyed by conversation_id (interaction_id) / call_sid (attempt_id)
   const existingAiCall = await db.query(
-    'SELECT id FROM ai_calls WHERE conversation_id = $1 OR call_sid = $2 LIMIT 1',
+    'SELECT id, agent_name FROM ai_calls WHERE conversation_id = $1 OR call_sid = $2 LIMIT 1',
     [interactionId, requestId]
   );
 
@@ -99,12 +114,12 @@ async function handleDirectCallWebhook(payload) {
         lead_id, conversation_id, call_sid, to_phone, from_phone,
         lead_name, company_name, status, booking_type, duration_secs,
         transcript_summary, recording_url, sentiment, outcome, provider,
-        direction, transcript, started_at, created_at, updated_at
+        direction, transcript, started_at, agent_name, agent_type, created_at, updated_at
       ) VALUES (
         $1, $2, $3, $4, $5,
         $6, $7, $8, $9, $10,
         $11, $12, $13, $14, 'sarvam',
-        $15, $16, COALESCE($17::timestamptz, NOW()), NOW(), NOW()
+        $15, $16, COALESCE($17::timestamptz, NOW()), $18, $19, NOW(), NOW()
       )
     `, [
       leadId,
@@ -123,7 +138,9 @@ async function handleDirectCallWebhook(payload) {
       outcome || 'not_booked',
       direction,
       transcript,
-      startedAt
+      startedAt,
+      resolvedAgentName,
+      resolvedAgentType
     ]);
   } else {
     // Idempotent update
@@ -136,8 +153,10 @@ async function handleDirectCallWebhook(payload) {
              sentiment = COALESCE($5, sentiment),
              outcome = COALESCE($6, outcome),
              transcript = COALESCE($7, transcript),
+             agent_name = COALESCE(agent_name, $8),
+             agent_type = COALESCE(agent_type, $9),
              updated_at = NOW()
-       WHERE id = $8
+       WHERE id = $10
     `, [
       callStatus || 'completed',
       duration,
@@ -146,6 +165,8 @@ async function handleDirectCallWebhook(payload) {
       sentiment || 'Neutral',
       outcome || 'not_booked',
       transcript,
+      resolvedAgentName,
+      resolvedAgentType,
       existingAiCall.rows[0].id
     ]);
   }

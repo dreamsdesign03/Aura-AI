@@ -30,7 +30,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
               <Phone className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900">Confirm AI Proposal Call</h3>
+              <h3 className="text-base font-bold text-gray-900">Confirm AI Voice Call</h3>
               <p className="text-xs text-pink-700 font-medium">{leadName} · {company}</p>
             </div>
           </div>
@@ -200,7 +200,7 @@ function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity
       <div className="px-2 py-1.5 border-t border-gray-100 flex items-center gap-1" onClick={e => e.stopPropagation()}>
         {/* Phone Call */}
         {phoneNum ? (
-          <button onClick={e => { e.stopPropagation(); onPhoneCall ? onPhoneCall(lead) : (window.location.href = `tel:${phoneNum}`); }} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title={`AI Proposal Call to ${name} (${phoneNum})`}>
+          <button onClick={e => { e.stopPropagation(); onPhoneCall ? onPhoneCall(lead) : (window.location.href = `tel:${phoneNum}`); }} className="p-1.5 rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title={`AI Voice Call to ${name} (${phoneNum})`}>
             <Phone className="w-3.5 h-3.5"/>
           </button>
         ) : (

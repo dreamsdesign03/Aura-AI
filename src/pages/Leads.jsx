@@ -3140,7 +3140,7 @@ function LeadDrawer({ leadId, onClose }) {
                   {m.nextAction && <div className="text-[11px] font-semibold mt-1.5" style={{ color: "#DE377C" }}>→ {m.nextAction}</div>}
                 </DarkCard>))}
             </div>) : activeTab === "ai_calls" ? (<div className="p-4">
-              <AiCallHistoryView leadId={lead.id} />
+              <AiCallHistoryView leadId={lead.id} leadPhone={lead.phone || lead.whatsapp} />
             </div>) : (<div className="p-4 space-y-2">
               {lead.proposals?.length === 0 ? (<DarkEmptyState icon="📄" title="No proposals yet" desc="Create a tailored proposal for this lead" d={D} action={<button onClick={handleCreateProposal} className="px-5 py-2 rounded-xl text-xs font-bold transition-all hover:scale-105" style={{ background: "#1E0D3A", color: "#F3C9DB", border: "1px solid #3D1F6E" }}>Create Proposal</button>}/>) : (lead.proposals ?? []).map((p) => (<DarkCard key={p.id} d={D}>
                   <div className="flex items-center justify-between mb-1">
@@ -3778,7 +3778,7 @@ function normalizeCallTranscript(rawTranscript) {
   })).filter((turn) => turn.text);
 }
 
-function AiCallHistoryView({ leadId }) {
+function AiCallHistoryView({ leadId, leadPhone }) {
   const [calls, setCalls] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedTranscriptId, setExpandedTranscriptId] = useState(null);
@@ -3822,17 +3822,70 @@ function AiCallHistoryView({ leadId }) {
     return m > 0 ? `${m}m ${s}s` : `${s}s`;
   };
 
-  const getBookingTypeBadge = (bookingType) => {
-    switch (bookingType) {
-      case 'bulk_campaign':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">Bulk</span>;
-      case 'single_call':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">Single</span>;
-      case 'inbound_call':
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-green-50 text-green-700 border border-green-200">Inbound</span>;
-      default:
-        return <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-50 text-gray-700 border border-gray-200">{bookingType || '—'}</span>;
+  const resolveAgentName = (call, bookingType) => {
+    if (call.agentName) return call.agentName;
+    if (call.agent_name) return call.agent_name;
+    if (call.provider === "plivo") return "Plivo Telephony";
+
+    const summary = (call.transcriptSummary || "").toLowerCase();
+    const transcriptStr = Array.isArray(call.transcript)
+      ? call.transcript.map((t) => t.text || "").join(" ").toLowerCase()
+      : typeof call.transcript === "string"
+      ? call.transcript.toLowerCase()
+      : "";
+    const combo = summary + " " + transcriptStr;
+
+    if (combo.includes("misha") || combo.includes("skinnonest") || combo.includes("vishw")) {
+      return "Misha (Skinnonest AI)";
     }
+    if (combo.includes("ketki") || combo.includes("aura") || combo.includes("dr. aditya")) {
+      return "Ketki (Aura Clinic AI)";
+    }
+    if (bookingType === "bulk_campaign") {
+      return "Ketki (Bulk AI)";
+    }
+    return "Aura AI Voice Assistant";
+  };
+
+  const resolveAgentBadge = (call, agentName, bookingType) => {
+    if (call.provider === "plivo") {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+          Plivo Telephony
+        </span>
+      );
+    }
+    if (call.agentType === "makeup_artist" || agentName.toLowerCase().includes("misha") || agentName.toLowerCase().includes("skinnonest")) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-pink-50 text-pink-700 border border-pink-200">
+          Makeup Artist Coordinator
+        </span>
+      );
+    }
+    if (bookingType === "bulk_campaign") {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
+          Bulk Campaign
+        </span>
+      );
+    }
+    if (bookingType === "patient_consultation" || call.agentType === "customer" || agentName.toLowerCase().includes("ketki")) {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+          Patient Consultation
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-50 text-gray-700 border border-gray-200">
+        AI Outbound
+      </span>
+    );
+  };
+
+  const cleanCallSummary = (summary) => {
+    if (!summary) return "";
+    return summary.replace(/\[interaction_id:[^\]]+\]/gi, "").trim();
   };
 
   if (isLoading) {
@@ -3858,33 +3911,53 @@ function AiCallHistoryView({ leadId }) {
     <div className="space-y-3 text-xs">
       {calls.map((call) => {
         const isCompleted = call.status === "completed";
-        const isInProgress = call.status === "in-progress" || call.status === "processing";
+        const isInProgress = call.status === "in-progress" || call.status === "processing" || call.status === "ringing" || call.status === "queued";
         const isFailed = call.status === "failed";
         const isExpanded = expandedTranscriptId === call.id;
-        const bookingType = call.bookingType || call.booking_type || 'proposal_call';
+        const bookingType = call.bookingType || call.booking_type || "single_call";
+        const agentName = resolveAgentName(call, bookingType);
+        const destinationPhone = call.to || call.to_phone || leadPhone || "—";
+        const cleanedSummary = cleanCallSummary(call.transcriptSummary);
+
+        const fallbackSummary = !cleanedSummary
+          ? Array.isArray(call.transcript) && call.transcript.length > 0
+            ? `Conversation completed with ${call.transcript.length} turns recorded. Outcome: ${call.outcome || "completed"}.`
+            : isCompleted
+            ? `Outbound call completed (${formatDuration(call.duration)}). Outcome: ${call.outcome || "connected"}.`
+            : isInProgress
+            ? "Call in progress..."
+            : `Call status: ${call.status || "initiated"}.`
+          : cleanedSummary;
 
         return (
           <div key={call.id} className="bg-white border border-gray-200/80 rounded-xl p-4 space-y-3 shadow-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-pink-100 text-pink-700 flex items-center justify-center text-xs">📞</span>
-                <span className="font-bold text-gray-900 text-xs">Proposal Call</span>
-                {getBookingTypeBadge(bookingType)}
+                <div
+                  className={cn(
+                    "w-6 h-6 rounded-lg flex items-center justify-center shrink-0",
+                    call.provider === "plivo" ? "bg-emerald-100 text-emerald-700" : "bg-pink-100 text-pink-700"
+                  )}
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-bold text-gray-900 text-xs">{agentName}</span>
+                {resolveAgentBadge(call, agentName, bookingType)}
               </div>
               <div className="flex items-center gap-2">
                 {isInProgress && (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 animate-pulse">
-                    <Loader2 className="w-2.5 h-2.5 animate-spin" /> In Progress...
+                    <Loader2 className="w-2.5 h-2.5 animate-spin" /> {call.status === "ringing" ? "Ringing..." : "In Progress..."}
                   </span>
                 )}
                 {isCompleted && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                    ✓ Completed
+                    Completed
                   </span>
                 )}
                 {isFailed && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                    ✕ Failed
+                    Failed
                   </span>
                 )}
                 <span className="text-[10px] text-gray-400">{formatDate(call.startedAt)}</span>
@@ -3892,8 +3965,12 @@ function AiCallHistoryView({ leadId }) {
             </div>
 
             <div className="flex items-center justify-between text-[11px] text-gray-500 border-t border-gray-100 pt-2">
-              <div>To: <span className="text-gray-900 font-semibold">{call.to}</span></div>
-              <div>Duration: <span className="text-gray-900 font-semibold">{formatDuration(call.duration)}</span></div>
+              <div>
+                To: <span className="text-gray-900 font-semibold font-mono">{destinationPhone}</span>
+              </div>
+              <div>
+                Duration: <span className="text-gray-900 font-semibold">{formatDuration(call.duration)}</span>
+              </div>
             </div>
 
             {call.outcome && (
@@ -3902,10 +3979,10 @@ function AiCallHistoryView({ leadId }) {
               </div>
             )}
 
-            {call.transcriptSummary && (
+            {fallbackSummary && (
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-gray-700 space-y-1">
-                <div className="text-[10px] font-bold text-pink-600 uppercase tracking-wider">Call Summary</div>
-                <p className="text-[11px] leading-relaxed text-gray-700">{call.transcriptSummary}</p>
+                <div className="text-[10px] font-bold text-pink-600 uppercase tracking-wider">AI Call Summary</div>
+                <p className="text-[11px] leading-relaxed text-gray-700">{fallbackSummary}</p>
               </div>
             )}
 
@@ -3928,8 +4005,18 @@ function AiCallHistoryView({ leadId }) {
                 {isExpanded && (
                   <div className="mt-2 space-y-1.5 max-h-48 overflow-y-auto p-2.5 rounded-lg bg-gray-50 border border-gray-200 text-[11px]">
                     {call.transcript.map((t, idx) => (
-                      <div key={idx} className={cn("p-2 rounded-lg", /user|customer|caller/i.test(String(t.role)) ? "bg-white text-gray-800 border border-gray-200 ml-4" : "bg-pink-50 text-pink-900 border border-pink-100 mr-4")}>
-                        <span className="font-bold text-[10px] block opacity-70 uppercase mb-0.5">{t.role || "Transcript"}</span>
+                      <div
+                        key={idx}
+                        className={cn(
+                          "p-2 rounded-lg",
+                          /user|customer|caller/i.test(String(t.role))
+                            ? "bg-white text-gray-800 border border-gray-200 ml-4"
+                            : "bg-pink-50 text-pink-900 border border-pink-100 mr-4"
+                        )}
+                      >
+                        <span className="font-bold text-[10px] block opacity-70 uppercase mb-0.5">
+                          {t.role || "Transcript"}
+                        </span>
                         <span>{t.text}</span>
                       </div>
                     ))}
@@ -3969,7 +4056,7 @@ function AiCallsModal({ lead, onClose }) {
 
         {/* Body */}
         <div className="p-6 flex-1 overflow-y-auto">
-          <AiCallHistoryView leadId={lead.id} />
+          <AiCallHistoryView leadId={lead.id} leadPhone={lead.phone || lead.whatsapp} />
         </div>
 
         {/* Footer */}

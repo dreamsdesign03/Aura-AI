@@ -626,6 +626,8 @@ async function seedAdminUser() {
       ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS lead_name_original TEXT;
       ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS lead_name_english TEXT;
       ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS lead_name_source TEXT DEFAULT 'call';
+      ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS agent_name TEXT;
+      ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS agent_type TEXT;
 
       -- Contact name fields for AI voice call integration (clinic_appointments)
       ALTER TABLE clinic_appointments ADD COLUMN IF NOT EXISTS patient_name_original TEXT;
@@ -3241,8 +3243,11 @@ app.get('/api/ai-calls', async (req, res) => {
         leadName: c.lead_name,
         companyName: c.company_name,
         status: c.status,
-        bookingType: c.booking_type || 'proposal_call',
+        bookingType: c.booking_type || 'single_call',
         direction: c.direction || 'outbound',
+        provider: c.provider || 'sarvam',
+        agentName: c.agent_name || (c.provider === 'plivo' ? 'Plivo Telephony' : 'Ketki (Aura Clinic AI)'),
+        agentType: c.agent_type || (c.provider === 'plivo' ? 'plivo' : 'customer'),
         startedAt: c.started_at || c.created_at,
         duration: c.duration_secs || 0,
         transcriptSummary: c.transcript_summary || '',
