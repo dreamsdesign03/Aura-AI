@@ -45,9 +45,31 @@ function isPlaceholder(value) {
   return ['none', 'null', 'undefined'].includes(String(value).toLowerCase());
 }
 
-// The only agent_variables sent to the Ketki outbound agent.
-// Empty / placeholder values are omitted entirely.
-function buildAgentVars({ name, phone, email } = {}) {
+function getIstDates() {
+  const now = new Date();
+  // UTC+5:30 Indian Standard Time
+  const istOffsetMs = 5.5 * 60 * 60 * 1000;
+  const istNow = new Date(now.getTime() + istOffsetMs);
+
+  const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+  const currentDay = days[istNow.getUTCDay()];
+  const currentDate = `${istNow.getUTCDate()} ${months[istNow.getUTCMonth()]} ${istNow.getUTCFullYear()}`;
+
+  // Next slot: tomorrow at 3:30 PM IST
+  const tomorrow = new Date(istNow.getTime() + 24 * 60 * 60 * 1000);
+  const tomorrowDay = days[tomorrow.getUTCDay()];
+  const tomorrowDate = `${tomorrow.getUTCDate()} ${months[tomorrow.getUTCMonth()]} ${tomorrow.getUTCFullYear()}`;
+  const appointmentDatetime = `${tomorrowDay}, ${tomorrowDate} at 3:30 PM IST`;
+
+  return { currentDay, currentDate, appointmentDatetime };
+}
+
+// Agent variables sent to Sarvam outbound agent.
+// For Ketki (default/customer): userName, userPhone, userEmail.
+// For Misha (makeup_artist): userName, userPhone, userCity, appointment_datetime, etc.
+function buildAgentVars({ name, phone, email, city, agentType, existingAppointmentDateTime, appointmentDatetime } = {}) {
   const vars = {};
 
   const cleanName = cleanDisplayName(name);
@@ -59,14 +81,34 @@ function buildAgentVars({ name, phone, email } = {}) {
   const mail = String(email == null ? '' : email).trim().toLowerCase();
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) vars.userEmail = mail;
 
+  // Custom variables for Misha (Skinnonest Makeup Artist & Salon Coordinator)
+  if (agentType === 'makeup_artist') {
+    const { currentDay, currentDate, appointmentDatetime: defaultSlot } = getIstDates();
+    vars.userCity = cleanDisplayName(city) || 'Vadodara';
+    vars.existingAppointmentDateTime = existingAppointmentDateTime || 'None';
+    vars.appointment_datetime = appointmentDatetime || defaultSlot;
+    vars.current_day = currentDay;
+    vars.current_date = currentDate;
+    vars.brandOneLiner = 'Skinnonest works with makeup artists, salons and skin clinics';
+    vars.productList = 'Sunscreen, Face Wash, Moisturising Cream, Shampoo';
+    vars.productsAndBenefits = 'Derma and cosmeceutical skincare tailored for salons, makeup artists and skin clinics';
+    vars.contactNumber = process.env.SARVAM_AGENT_NUMBER || '+917965852999';
+    vars.contactEmail = 'support@skinnonest.com';
+    vars.preferredCallbackWindow = 'Monday to Saturday, 10:00 AM to 6:00 PM IST';
+    vars.vishwTimings = '11:00 AM to 6:00 PM IST';
+    vars.artistValuePoints = 'Exclusive salon and makeup artist partnership terms, professional pricing, and trial samples';
+  }
+
   return vars;
 }
 
-// Only used when the lead has no usable name: the Ketki agent defaults to
-// "Am I speaking with {userName}?", so we must override it in that case.
-function buildOutboundGreeting(name) {
+// Only used when the lead has no usable name.
+function buildOutboundGreeting(name, isMisha = false) {
   const cleanName = cleanDisplayName(name);
   if (cleanName && !isPlaceholder(cleanName)) return '';
+  if (isMisha) {
+    return 'Hello! This is Misha from Skinnonest. Do you have two minutes to talk?';
+  }
   return 'Hello! This is Ketki from Aura Laser and Cosmetic Clinic. Do you have two minutes to talk?';
 }
 
@@ -91,7 +133,7 @@ function extractErrorMessage(data, res) {
   );
 }
 
-async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
+async function dispatchSarvamCall({ phoneE164, vars, metadata, appId, appVersion, agentType }) {
   const missing = REQUIRED_ENV.filter(name => {
     if (name === 'SARVAM_API_KEY') {
       return !process.env.SARVAM_SAMVAAD_API_KEY && !process.env.SARVAM_API_KEY;
@@ -108,16 +150,28 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
   const url = `https://apps.sarvam.ai/api/outbounds/v1/orgs/${process.env.SARVAM_ORG_ID}/workspaces/${process.env.SARVAM_WORKSPACE_ID}/outbounds`;
   const maskedWebhookUrl = String(process.env.SARVAM_WEBHOOK_URL).replace(/secret=[^&]+/, 'secret=***');
 
-  const body = {
-    app_config: {
-      app_id: process.env.SARVAM_APP_ID,
-      app_version: Number(process.env.SARVAM_APP_VERSION || 13),
-      connection_config: {
-        connection_id: process.env.SARVAM_CONNECTION_ID,
-        agent_phone_number: process.env.SARVAM_AGENT_NUMBER
-      },
-      agent_variables: vars || {}
+  const isMisha = agentType === 'makeup_artist' || appId === 'Misha-Skinn-4e9816f8-ead9';
+  const resolvedAppId = isMisha ? 'Misha-Skinn-4e9816f8-ead9' : (appId || process.env.SARVAM_APP_ID);
+
+  const appConfig = {
+    app_id: resolvedAppId,
+    connection_config: {
+      connection_id: process.env.SARVAM_CONNECTION_ID,
+      agent_phone_number: process.env.SARVAM_AGENT_NUMBER
     },
+    agent_variables: vars || {}
+  };
+
+  if (appVersion != null) {
+    appConfig.app_version = Number(appVersion);
+  } else if (isMisha) {
+    appConfig.version_filter = 'latest';
+  } else {
+    appConfig.app_version = Number(process.env.SARVAM_APP_VERSION || 13);
+  }
+
+  const body = {
+    app_config: appConfig,
     user_config: {
       user_phone_number: phoneE164
     },
@@ -127,17 +181,19 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata }) {
     }
   };
 
-  const greeting = buildOutboundGreeting(body.app_config.agent_variables.userName);
+  const greeting = buildOutboundGreeting(body.app_config.agent_variables.userName, isMisha);
   if (greeting) {
     body.app_config.app_overrides = { initial_bot_message: greeting };
   }
 
   console.log('[Sarvam] POST ' + url);
+  console.log('[Sarvam] agent: ' + (isMisha ? 'Misha-Skinn (makeup_artist)' : 'Ketki (customer)'));
   console.log('[Sarvam] vars sent: ' + (Object.keys(body.app_config.agent_variables).length ? Object.keys(body.app_config.agent_variables).join(', ') : '(none)'));
   console.log('[Sarvam] greeting override: ' + (greeting ? 'yes' : 'no'));
   console.log('[Sarvam] config ' + JSON.stringify({
     app_id: body.app_config.app_id,
     app_version: body.app_config.app_version,
+    version_filter: body.app_config.version_filter,
     connection_id: body.app_config.connection_config.connection_id,
     agent_variables_keys: Object.keys(body.app_config.agent_variables),
     webhook_url: maskedWebhookUrl

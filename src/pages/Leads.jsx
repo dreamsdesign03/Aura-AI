@@ -176,7 +176,7 @@ export default function Leads() {
     const [viewCallsLead, setViewCallsLead] = useState(null);
     const [showBulkCallModal, setShowBulkCallModal] = useState(false);
 
-    const handleStartAiCall = async () => {
+    const handleStartAiCall = async ({ callMethod = "sarvam", agentType = "makeup_artist" } = {}) => {
         if (!confirmCallLead) return;
         setIsCallInFlight(true);
         try {
@@ -184,38 +184,44 @@ export default function Leads() {
             const leadPhone = confirmCallLead.phone || confirmCallLead.whatsapp || "";
             const leadCompany = confirmCallLead.company || "";
 
-            console.log("[AI Call] click", { leadId: confirmCallLead.id, leadName, leadCompany });
+            console.log("[Call] click", { leadId: confirmCallLead.id, leadName, leadCompany, callMethod, agentType });
             const res = await fetch("/api/ai-calls", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     leadId: confirmCallLead.id,
+                    callMethod,
+                    agentType,
+                    appId: agentType === "makeup_artist" ? "Misha-Skinn-4e9816f8-ead9" : "Conversatio-cc27549a-e502"
                 }),
             });
 
             const data = await res.json();
-            console.log("[AI Call] response", { status: res.status, success: data.success, requestId: data.requestId, error: data.error });
+            console.log("[Call] response", { status: res.status, success: data.success, requestId: data.requestId, error: data.error });
             if (res.ok && data.success) {
+                const callLabel = callMethod === "plivo"
+                    ? "Direct Plivo telephony call"
+                    : (agentType === "makeup_artist" ? "AI Call (Misha - Skinnonest)" : "AI Call (Ketki - Aura Clinic)");
                 toast({
-                    title: "Call started",
-                    description: `Outbound AI proposal call placed to ${leadName} (${leadPhone}).`,
+                    title: "Call initiated",
+                    description: `${callLabel} dispatched to ${leadName} (${leadPhone}).`,
                 });
                 const activeLead = confirmCallLead;
                 setConfirmCallLead(null);
                 setViewCallsLead(activeLead);
             } else {
-                console.log("[AI Call] failed", { status: res.status, error: data.error });
+                console.log("[Call] failed", { status: res.status, error: data.error });
                 toast({
                     title: "Call failed",
-                    description: data.error || "Could not place AI call.",
+                    description: data.error || "Could not place call.",
                     variant: "destructive",
                 });
             }
         } catch (err) {
-            console.error("[AI Call] failed", { message: err.message });
+            console.error("[Call] failed", { message: err.message });
             toast({
                 title: "Call error",
-                description: err.message || "Network error placing AI call",
+                description: err.message || "Network error placing call",
                 variant: "destructive",
             });
         } finally {
@@ -3003,10 +3009,10 @@ function LeadDrawer({ leadId, onClose }) {
               {/* ── Contact ── */}
               <DarkCard title="Contact" d={D}>
                 <div className="space-y-2.5">
-                  {cleanEmail(lead.email) && <DarkInfoRow icon="✉️" label="Email" value={cleanEmail(lead.email)} href={`mailto:${cleanEmail(lead.email)}`} d={D}/>}
-                  {lead.phone && <DarkInfoRow icon="📞" label="Phone" value={lead.phone} href={`tel:${lead.phone}`} d={D}/>}
-                  {lead.whatsapp && <DarkInfoRow icon="💬" label="WhatsApp" value={lead.whatsapp} href={`https://wa.me/${lead.whatsapp.replace(/[^0-9]/g, "")}`} d={D}/>}
-                  {lead.website && <DarkInfoRow icon="🌐" label="Website" value={lead.website} href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} d={D}/>}
+                  {cleanEmail(lead.email) && <DarkInfoRow icon="Email" label="Email" value={cleanEmail(lead.email)} href={`mailto:${cleanEmail(lead.email)}`} d={D}/>}
+                  {lead.phone && <DarkInfoRow icon="Phone" label="Phone" value={lead.phone} href={`tel:${lead.phone}`} d={D}/>}
+                  {lead.whatsapp && <DarkInfoRow icon="WhatsApp" label="WhatsApp" value={lead.whatsapp} href={`https://wa.me/${lead.whatsapp.replace(/[^0-9]/g, "")}`} d={D}/>}
+                  {lead.website && <DarkInfoRow icon="Website" label="Website" value={lead.website} href={lead.website.startsWith("http") ? lead.website : `https://${lead.website}`} d={D}/>}
                   {lead.linkedInUrl && <DarkInfoRow icon="🔗" label="LinkedIn" value="View Profile" href={lead.linkedInUrl} d={D}/>}
                 </div>
               </DarkCard>
@@ -3506,12 +3512,15 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
   const leadName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || lead.name || "Lead";
   const phone = lead.phone || lead.whatsapp || "No phone";
   const company = lead.company || "—";
+  const city = lead.city || lead.branch || "Vadodara";
   const alreadyCalled = Boolean(lead.last_ai_call_status || lead.last_ai_call_at || lead.hasAiCall);
   const [allowDuplicate, setAllowDuplicate] = useState(false);
+  const [callMethod, setCallMethod] = useState("sarvam"); // "sarvam" | "plivo"
+  const [agentType, setAgentType] = useState("makeup_artist"); // "makeup_artist" | "customer"
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-150" onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150 text-gray-800" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden border border-gray-100 animate-in fade-in zoom-in-95 duration-150 text-gray-800" onClick={e => e.stopPropagation()}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-pink-100 flex items-center justify-between" style={{ background: "#FDF2F8" }}>
           <div className="flex items-center gap-3">
@@ -3519,8 +3528,8 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
               <Phone className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-gray-900">Confirm AI Proposal Call</h3>
-              <p className="text-xs text-pink-700 font-medium">{leadName} · {company}</p>
+              <h3 className="text-base font-bold text-gray-900">Place Outbound Call</h3>
+              <p className="text-xs text-pink-700 font-medium">{leadName} · {company} · {phone}</p>
             </div>
           </div>
           <button onClick={onCancel} disabled={isCalling} className="p-1.5 text-gray-400 hover:text-gray-600 rounded-lg transition-colors">
@@ -3535,10 +3544,10 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
               <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
               <div className="text-[11.5px] leading-relaxed">
                 <p className="font-bold text-amber-900">
-                  ⚠️ Contact Already Called ({lead.last_ai_call_status ? lead.last_ai_call_status.toUpperCase() : "COMPLETED"})
+                  Contact Already Called ({lead.last_ai_call_status ? lead.last_ai_call_status.toUpperCase() : "COMPLETED"})
                 </p>
                 <p className="text-amber-800 mt-0.5">
-                  An AI outreach call has already been placed to this person. Duplicate calls are blocked to prevent spamming.
+                  An outreach call has already been placed to this person. Duplicate calls are blocked to prevent spamming.
                 </p>
                 <label className="flex items-center gap-2 mt-2.5 cursor-pointer font-semibold text-amber-950 select-none">
                   <input
@@ -3553,28 +3562,137 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             </div>
           )}
 
-          <p className="text-gray-700 leading-relaxed">
-            Are you sure you want to place an automated AI voice call to <strong className="text-gray-900 font-bold">{leadName}</strong> at <strong className="text-pink-600 font-bold">{phone}</strong> with Ketki (AI)?
-          </p>
+          {/* 1. Select Call Channel / Provider */}
+          <div>
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+              1. Select Call Method
+            </label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setCallMethod("sarvam")}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  callMethod === "sarvam"
+                    ? "border-pink-500 bg-pink-50/70 ring-1 ring-pink-400 shadow-sm"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className={`w-4 h-4 ${callMethod === "sarvam" ? "text-pink-600" : "text-gray-400"}`} />
+                  <span className="font-bold text-xs text-gray-900">AI Voice Agent</span>
+                </div>
+                <p className="text-[11px] text-gray-500 leading-snug">
+                  Sarvam AI conversational outbound call
+                </p>
+              </button>
 
-          <div className="bg-pink-50/50 border border-pink-100/80 rounded-xl p-3.5 space-y-2 text-xs">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-medium">Company:</span>
-              <span className="text-gray-900 font-semibold">{company}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-medium">Call Type:</span>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-pink-100 text-pink-700 border border-pink-200">
-                consultation_call
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-500 font-medium">AI Agent:</span>
-              <span className="text-gray-800 font-medium flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-pink-500" /> Ketki (Sarvam AI)
-              </span>
+              <button
+                type="button"
+                onClick={() => setCallMethod("plivo")}
+                className={`p-3 rounded-xl border text-left transition-all ${
+                  callMethod === "plivo"
+                    ? "border-emerald-500 bg-emerald-50/70 ring-1 ring-emerald-400 shadow-sm"
+                    : "border-gray-200 bg-white hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Phone className={`w-4 h-4 ${callMethod === "plivo" ? "text-emerald-600" : "text-gray-400"}`} />
+                  <span className="font-bold text-xs text-gray-900">Direct Plivo Call</span>
+                </div>
+                <p className="text-[11px] text-gray-500 leading-snug">
+                  Direct telephone call via clinic line
+                </p>
+              </button>
             </div>
           </div>
+
+          {/* 2. Select Agent Persona (Only when AI call is selected) */}
+          {callMethod === "sarvam" && (
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+                2. Which Agent?
+              </label>
+              <div className="space-y-2">
+                {/* Makeup Artist / Salon Coordinator (Misha) */}
+                <button
+                  type="button"
+                  onClick={() => setAgentType("makeup_artist")}
+                  className={`w-full p-3 rounded-xl border text-left transition-all ${
+                    agentType === "makeup_artist"
+                      ? "border-pink-500 bg-pink-50/70 ring-1 ring-pink-400 shadow-sm"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-pink-600" />
+                      <span className="font-bold text-xs text-gray-900">Makeup Artist (Misha · Skinnonest)</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-pink-100 text-pink-700">
+                      Misha-Skinn-4e9816f8-ead9
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 leading-snug">
+                    Skinnonest coordinator for makeup artists, salons & clinics to introduce products and schedule an online meeting with Vishw.
+                  </p>
+                  <div className="mt-2 text-[10.5px] text-gray-500 flex flex-wrap items-center gap-3 pt-1 border-t border-pink-100/60">
+                    <span>Name: <strong className="text-gray-800">{leadName}</strong></span>
+                    <span>Phone: <strong className="text-gray-800">{phone}</strong></span>
+                    <span>City: <strong className="text-gray-800">{city}</strong></span>
+                  </div>
+                </button>
+
+                {/* Customer / Patient Coordinator (Ketki) */}
+                <button
+                  type="button"
+                  onClick={() => setAgentType("customer")}
+                  className={`w-full p-3 rounded-xl border text-left transition-all ${
+                    agentType === "customer"
+                      ? "border-pink-500 bg-pink-50/70 ring-1 ring-pink-400 shadow-sm"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+                      <span className="font-bold text-xs text-gray-900">Customer / Patient (Ketki · Aura Clinic)</span>
+                    </div>
+                    <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
+                      Conversatio-cc27549a-e502
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-gray-600 leading-snug">
+                    Aura Clinic consultation booking coordinator for clinic treatments, consultations and enquiries.
+                  </p>
+                  <div className="mt-2 text-[10.5px] text-gray-500 flex flex-wrap items-center gap-3 pt-1 border-t border-gray-100">
+                    <span>Name: <strong className="text-gray-800">{leadName}</strong></span>
+                    <span>Phone: <strong className="text-gray-800">{phone}</strong></span>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Plivo Info Box */}
+          {callMethod === "plivo" && (
+            <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl space-y-1.5 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 font-medium">Provider:</span>
+                <span className="text-emerald-800 font-bold">Plivo Telephony</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 font-medium">Caller Line:</span>
+                <span className="font-mono text-gray-900 font-semibold">+918065587555</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-gray-600 font-medium">Destination:</span>
+                <span className="font-mono text-gray-900 font-semibold">{phone}</span>
+              </div>
+              <p className="text-[11px] text-emerald-800 pt-1 leading-snug">
+                Direct live outbound telephone call dialed through the clinic Plivo line.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Footer Actions */}
@@ -3589,11 +3707,11 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
           </button>
           <button
             type="button"
-            onClick={onConfirm}
+            onClick={() => onConfirm({ callMethod, agentType })}
             disabled={isCalling || (alreadyCalled && !allowDuplicate)}
             className="flex items-center gap-2 px-5 py-2 text-xs font-bold text-white rounded-xl transition-all shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
-            style={{ background: "#CB3273" }}
-            title={alreadyCalled && !allowDuplicate ? "Duplicate call blocked" : "Place AI call"}
+            style={{ background: callMethod === "plivo" ? "#059669" : "#CB3273" }}
+            title={alreadyCalled && !allowDuplicate ? "Duplicate call blocked" : "Place call"}
           >
             {isCalling ? (
               <>
@@ -3603,7 +3721,13 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
             ) : (
               <>
                 <Phone className="w-3.5 h-3.5" />
-                {alreadyCalled && !allowDuplicate ? "Already Called (Blocked)" : "Start AI Call"}
+                {alreadyCalled && !allowDuplicate
+                  ? "Already Called (Blocked)"
+                  : callMethod === "plivo"
+                  ? "Start Plivo Call"
+                  : agentType === "makeup_artist"
+                  ? "Start AI Call (Misha)"
+                  : "Start AI Call (Ketki)"}
               </>
             )}
           </button>
@@ -3720,7 +3844,7 @@ function AiCallHistoryView({ leadId }) {
       <div className="text-center py-8 px-4 rounded-xl border border-dashed border-gray-200 bg-gray-50/50">
         <Phone className="w-8 h-8 mx-auto text-gray-300 mb-2" />
         <h4 className="text-xs font-bold text-gray-700">No AI Calls Placed Yet</h4>
-        <p className="text-[11px] text-gray-400 mt-1">Click the phone 📞 icon next to this lead to trigger an AI call.</p>
+        <p className="text-[11px] text-gray-400 mt-1">Click the phone icon next to this lead to trigger a call.</p>
       </div>
     );
   }
