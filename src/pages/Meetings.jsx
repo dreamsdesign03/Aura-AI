@@ -450,7 +450,7 @@ function AdminView() {
                   <div className="text-base font-bold text-gray-900">{cleanEnglishName(active.name)}</div>
                   {active.provider ? (
                     <div className="text-xs font-semibold text-purple-700 mt-0.5">
-                      Meeting with {active.provider} · Coordinated by {/vishw/i.test(active.provider) ? 'Misha (AI Voice Agent)' : 'Ria (Aura AI)'}
+                      Meeting with {active.provider}
                     </div>
                   ) : null}
                   {cleanEmail(active.email) && (

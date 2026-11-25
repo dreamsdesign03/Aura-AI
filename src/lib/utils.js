@@ -215,11 +215,15 @@ export function cleanEnglishTreatment(raw, fallback = 'Clinic Consultation') {
         if (prefixMatch && prefixMatch[1] && prefixMatch[1].length > 3) {
             str = prefixMatch[1].trim();
             if (/skinnonest/i.test(str)) {
-                return 'Skinnonest Makeup & Salon Partnership';
+                return 'Skinnonest Makeup Artist Partnership';
             }
         } else {
             str = 'Clinic Consultation';
         }
+    }
+
+    if (/makeup.*?(?:&|and)?\s*salon/i.test(str) || /skinnonest.*makeup/i.test(str)) {
+        return 'Skinnonest Makeup Artist Partnership';
     }
 
     str = transliterateIndic(str);

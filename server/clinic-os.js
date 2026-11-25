@@ -535,13 +535,13 @@ function mapCalRowToClinic(row) {
   const source = row.resolved_source || resolveSource(bookingLike);
 
   if (isSkinnonest) {
-    if (!concern) concern = 'Skinnonest Makeup & Salon Partnership';
+    if (!concern) concern = 'Skinnonest Makeup Artist Partnership';
     if (!provider) provider = 'Vishw';
   }
 
   let treatment = concern || cleanEnglishTreatment(row.event_name || 'Clinic Consultation');
   if (isSkinnonest && (!treatment || treatment === 'Clinic Consultation' || treatment.toLowerCase() === 'skinnonest')) {
-    treatment = 'Skinnonest Makeup & Salon Partnership';
+    treatment = 'Skinnonest Makeup Artist Partnership';
   }
 
   const start = new Date(row.start_time);
@@ -1035,7 +1035,7 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
       const resolved = resolveBookingFields(b);
 
       if (isSkinnonest) {
-        resolved.concern = resolved.concern || 'Skinnonest Makeup & Salon Partnership';
+        resolved.concern = resolved.concern || 'Skinnonest Makeup Artist Partnership';
         resolved.provider = resolved.provider || 'Vishw';
         resolved.metadata = resolved.metadata || {};
         resolved.metadata.event_slug = 'skinnonest';

@@ -217,12 +217,12 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
     e.preventDefault();
     if (!form.patientName.trim()) return;
     const startsAt = new Date(`${form.date}T${form.time}:00`);
-    const noteSuffix = form.category === 'misha' ? ' [Skinnonest Makeup Appointment · Misha & Vishw]' : ' [Aura Clinic Consultation · Ria & Dr. Aditya Shah]';
+    const noteSuffix = form.category === 'misha' ? ' [Skinnonest Makeup Artist Partnership · Vishw]' : ' [Aura Clinic Consultation · Dr. Aditya Shah]';
     onSubmit({
       leadId: form.leadId ? Number(form.leadId) : null,
       patientName: form.patientName.trim(),
       phone: form.phone || null,
-      treatment: form.treatment || (form.category === 'misha' ? 'Skinnonest Makeup Partnership' : 'Clinical Consultation'),
+      treatment: form.treatment || (form.category === 'misha' ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation'),
       branch: form.branch || null,
       startsAt: startsAt.toISOString(),
       durationMin: Number(form.durationMin) || 30,
@@ -353,9 +353,6 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
               <User size={11} /> Consultation: Dr. Aditya Shah &amp; {patientCleanName}
             </span>
           )}
-          <span className="co-chip" style={{ background: isMisha ? '#FAF5FF' : '#FFF1F2', color: isMisha ? '#6B21A8' : '#9F1239', borderColor: isMisha ? '#E9D5FF' : '#FECDD3', fontWeight: 600 }}>
-            <Sparkles size={11} /> Coordinated by {isMisha ? 'Misha (Skinnonest AI)' : 'Ria (Aura AI)'}
-          </span>
           {appointment.source ? (
             <span className="co-chip co-c-p" style={{ fontWeight: 600 }}>
               <CalendarDays size={11} /> {appointment.source}
@@ -1020,10 +1017,7 @@ export default function ClinicAppointments() {
                   AS
                 </div>
                 <div className="text-white font-bold text-base leading-snug mb-0.5">Dr. Aditya Shah</div>
-                <div className="text-xs text-pink-200 font-medium mb-1">Founder · Aura Laser &amp; Cosmetic Clinic</div>
-                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-white px-2 py-0.5 rounded bg-pink-500/30 mb-4">
-                  <User size={12} /> Coordinated by Ria (Aura AI)
-                </div>
+                <div className="text-xs text-pink-200 font-medium mb-4">Founder · Aura Laser &amp; Cosmetic Clinic</div>
 
                 <p className="text-xs text-pink-100/80 leading-relaxed mb-5">
                   Book a free 30-minute consultation with Dr. Aditya Shah to discuss clinical skin, hair &amp; laser treatment needs — personalised care, visible results.
@@ -1050,10 +1044,7 @@ export default function ClinicAppointments() {
                   SK
                 </div>
                 <div className="text-white font-bold text-base leading-snug mb-0.5">Vishw</div>
-                <div className="text-xs text-purple-200 font-medium mb-1">Skinnonest Brand Representative</div>
-                <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-white px-2 py-0.5 rounded bg-purple-500/30 mb-4">
-                  <Sparkles size={12} /> Coordinated by Misha (Skinnonest AI)
-                </div>
+                <div className="text-xs text-purple-200 font-medium mb-4">Skinnonest Brand Representative</div>
 
                 <p className="text-xs text-purple-100/80 leading-relaxed mb-5">
                   Skinnonest derma &amp; cosmeceutical skincare partnership meeting for makeup artists, salons &amp; skin clinics. Review product ranges, free trial samples &amp; partnership terms.
@@ -1295,23 +1286,13 @@ export default function ClinicAppointments() {
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {getAppointmentCategory(a) === 'misha' ? (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
-                                  <Sparkles size={11} /> Vishw &amp; {getContactDisplayName(a)}
-                                </span>
-                                <span style={{ fontSize: 9.5, color: '#64748B', fontWeight: 500, paddingLeft: 4 }}>
-                                  via Misha (AI Voice)
-                                </span>
-                              </div>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
+                                <Sparkles size={11} /> Vishw &amp; {getContactDisplayName(a)}
+                              </span>
                             ) : (
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#FDF2F8', color: '#CB3273', border: '1px solid #FBCFE8' }}>
-                                  <User size={11} /> Dr. Aditya &amp; {getContactDisplayName(a)}
-                                </span>
-                                <span style={{ fontSize: 9.5, color: '#64748B', fontWeight: 500, paddingLeft: 4 }}>
-                                  via Ria (Aura AI)
-                                </span>
-                              </div>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#FDF2F8', color: '#CB3273', border: '1px solid #FBCFE8' }}>
+                                <User size={11} /> Dr. Aditya &amp; {getContactDisplayName(a)}
+                              </span>
                             )}
                           </td>
                           <td>

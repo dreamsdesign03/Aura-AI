@@ -77,10 +77,7 @@ export default function Booking() {
                 </div>
                 <div className="text-white font-bold text-[18px] leading-snug mb-1">Dr. Aditya Shah</div>
                 <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Founder · Aura Laser &amp; Cosmetic Clinic</div>
-                <div className="text-[13px] mb-3 font-semibold" style={{ color: "#CB3273" }}>Dermatologist-backed · Skinnonest</div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-pink-500/25 mb-4 border border-pink-400/30">
-                  <User className="w-3.5 h-3.5" /> Coordinated by Ria (Aura AI)
-                </div>
+                <div className="text-[13px] mb-4 font-semibold" style={{ color: "#CB3273" }}>Dermatologist-backed · Skinnonest</div>
 
                 <div className="text-[13px] mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
                   Book a free 30-minute consultation with Dr. Aditya Shah to discuss your skin, hair &amp; laser treatment needs — personalised care, visible results.
@@ -108,10 +105,7 @@ export default function Booking() {
                 </div>
                 <div className="text-white font-bold text-[18px] leading-snug mb-1">Vishw</div>
                 <div className="text-[13px] mb-1" style={{ color: "rgba(255,255,255,0.6)" }}>Skinnonest Brand Representative</div>
-                <div className="text-[13px] mb-3 font-semibold text-purple-300">Derma &amp; Cosmeceutical Skincare</div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-white bg-purple-500/25 mb-4 border border-purple-400/30">
-                  <Sparkles className="w-3.5 h-3.5" /> Coordinated by Misha (Skinnonest AI)
-                </div>
+                <div className="text-[13px] mb-4 font-semibold text-purple-300">Derma &amp; Cosmeceutical Skincare</div>
 
                 <div className="text-[13px] mb-6 leading-relaxed" style={{ color: "rgba(255,255,255,0.7)" }}>
                   Skinnonest derma and cosmeceutical partnership meeting for makeup artists, salons &amp; skin clinics. Review product ranges, free trial samples &amp; partnership terms.

@@ -978,7 +978,7 @@ async function syncCalComBookings(userId) {
     const isSkinnonest = isSkinnonestBooking(b);
     const resolved = resolveBookingFields(b);
     if (isSkinnonest) {
-      resolved.concern = resolved.concern || 'Skinnonest Makeup & Salon Partnership';
+      resolved.concern = resolved.concern || 'Skinnonest Makeup Artist Partnership';
       resolved.provider = resolved.provider || 'Vishw';
       resolved.metadata = resolved.metadata || {};
       resolved.metadata.event_slug = 'skinnonest';

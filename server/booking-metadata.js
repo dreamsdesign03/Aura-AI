@@ -119,7 +119,7 @@ function resolveConcern(booking) {
   if (direct && String(direct).trim()) return String(direct).trim();
   const fromNotes = parseServiceFromNotes(bookingNotes(booking));
   if (fromNotes) return fromNotes;
-  if (isSkinnonestBooking(booking)) return 'Skinnonest Makeup & Salon Partnership';
+  if (isSkinnonestBooking(booking)) return 'Skinnonest Makeup Artist Partnership';
   return null;
 }
 
