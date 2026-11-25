@@ -581,7 +581,9 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
             <div className="co-row">
               <span className="co-sm co-mut">Delete this appointment?</span>
               <button type="button" className="co-btn co-btn-sm" onClick={() => setConfirmDelete(false)}>No</button>
-              <button type="button" className="co-btn co-btn-sm" style={{ color: '#B91C1C' }} onClick={onDelete} disabled={busy}>Yes, delete</button>
+              <button type="button" className="co-btn co-btn-sm" style={{ color: '#B91C1C' }} onClick={onDelete} disabled={busy}>
+                {busy ? 'Deleting & cancelling on Cal.com...' : 'Yes, delete'}
+              </button>
             </div>
           ) : (
             <button type="button" className="co-btn co-btn-sm co-btn-ghost" style={{ color: '#B91C1C' }} onClick={() => setConfirmDelete(true)}>

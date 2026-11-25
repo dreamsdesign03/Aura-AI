@@ -86,7 +86,7 @@ async function cancelCalBooking(uid, reason = 'Cancelled by clinic admin') {
         'cal-api-version': '2024-08-13',
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ reason })
+      body: JSON.stringify({ cancellationReason: reason })
     });
 
     const body = await res.json().catch(() => ({}));

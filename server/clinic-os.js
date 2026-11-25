@@ -1329,6 +1329,19 @@ router.patch('/appointments/:id', requireUser, async (req, res) => {
     }
     if (sets.length === 0) return res.status(400).json({ error: 'Nothing to update' });
     vals.push(req.params.id);
+
+    if (status && /cancelled|canceled|rejected/.test(status)) {
+      const apptCheck = await db.query('SELECT * FROM clinic_appointments WHERE id = $1', [req.params.id]);
+      if (apptCheck.rows.length > 0) {
+        const apptRow = apptCheck.rows[0];
+        const ext = apptRow.external_uri || apptRow.booking_metadata?.cal_uid;
+        if (ext) {
+          const calUid = ext.replace(/^cal_/, '');
+          await cancelCalBooking(calUid, 'Cancelled from Aura Clinic dashboard').catch(() => {});
+        }
+      }
+    }
+
     const r = await db.query(
       `UPDATE clinic_appointments SET ${sets.join(', ')}, updated_at = NOW()
         WHERE id = $${vals.length} RETURNING *`,
@@ -1354,6 +1367,16 @@ router.delete('/appointments/:id', requireUser, async (req, res) => {
       await db.query('UPDATE calendly_events SET is_deleted = TRUE, status = $1 WHERE id = $2', ['cancelled', req.params.id]);
       await audit(req.user.id, 'deleted', 'cal_booking', req.params.id);
       return res.json({ ok: true });
+    }
+
+    const apptCheck = await db.query('SELECT * FROM clinic_appointments WHERE id = $1', [req.params.id]);
+    if (apptCheck.rows.length > 0) {
+      const apptRow = apptCheck.rows[0];
+      const ext = apptRow.external_uri || apptRow.booking_metadata?.cal_uid;
+      if (ext) {
+        const calUid = ext.replace(/^cal_/, '');
+        await cancelCalBooking(calUid, 'Deleted from Aura Clinic dashboard').catch(() => {});
+      }
     }
     await db.query('DELETE FROM clinic_appointments WHERE id = $1', [req.params.id]);
     await audit(req.user.id, 'deleted', 'appointment', req.params.id);
