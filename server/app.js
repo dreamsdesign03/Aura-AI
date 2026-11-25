@@ -960,7 +960,16 @@ async function syncCalComBookings(userId) {
     }
 
     const notes = b.description || bfr.notes || '';
+    const isSkinnonest = (b.eventType?.slug === 'skinnonest') || (b.eventTypeId === 8029367) || /skinnonest/i.test(b.title || '');
     const resolved = resolveBookingFields(b);
+    if (isSkinnonest) {
+      resolved.concern = resolved.concern || 'Skinnonest Makeup & Salon Partnership';
+      resolved.provider = resolved.provider || 'Vishw';
+      resolved.metadata = resolved.metadata || {};
+      resolved.metadata.event_slug = 'skinnonest';
+      resolved.metadata.coordinator = 'Misha';
+      resolved.metadata.agent_type = 'makeup_artist';
+    }
 
     const startIso = b.start ? new Date(b.start).toISOString() : null;
     const endIso = b.end ? new Date(b.end).toISOString() : null;
@@ -977,6 +986,7 @@ async function syncCalComBookings(userId) {
 
     const locationStr = typeof bfr.location === 'object' ? (bfr.location?.optionValue || 'inperson') : (b.location || 'inperson');
     const meetingLink = b.meetingUrl || (typeof locationStr === 'string' && locationStr.startsWith('http') ? locationStr : '');
+    const eventTitle = isSkinnonest ? 'Skinnonest Makeup Appointment' : (b.title || 'Aura Consultation');
 
     const questionsObj = {
       "Phone / WhatsApp": phone,
@@ -1018,7 +1028,7 @@ async function syncCalComBookings(userId) {
          interaction_id = EXCLUDED.interaction_id,
          booking_created_at = EXCLUDED.booking_created_at
        RETURNING id`,
-      [userId, bookingUri, cleanEmail(attendee.email) || null, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, locationStr, meetingLink, JSON.stringify(questionsObj),
+      [userId, bookingUri, cleanEmail(attendee.email) || null, inviteeName, inviteeEmail, eventTitle, startIso, endIso, status, locationStr, meetingLink, JSON.stringify(questionsObj),
         JSON.stringify(resolved.metadata || {}), resolved.branch || null, resolved.provider || null,
         resolved.concern || null, resolved.source || null, resolved.interactionId || null,
         resolved.bookingCreatedAt ? resolved.bookingCreatedAt.toISOString() : null]

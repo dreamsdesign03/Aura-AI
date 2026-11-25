@@ -203,6 +203,9 @@ function cleanEnglishTreatment(raw, fallback = 'Clinic Consultation') {
     const prefixMatch = str.match(/^(.*?)\s+between\s+/i);
     if (prefixMatch && prefixMatch[1] && prefixMatch[1].length > 3) {
       str = prefixMatch[1].trim();
+      if (/skinnonest/i.test(str)) {
+        return 'Skinnonest Makeup & Salon Partnership';
+      }
     } else {
       str = 'Clinic Consultation';
     }

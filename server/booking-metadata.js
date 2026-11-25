@@ -46,22 +46,38 @@ function parseServiceFromNotes(notes) {
   return m ? m[1].trim() : '';
 }
 
+function isSkinnonestBooking(booking) {
+  if (!booking) return false;
+  if (booking.eventType?.slug === 'skinnonest') return true;
+  if (booking.eventTypeId === 8029367) return true;
+  const name = `${booking.event_name || ''} ${booking.title || ''} ${booking.description || ''} ${JSON.stringify(booking.metadata || {})}`.toLowerCase();
+  return name.includes('skinnonest') || name.includes('misha');
+}
+
 function bookingMetadata(booking) {
   const b = booking || {};
-  const direct = b.metadata;
-  if (direct && typeof direct === 'object') return direct;
-  if (typeof direct === 'string' && direct.trim()) {
-    try { return JSON.parse(direct); } catch { /* ignore */ }
-  }
-  const bfr = b.bookingFieldsResponses || {};
-  for (const key of ['metadata', 'Metadata']) {
-    const value = bfr[key];
-    if (value && typeof value === 'object') return value;
-    if (typeof value === 'string' && value.trim()) {
-      try { return JSON.parse(value); } catch { /* ignore */ }
+  let direct = b.metadata;
+  let md = {};
+  if (direct && typeof direct === 'object') md = { ...direct };
+  else if (typeof direct === 'string' && direct.trim()) {
+    try { md = JSON.parse(direct); } catch { /* ignore */ }
+  } else {
+    const bfr = b.bookingFieldsResponses || {};
+    for (const key of ['metadata', 'Metadata']) {
+      const value = bfr[key];
+      if (value && typeof value === 'object') { md = { ...value }; break; }
+      if (typeof value === 'string' && value.trim()) {
+        try { md = JSON.parse(value); break; } catch { /* ignore */ }
+      }
     }
   }
-  return {};
+
+  if (isSkinnonestBooking(b)) {
+    md.agent_type = md.agent_type || 'makeup_artist';
+    md.coordinator = md.coordinator || 'Misha';
+    md.event_slug = md.event_slug || 'skinnonest';
+  }
+  return md;
 }
 
 function bookingNotes(booking) {
@@ -89,14 +105,20 @@ function resolveProvider(booking) {
   const md = bookingMetadata(booking);
   const direct = md.provider || md.doctor || md.doctor_name || md.practitioner;
   if (direct && String(direct).trim()) return String(direct).trim();
-  return parseProviderFromNotes(bookingNotes(booking)) || null;
+  const fromNotes = parseProviderFromNotes(bookingNotes(booking));
+  if (fromNotes) return fromNotes;
+  if (isSkinnonestBooking(booking)) return 'Vishw';
+  return null;
 }
 
 function resolveConcern(booking) {
   const md = bookingMetadata(booking);
   const direct = md.concern || md.service || md.treatment || md.purpose;
   if (direct && String(direct).trim()) return String(direct).trim();
-  return parseServiceFromNotes(bookingNotes(booking)) || null;
+  const fromNotes = parseServiceFromNotes(bookingNotes(booking));
+  if (fromNotes) return fromNotes;
+  if (isSkinnonestBooking(booking)) return 'Skinnonest Makeup & Salon Partnership';
+  return null;
 }
 
 function resolveInteractionId(booking) {

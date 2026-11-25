@@ -527,12 +527,21 @@ function mapCalRowToClinic(row) {
   };
 
   // Stored resolved values win; otherwise derive from metadata/notes only.
+  const isSkinnonest = /skinnonest/i.test(`${row.event_name || ''} ${row.resolved_concern || ''} ${row.resolved_provider || ''} ${JSON.stringify(row.metadata || {})}`);
   const branch = normalizeBranch(row.resolved_branch) || resolveBranch(bookingLike);
-  const provider = row.resolved_provider || resolveProvider(bookingLike);
-  const concern = row.resolved_concern || resolveConcern(bookingLike);
+  let provider = row.resolved_provider || resolveProvider(bookingLike);
+  let concern = row.resolved_concern || resolveConcern(bookingLike);
   const source = row.resolved_source || resolveSource(bookingLike);
 
+  if (isSkinnonest) {
+    if (!concern) concern = 'Skinnonest Makeup & Salon Partnership';
+    if (!provider) provider = 'Vishw';
+  }
+
   let treatment = concern || cleanEnglishTreatment(row.event_name || 'Clinic Consultation');
+  if (isSkinnonest && (!treatment || treatment === 'Clinic Consultation' || treatment.toLowerCase() === 'skinnonest')) {
+    treatment = 'Skinnonest Makeup & Salon Partnership';
+  }
 
   const start = new Date(row.start_time);
   const end = row.end_time ? new Date(row.end_time) : new Date(start.getTime() + 30 * 60000);
@@ -998,10 +1007,21 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
     let added = 0, updated = 0;
 
     for (const b of bookings) {
+      const isSkinnonest = (b.eventType?.slug === 'skinnonest') || (b.eventTypeId === 8029367) || /skinnonest/i.test(b.title || '');
       const bookingUri = `cal_${b.id || b.uid}`;
       const attendee = (b.attendees && b.attendees[0]) || {};
       const bfr = b.bookingFieldsResponses || {};
       const resolved = resolveBookingFields(b);
+
+      if (isSkinnonest) {
+        resolved.concern = resolved.concern || 'Skinnonest Makeup & Salon Partnership';
+        resolved.provider = resolved.provider || 'Vishw';
+        resolved.metadata = resolved.metadata || {};
+        resolved.metadata.event_slug = 'skinnonest';
+        resolved.metadata.coordinator = 'Misha';
+        resolved.metadata.agent_type = 'makeup_artist';
+      }
+
       const inviteeName = attendee.name || bfr.name || b.title?.split(' and ').pop()?.trim() || 'Patient';
       const inviteeEmail = attendee.email || bfr.email || '';
       let phone = attendee.phoneNumber || bfr.attendeePhoneNumber || '';
@@ -1025,6 +1045,7 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
       if (startIso && new Date(startIso).getTime() < Date.now()) status = 'completed';
 
       const meetingLink = b.meetingUrl || (typeof b.location === 'string' && b.location.startsWith('http') ? b.location : '');
+      const eventTitle = isSkinnonest ? 'Skinnonest Makeup Appointment' : (b.title || 'Aura Consultation');
       const existing = await db.query('SELECT id, is_deleted FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
       if (existing.rows[0]?.is_deleted) continue;
       const questionsObj = {
@@ -1037,13 +1058,13 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
         // Re-sync updates every derived field on existing rows, not just new ones.
         await db.query(
           `UPDATE calendly_events
-              SET invitee_name = $1, invitee_email = $2, start_time = $3, end_time = $4,
-                  status = $5, questions = $6::jsonb, meeting_link = $7, is_deleted = $8,
-                  metadata = $9::jsonb, resolved_branch = $10, resolved_provider = $11,
-                  resolved_concern = $12, resolved_source = $13, interaction_id = $14,
-                  booking_created_at = $15
-            WHERE calendly_uri = $16`,
-          [inviteeName, inviteeEmail, startIso, endIso, status, JSON.stringify(questionsObj), meetingLink, false,
+              SET invitee_name = $1, invitee_email = $2, event_name = $3, start_time = $4, end_time = $5,
+                  status = $6, questions = $7::jsonb, meeting_link = $8, is_deleted = $9,
+                  metadata = $10::jsonb, resolved_branch = $11, resolved_provider = $12,
+                  resolved_concern = $13, resolved_source = $14, interaction_id = $15,
+                  booking_created_at = $16
+            WHERE calendly_uri = $17`,
+          [inviteeName, inviteeEmail, eventTitle, startIso, endIso, status, JSON.stringify(questionsObj), meetingLink, false,
             JSON.stringify(resolved.metadata || {}), resolved.branch || null, resolved.provider || null,
             resolved.concern || null, resolved.source || null, resolved.interactionId || null,
             resolved.bookingCreatedAt ? resolved.bookingCreatedAt.toISOString() : null, bookingUri]
@@ -1056,7 +1077,7 @@ router.post('/appointments/sync', requireUser, async (req, res) => {
               metadata, resolved_branch, resolved_provider, resolved_concern, resolved_source, interaction_id, booking_created_at)
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::jsonb, 'cal.com', $11,
                    $12::jsonb, $13, $14, $15, $16, $17, $18)`,
-          [userId, bookingUri, inviteeName, inviteeEmail, b.title || 'Aura Consultation', startIso, endIso, status, meetingLink, JSON.stringify(questionsObj), false,
+          [userId, bookingUri, inviteeName, inviteeEmail, eventTitle, startIso, endIso, status, meetingLink, JSON.stringify(questionsObj), false,
             JSON.stringify(resolved.metadata || {}), resolved.branch || null, resolved.provider || null,
             resolved.concern || null, resolved.source || null, resolved.interactionId || null,
             resolved.bookingCreatedAt ? resolved.bookingCreatedAt.toISOString() : null]

@@ -147,7 +147,7 @@ export default function Booking() {
               <CalendlyEmbed
                 url={bookingTab === "ria"
                   ? "https://cal.com/aura-laser-cosmetic-clinic/30min"
-                  : "https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest"}
+                  : "https://cal.com/aura-laser-cosmetic-clinic/skinnonest"}
                 height={750}
               />
             </div>

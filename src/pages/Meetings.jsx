@@ -228,7 +228,7 @@ function BookingWidget() {
           </button>
         </div>
         <a
-          href={bookingTab === "ria" ? "https://cal.com/aura-laser-cosmetic-clinic/30min" : "https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest"}
+          href={bookingTab === "ria" ? "https://cal.com/aura-laser-cosmetic-clinic/30min" : "https://cal.com/aura-laser-cosmetic-clinic/skinnonest"}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-pink-700 hover:text-pink-800 bg-pink-50 hover:bg-pink-100 px-3 py-1.5 rounded-lg transition-colors border border-pink-200"
@@ -256,7 +256,7 @@ function BookingWidget() {
         <CalendlyEmbed
           url={bookingTab === "ria"
             ? "https://cal.com/aura-laser-cosmetic-clinic/30min"
-            : "https://cal.com/aura-laser-cosmetic-clinic/30min?service=skinnonest"}
+            : "https://cal.com/aura-laser-cosmetic-clinic/skinnonest"}
           height={720}
         />
       </div>
