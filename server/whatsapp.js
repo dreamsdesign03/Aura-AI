@@ -1088,7 +1088,10 @@ function registerWhatsAppRoutes(app, resolveUserId) {
 
       // ── Outbound Agent Reply Handling (from n8n / AI Agent Aria) ──
       if (rawBody && rawBody.direction === 'outbound') {
-        const content = rawBody.content ? String(rawBody.content).trim() : '';
+        const templateName = (rawBody.template_name || rawBody.templateName || '').trim() || null;
+        const content = rawBody.content
+          ? String(rawBody.content).trim()
+          : (templateName ? `[Template: ${templateName}]` : '');
         let leadId = rawBody.lead_id ? Number(rawBody.lead_id) : null;
         let phone = rawBody.phone ? String(rawBody.phone).trim() : '';
         const waMessageId = rawBody.wa_message_id ? String(rawBody.wa_message_id).trim() : null;
@@ -1097,7 +1100,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         if (!content || (!leadId && !phone)) {
           return res.status(400).json({
             success: false,
-            error: "Missing required fields: 'content' and at least 'phone' or 'lead_id' must be provided."
+            error: "Missing required fields: 'content' (or 'template_name') and at least 'phone' or 'lead_id' must be provided."
           });
         }
 
@@ -1149,8 +1152,8 @@ function registerWhatsAppRoutes(app, resolveUserId) {
               const oldText = ex.content || ex.body || '';
               if (oldText.startsWith('Outbound WhatsApp message sent from')) {
                 await db.query(
-                  `UPDATE whatsapp_messages SET content = $1, body = $1, lead_id = COALESCE(lead_id, $2) WHERE id = $3`,
-                  [content, leadId, ex.id]
+                  `UPDATE whatsapp_messages SET content = $1, body = $1, lead_id = COALESCE(lead_id, $2), template_name = COALESCE($4, template_name) WHERE id = $3`,
+                  [content, leadId, ex.id, templateName]
                 );
                 if (ex.conversation_id) {
                   await db.query(
@@ -1211,10 +1214,10 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         const finalWaMsgId = waMessageId || `wamid_outbound_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
         const insertedMsg = await db.query(
           `INSERT INTO whatsapp_messages (
-             conversation_id, lead_id, phone, direction, content, body, meta_message_id, wa_message_id, status, sent_at, timestamp, created_at
-           ) VALUES ($1, $2, $3, 'outbound', $4, $4, $5, $5, 'sent', NOW(), NOW(), NOW())
+             conversation_id, lead_id, phone, direction, content, body, meta_message_id, wa_message_id, template_name, status, sent_at, timestamp, created_at
+           ) VALUES ($1, $2, $3, 'outbound', $4, $4, $5, $5, $6, 'sent', NOW(), NOW(), NOW())
            RETURNING id`,
-          [convId, leadId, phone, content, finalWaMsgId]
+          [convId, leadId, phone, content, finalWaMsgId, templateName]
         );
 
         const insertedId = insertedMsg.rows[0].id;

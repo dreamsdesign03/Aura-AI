@@ -807,6 +807,8 @@ function ThreadDrawer({ thread, onClose }) {
                     detail.messages.map((m) => {
                       const isOut = m.direction === 'outbound';
                       const rawContent = m.content || '';
+                      const tplMatch = rawContent.match(/^\[Template:\s*([^\]]+)\]$/);
+                      const tplName = m.templateName || (tplMatch ? tplMatch[1].trim() : null);
                       let displayContent = rawContent;
                       if (rawContent.includes("[Template: hello_world]") || rawContent.includes("Welcome and congratulations")) {
                         displayContent = "Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API, hosted by Meta. Thank you for taking the time to test with us.";
@@ -814,9 +816,13 @@ function ThreadDrawer({ thread, onClose }) {
                         displayContent = "Hello from Dr. Aditya Shah, founder of Skinnonest and Aura Laser & Cosmetic Clinic. We are following up regarding your appointment & inquiry.";
                       } else if (rawContent.includes("[Template: aura_booking_confirmation]")) {
                         displayContent = "Hi! Your appointment has been confirmed at Aura Laser & Cosmetic Clinic.";
-                      } else if (rawContent.startsWith("[Template: ") && rawContent.endsWith("]")) {
-                        const tName = rawContent.slice(11, -1).replace(/_/g, ' ');
-                        displayContent = `[${tName}]`;
+                      } else if (rawContent.includes("[Template: aura_lead_appointment_booking]")) {
+                        displayContent = "Hi! Thank you for contacting Aura Laser & Cosmetic Clinic. Please reply to confirm your appointment slot.";
+                      } else if (rawContent.includes("[Template: auraai_lead_send_template]") || rawContent.includes("[Template: lead_welcome_confirmation]") || rawContent.includes("[Template: new_lead_dreamsdesign]")) {
+                        displayContent = `Template "${tplName || 'notification'}" sent to patient via official WhatsApp Business.`;
+                      } else if (tplMatch) {
+                        const readableName = tplMatch[1].trim().replace(/_/g, ' ');
+                        displayContent = `Template "${readableName}" sent to patient.`;
                       }
 
                       return (
@@ -833,24 +839,39 @@ function ThreadDrawer({ thread, onClose }) {
                             boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                           }}
                         >
-                          {/* Sender badge (Aura AI vs Clinic Team) + official sender number */}
+                          {/* Sender badge (Aura AI vs Clinic Team) + Template badge + official sender number */}
                           {isOut && (
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
-                              <span style={{
-                                fontSize: 9.5,
-                                fontWeight: 700,
-                                color: m.isAi ? '#9D174D' : '#4B5563',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 3,
-                                background: m.isAi ? '#FCE7F3' : '#F3F4F6',
-                                border: m.isAi ? '1px solid #FBCFE8' : '1px solid #E5E7EB',
-                                padding: '1px 6px',
-                                borderRadius: 8
-                              }}>
-                                {m.isAi ? <Sparkles size={9} /> : <User size={9} />}
-                                {m.isAi ? 'Aura AI' : 'Clinic Team'}
-                              </span>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                                <span style={{
+                                  fontSize: 9.5,
+                                  fontWeight: 700,
+                                  color: m.isAi ? '#9D174D' : '#4B5563',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 3,
+                                  background: m.isAi ? '#FCE7F3' : '#F3F4F6',
+                                  border: m.isAi ? '1px solid #FBCFE8' : '1px solid #E5E7EB',
+                                  padding: '1px 6px',
+                                  borderRadius: 8
+                                }}>
+                                  {m.isAi ? <Sparkles size={9} /> : <User size={9} />}
+                                  {m.isAi ? 'Aura AI' : 'Clinic Team'}
+                                </span>
+                                {tplName && (
+                                  <span style={{
+                                    fontSize: 9.5,
+                                    fontWeight: 700,
+                                    color: '#6D28D9',
+                                    background: '#EDE9FE',
+                                    border: '1px solid #DDD6FE',
+                                    padding: '1px 6px',
+                                    borderRadius: 8
+                                  }}>
+                                    Template: {tplName}
+                                  </span>
+                                )}
+                              </div>
                               <span style={{ fontSize: 9.5, fontWeight: 600, color: '#047857' }}>
                                 From: +91 84900 33711
                               </span>
