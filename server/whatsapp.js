@@ -1137,18 +1137,37 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           } catch (pErr) {}
         }
 
-        // Idempotency check: if wa_message_id exists, skip insert & return success
+        // Idempotency check: if wa_message_id exists, upgrade placeholder text if needed, otherwise skip
         if (waMessageId) {
           try {
             const existing = await db.query(
-              `SELECT id FROM whatsapp_messages WHERE wa_message_id = $1 OR meta_message_id = $1 LIMIT 1`,
+              `SELECT id, conversation_id, content, body FROM whatsapp_messages WHERE wa_message_id = $1 OR meta_message_id = $1 LIMIT 1`,
               [waMessageId]
             );
             if (existing.rows.length > 0) {
+              const ex = existing.rows[0];
+              const oldText = ex.content || ex.body || '';
+              if (oldText.startsWith('Outbound WhatsApp message sent from')) {
+                await db.query(
+                  `UPDATE whatsapp_messages SET content = $1, body = $1, lead_id = COALESCE(lead_id, $2) WHERE id = $3`,
+                  [content, leadId, ex.id]
+                );
+                if (ex.conversation_id) {
+                  await db.query(
+                    `UPDATE whatsapp_conversations SET last_message = $1, updated_at = NOW() WHERE id = $2`,
+                    [content, ex.conversation_id]
+                  );
+                }
+                return res.status(200).json({
+                  success: true,
+                  message: "OUTBOUND_UPDATED",
+                  id: ex.id
+                });
+              }
               return res.status(200).json({
                 success: true,
                 message: "OUTBOUND_EXISTS",
-                id: existing.rows[0].id
+                id: ex.id
               });
             }
           } catch (eErr) {}
