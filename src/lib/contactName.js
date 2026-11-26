@@ -39,8 +39,10 @@ export function formatPhoneForDisplay(phone) {
 export function getContactInitials(contact) {
   const name = getContactDisplayName(contact);
   if (!name || name === 'Unknown Contact' || /^\+?[\d\s-]+$/.test(name)) return '?';
-  const parts = name.replace(/^[^a-zA-Z0-9]+/, '').split(/\s+/).filter(Boolean);
-  return parts.length > 1 ? (parts[0][0] + parts.at(-1)[0]).toUpperCase() : (parts[0]?.[0] || '?').toUpperCase();
+  const stripped = name.replace(/^(?:dr|mr|mrs|ms|miss|prof)\.?\s+/i, '').trim();
+  const parts = (stripped || name).replace(/^[^a-zA-Z0-9]+/, '').split(/\s+/).filter(Boolean);
+  if (parts.length > 1) return (parts[0][0] + parts.at(-1)[0]).toUpperCase();
+  return (parts[0]?.slice(0, 2) || '?').toUpperCase();
 }
 export function hasValidName(contact) {
   const name = getContactDisplayName(contact);

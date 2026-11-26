@@ -12,6 +12,7 @@ import { formatDate, statusLabel, statusColor, cleanCompanyName } from "@/lib/ut
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
 import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing, List, KanbanSquare, HeartPulse } from "lucide-react";
+import { getContactInitials } from "@/lib/contactName";
 import { PipelineBoard } from "./Pipeline";
 import FetchLeads from "./FetchLeads";
 import { AiBanner } from "@/components/AiLoader";
@@ -1470,7 +1471,7 @@ export default function Leads() {
             const fnMobile = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
             const lnMobile = (lead.lastName || lead.last_name || "").trim();
             const leadNameStrMobile = lnMobile ? `${fnMobile} ${lnMobile}` : fnMobile;
-            const initials = leadNameStrMobile.substring(0, 2).toUpperCase();
+            const initials = getContactInitials({ firstName: fnMobile, lastName: lnMobile, name: leadNameStrMobile });
             const avatarBg = MOBILE_AVATAR_COLORS[lead.id % MOBILE_AVATAR_COLORS.length];
             const statusDot = STATUS_DOT[lead.status] ?? "#9CA3AF";
             const createdDate = lead.createdAt
@@ -1776,7 +1777,7 @@ export default function Leads() {
                 const fn = (lead.firstName || lead.first_name || lead.company || "Lead").trim();
                 const ln = (lead.lastName || lead.last_name || "").trim();
                 const leadNameStr = ln ? `${fn} ${ln}` : fn;
-                const initials = leadNameStr.substring(0, 2).toUpperCase();
+                const initials = getContactInitials({ firstName: fn, lastName: ln, name: leadNameStr });
                 const avatarColor = MOBILE_AVATAR_COLORS[lead.id % MOBILE_AVATAR_COLORS.length];
 
                 return (
