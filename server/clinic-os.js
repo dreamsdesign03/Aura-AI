@@ -4539,7 +4539,6 @@ router.post('/dialer/plivo/answer', async (req, res) => {
     callbackUrl="${recordingCallbackUrl}"
     callbackMethod="POST"
   />
-  <Speak language="en-IN" voice="Polly.Aditi">Hello! Thank you for speaking with Dr. Aditya Shah's Aura Laser and Cosmetic Clinic. Your consultation call is now connected.</Speak>
   <Wait length="900" />
 </Response>`;
   res.set('Content-Type', 'text/xml');
