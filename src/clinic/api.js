@@ -75,7 +75,7 @@ export const clinicApi = {
   campaigns: () => request('/campaigns'),
 
   // Reports
-  reports: (from, to) => request(`/reports?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
+  reports: (from, to, all = false) => request(`/reports?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}${all ? '&all=1' : ''}`),
 
   // Audit
   audit: () => request('/audit'),

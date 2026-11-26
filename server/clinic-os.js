@@ -3067,26 +3067,285 @@ router.get('/campaigns', requireUser, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Reports (analytics aggregate)
+// Reports (comprehensive live Aura AI analytics aggregate)
 // ---------------------------------------------------------------------------
 router.get('/reports', requireUser, async (req, res) => {
   try {
-    const from = req.query.from ? new Date(req.query.from) : (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })();
+    const uid = req.user.id;
+    const allTime = req.query.all === '1' || req.query.days === 'all';
+    const from = allTime
+      ? new Date('2020-01-01T00:00:00.000Z')
+      : (req.query.from ? new Date(req.query.from) : (() => { const d = new Date(); d.setDate(d.getDate() - 30); return d; })());
     const to = req.query.to ? new Date(req.query.to) : new Date();
 
-    const [appts, pkg, rev, conv] = await Promise.all([
-      db.query(`SELECT status, COUNT(*)::int AS n FROM clinic_appointments WHERE user_id = $1 AND starts_at BETWEEN $2 AND $3 GROUP BY 1`, [req.user.id, from, to]),
-      db.query(`SELECT status, COUNT(*)::int AS n FROM clinic_packages WHERE user_id = $1 AND created_at BETWEEN $2 AND $3 GROUP BY 1`, [req.user.id, from, to]),
-      db.query(`SELECT COALESCE(SUM(amount),0)::numeric AS sold, COALESCE(SUM(paid_amount),0)::numeric AS collected FROM clinic_packages WHERE user_id = $1 AND created_at BETWEEN $2 AND $3`, [req.user.id, from, to]),
-      tryQuery(`SELECT COUNT(*)::int AS calls, COUNT(*) FILTER (WHERE call_status = 'completed')::int AS completed FROM bulk_attempts a JOIN bulk_campaigns c ON c.id = a.campaign_id WHERE c.created_by = $1 AND a.started_at BETWEEN $2 AND $3`, [req.user.id, from, to]),
+    const [
+      clinicApptsRes,
+      calEventsRes,
+      pkgRes,
+      revRes,
+      aiCallsRes,
+      bulkCallsRes,
+      leadsSummaryRes,
+      leadsByStageRes,
+      leadsBySourceRes,
+      icpCountRes,
+      waRes,
+      emailRes,
+      reviewsRes,
+      visSummaryRes,
+      visKeywordsRes,
+    ] = await Promise.all([
+      tryQuery(
+        `SELECT status, branch, treatment, COUNT(*)::int AS n
+           FROM clinic_appointments
+          WHERE starts_at BETWEEN $1 AND $2
+          GROUP BY 1, 2, 3`,
+        [from, to]
+      ),
+      tryQuery(
+        `SELECT id, event_name, resolved_concern, resolved_provider, resolved_branch, status, metadata, start_time
+           FROM calendly_events
+          WHERE COALESCE(is_deleted, false) = false
+            AND start_time BETWEEN $1 AND $2`,
+        [from, to]
+      ),
+      tryQuery(
+        `SELECT status, COUNT(*)::int AS n
+           FROM clinic_packages
+          WHERE user_id = $1 AND created_at BETWEEN $2 AND $3
+          GROUP BY 1`,
+        [uid, from, to]
+      ),
+      tryQuery(
+        `SELECT COALESCE(SUM(amount),0)::numeric AS sold,
+                COALESCE(SUM(paid_amount),0)::numeric AS collected
+           FROM clinic_packages
+          WHERE user_id = $1 AND created_at BETWEEN $2 AND $3`,
+        [uid, from, to]
+      ),
+      tryQuery(
+        `SELECT id, status, outcome, duration_secs, agent_name, agent_type, provider, direction, started_at
+           FROM ai_calls
+          WHERE COALESCE(started_at, created_at) BETWEEN $1 AND $2`,
+        [from, to]
+      ),
+      tryQuery(
+        `SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE call_status = 'completed')::int AS completed,
+                COUNT(*) FILTER (WHERE outcome = 'booked')::int AS booked,
+                COUNT(*) FILTER (WHERE call_status IN ('busy', 'no_answer', 'no-answer', 'failed'))::int AS missed,
+                COALESCE(SUM(duration_sec), 0)::int AS duration_secs
+           FROM bulk_attempts
+          WHERE COALESCE(started_at, created_at) BETWEEN $1 AND $2`,
+        [from, to]
+      ),
+      tryQuery(
+        `SELECT COUNT(*)::int AS total,
+                COUNT(*) FILTER (WHERE created_at BETWEEN $1 AND $2)::int AS added_in_range,
+                COUNT(*) FILTER (WHERE LOWER(COALESCE(pipeline_stage, '')) LIKE '%patient%' OR LOWER(COALESCE(status, '')) = 'active')::int AS active_patients,
+                COUNT(*) FILTER (WHERE icp_id IS NOT NULL OR LOWER(COALESCE(source, '')) LIKE '%icp%')::int AS from_icp
+           FROM leads`,
+        [from, to]
+      ),
+      tryQuery(
+        `SELECT COALESCE(NULLIF(TRIM(status), ''), 'New') AS stage, COUNT(*)::int AS n
+           FROM leads
+          GROUP BY 1
+          ORDER BY n DESC
+          LIMIT 10`
+      ),
+      tryQuery(
+        `SELECT COALESCE(NULLIF(TRIM(source), ''), 'Direct / Other') AS source, COUNT(*)::int AS n
+           FROM leads
+          GROUP BY 1
+          ORDER BY n DESC
+          LIMIT 10`
+      ),
+      tryQuery(`SELECT COUNT(*)::int AS total FROM icps`),
+      tryQuery(
+        `SELECT COUNT(*) FILTER (WHERE direction = 'outbound')::int AS outbound_total,
+                COUNT(*) FILTER (WHERE direction = 'outbound' AND status IN ('sent', 'delivered', 'read'))::int AS outbound_delivered,
+                COUNT(*) FILTER (WHERE direction = 'outbound' AND status = 'read')::int AS outbound_read,
+                COUNT(*) FILTER (WHERE direction = 'outbound' AND status IN ('failed', 'not_whatsapp'))::int AS outbound_failed,
+                COUNT(*) FILTER (WHERE direction = 'inbound')::int AS inbound_replies,
+                COUNT(DISTINCT conversation_id)::int AS active_threads
+           FROM whatsapp_messages
+          WHERE COALESCE(sent_at, timestamp, created_at) BETWEEN $1 AND $2`,
+        [from, to]
+      ),
+      tryQuery(
+        `SELECT COUNT(*)::int AS sent
+           FROM outreach_emails
+          WHERE COALESCE(sent_at, created_at) BETWEEN $1 AND $2`,
+        [from, to]
+      ),
+      tryQuery(
+        `SELECT COUNT(*)::int AS total,
+                COALESCE(ROUND(AVG(rating)::numeric, 2), 0)::float AS avg_rating
+           FROM clinic_reviews`
+      ),
+      tryQuery(`SELECT * FROM visibility_audit_summary ORDER BY id DESC LIMIT 1`),
+      tryQuery(
+        `SELECT id, keyword, category, target_city, branch, current_rank, previous_rank, rank_change,
+                maps_rank, organic_rank, ai_overview_mentioned, last_checked_at
+           FROM visibility_audit_keywords
+          ORDER BY COALESCE(current_rank, 999) ASC, id ASC
+          LIMIT 50`
+      ),
     ]);
 
+    // Combine Appointments (clinic_appointments + calendly_events) & split Consultation vs Partnership
+    const apptStatusMap = new Map();
+    let consultationsCount = 0;
+    let partnershipsCount = 0;
+    const branchApptMap = new Map();
+
+    for (const r of clinicApptsRes.rows || []) {
+      const st = String(r.status || 'booked').toLowerCase();
+      apptStatusMap.set(st, (apptStatusMap.get(st) || 0) + Number(r.n || 0));
+      const isPartner = /skinnonest|makeup|vishw|partnership/i.test(String(r.treatment || ''));
+      if (isPartner) partnershipsCount += Number(r.n || 0);
+      else consultationsCount += Number(r.n || 0);
+      const br = r.branch || 'Alkapuri Main Clinic';
+      branchApptMap.set(br, (branchApptMap.get(br) || 0) + Number(r.n || 0));
+    }
+
+    for (const c of calEventsRes.rows || []) {
+      const st = String(c.status || 'confirmed').toLowerCase();
+      apptStatusMap.set(st, (apptStatusMap.get(st) || 0) + 1);
+      const md = c.metadata && typeof c.metadata === 'object' ? c.metadata : {};
+      const isPartner = /skinnonest|vishw|misha|makeup/i.test(
+        `${c.event_name || ''} ${c.resolved_concern || ''} ${c.resolved_provider || ''} ${JSON.stringify(md)}`
+      );
+      if (isPartner) {
+        partnershipsCount += 1;
+        branchApptMap.set('Online (Google Meet)', (branchApptMap.get('Online (Google Meet)') || 0) + 1);
+      } else {
+        consultationsCount += 1;
+        const br = c.resolved_branch || 'Alkapuri Main Clinic';
+        branchApptMap.set(br, (branchApptMap.get(br) || 0) + 1);
+      }
+    }
+
+    const appointments = Array.from(apptStatusMap.entries())
+      .map(([status, n]) => ({ status, n }))
+      .sort((a, b) => b.n - a.n);
+
+    const appointmentsByBranch = Array.from(branchApptMap.entries())
+      .map(([branch, n]) => ({ branch, n }))
+      .sort((a, b) => b.n - a.n);
+
+    // Combine Calls (ai_calls + bulk_attempts)
+    const aiRows = aiCallsRes.rows || [];
+    const bulkRow = bulkCallsRes.rows?.[0] || { total: 0, completed: 0, booked: 0, missed: 0, duration_secs: 0 };
+
+    let aiTotal = 0;
+    let aiCompleted = 0;
+    let aiBusyOrMissed = 0;
+    let aiBooked = 0;
+    let aiDurationSecs = 0;
+    let riaCalls = 0;
+    let mishaCalls = 0;
+    let plivoCalls = 0;
+    let inboundCalls = 0;
+    let outboundCalls = 0;
+
+    for (const c of aiRows) {
+      aiTotal += 1;
+      const st = String(c.status || '').toLowerCase();
+      const out = String(c.outcome || '').toLowerCase();
+      if (st === 'completed') aiCompleted += 1;
+      if (['busy', 'no_answer', 'no-answer', 'failed', 'not_connected'].includes(st) || out === 'busy') aiBusyOrMissed += 1;
+      if (out === 'booked') aiBooked += 1;
+      aiDurationSecs += Number(c.duration_secs || 0);
+
+      if (String(c.direction || '').toLowerCase() === 'inbound') inboundCalls += 1;
+      else outboundCalls += 1;
+
+      const label = `${c.agent_name || ''} ${c.agent_type || ''} ${c.provider || ''}`.toLowerCase();
+      if (label.includes('misha') || label.includes('skinnonest') || label.includes('makeup_artist')) mishaCalls += 1;
+      else if (label.includes('plivo')) plivoCalls += 1;
+      else riaCalls += 1;
+    }
+
+    const totalCalls = aiTotal + Number(bulkRow.total || 0);
+    const completedCalls = aiCompleted + Number(bulkRow.completed || 0);
+    const missedCalls = aiBusyOrMissed + Number(bulkRow.missed || 0);
+    const bookedCalls = aiBooked + Number(bulkRow.booked || 0);
+    const totalDurationSecs = aiDurationSecs + Number(bulkRow.duration_secs || 0);
+
+    // Keyword ranking aggregation
+    const visSummary = visSummaryRes.rows?.[0] || null;
+    const kwRows = visKeywordsRes.rows || [];
+    const top3Count = kwRows.filter((k) => Number(k.current_rank) >= 1 && Number(k.current_rank) <= 3).length;
+    const top10Count = kwRows.filter((k) => Number(k.current_rank) >= 1 && Number(k.current_rank) <= 10).length;
+    const aiMentionedKw = kwRows.filter((k) => k.ai_overview_mentioned).length;
+    const avgKwRank = kwRows.length > 0
+      ? Number((kwRows.reduce((s, k) => s + (Number(k.current_rank) || 0), 0) / kwRows.filter((k) => Number(k.current_rank) > 0).length || 0).toFixed(1))
+      : (visSummary ? Number(visSummary.avg_rank || 0) : 0);
+
     res.json({
-      range: { from: from.toISOString(), to: to.toISOString() },
-      appointments: appts.rows,
-      packages: pkg.rows,
-      revenue: rev.rows[0],
-      calls: conv.rows[0] || { calls: 0, completed: 0 },
+      range: { from: from.toISOString(), to: to.toISOString(), allTime },
+      appointments,
+      appointmentSplit: {
+        total: consultationsCount + partnershipsCount,
+        consultations: consultationsCount,
+        partnerships: partnershipsCount,
+        byBranch: appointmentsByBranch,
+      },
+      packages: pkgRes.rows || [],
+      revenue: revRes.rows?.[0] || { sold: 0, collected: 0 },
+      calls: {
+        calls: totalCalls,
+        completed: completedCalls,
+        missed: missedCalls,
+        booked: bookedCalls,
+        durationSecs: totalDurationSecs,
+        inbound: inboundCalls,
+        outbound: outboundCalls + Number(bulkRow.total || 0),
+        byAgent: {
+          ria: riaCalls + Number(bulkRow.total || 0),
+          misha: mishaCalls,
+          plivo: plivoCalls,
+        },
+      },
+      contacts: {
+        ...(leadsSummaryRes.rows?.[0] || { total: 0, added_in_range: 0, active_patients: 0, from_icp: 0 }),
+        icpProfiles: icpCountRes.rows?.[0]?.total || 0,
+        byStage: leadsByStageRes.rows || [],
+        bySource: leadsBySourceRes.rows || [],
+      },
+      outreach: {
+        whatsapp: waRes.rows?.[0] || {
+          outbound_total: 0,
+          outbound_delivered: 0,
+          outbound_read: 0,
+          outbound_failed: 0,
+          inbound_replies: 0,
+          active_threads: 0,
+        },
+        emailsSent: emailRes.rows?.[0]?.sent || 0,
+      },
+      reviews: reviewsRes.rows?.[0] || { total: 0, avg_rating: 0 },
+      visibility: {
+        summary: visSummary ? {
+          networkVisibilityScore: visSummary.network_visibility_score,
+          gmbCompletePct: visSummary.gmb_complete_pct,
+          avgRank: visSummary.avg_rank,
+          aiMentions: visSummary.ai_mentions,
+          lastAuditAt: visSummary.last_audit_at,
+          branchScores: visSummary.branch_scores || [],
+          aiVisibility: visSummary.ai_visibility || [],
+        } : null,
+        stats: {
+          trackedKeywords: kwRows.length,
+          top3: top3Count,
+          top10: top10Count,
+          aiOverviewMentioned: aiMentionedKw,
+          avgRank: avgKwRank,
+        },
+        keywords: kwRows.slice(0, 20),
+      },
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
