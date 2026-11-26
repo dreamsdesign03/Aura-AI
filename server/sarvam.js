@@ -165,7 +165,7 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata, appId, appVersion
   if (appVersion != null) {
     appConfig.app_version = Number(appVersion);
   } else if (isMisha) {
-    appConfig.version_filter = 'latest';
+    appConfig.app_version = Number(process.env.SARVAM_MISHA_APP_VERSION || 13);
   } else {
     appConfig.app_version = Number(process.env.SARVAM_APP_VERSION || 13);
   }
