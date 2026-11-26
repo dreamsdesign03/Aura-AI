@@ -455,8 +455,8 @@ async function sendWhatsAppMessage({ userId, leadId = null, phone, message, temp
         leadId,
         phone: targetPhone,
         message: msgContent,
-        templateName: 'auraai_leads',
-        templateParams: ['Aura Laser & Cosmetic Clinic'],
+        templateName: 'aura_clinic_desk_acknowledgment',
+        templateParams: [],
         templateLang: 'en',
         autoFallback: false,
       });
@@ -471,7 +471,7 @@ async function sendWhatsAppMessage({ userId, leadId = null, phone, message, temp
     }
 
     if (code === 131047) {
-      errorMsg = '24-hour window expired. Meta policy requires using an approved Meta Template (e.g., hello_world) to message this lead.';
+      errorMsg = '24-hour window expired. Meta policy requires using the approved Meta Template (aura_clinic_desk_acknowledgment) to message this lead.';
     } else if (code === 131049) {
       errorMsg = 'Meta Ecosystem Protection (Error 131049): Meta blocked delivery because this recipient reached Meta’s daily marketing template limit, opted out of marketing, or is the registered sender phone number.';
     } else if (code === 131030) {
@@ -852,7 +852,9 @@ function registerWhatsAppRoutes(app, resolveUserId) {
         first_name: sanitizeTplValue(String(name || '').trim().split(/\s+/)[0]) || 'there',
         company: sanitizeTplValue(company) || 'your store',
       };
-      const renderedText = `Hi ${values.first_name},\n\n` + tpl.body.replace(/{{(\w+)}}/g, (_, k) => values[k] ?? '');
+      const renderedText = (tpl.variables && tpl.variables.length > 0)
+        ? `Hi ${values.first_name},\n\n` + tpl.body.replace(/{{(\w+)}}/g, (_, k) => values[k] ?? '')
+        : tpl.body;
 
       let leadData = null;
       if (leadId) {
@@ -920,6 +922,23 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           }
         }
       } else {
+        const components = [];
+        if (tpl.headerVariables && tpl.headerVariables.length > 0) {
+          components.push({
+            type: 'header',
+            parameters: [
+              { type: 'text', parameter_name: 'first_name', text: values.first_name }
+            ]
+          });
+        }
+        if (tpl.bodyVariables && tpl.bodyVariables.length > 0) {
+          components.push({
+            type: 'body',
+            parameters: [
+              { type: 'text', parameter_name: 'company', text: values.company }
+            ]
+          });
+        }
         const metaPayload = {
           messaging_product: 'whatsapp',
           to: targetPhone,
@@ -927,20 +946,7 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           template: {
             name: tpl.name,
             language: { code: tpl.language },
-            components: [
-              {
-                type: 'header',
-                parameters: [
-                  { type: 'text', parameter_name: 'first_name', text: values.first_name }
-                ]
-              },
-              {
-                type: 'body',
-                parameters: [
-                  { type: 'text', parameter_name: 'company', text: values.company }
-                ]
-              }
-            ],
+            ...(components.length > 0 ? { components } : {}),
           },
         };
 

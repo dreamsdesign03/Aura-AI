@@ -47,10 +47,10 @@ function MessageTick({ status }) {
 
 const META_TEMPLATES = [
   {
-    name: "auraai_lead_send_template",
-    label: "auraai_lead_send_template · English (en)",
+    name: "aura_clinic_desk_acknowledgment",
+    label: "aura_clinic_desk_acknowledgment · English (en)",
     type: "meta",
-    description: "Official Skinnonest & Aura Laser Dealer Onboarding Template"
+    description: "Official Aura Laser and Cosmetic Clinic support desk acknowledgment template"
   }
 ];
 
@@ -62,7 +62,7 @@ const QUICK_TEXT_TEMPLATES = [
 
 export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) {
   const [sendType, setSendType] = useState("template"); // "template" by default for Meta compliance
-  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState("auraai_lead_send_template");
+  const [selectedMetaTemplate, setSelectedMetaTemplate] = useState("aura_clinic_desk_acknowledgment");
   const [message, setMessage] = useState("");
   const [phoneOverride, setPhoneOverride] = useState("");
   const [sending, setSending] = useState(false);
@@ -120,7 +120,7 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
     try {
       let res;
       console.log("[WhatsApp][SendWhatsAppModal] → sending", { sendType, selectedMetaTemplate, phone, leadId: lead?.id, firstName, company });
-      if (sendType === "template" && selectedMetaTemplate === "auraai_lead_send_template") {
+      if (sendType === "template") {
         res = await fetch("/api/whatsapp/send-template", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -130,24 +130,15 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
             phone: phone,
             name: firstName,
             company: company,
-            templateId: "auraai_leads"   // matches WHATSAPP_TEMPLATES id on server
+            templateId: selectedMetaTemplate || "aura_clinic_desk_acknowledgment"
           })
         });
       } else {
         const bodyPayload = {
           leadId: lead.id,
           phone: phone,
+          message: message.trim()
         };
-        if (sendType === "template") {
-          bodyPayload.templateName = selectedMetaTemplate;
-          if (selectedMetaTemplate === "hello_world") {
-            bodyPayload.templateParams = [];
-          } else {
-            bodyPayload.templateParams = [firstName, company];
-          }
-        } else {
-          bodyPayload.message = message.trim();
-        }
         res = await fetch("/api/whatsapp/send", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -169,8 +160,8 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
         const errMsg = data.error || data.details?.error?.message || "Failed to send WhatsApp message";
         if (errMsg.includes("131047") || errMsg.includes("24") || errMsg.includes("window") || errMsg.includes("re-engagement")) {
           setSendType("template");
-          setSelectedMetaTemplate("auraai_lead_send_template");
-          throw new Error("Meta 24-hour Policy Rule: Customer window expired. Auto-switched to official Meta template (auraai_lead_send_template). Click Send again to dispatch!");
+          setSelectedMetaTemplate("aura_clinic_desk_acknowledgment");
+          throw new Error("Meta 24-hour Policy Rule: Customer window expired. Auto-switched to official Meta template (aura_clinic_desk_acknowledgment). Click Send again to dispatch.");
         }
         throw new Error(errMsg);
       }
@@ -300,9 +291,8 @@ export default function SendWhatsAppModal({ lead, isOpen, onClose, onSuccess }) 
                 </select>
                 <div className="text-[11px] text-emerald-700 bg-white p-2.5 rounded-lg border border-emerald-100">
                   <span className="font-bold">Template Payload Preview:</span>
-                  <div className="mt-1 font-mono text-[10px] text-gray-600">
-                    Template: <span className="text-emerald-700 font-bold">{selectedMetaTemplate}</span><br />
-                    Parameters: [{firstName}, {company}]
+                  <div className="mt-1 text-[11px] text-gray-700 whitespace-pre-line">
+                    Hi, welcome to the Aura Laser and Cosmetic Clinic official support desk.{"\n\n"}Your communication preferences have been updated to receive official updates and service notices here.{"\n\n"}Let us know how we can assist you with your upcoming visit or care inquiry.
                   </div>
                 </div>
               </div>

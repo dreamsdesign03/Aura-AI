@@ -1,16 +1,18 @@
 const WHATSAPP_TEMPLATES = [
   {
-    id: 'auraai_leads',
-    name: 'auraai_leads',
-    label: 'auraai_leads · English (en)',
+    id: 'aura_clinic_desk_acknowledgment',
+    name: 'aura_clinic_desk_acknowledgment',
+    label: 'aura_clinic_desk_acknowledgment · English (en)',
     language: 'en',
     headerVariables: [],
-    bodyVariables: ['company'],
-    variables: ['company'],
+    bodyVariables: [],
+    variables: [],
     header: '',
-    body: `Hello team at {{company}}, this is Dr. Aditya Shah, founder of Skinnonest and Aura Laser & Cosmetic Clinic.
+    body: `Hi, welcome to the Aura Laser and Cosmetic Clinic official support desk.
 
-We're onboarding retail partners for our festive gift hampers (₹599 to ₹1999). Would you like to stock them in your store this season?`,
+Your communication preferences have been updated to receive official updates and service notices here.
+
+Let us know how we can assist you with your upcoming visit or care inquiry.`,
   },
 ];
 

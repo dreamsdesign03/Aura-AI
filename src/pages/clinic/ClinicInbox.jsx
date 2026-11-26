@@ -527,7 +527,7 @@ function ThreadDrawer({ thread, onClose }) {
   const queryClient = useQueryClient();
   const [replyText, setReplyText] = useState('');
   const [useMetaTemplate, setUseMetaTemplate] = useState(false);
-  const [selectedTemplate, setSelectedTemplate] = useState('auraai_leads');
+  const [selectedTemplate, setSelectedTemplate] = useState('aura_clinic_desk_acknowledgment');
   const [emailSubject, setEmailSubject] = useState(thread.subject ? `Re: ${thread.subject.replace(/^Re:\s*/i, '')}` : 'Re: Consultation & Treatment');
   const [sendingStatus, setSendingStatus] = useState(null);
   const [commentLiked, setCommentLiked] = useState(false);
@@ -619,7 +619,7 @@ function ThreadDrawer({ thread, onClose }) {
     });
   };
 
-  const handleSendOfficialTemplate = (tplName = 'auraai_leads') => {
+  const handleSendOfficialTemplate = (tplName = 'aura_clinic_desk_acknowledgment') => {
     setSendingStatus('Sending official Meta template...');
     replyMutation.mutate({
       type: 'whatsapp',
@@ -628,8 +628,8 @@ function ThreadDrawer({ thread, onClose }) {
       phone: thread.phone,
       body: `[Template: ${tplName}]`,
       templateName: tplName,
-      templateParams: tplName === 'auraai_leads' ? ['Aura Laser & Cosmetic Clinic'] : [],
-      templateLang: tplName === 'hello_world' ? 'en_US' : 'en',
+      templateParams: [],
+      templateLang: 'en',
     });
   };
 
@@ -647,8 +647,8 @@ function ThreadDrawer({ thread, onClose }) {
       };
       if (useMetaTemplate) {
         payload.templateName = selectedTemplate;
-        payload.templateParams = selectedTemplate === 'auraai_leads' ? ['Aura Laser & Cosmetic Clinic'] : [];
-        payload.templateLang = selectedTemplate === 'hello_world' ? 'en_US' : 'en';
+        payload.templateParams = [];
+        payload.templateLang = 'en';
       }
       replyMutation.mutate(payload);
     } else if (thread.type === 'facebook' || thread.type === 'instagram') {
@@ -818,6 +818,8 @@ function ThreadDrawer({ thread, onClose }) {
                         displayContent = "Hello from Dr. Aditya Shah, founder of Skinnonest and Aura Laser & Cosmetic Clinic. We are following up regarding your appointment & inquiry.";
                       } else if (rawContent.includes("[Template: aura_booking_confirmation]")) {
                         displayContent = "Hi! Your appointment has been confirmed at Aura Laser & Cosmetic Clinic.";
+                      } else if (rawContent.includes("[Template: aura_clinic_desk_acknowledgment]")) {
+                        displayContent = "Hi, welcome to the Aura Laser and Cosmetic Clinic official support desk.\n\nYour communication preferences have been updated to receive official updates and service notices here.\n\nLet us know how we can assist you with your upcoming visit or care inquiry.";
                       } else if (rawContent.includes("[Template: aura_lead_appointment_booking]")) {
                         displayContent = "Hi! Thank you for contacting Aura Laser & Cosmetic Clinic. Please reply to confirm your appointment slot.";
                       } else if (rawContent.includes("[Template: auraai_lead_send_template]") || rawContent.includes("[Template: lead_welcome_confirmation]") || rawContent.includes("[Template: new_lead_dreamsdesign]")) {
@@ -1595,8 +1597,7 @@ function ThreadDrawer({ thread, onClose }) {
                     className="co-input"
                     style={{ fontSize: 11, padding: '2px 8px', height: 26, width: 'auto' }}
                   >
-                    <option value="auraai_leads">auraai_leads (Official Template)</option>
-                    <option value="hello_world">hello_world (Test Template)</option>
+                    <option value="aura_clinic_desk_acknowledgment">aura_clinic_desk_acknowledgment (Official Template)</option>
                   </select>
                 )}
               </div>
@@ -1608,7 +1609,7 @@ function ThreadDrawer({ thread, onClose }) {
                   </span>
                   <button
                     type="button"
-                    onClick={() => handleSendOfficialTemplate('auraai_leads')}
+                    onClick={() => handleSendOfficialTemplate('aura_clinic_desk_acknowledgment')}
                     className="co-btn co-btn-p co-btn-sm"
                     style={{ fontSize: 11, padding: '3px 8px', whiteSpace: 'nowrap' }}
                   >
