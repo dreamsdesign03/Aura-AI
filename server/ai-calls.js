@@ -179,18 +179,28 @@ router.post('/sync', async (req, res) => {
     }
     lastAiCallsSyncAt = now;
 
-    // Fetch attempts from Sarvam Analytics for the last 24h (no campaignId filter)
+    // Fetch attempts from Sarvam Analytics for the last 24h for both Ria and Misha agents
     const endMs = now;
     const startMs = now - 24 * 60 * 60 * 1000;
-    const attempts = await listSarvamAnalytics('attempts', { startMs, endMs });
-
-    // Also fetch interactions for agent variables (like bulk sync does)
+    const appIds = [...new Set([process.env.SARVAM_APP_ID, process.env.SARVAM_MISHA_APP_ID || 'Misha-Skinn-4e9816f8-ead9'].filter(Boolean))];
+    const attempts = [];
     const ivars = new Map();
-    try {
-      const interactions = await listSarvamAnalytics('interactions', { startMs, endMs });
-      interactions.forEach(i => ivars.set(i.interaction_id, i.agent_variables || null));
-    } catch (err) {
-      console.warn('[AI Calls Sync] interactions fetch failed:', err.message);
+
+    for (const appId of appIds) {
+      try {
+        const appAttempts = await listSarvamAnalytics('attempts', { startMs, endMs, appId });
+        for (const a of appAttempts) {
+          attempts.push({ ...a, app_id: a.app_id || appId });
+        }
+      } catch (err) {
+        console.warn(`[AI Calls Sync] attempts fetch failed for ${appId}:`, err.message);
+      }
+      try {
+        const interactions = await listSarvamAnalytics('interactions', { startMs, endMs, appId });
+        interactions.forEach(i => ivars.set(i.interaction_id, i.agent_variables || null));
+      } catch (err) {
+        console.warn(`[AI Calls Sync] interactions fetch failed for ${appId}:`, err.message);
+      }
     }
 
     // Skip attempts already in ai_calls (by conversation_id / call_sid)

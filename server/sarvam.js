@@ -580,30 +580,54 @@ function validInteractionId(id) {
   return /^\d{8}\/[\w:-]+$/.test(String(id || ''));
 }
 
-function analyticsUrl(kind, interactionId) {
+const MISHA_APP_ID = process.env.SARVAM_MISHA_APP_ID || 'Misha-Skinn-4e9816f8-ead9';
+
+function getAnalyticsAppIds() {
+  const primary = process.env.SARVAM_APP_ID;
+  return [...new Set([primary, MISHA_APP_ID].filter(Boolean))];
+}
+
+function analyticsUrl(kind, interactionId, appId) {
   requireSarvamEnv(['SARVAM_API_KEY', 'SARVAM_ORG_ID', 'SARVAM_WORKSPACE_ID', 'SARVAM_APP_ID']);
-  return `${ANALYTICS_BASE}/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/${kind}/${interactionId}`;
+  const targetApp = appId || process.env.SARVAM_APP_ID;
+  return `${ANALYTICS_BASE}/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${targetApp}/${kind}/${interactionId}`;
 }
 
 // Full conversation in the original language: [{ turn_id, role, content, language_name }]
 async function fetchSarvamTranscript(interactionId) {
   if (!validInteractionId(interactionId)) throw new Error('Invalid interaction_id');
-  const data = await sarvamJson('GET', analyticsUrl('transcripts', interactionId));
-  return Array.isArray(data?.messages) ? data.messages : [];
+  let lastErr = null;
+  for (const appId of getAnalyticsAppIds()) {
+    try {
+      const data = await sarvamJson('GET', analyticsUrl('transcripts', interactionId, appId));
+      return Array.isArray(data?.messages) ? data.messages : [];
+    } catch (err) {
+      lastErr = err;
+      if (err.status !== 404) throw err;
+    }
+  }
+  throw lastErr || new Error('Transcript not available (404)');
 }
 
 // Returns the raw fetch Response (audio/wav) or throws.
 async function fetchSarvamRecording(interactionId) {
   if (!validInteractionId(interactionId)) throw new Error('Invalid interaction_id');
-  const res = await fetch(analyticsUrl('recordings', interactionId), {
-    headers: { 'X-API-Key': getSarvamApiKey() }
-  });
-  if (!res.ok) {
-    const err = new Error('Recording not available (' + res.status + ')');
-    err.status = res.status;
-    throw err;
+  let lastStatus = 404;
+  for (const appId of getAnalyticsAppIds()) {
+    const res = await fetch(analyticsUrl('recordings', interactionId, appId), {
+      headers: { 'X-API-Key': getSarvamApiKey() }
+    });
+    if (res.ok) return res;
+    lastStatus = res.status;
+    if (res.status !== 404) {
+      const err = new Error('Recording not available (' + res.status + ')');
+      err.status = res.status;
+      throw err;
+    }
   }
-  return res;
+  const err = new Error('Recording not available (' + lastStatus + ')');
+  err.status = lastStatus;
+  throw err;
 }
 
 // Audio is served through our own proxy route (Sarvam needs the API key header).
@@ -619,9 +643,10 @@ function istOffsetIso(ms) {
 
 // Pages through Sarvam's Analytics API (attempts / interactions) for one campaign.
 // If the campaign_id filter is rejected, falls back to fetching all and filtering here.
-async function listSarvamAnalytics(kind, { startMs, endMs, campaignId, extra }) {
+async function listSarvamAnalytics(kind, { startMs, endMs, campaignId, extra, appId }) {
   requireSarvamEnv(['SARVAM_API_KEY', 'SARVAM_ORG_ID', 'SARVAM_WORKSPACE_ID', 'SARVAM_APP_ID']);
-  const base = `${ANALYTICS_BASE}/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${process.env.SARVAM_APP_ID}/${kind}`;
+  const targetApp = appId || process.env.SARVAM_APP_ID;
+  const base = `${ANALYTICS_BASE}/${process.env.SARVAM_ORG_ID}/${process.env.SARVAM_WORKSPACE_ID}/${targetApp}/${kind}`;
   let out = [];
   for (const useFilter of [true, false]) {
     out = [];
