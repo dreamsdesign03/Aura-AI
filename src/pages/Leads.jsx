@@ -3927,9 +3927,11 @@ function AiCallHistoryView({ leadId, leadPhone }) {
   return (
     <div className="space-y-3 text-xs">
       {calls.map((call) => {
-        const isCompleted = call.status === "completed";
-        const isInProgress = call.status === "in-progress" || call.status === "processing" || call.status === "ringing" || call.status === "queued";
-        const isFailed = call.status === "failed";
+        const rawStatus = String(call.status || "").toLowerCase();
+        const isCompleted = rawStatus === "completed";
+        const isInProgress = rawStatus === "in-progress" || rawStatus === "processing" || rawStatus === "ringing" || rawStatus === "queued";
+        const isBusyOrUnanswered = ["busy", "no_answer", "no-answer", "not_connected", "unanswered"].includes(rawStatus);
+        const isFailed = rawStatus === "failed" || rawStatus === "cancelled" || rawStatus === "canceled";
         const isExpanded = expandedTranscriptId === call.id;
         const bookingType = call.bookingType || call.booking_type || "single_call";
         const agentName = resolveAgentName(call, bookingType);
@@ -3943,6 +3945,10 @@ function AiCallHistoryView({ leadId, leadPhone }) {
             ? `Outbound call completed (${formatDuration(call.duration)}). Outcome: ${call.outcome || "connected"}.`
             : isInProgress
             ? "Call in progress..."
+            : rawStatus === "busy"
+            ? "Call was not connected — recipient line was busy, declined, or unreachable."
+            : isBusyOrUnanswered
+            ? "Call was not answered by the recipient."
             : `Call status: ${call.status || "initiated"}.`
           : cleanedSummary;
 
@@ -3972,9 +3978,14 @@ function AiCallHistoryView({ leadId, leadPhone }) {
                     Completed
                   </span>
                 )}
+                {isBusyOrUnanswered && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-orange-50 text-orange-700 border border-orange-200">
+                    {rawStatus === "busy" ? "Busy / Declined" : "No Answer"}
+                  </span>
+                )}
                 {isFailed && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200">
-                    Failed
+                    {rawStatus === "failed" ? "Failed" : "Cancelled"}
                   </span>
                 )}
                 <span className="text-[10px] text-gray-400">{formatDate(call.startedAt)}</span>
