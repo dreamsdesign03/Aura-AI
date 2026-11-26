@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Plus, Search, Phone, Mail, ChevronDown, ChevronLeft, Pencil, SlidersHorizontal, ArrowUpDown, Download, X, Loader2, MoreHorizontal, Settings2, MessageCircle, Check, Filter, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
+import { getContactInitials } from "@/lib/contactName";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
 import SendTemplateModal from "@/components/SendTemplateModal";
 import ComposeModal from "@/components/ComposeModal";
@@ -293,7 +294,7 @@ async function patchLeadStatus(id, status) {
 function DealCard({ lead, isDragging, onSendWhatsApp, onSendEmail, onAddActivity, onPhoneCall }) {
   const [, navigate] = useLocation();
   const name = `${lead.firstName || lead.first_name || ""} ${lead.lastName || lead.last_name || ""}`.trim() || lead.name || "Lead";
-  const initials = `${lead.firstName?.[0] ?? lead.first_name?.[0] ?? name[0] ?? ""}${lead.lastName?.[0] ?? lead.last_name?.[0] ?? ""}`.toUpperCase() || "L";
+  const initials = getContactInitials({ ...lead, name });
   const avatarBg = AVATAR_COLORS[lead.id % AVATAR_COLORS.length];
   const dealAmount = lead.dealValue ?? lead.deal_value ?? null;
   const ownerName = lead.lead_owner || lead.leadOwner || lead.assignedToName || "—";

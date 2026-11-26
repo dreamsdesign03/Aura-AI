@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDate } from "@/lib/utils";
+import { getContactInitials } from "@/lib/contactName";
 import { useIsAdmin } from "@/contexts/AuthContext";
 import { Database, Search, Download, Globe, Building2, Users, Zap, FileSpreadsheet, UserPlus, MapPin, RefreshCw, Loader2, Upload, X, CheckCircle2, Lock, } from "lucide-react";
 const BASE = "/api";
@@ -309,7 +310,7 @@ export default function LeadBank() {
                 </tr>)}
               {filteredLeads.map((lead, idx) => {
             const fullName = [lead.firstName, lead.lastName].filter(Boolean).join(" ") || "—";
-            const initials = [lead.firstName?.[0], lead.lastName?.[0]].filter(Boolean).join("").toUpperCase() || "?";
+            const initials = getContactInitials(lead);
             const isImported = !!lead.importedToLeadsAt;
             return (<tr key={lead.id} className="hover:bg-gray-50/70 transition-colors" style={{ opacity: isImported ? 0.65 : 1 }}>
                     <td className="px-4 py-2.5 text-gray-300 font-mono text-[10px]">{idx + 1}</td>

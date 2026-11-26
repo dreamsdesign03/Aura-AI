@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Target, Zap, Play, Pause, Activity, CheckCircle2, AlertCircle, Users, TrendingUp, MessageCircle, Brain, Globe, Settings, FileText, Loader2, ChevronRight, Sparkles, ArrowLeft, Bot, Save, RefreshCw, ToggleLeft, ToggleRight, Shield, BookOpen, GitBranch, Database, Send, Download, } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getContactInitials } from "@/lib/contactName";
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 const DEFAULT_SKILLS_DOC = `# Lead Hunter Agent — Skills & Operating Manual
 
@@ -423,7 +424,7 @@ export default function LeadHunter() {
                 <div className="divide-y divide-violet-50 max-h-64 overflow-y-auto">
                   {streamedLeads.map((l, i) => (<div key={i} className="flex items-start gap-3 px-4 py-2.5 bg-white">
                       <div className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold text-white" style={{ background: "#CB3273" }}>
-                        {l.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
+                        {getContactInitials({ name: l.name })}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
