@@ -4870,6 +4870,7 @@ router.post('/dialer/sync-plivo', requireUser, async (req, res) => {
       const from = call.from_number || call.from || '';
       const to = call.to_number || call.to || '';
       if (!uuid || (!from && !to)) continue;
+      if (/^sip:/i.test(from) || /^sip:/i.test(to)) continue;
 
       const direction = String(call.call_direction || call.direction || 'outbound').toLowerCase();
       const phone = direction === 'inbound' ? from : to;
