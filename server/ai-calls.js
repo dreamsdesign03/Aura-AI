@@ -91,7 +91,9 @@ router.post('/', async (req, res) => {
 
     const resolvedAgentType = agentType || (appId === 'Misha-Skinn-4e9816f8-ead9' ? 'makeup_artist' : 'customer');
     const isMisha = resolvedAgentType === 'makeup_artist' || appId === 'Misha-Skinn-4e9816f8-ead9';
-    const agentAppId = isMisha ? 'Misha-Skinn-4e9816f8-ead9' : (appId || process.env.SARVAM_APP_ID);
+    const agentAppId = isMisha
+      ? 'Misha-Skinn-4e9816f8-ead9'
+      : ((!appId || appId === 'Conversatio-cc27549a-e502') ? (process.env.SARVAM_RIA_APP_ID || 'Aura-Outbou-824024af-4678') : appId);
     const agentDisplayName = isMisha ? 'Misha (Skinnonest AI)' : 'Ria (AI)';
 
     const sarvamRes = await dispatchSarvamCall({
@@ -182,7 +184,11 @@ router.post('/sync', async (req, res) => {
     // Fetch attempts from Sarvam Analytics for the last 24h for both Ria and Misha agents
     const endMs = now;
     const startMs = now - 24 * 60 * 60 * 1000;
-    const appIds = [...new Set([process.env.SARVAM_APP_ID, process.env.SARVAM_MISHA_APP_ID || 'Misha-Skinn-4e9816f8-ead9'].filter(Boolean))];
+    const appIds = [...new Set([
+      process.env.SARVAM_RIA_APP_ID || 'Aura-Outbou-824024af-4678',
+      process.env.SARVAM_MISHA_APP_ID || 'Misha-Skinn-4e9816f8-ead9',
+      process.env.SARVAM_APP_ID,
+    ].filter(Boolean))];
     const attempts = [];
     const ivars = new Map();
 

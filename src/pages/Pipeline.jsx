@@ -163,7 +163,7 @@ function AiCallConfirmModal({ lead, onConfirm, onCancel, isCalling }) {
                       <span className="font-bold text-xs text-gray-900">Customer / Patient (Ria · Aura Clinic)</span>
                     </div>
                     <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
-                      Conversatio-cc27549a-e502
+                      Aura-Outbou-824024af-4678
                     </span>
                   </div>
                   <p className="text-[11px] text-gray-600 leading-snug">

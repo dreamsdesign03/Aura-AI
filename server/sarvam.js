@@ -151,7 +151,10 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata, appId, appVersion
   const maskedWebhookUrl = String(process.env.SARVAM_WEBHOOK_URL).replace(/secret=[^&]+/, 'secret=***');
 
   const isMisha = agentType === 'makeup_artist' || appId === 'Misha-Skinn-4e9816f8-ead9';
-  const resolvedAppId = isMisha ? 'Misha-Skinn-4e9816f8-ead9' : (appId || process.env.SARVAM_APP_ID);
+  const riaAppId = process.env.SARVAM_RIA_APP_ID || 'Aura-Outbou-824024af-4678';
+  const resolvedAppId = isMisha
+    ? 'Misha-Skinn-4e9816f8-ead9'
+    : ((!appId || appId === 'Conversatio-cc27549a-e502') ? riaAppId : appId);
   const resolvedConnectionId = process.env.SARVAM_PLIVO_CONNECTION_ID || 'Plivo-Krish-2edc0fee-cca4';
   const resolvedAgentNumber = process.env.SARVAM_PLIVO_AGENT_NUMBER || '+918065587555';
 
@@ -169,7 +172,7 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata, appId, appVersion
   } else if (isMisha) {
     appConfig.app_version = Number(process.env.SARVAM_MISHA_APP_VERSION || 13);
   } else {
-    appConfig.app_version = Number(process.env.SARVAM_APP_VERSION || 13);
+    appConfig.app_version = Number(process.env.SARVAM_RIA_APP_VERSION || 34);
   }
 
   const body = {
@@ -494,13 +497,15 @@ function buildRetryConfig(r) {
 function buildSarvamCampaignBody({ name, description, settings, startIso, endIso, webhookUrl, metadata }) {
   const bulkConnectionId = process.env.SARVAM_PLIVO_CONNECTION_ID || 'Plivo-Krish-2edc0fee-cca4';
   const bulkAgentNumber = process.env.SARVAM_PLIVO_AGENT_NUMBER || '+918065587555';
+  const bulkAppId = process.env.SARVAM_RIA_APP_ID || 'Aura-Outbou-824024af-4678';
+  const bulkAppVersion = Number(process.env.SARVAM_RIA_APP_VERSION || 34);
   return {
     name: String(name || 'AuraAI campaign').slice(0, 100),
     description: description ? String(description).slice(0, 150) : null,
     app_config: {
-      app_id: process.env.SARVAM_APP_ID,
+      app_id: bulkAppId,
       app_type: 'agent',
-      app_version: Number(process.env.SARVAM_APP_VERSION),
+      app_version: bulkAppVersion,
       attempts_per_second: settings.attemptsPerSecond,
       connection_configs: [{
         connection_id: bulkConnectionId,
@@ -581,10 +586,11 @@ function validInteractionId(id) {
 }
 
 const MISHA_APP_ID = process.env.SARVAM_MISHA_APP_ID || 'Misha-Skinn-4e9816f8-ead9';
+const RIA_APP_ID = process.env.SARVAM_RIA_APP_ID || 'Aura-Outbou-824024af-4678';
 
 function getAnalyticsAppIds() {
   const primary = process.env.SARVAM_APP_ID;
-  return [...new Set([primary, MISHA_APP_ID].filter(Boolean))];
+  return [...new Set([RIA_APP_ID, MISHA_APP_ID, primary].filter(Boolean))];
 }
 
 function analyticsUrl(kind, interactionId, appId) {
