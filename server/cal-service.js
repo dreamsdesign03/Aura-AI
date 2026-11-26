@@ -103,9 +103,101 @@ async function cancelCalBooking(uid, reason = 'Cancelled by clinic admin') {
   }
 }
 
+const CAL_EVENT_TYPES = {
+  ria: 7316960,   // https://cal.com/aura-laser-cosmetic-clinic/30min (Aura Consultation)
+  misha: 8029367, // https://cal.com/aura-laser-cosmetic-clinic/skinnonest (Skinnonest Makeup Artist Partnership)
+};
+
+function formatE164Phone(raw) {
+  if (!raw) return null;
+  const trimmed = String(raw).trim();
+  const digits = trimmed.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.length === 10) return `+91${digits}`;
+  if (digits.length === 12 && digits.startsWith('91')) return `+${digits}`;
+  if (trimmed.startsWith('+')) return `+${digits}`;
+  return `+${digits}`;
+}
+
+async function createCalBooking({
+  category,
+  patientName,
+  email,
+  phone,
+  startsAt,
+  treatment,
+  branch,
+  notes,
+}) {
+  const apiKey = getCalApiKey();
+  const isSkinnonest = category === 'misha'
+    || /skinnonest|makeup\s*artist|vishw/i.test(`${treatment || ''} ${notes || ''}`);
+  const eventTypeId = isSkinnonest ? CAL_EVENT_TYPES.misha : CAL_EVENT_TYPES.ria;
+  const start = new Date(startsAt).toISOString();
+  const phoneNumber = formatE164Phone(phone);
+  const digits = String(phone || '').replace(/\D/g, '');
+
+  const cleanEmail = email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email).trim())
+    ? String(email).trim()
+    : null;
+  const attendeeEmail = cleanEmail
+    || (digits.length >= 10 ? `${digits.length === 10 ? `91${digits}` : digits}@sms.cal.com` : `booking.${Date.now()}@aura.clinic`);
+
+  const provider = isSkinnonest ? 'Vishw' : 'Dr. Aditya Shah';
+  const concern = treatment || (isSkinnonest ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation');
+  const resolvedBranch = branch || (isSkinnonest ? 'Online (Google Meet)' : 'Alkapuri Main Clinic');
+
+  const payload = {
+    eventTypeId,
+    start,
+    attendee: {
+      name: String(patientName || 'Patient').trim(),
+      email: attendeeEmail,
+      timeZone: 'Asia/Kolkata',
+      language: 'en',
+      ...(phoneNumber ? { phoneNumber } : {}),
+    },
+    metadata: {
+      channel: 'manual_aura_dashboard',
+      branch: resolvedBranch,
+      provider,
+      concern,
+      event_slug: isSkinnonest ? 'skinnonest' : '30min',
+      agent_type: isSkinnonest ? 'makeup_artist' : 'clinic_consultation',
+      ...(notes ? { notes: String(notes).slice(0, 500) } : {}),
+    },
+  };
+
+  try {
+    const res = await fetch('https://api.cal.com/v2/bookings', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'cal-api-version': '2024-08-13',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const errMsg = body.error?.message || body.message || `Cal.com booking failed (${res.status})`;
+      console.warn(`[createCalBooking] Cal.com API error (${res.status}):`, errMsg);
+      return { ok: false, status: res.status, error: errMsg };
+    }
+
+    return { ok: true, data: body.data, isSkinnonest, attendeeEmail, phoneNumber };
+  } catch (err) {
+    console.warn('[createCalBooking] Network/API exception:', err.message);
+    return { ok: false, error: err.message };
+  }
+}
+
 module.exports = {
+  CAL_EVENT_TYPES,
   getCalApiKey,
   resolveCalBookingUid,
+  createCalBooking,
   rescheduleCalBooking,
   cancelCalBooking,
 };

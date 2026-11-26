@@ -22,6 +22,7 @@ const {
 const { updateContactName } = require('./contact-name');
 const {
   resolveCalBookingUid,
+  createCalBooking,
   rescheduleCalBooking,
   cancelCalBooking,
 } = require('./cal-service');
@@ -1176,23 +1177,119 @@ router.post('/appointments/:id/link-call', requireUser, async (req, res) => {
 router.post('/appointments', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
-    const { leadId, patientName, phone, treatment, branch, startsAt, durationMin, notes, amount, sendConfirmation } = req.body || {};
+    const body = req.body || {};
+    const leadId = body.leadId || body.lead_id || null;
+    const patientName = (body.patientName || body.patient_name || '').trim();
+    let phone = body.phone || null;
+    let email = body.email || null;
+    const treatment = body.treatment || null;
+    const branch = body.branch || null;
+    const startsAt = body.startsAt || body.starts_at;
+    const durationMin = Number(body.durationMin || body.duration_min) || 30;
+    const notes = body.notes || null;
+    const amount = Number(body.amount) || 0;
+    const sendConfirmation = Boolean(body.sendConfirmation);
+    const category = body.category || null;
+
     const start = safeDate(startsAt);
     if (!patientName || !start) return res.status(400).json({ error: 'patientName and startsAt are required' });
 
-    const r = await db.query(
-      `INSERT INTO clinic_appointments
-         (user_id, lead_id, patient_name, patient_name_original, patient_name_english, patient_name_source, phone, treatment, branch, concern, source, starts_at, duration_min, notes, amount)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Manual',$11,$12,$13,$14) RETURNING *`,
-      [uid, leadId || null, patientName, patientName, patientName, 'import', phone || null, treatment || null, branch ? normalizeBranch(branch) || branch : null,
-        treatment || null, start.toISOString(), Number(durationMin) || 45, notes || null, Number(amount) || 0]
-    );
+    // Enrich missing email/phone from linked lead if available
+    if (leadId && (!email || !phone)) {
+      const leadRes = await db.query('SELECT email, phone FROM leads WHERE id = $1 LIMIT 1', [Number(leadId)]).catch(() => ({ rows: [] }));
+      if (leadRes.rows.length > 0) {
+        if (!email && leadRes.rows[0].email) email = leadRes.rows[0].email;
+        if (!phone && leadRes.rows[0].phone) phone = leadRes.rows[0].phone;
+      }
+    }
+
+    // 1. Create booking directly in Cal.com
+    const calResult = await createCalBooking({
+      category,
+      patientName,
+      email,
+      phone,
+      startsAt: start.toISOString(),
+      treatment,
+      branch,
+      notes,
+    });
+
+    if (!calResult.ok || !calResult.data) {
+      const statusCode = calResult.status && calResult.status >= 400 && calResult.status < 500 ? calResult.status : 400;
+      return res.status(statusCode).json({ error: `Cal.com: ${calResult.error || 'Could not create booking'}` });
+    }
+
+    const d = calResult.data;
+    const isSkinnonest = calResult.isSkinnonest;
+    const bookingUri = `cal_${d.id || d.uid}`;
+    const startIso = d.start ? new Date(d.start).toISOString() : start.toISOString();
+    const endIso = d.end ? new Date(d.end).toISOString() : new Date(start.getTime() + durationMin * 60000).toISOString();
+    const meetingLink = d.meetingUrl || d.location || '';
+    const locationStr = isSkinnonest || (meetingLink && meetingLink.startsWith('http')) ? 'Google Meet' : (branch || 'Alkapuri Main Clinic');
+    const resolvedProvider = isSkinnonest ? 'Vishw' : 'Dr. Aditya Shah';
+    const resolvedConcern = treatment || (isSkinnonest ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation');
+    const resolvedBranch = branch ? (normalizeBranch(branch) || branch) : (isSkinnonest ? 'Online (Google Meet)' : 'Alkapuri Main Clinic');
+    const resolvedSource = 'Manual Booking';
+    const eventTitle = isSkinnonest ? 'Skinnonest Makeup Appointment' : (d.title || 'Aura Consultation');
+
+    const questionsObj = {
+      'Phone / WhatsApp': calResult.phoneNumber || phone || '',
+      Notes: notes || '',
+    };
+    const metadataObj = {
+      ...(d.metadata || {}),
+      cal_uid: d.uid,
+      event_slug: isSkinnonest ? 'skinnonest' : '30min',
+      provider: resolvedProvider,
+      concern: resolvedConcern,
+      branch: resolvedBranch,
+      agent_type: isSkinnonest ? 'makeup_artist' : 'clinic_consultation',
+      channel: 'manual_aura_dashboard',
+    };
+
+    // 2. Store in calendly_events so Aura displays it immediately and future Cal.com syncs never duplicate it
+    const existing = await db.query('SELECT id FROM calendly_events WHERE calendly_uri = $1', [bookingUri]);
+    let calRow;
+    if (existing.rows.length > 0) {
+      const up = await db.query(
+        `UPDATE calendly_events
+            SET invitee_name = $1, invitee_email = $2, event_name = $3, start_time = $4, end_time = $5,
+                status = 'confirmed', location = $6, meeting_link = $7, questions = $8, is_deleted = FALSE,
+                source = 'cal.com', metadata = $9, resolved_branch = $10, resolved_provider = $11,
+                resolved_concern = $12, resolved_source = $13
+          WHERE id = $14
+          RETURNING *`,
+        [
+          patientName, calResult.attendeeEmail, eventTitle, startIso, endIso,
+          locationStr, meetingLink, JSON.stringify(questionsObj), JSON.stringify(metadataObj),
+          resolvedBranch, resolvedProvider, resolvedConcern, resolvedSource, existing.rows[0].id
+        ]
+      );
+      calRow = up.rows[0];
+    } else {
+      const ins = await db.query(
+        `INSERT INTO calendly_events
+           (user_id, calendly_uri, invitee_uri, invitee_name, invitee_email, event_name, start_time, end_time,
+            status, location, meeting_link, questions, created_at, is_deleted, source, metadata,
+            resolved_branch, resolved_provider, resolved_concern, resolved_source, booking_created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'confirmed',$9,$10,$11,NOW(),FALSE,'cal.com',$12,$13,$14,$15,$16,NOW())
+         RETURNING *`,
+        [
+          uid, bookingUri, bookingUri, patientName, calResult.attendeeEmail, eventTitle, startIso, endIso,
+          locationStr, meetingLink, JSON.stringify(questionsObj), JSON.stringify(metadataObj),
+          resolvedBranch, resolvedProvider, resolvedConcern, resolvedSource
+        ]
+      );
+      calRow = ins.rows[0];
+    }
+
     await db.query(
       `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, meta)
        VALUES ($1,$2,'appointment','Appointment booked',$3,$4::jsonb)`,
-      [uid, leadId || null, `${treatment || 'Consult'} for ${patientName}`, JSON.stringify({ startsAt: start.toISOString(), branch })]
+      [uid, leadId ? Number(leadId) : null, `${resolvedConcern} for ${patientName}`, JSON.stringify({ startsAt: startIso, branch: resolvedBranch, calUri: bookingUri })]
     );
-    await audit(uid, 'created', 'appointment', r.rows[0].id, `${patientName} · ${treatment || 'Consult'}`);
+    await audit(uid, 'created', 'cal_booking', calRow.id, `${patientName} · ${resolvedConcern}`);
 
     // Update contact name from appointment (patient provided name during booking)
     if (phone) {
@@ -1202,7 +1299,6 @@ router.post('/appointments', requireUser, async (req, res) => {
           rawName: patientName,
           nameSource: 'import'
         });
-        console.log(`[clinic-os] ✅ Updated contact name for ${phone}: ${patientName}`);
       } catch (nameErr) {
         console.warn('[clinic-os] updateContactName warning:', nameErr.message);
       }
@@ -1212,30 +1308,29 @@ router.post('/appointments', requireUser, async (req, res) => {
     if (phone && sendConfirmation) {
       try {
         const firstName = String(patientName || '').trim().split(/\s+/)[0] || 'there';
-        const appointmentTime = start.toLocaleString('en-IN', { 
-          timeZone: 'Asia/Kolkata', 
-          weekday: 'short', 
-          day: 'numeric', 
-          month: 'short', 
-          hour: '2-digit', 
-          minute: '2-digit' 
+        const appointmentTime = new Date(startIso).toLocaleString('en-IN', {
+          timeZone: 'Asia/Kolkata',
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit'
         });
-        
+
         await sendWhatsAppMessage({
           userId: uid,
           leadId: leadId ? Number(leadId) : null,
           phone: phone,
           templateName: 'aura_lead_appointment_booking',
-          templateParams: [firstName, appointmentTime, treatment || 'Consultation', branch || 'Clinic'],
+          templateParams: [firstName, appointmentTime, resolvedConcern, resolvedBranch],
           templateLang: 'en',
         });
       } catch (waErr) {
         console.warn('[clinic-os] WhatsApp confirmation send failed:', waErr.message);
-        // Don't fail the appointment creation if WhatsApp fails
       }
     }
 
-    res.json({ appointment: r.rows[0] });
+    res.json({ ok: true, appointment: mapCalRowToClinic(calRow) });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

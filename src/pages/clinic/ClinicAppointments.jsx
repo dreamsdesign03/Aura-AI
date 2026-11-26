@@ -192,7 +192,8 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
     category: initial?.category || 'ria',
     patientName: initial?.patientName || '',
     phone: initial?.phone || '',
-    treatment: initial?.treatment || (initial?.category === 'misha' ? 'Makeup Artist & Salon Partnership' : 'Clinical Consultation'),
+    email: initial?.email || '',
+    treatment: initial?.treatment || (initial?.category === 'misha' ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation'),
     branch: initial?.branch || (initial?.category === 'misha' ? 'Online (Google Meet)' : 'Alkapuri Main Clinic'),
     date: toDateInput(base),
     time: initial?.startsAt ? toTimeInput(base) : '10:00',
@@ -210,6 +211,7 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
       leadId: id,
       patientName: p ? fullName(p) : f.patientName,
       phone: p?.phone || f.phone,
+      email: p?.email || f.email,
     }));
   }
 
@@ -220,8 +222,10 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
     const noteSuffix = form.category === 'misha' ? ' [Skinnonest Makeup Artist Partnership · Vishw]' : ' [Aura Clinic Consultation · Dr. Aditya Shah]';
     onSubmit({
       leadId: form.leadId ? Number(form.leadId) : null,
+      category: form.category,
       patientName: form.patientName.trim(),
       phone: form.phone || null,
+      email: form.email?.trim() || null,
       treatment: form.treatment || (form.category === 'misha' ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation'),
       branch: form.branch || null,
       startsAt: startsAt.toISOString(),
@@ -246,7 +250,7 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
               setForm((f) => ({
                 ...f,
                 category: cat,
-                treatment: cat === 'misha' ? 'Makeup Artist & Salon Partnership' : 'Clinical Consultation',
+                treatment: cat === 'misha' ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation',
                 branch: cat === 'misha' ? 'Online (Google Meet)' : 'Alkapuri Main Clinic',
               }));
             }}
@@ -271,6 +275,10 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
         <div className="co-field">
           <label className="co-label" htmlFor="co-phone">Phone</label>
           <input id="co-phone" className="co-input" value={form.phone} onChange={set('phone')} placeholder="+91 …" />
+        </div>
+        <div className="co-field co-span-2">
+          <label className="co-label" htmlFor="co-email">Email (optional)</label>
+          <input id="co-email" type="email" className="co-input" value={form.email} onChange={set('email')} placeholder="patient@example.com" />
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-treatment">Treatment / Service</label>
@@ -311,7 +319,8 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
       <div className="co-row" style={{ justifyContent: 'flex-end' }}>
         <button type="button" className="co-btn" onClick={onClose} disabled={busy}>Cancel</button>
         <button type="submit" className="co-btn co-btn-primary" disabled={busy}>
-          {busy ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />} Book appointment
+          {busy ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+          {busy ? 'Creating in Cal.com...' : 'Book appointment'}
         </button>
       </div>
     </form>
