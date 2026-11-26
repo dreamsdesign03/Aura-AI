@@ -1655,15 +1655,7 @@ export default function Leads() {
                   Contact Name
                 </th>
 
-                {/* 3. Lead Owner */}
-                <th
-                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
-                  style={{ width: "160px", minWidth: "160px" }}
-                >
-                  Lead Owner
-                </th>
-
-                {/* 4. Phone Number */}
+                {/* 3. Phone Number */}
                 <th
                   className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
                   style={{ width: "190px", minWidth: "190px" }}
@@ -1710,6 +1702,14 @@ export default function Leads() {
                   onClick={() => handleSort("company")}
                 >
                   <span className="inline-flex items-center justify-center gap-1">Company <SortIcon col="company"/></span>
+                </th>
+
+                {/* Lead Owner */}
+                <th
+                  className="px-4 py-3 text-center text-[11px] font-bold uppercase tracking-wider text-gray-600 border-r border-b border-gray-200 whitespace-nowrap"
+                  style={{ width: "160px", minWidth: "160px" }}
+                >
+                  Lead Owner
                 </th>
 
                 {/* 9. Designation */}
@@ -1829,20 +1829,6 @@ export default function Leads() {
                           )}
                         </div>
                       </div>
-                    </td>
-
-                    {/* 3. Lead Owner */}
-                    <td
-                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
-                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <span
-                        className="text-gray-800 font-medium text-[12px] truncate block text-center"
-                        title={lead.lead_owner || lead.leadOwner || leadNameStr}
-                      >
-                        {lead.lead_owner || lead.leadOwner || leadNameStr || "—"}
-                      </span>
                     </td>
 
                     {/* 4. Phone */}
@@ -2041,6 +2027,20 @@ export default function Leads() {
                           {cleanCompanyName(lead.company) || <span className="text-gray-300 font-normal">—</span>}
                         </span>
                       </div>
+                    </td>
+
+                    {/* Lead Owner */}
+                    <td
+                      className="px-4 py-2.5 border-r border-b border-gray-100 text-[12px] text-center"
+                      style={{ width: "160px", minWidth: "160px", maxWidth: "160px" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <span
+                        className="text-gray-800 font-medium text-[12px] truncate block text-center"
+                        title={lead.lead_owner || lead.leadOwner || leadNameStr}
+                      >
+                        {lead.lead_owner || lead.leadOwner || leadNameStr || "—"}
+                      </span>
                     </td>
 
                     {/* 9. Designation */}
