@@ -1247,17 +1247,60 @@ function registerWhatsAppRoutes(app, resolveUserId) {
           try {
             console.log("[WHATSAPP STATUS UPDATE]:", statusObj.id, "->", statusObj.status);
             const statusErr = statusObj.status === 'failed' && Array.isArray(statusObj.errors) ? statusObj.errors[0] : null;
-            if (statusErr) {
-              // 131026 = recipient not on WhatsApp
-              const failStatus = Number(statusErr.code) === 131026 ? 'not_whatsapp' : 'failed';
-              await db.query(
-                'UPDATE whatsapp_messages SET status = $1, error_code = $2, error_message = $3 WHERE meta_message_id = $4 OR wa_message_id = $4',
-                [failStatus, String(statusErr.code), statusErr.error_data?.details || statusErr.message || statusErr.title || null, statusObj.id]
-              );
-            } else {
-              await db.query('UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2 OR wa_message_id = $2', [statusObj.status, statusObj.id]);
+            const targetStatus = statusErr
+              ? (Number(statusErr.code) === 131026 ? 'not_whatsapp' : 'failed')
+              : statusObj.status;
+            const errCode = statusErr && statusErr.code != null ? String(statusErr.code) : null;
+            const errMsg = statusErr ? (statusErr.error_data?.details || statusErr.message || statusErr.title || null) : null;
+
+            const upd = statusErr
+              ? await db.query(
+                  'UPDATE whatsapp_messages SET status = $1, error_code = $2, error_message = $3 WHERE meta_message_id = $4 OR wa_message_id = $4 RETURNING id',
+                  [targetStatus, errCode, errMsg, statusObj.id]
+                )
+              : await db.query(
+                  'UPDATE whatsapp_messages SET status = $1 WHERE meta_message_id = $2 OR wa_message_id = $2 RETURNING id',
+                  [targetStatus, statusObj.id]
+                );
+
+            // If Meta delivered an outbound status for a message sent outside Aura's /send route
+            // (e.g. n8n automation or Meta Business Suite on +91 84900 33711), log it so it appears in Inbox.
+            if (upd.rows.length === 0 && statusObj.recipient_id && statusObj.id) {
+              const recipientPhone = cleanPhoneNumber(statusObj.recipient_id);
+              if (recipientPhone && !isOwnWhatsAppNumber(recipientPhone)) {
+                const leadId = await findLeadIdByPhone(recipientPhone);
+                const previewText = 'Outbound WhatsApp message sent from +91 84900 33711';
+                const convId = await findOrCreateWhatsAppConversation({
+                  leadId,
+                  phone: recipientPhone,
+                  content: previewText,
+                  direction: 'outbound',
+                });
+                const rawTs = Number(statusObj.timestamp);
+                const sentAt = Number.isFinite(rawTs) && rawTs > 0
+                  ? new Date(rawTs > 1e12 ? rawTs : rawTs * 1000)
+                  : new Date();
+                const saved = await persistWhatsAppMessage({
+                  conversationId: convId,
+                  leadId,
+                  phone: recipientPhone,
+                  direction: 'outbound',
+                  content: previewText,
+                  metaMessageId: statusObj.id,
+                  status: targetStatus,
+                  sentAt,
+                });
+                if (statusErr && saved?.id) {
+                  await db.query(
+                    'UPDATE whatsapp_messages SET error_code = $1, error_message = $2 WHERE id = $3',
+                    [errCode, errMsg, saved.id]
+                  );
+                }
+              }
             }
-          } catch {}
+          } catch (stErr) {
+            console.warn('[WHATSAPP STATUS UPDATE] error:', stErr.message);
+          }
         }
       }
 

@@ -833,9 +833,9 @@ function ThreadDrawer({ thread, onClose }) {
                             boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
                           }}
                         >
-                          {/* Sender badge (Aura AI vs Clinic Team) */}
+                          {/* Sender badge (Aura AI vs Clinic Team) + official sender number */}
                           {isOut && (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4, flexWrap: 'wrap' }}>
                               <span style={{
                                 fontSize: 9.5,
                                 fontWeight: 700,
@@ -850,6 +850,9 @@ function ThreadDrawer({ thread, onClose }) {
                               }}>
                                 {m.isAi ? <Sparkles size={9} /> : <User size={9} />}
                                 {m.isAi ? 'Aura AI' : 'Clinic Team'}
+                              </span>
+                              <span style={{ fontSize: 9.5, fontWeight: 600, color: '#047857' }}>
+                                From: +91 84900 33711
                               </span>
                             </div>
                           )}

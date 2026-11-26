@@ -7405,15 +7405,36 @@ app.post('/api/whatsapp/send', async (req, res) => {
     // Upsert conversation & insert message into PostgreSQL
     let convId = null;
     try {
-      let convRes = await db.query(`SELECT id FROM whatsapp_conversations WHERE lead_id = $1 OR wa_phone_number = $2`, [lead?.id || leadId || null, phone]);
+      const cleanDigits = phone.replace(/\D/g, '');
+      const last10 = cleanDigits.length > 10 ? cleanDigits.slice(-10) : cleanDigits;
+      let convRes = await db.query(
+        `SELECT id FROM whatsapp_conversations
+          WHERE (lead_id IS NOT NULL AND lead_id = $1)
+             OR wa_phone_number = $2
+             OR phone = $2
+             OR ($3 <> '' AND REPLACE(REPLACE(REPLACE(COALESCE(phone, wa_phone_number, ''), '+', ''), '-', ''), ' ', '') LIKE '%' || $3)
+          ORDER BY id DESC LIMIT 1`,
+        [lead?.id || leadId || 0, phone, last10]
+      );
       if (convRes.rows[0]) {
         convId = convRes.rows[0].id;
-        await db.query(`UPDATE whatsapp_conversations SET state = 'outbound_sent', lead_id = COALESCE(lead_id, $1), wa_phone_number = COALESCE(wa_phone_number, $2), updated_at = NOW() WHERE id = $3`, [lead?.id || leadId || null, phone, convId]);
+        await db.query(
+          `UPDATE whatsapp_conversations
+              SET state = 'outbound_sent',
+                  last_message = $1,
+                  last_message_at = NOW(),
+                  lead_id = COALESCE(lead_id, $2),
+                  phone = COALESCE(phone, $3),
+                  wa_phone_number = COALESCE(wa_phone_number, $3),
+                  updated_at = NOW()
+            WHERE id = $4`,
+          [finalBody.trim(), lead?.id || leadId || null, phone, convId]
+        );
       } else {
         let newConv = await db.query(
-          `INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, state, status, last_message_at, created_at, updated_at)
-           VALUES ($1, $2, $2, 'outbound_sent', 'Active', NOW(), NOW(), NOW()) RETURNING id`,
-          [lead?.id || leadId || null, phone]
+          `INSERT INTO whatsapp_conversations (lead_id, phone, wa_phone_number, last_message, state, status, last_message_at, created_at, updated_at)
+           VALUES ($1, $2, $2, $3, 'outbound_sent', 'Active', NOW(), NOW(), NOW()) RETURNING id`,
+          [lead?.id || leadId || null, phone, finalBody.trim()]
         );
         convId = newConv.rows[0]?.id;
       }
