@@ -69,6 +69,7 @@ export default function Leads() {
     const qc = useQueryClient();
     const { toast } = useToast();
     const currentUser = useAuthUser();
+    const isAdmin = useIsAdmin();
     const [loadingLeads, setLoadingLeads] = useState(new Set());
     const [scoreErrors, setScoreErrors] = useState(new Map());
     const initiateWa = useInitiateWhatsApp();
@@ -1908,6 +1909,7 @@ export default function Leads() {
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0" />
                             Called
                           </span>
+                          {isAdmin && (
                           <button
                             type="button"
                             onClick={() => setViewCallsLead(lead)}
@@ -1916,6 +1918,7 @@ export default function Leads() {
                           >
                             Logs
                           </button>
+                          )}
                         </div>
                       ) : cleanPhone ? (
                         <div className="flex items-center justify-center gap-1.5 whitespace-nowrap">
