@@ -945,7 +945,7 @@ router.get('/appointments', requireUser, async (req, res) => {
         if (linked) {
           a.call_id = linked.id;
           a.call_review_id = linked.id;
-          a.recording_url = linked.recording_url || null;
+          a.recording_url = isAdmin ? (linked.recording_url || null) : null;
           a.transcript = isAdmin ? (linked.transcript || null) : null;
           a.transcript_summary = isAdmin ? (linked.transcript_summary || null) : null;
           a.call_status = linked.status || null;
@@ -4130,6 +4130,7 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
       if (!canViewTranscript) {
         call.transcript = null;
         call.transcript_summary = null;
+        call.recording_url = null;
       }
       return res.json({
         type: 'call',
@@ -5323,7 +5324,7 @@ router.get('/call-review', requireUser, async (req, res) => {
         transcript_summary: canViewTranscript ? c.transcript_summary : null,
         turn_count: canViewTranscript ? c.turn_count : 0,
         display_name: cleanEnglishName(c.display_name || c.lead_name || 'Patient'),
-        recording_url: rec
+        recording_url: canViewTranscript ? rec : null
       };
     });
 
@@ -5420,8 +5421,10 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     if (!canViewTranscript) {
       call.transcript = null;
       call.transcript_summary = null;
+      call.recording_url = null;
       relatedCalls = relatedCalls.map((rc) => ({
         ...rc,
+        recording_url: null,
         transcript_summary: null,
         turn_count: 0,
       }));

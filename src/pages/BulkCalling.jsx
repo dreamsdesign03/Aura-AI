@@ -615,14 +615,14 @@ function BulkCallDetail({ id, onBack }) {
                           <div className="text-[11px] text-gray-600 italic border-l-2 border-gray-200 pl-2 my-2">{a.summary || 'No summary provided.'}</div>
                         </>
                       )}
-                      {(a.recording_url || (isAdmin && a.transcript?.length)) && (
+                      {isAdmin && (a.recording_url || a.transcript?.length) && (
                         <div className="mt-3 flex items-center gap-3 flex-wrap">
                           {a.recording_url && (
                             <a href={a.recording_url} target="_blank" rel="noreferrer" className="text-[11px] font-bold text-pink-600 flex items-center gap-1 hover:underline">
                               <Play className="w-3 h-3" /> Recording
                             </a>
                           )}
-                          {isAdmin && a.transcript?.length && (
+                          {a.transcript?.length && (
                             <span className="text-[11px] font-medium text-green-600 flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3" /> Transcript available
                             </span>

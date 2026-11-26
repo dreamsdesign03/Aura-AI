@@ -4015,7 +4015,7 @@ function AiCallHistoryView({ leadId, leadPhone }) {
               </div>
             )}
 
-            {isCompleted && call.recording_url && (
+            {isAdmin && isCompleted && call.recording_url && (
               <div className="pt-1">
                 <div className="text-[10px] font-semibold text-gray-500 mb-1">Audio Recording</div>
                 <audio controls src={call.recording_url} className="w-full h-8 rounded bg-gray-50 border border-gray-200" />

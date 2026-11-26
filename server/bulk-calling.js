@@ -85,6 +85,9 @@ router.get('/calls/transcript', requireUserCookie, async (req, res) => {
 
 // Call audio (WAV), proxied so the API key never reaches the browser.
 router.get('/calls/recording', requireUserCookie, async (req, res) => {
+  if (!isAdminRole(req.userRole, req.user)) {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
   try {
     const iid = String(req.query.iid || '');
     if (!validInteractionId(iid)) return res.status(400).json({ error: 'invalid iid' });
@@ -209,7 +212,7 @@ function decorateConversation(row, { includeTranscript = false, canViewTranscrip
     started_at: row.started_at,
     duration_secs: row.duration_secs || 0,
     transcript_summary: canViewTranscript ? row.transcript_summary : null,
-    recording_url: row.recording_url,
+    recording_url: canViewTranscript ? row.recording_url : null,
     sentiment: row.sentiment,
     pipeline_stage: row.pipeline_stage,
     turn_count: canViewTranscript ? (Number(row.turn_count) || 0) : 0,
@@ -957,6 +960,7 @@ router.get('/:id/contacts/:contactId/attempts', requireUserCookie, async (req, r
       for (const a of attempts.rows) {
         a.transcript = [];
         a.summary = null;
+        a.recording_url = null;
       }
     }
 

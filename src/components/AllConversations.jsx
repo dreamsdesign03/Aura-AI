@@ -438,7 +438,7 @@ function ConversationCard({ conversation: c, expanded, detail, loadingDetail, on
                 </div>
               ))}
 
-              {c.recording_url && (
+              {isAdmin && c.recording_url && (
                 <div className="mt-3">
                   <a
                     href={c.recording_url}

@@ -420,7 +420,7 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
         ) : null}
 
         {/* Audio Recording Playback — If available from AI Call */}
-        {appointment.recording_url && (
+        {isAdmin && appointment.recording_url && (
           <div style={{ background: '#FFF5F8', border: '1px solid #F3D9E5', borderRadius: 10, padding: '12px 14px' }}>
             <div className="co-spread" style={{ marginBottom: 6 }}>
               <div className="co-label" style={{ color: '#A4285E', display: 'flex', alignItems: 'center', gap: 6 }}>

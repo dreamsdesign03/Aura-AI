@@ -1245,6 +1245,7 @@ app.get('/api/appointments', async (req, res) => {
       for (const a of appts) {
         a.transcript = null;
         a.transcript_summary = null;
+        a.recording_url = null;
       }
     }
 
@@ -3286,8 +3287,8 @@ app.get('/api/ai-calls', async (req, res) => {
         duration: c.duration_secs || 0,
         transcriptSummary: canViewTranscript ? (c.transcript_summary || '') : '',
         transcript,
-        recordingUrl: c.recording_url || '',
-        recording_url: c.recording_url || '',
+        recordingUrl: canViewTranscript ? (c.recording_url || '') : '',
+        recording_url: canViewTranscript ? (c.recording_url || '') : '',
         outcome: c.outcome || '',
         sentiment: c.sentiment || '',
         updatedAt: c.updated_at

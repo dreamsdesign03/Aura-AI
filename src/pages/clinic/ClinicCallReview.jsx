@@ -855,6 +855,7 @@ export default function ClinicCallReview({ id }) {
           </Card>
 
           {/* Audio Recording */}
+          {isAdmin && (
           <Card>
             <CardHead title="Audio Recording Playback" />
             {call.recording_url ? (
@@ -874,6 +875,7 @@ export default function ClinicCallReview({ id }) {
               </div>
             )}
           </Card>
+          )}
 
           {/* AI Clinical Summary */}
           {isAdmin && (
