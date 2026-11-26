@@ -28,7 +28,7 @@ async function handleDirectCallWebhook(payload) {
   const customerPhoneRaw = isInbound 
     ? (payload.caller_number || payload.user_phone_number || payload.from_number || '')
     : (payload.user_phone_number || payload.user_config?.user_phone_number || payload.phone_number || '');
-  const botPhone = payload.bot_contact_identifier || process.env.SARVAM_AGENT_NUMBER || '+917965852999';
+  const botPhone = payload.bot_contact_identifier || process.env.SARVAM_PLIVO_AGENT_NUMBER || '+918065587555';
   
   const toPhone = isInbound ? botPhone : customerPhoneRaw;
   const fromPhone = isInbound ? customerPhoneRaw : botPhone;

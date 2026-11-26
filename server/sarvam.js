@@ -92,7 +92,7 @@ function buildAgentVars({ name, phone, email, city, agentType, existingAppointme
     vars.brandOneLiner = 'Skinnonest works with makeup artists, salons and skin clinics';
     vars.productList = 'Sunscreen, Face Wash, Moisturising Cream, Shampoo';
     vars.productsAndBenefits = 'Derma and cosmeceutical skincare tailored for salons, makeup artists and skin clinics';
-    vars.contactNumber = process.env.SARVAM_AGENT_NUMBER || '+917965852999';
+    vars.contactNumber = process.env.SARVAM_PLIVO_AGENT_NUMBER || '+918065587555';
     vars.contactEmail = 'support@skinnonest.com';
     vars.preferredCallbackWindow = 'Monday to Saturday, 10:00 AM to 6:00 PM IST';
     vars.vishwTimings = '11:00 AM to 6:00 PM IST';
@@ -152,12 +152,8 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata, appId, appVersion
 
   const isMisha = agentType === 'makeup_artist' || appId === 'Misha-Skinn-4e9816f8-ead9';
   const resolvedAppId = isMisha ? 'Misha-Skinn-4e9816f8-ead9' : (appId || process.env.SARVAM_APP_ID);
-  const resolvedConnectionId = isMisha
-    ? (process.env.SARVAM_MISHA_CONNECTION_ID || 'Plivo-Krish-2edc0fee-cca4')
-    : process.env.SARVAM_CONNECTION_ID;
-  const resolvedAgentNumber = isMisha
-    ? (process.env.SARVAM_MISHA_AGENT_NUMBER || '+918065587555')
-    : process.env.SARVAM_AGENT_NUMBER;
+  const resolvedConnectionId = process.env.SARVAM_PLIVO_CONNECTION_ID || 'Plivo-Krish-2edc0fee-cca4';
+  const resolvedAgentNumber = process.env.SARVAM_PLIVO_AGENT_NUMBER || '+918065587555';
 
   const appConfig = {
     app_id: resolvedAppId,
@@ -496,6 +492,8 @@ function buildRetryConfig(r) {
 }
 
 function buildSarvamCampaignBody({ name, description, settings, startIso, endIso, webhookUrl, metadata }) {
+  const bulkConnectionId = process.env.SARVAM_PLIVO_CONNECTION_ID || 'Plivo-Krish-2edc0fee-cca4';
+  const bulkAgentNumber = process.env.SARVAM_PLIVO_AGENT_NUMBER || '+918065587555';
   return {
     name: String(name || 'AuraAI campaign').slice(0, 100),
     description: description ? String(description).slice(0, 150) : null,
@@ -505,11 +503,11 @@ function buildSarvamCampaignBody({ name, description, settings, startIso, endIso
       app_version: Number(process.env.SARVAM_APP_VERSION),
       attempts_per_second: settings.attemptsPerSecond,
       connection_configs: [{
-        connection_id: process.env.SARVAM_CONNECTION_ID,
-        phone_numbers: [process.env.SARVAM_AGENT_NUMBER],
+        connection_id: bulkConnectionId,
+        phone_numbers: [bulkAgentNumber],
         weight: 1,
-        phone_number: process.env.SARVAM_AGENT_NUMBER,
-        agent_phone_number: process.env.SARVAM_AGENT_NUMBER
+        phone_number: bulkAgentNumber,
+        agent_phone_number: bulkAgentNumber
       }],
       retry_config: buildRetryConfig(settings.retry),
       // Sarvam's docs place webhook_config both top-level and inside app_config; send it in both.
