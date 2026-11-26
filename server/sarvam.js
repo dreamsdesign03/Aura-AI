@@ -152,12 +152,18 @@ async function dispatchSarvamCall({ phoneE164, vars, metadata, appId, appVersion
 
   const isMisha = agentType === 'makeup_artist' || appId === 'Misha-Skinn-4e9816f8-ead9';
   const resolvedAppId = isMisha ? 'Misha-Skinn-4e9816f8-ead9' : (appId || process.env.SARVAM_APP_ID);
+  const resolvedConnectionId = isMisha
+    ? (process.env.SARVAM_MISHA_CONNECTION_ID || 'Plivo-Krish-2edc0fee-cca4')
+    : process.env.SARVAM_CONNECTION_ID;
+  const resolvedAgentNumber = isMisha
+    ? (process.env.SARVAM_MISHA_AGENT_NUMBER || '+918065587555')
+    : process.env.SARVAM_AGENT_NUMBER;
 
   const appConfig = {
     app_id: resolvedAppId,
     connection_config: {
-      connection_id: process.env.SARVAM_CONNECTION_ID,
-      agent_phone_number: process.env.SARVAM_AGENT_NUMBER
+      connection_id: resolvedConnectionId,
+      agent_phone_number: resolvedAgentNumber
     },
     agent_variables: vars || {}
   };
