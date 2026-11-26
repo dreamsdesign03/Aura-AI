@@ -12,6 +12,7 @@ import { clinicApi, datetimeLabel, dateLabel, timeLabel, formatMetaTime, cleanEn
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, Spinner, Drawer, EmptyState } from '@/clinic/ui';
 import { useBranch } from '@/contexts/BranchContext';
+import { useIsAdmin } from '@/contexts/AuthContext';
 import { MetaAvatar, ChannelBadge } from '@/components/MetaAvatar';
 
 function InstagramIcon({ size = 16, color = "currentColor", ...props }) {
@@ -522,6 +523,7 @@ function ThreadRow({ thread, isSelected, onClick }) {
 }
 
 function ThreadDrawer({ thread, onClose }) {
+  const isAdmin = useIsAdmin();
   const queryClient = useQueryClient();
   const [replyText, setReplyText] = useState('');
   const [useMetaTemplate, setUseMetaTemplate] = useState(false);
@@ -1410,7 +1412,7 @@ function ThreadDrawer({ thread, onClose }) {
                   </Link>
                 </div>
 
-                {detail?.summary && (
+                {isAdmin && detail?.summary && (
                   <div>
                     <div className="co-label" style={{ marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
                       <Sparkles size={12} style={{ color: '#A4285E' }} /> Call Summary
@@ -1431,6 +1433,7 @@ function ThreadDrawer({ thread, onClose }) {
                   </div>
                 )}
 
+                {isAdmin && (
                 <div>
                   <div className="co-label" style={{ marginBottom: 6 }}>Full AI Dialogue Transcript</div>
                   <div
@@ -1453,6 +1456,7 @@ function ThreadDrawer({ thread, onClose }) {
                     {renderTranscriptContent(detail?.transcript)}
                   </div>
                 </div>
+                )}
               </div>
             )}
 

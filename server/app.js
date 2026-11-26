@@ -1239,6 +1239,15 @@ app.get('/api/appointments', async (req, res) => {
       console.warn('[GET /api/appointments] call join warning:', joinErr.message);
     }
 
+    const actor = await getRequestActor(req);
+    const canViewTranscript = actor ? isAdminRole(actor.role, actor.user) : false;
+    if (!canViewTranscript) {
+      for (const a of appts) {
+        a.transcript = null;
+        a.transcript_summary = null;
+      }
+    }
+
     res.json(appts);
   } catch (err) {
     console.error('[GET /api/appointments error]:', err.message);
@@ -3241,6 +3250,9 @@ app.post('/api/ai-call', async (req, res) => {
 // directly; do not query the legacy ElevenLabs API for Sarvam conversation IDs.
 app.get('/api/ai-calls', async (req, res) => {
   try {
+    const actor = await getRequestActor(req);
+    const canViewTranscript = actor ? isAdminRole(actor.role, actor.user) : false;
+
     const leadId = req.query.leadId != null ? Number.parseInt(req.query.leadId, 10) : null;
     if (req.query.leadId != null && (!Number.isInteger(leadId) || leadId <= 0)) {
       return res.status(400).json({ error: 'Invalid leadId' });
@@ -3251,8 +3263,8 @@ app.get('/api/ai-calls', async (req, res) => {
       : 'SELECT * FROM ai_calls ORDER BY started_at DESC NULLS LAST, created_at DESC LIMIT 100';
     const dbRes = await db.query(queryText, leadId ? [leadId] : []);
     const formatted = dbRes.rows.map((c) => {
-      let transcript = c.transcript || [];
-      if (typeof transcript === 'string') {
+      let transcript = canViewTranscript ? (c.transcript || []) : [];
+      if (canViewTranscript && typeof transcript === 'string') {
         try { transcript = JSON.parse(transcript || '[]'); } catch { transcript = []; }
       }
       return {
@@ -3272,7 +3284,7 @@ app.get('/api/ai-calls', async (req, res) => {
         agentType: c.agent_type || (c.provider === 'plivo' ? 'plivo' : 'customer'),
         startedAt: c.started_at || c.created_at,
         duration: c.duration_secs || 0,
-        transcriptSummary: c.transcript_summary || '',
+        transcriptSummary: canViewTranscript ? (c.transcript_summary || '') : '',
         transcript,
         recordingUrl: c.recording_url || '',
         recording_url: c.recording_url || '',

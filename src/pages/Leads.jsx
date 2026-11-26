@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx-js-style";
 import { Link, useLocation } from "wouter";
 import { useListLeads, useCreateLead, useDeleteLead, useBulkUpdateLeads, useImportLeadsPaste, useImportLeadsCsv, useGetLead, useUpdateLead, useListSequences, useInitiateWhatsApp, useInitiateWhatsAppBulk, useListIcps, useListTeamMembers, useLeadAssigneeCounts, } from "@workspace/api-client-react";
-import { useAuthUser } from "@/contexts/AuthContext";
+import { useAuthUser, useIsAdmin } from "@/contexts/AuthContext";
 import { getListLeadsQueryKey, getLeadAssigneeCountsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -3796,6 +3796,7 @@ function normalizeCallTranscript(rawTranscript) {
 }
 
 function AiCallHistoryView({ leadId, leadPhone }) {
+  const isAdmin = useIsAdmin();
   const [calls, setCalls] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [expandedTranscriptId, setExpandedTranscriptId] = useState(null);
@@ -4007,7 +4008,7 @@ function AiCallHistoryView({ leadId, leadPhone }) {
               </div>
             )}
 
-            {fallbackSummary && (
+            {isAdmin && fallbackSummary && (
               <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 text-gray-700 space-y-1">
                 <div className="text-[10px] font-bold text-pink-600 uppercase tracking-wider">AI Call Summary</div>
                 <p className="text-[11px] leading-relaxed text-gray-700">{fallbackSummary}</p>
@@ -4021,7 +4022,7 @@ function AiCallHistoryView({ leadId, leadPhone }) {
               </div>
             )}
 
-            {call.transcript && Array.isArray(call.transcript) && call.transcript.length > 0 && (
+            {isAdmin && call.transcript && Array.isArray(call.transcript) && call.transcript.length > 0 && (
               <div>
                 <button
                   type="button"

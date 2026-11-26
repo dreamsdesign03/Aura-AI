@@ -933,6 +933,7 @@ router.get('/appointments', requireUser, async (req, res) => {
         }
       }
 
+      const isAdmin = isAdminRole(req.user?.accessRole, req.user);
       const persist = [];
       for (const a of all) {
         const last10 = callPhoneLast10(a.phone);
@@ -945,8 +946,8 @@ router.get('/appointments', requireUser, async (req, res) => {
           a.call_id = linked.id;
           a.call_review_id = linked.id;
           a.recording_url = linked.recording_url || null;
-          a.transcript = linked.transcript || null;
-          a.transcript_summary = linked.transcript_summary || null;
+          a.transcript = isAdmin ? (linked.transcript || null) : null;
+          a.transcript_summary = isAdmin ? (linked.transcript_summary || null) : null;
           a.call_status = linked.status || null;
           a.call_duration = linked.duration_secs || 0;
           a.call_outcome = linked.outcome || null;
@@ -2031,12 +2032,17 @@ router.get('/patients/:id', requireUser, async (req, res) => {
       db.query('SELECT * FROM clinic_visits WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY visit_date DESC LIMIT 20', [uid, leadId]),
     ]);
 
+    const isAdmin = isAdminRole(req.user?.accessRole, req.user);
+    const patientCalls = isAdmin
+      ? calls.rows
+      : calls.rows.map((c) => ({ ...c, transcript: null, transcript_summary: null }));
+
     res.json({
       patient: patientRow,
       notes: notes.rows,
       appointments: appointments,
       packages: packages.rows,
-      calls: calls.rows,
+      calls: patientCalls,
       visits: visits.rows,
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -3853,6 +3859,8 @@ router.get('/inbox', requireUser, async (req, res) => {
       });
     }
 
+    const canViewTranscript = isAdminRole(req.user?.accessRole, req.user);
+
     // AI Call Threads
     for (const row of (calls?.rows || [])) {
       threads.push({
@@ -3866,7 +3874,7 @@ router.get('/inbox', requireUser, async (req, res) => {
         durationSecs: row.duration_secs || 0,
         status: row.status || 'completed',
         lastAt: row.started_at,
-        preview: row.transcript_summary || `AI Call (${row.duration_secs || 0}s) — ${row.status || 'completed'}`,
+        preview: (canViewTranscript && row.transcript_summary) || `AI Call (${row.duration_secs || 0}s) — ${row.status || 'completed'}`,
       });
     }
 
@@ -4118,11 +4126,16 @@ router.get('/inbox/thread', requireUser, async (req, res) => {
       const callRes = await db.query('SELECT * FROM ai_calls WHERE id = $1', [id]);
       if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call record not found' });
       const call = callRes.rows[0];
+      const canViewTranscript = isAdminRole(req.user?.accessRole, req.user);
+      if (!canViewTranscript) {
+        call.transcript = null;
+        call.transcript_summary = null;
+      }
       return res.json({
         type: 'call',
         call,
-        transcript: call.transcript || call.transcript_summary || 'Dialogue completed.',
-        summary: call.transcript_summary
+        transcript: canViewTranscript ? (call.transcript || call.transcript_summary || 'Dialogue completed.') : null,
+        summary: canViewTranscript ? call.transcript_summary : null
       });
     }
 
@@ -5298,6 +5311,7 @@ router.get('/call-review', requireUser, async (req, res) => {
     const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const baseUrl = `${rawProto}://${host}`;
 
+    const canViewTranscript = isAdminRole(req.user?.accessRole, req.user);
     const formattedCalls = r.rows.map(c => {
       let rec = c.recording_url;
       if (rec && rec.includes('plivo.com')) {
@@ -5305,6 +5319,9 @@ router.get('/call-review', requireUser, async (req, res) => {
       }
       return {
         ...c,
+        transcript: canViewTranscript ? c.transcript : null,
+        transcript_summary: canViewTranscript ? c.transcript_summary : null,
+        turn_count: canViewTranscript ? c.turn_count : 0,
         display_name: cleanEnglishName(c.display_name || c.lead_name || 'Patient'),
         recording_url: rec
       };
@@ -5347,8 +5364,10 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
       call.recording_url = `${baseUrl}/api/clinic/dialer/plivo/recording-stream/${call.id}`;
     }
 
+    const canViewTranscript = isAdminRole(req.user?.accessRole, req.user);
+
     // Auto-fetch and cache Sarvam transcript if not already cached
-    if (call.provider === 'sarvam' && (!call.transcript || call.transcript.length === 0) && call.conversation_id) {
+    if (canViewTranscript && call.provider === 'sarvam' && (!call.transcript || call.transcript.length === 0) && call.conversation_id) {
       try {
         const { fetchSarvamTranscript } = require('./sarvam');
         const msgs = await fetchSarvamTranscript(call.conversation_id);
@@ -5363,7 +5382,7 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     }
 
     // Auto-transcribe Plivo calls if recording exists but transcript is missing
-    if (call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0) && ((call.transcription_status || 'pending') === 'pending' || (call.transcription_status === 'processing' && call.updated_at && new Date(call.updated_at).getTime() < Date.now() - 180000))) {
+    if (canViewTranscript && call.provider === 'plivo' && rawRecordingUrl && (!call.transcript || call.transcript.length === 0) && ((call.transcription_status || 'pending') === 'pending' || (call.transcription_status === 'processing' && call.updated_at && new Date(call.updated_at).getTime() < Date.now() - 180000))) {
       try {
         const trResult = await transcribePlivoRecording(call.id, rawRecordingUrl);
         if (trResult && trResult.transcript) {
@@ -5398,6 +5417,16 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
       relatedCalls = relRes.rows;
     }
 
+    if (!canViewTranscript) {
+      call.transcript = null;
+      call.transcript_summary = null;
+      relatedCalls = relatedCalls.map((rc) => ({
+        ...rc,
+        transcript_summary: null,
+        turn_count: 0,
+      }));
+    }
+
     res.json({ call, related_calls: relatedCalls });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -5407,6 +5436,9 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
 // Manual re-transcribe endpoint
 router.post('/call-review/:id/transcribe', requireUser, async (req, res) => {
   try {
+    if (!isAdminRole(req.user?.accessRole, req.user)) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
     const callRes = await db.query('SELECT * FROM ai_calls WHERE id = $1', [req.params.id]);
     if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     const call = callRes.rows[0];

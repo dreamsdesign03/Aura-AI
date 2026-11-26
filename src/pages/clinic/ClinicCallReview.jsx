@@ -9,6 +9,7 @@ import {
 import { clinicApi, dateLabel, timeLabel, datetimeLabel, fullName, cleanEnglishName } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner } from '@/clinic/ui';
+import { useIsAdmin } from '@/contexts/AuthContext';
 
 function formatDuration(sec) {
   if (!sec && sec !== 0) return '—';
@@ -285,6 +286,7 @@ function normalizeTranscriptTurns(rawTranscript) {
 }
 
 export default function ClinicCallReview({ id }) {
+  const isAdmin = useIsAdmin();
   const [, params] = useRoute('/clinic/call-review/:id');
   const activeId = id || params?.id;
 
@@ -666,7 +668,7 @@ export default function ClinicCallReview({ id }) {
                               </span>
                             )}
                           </div>
-                          {c.transcript_summary && (
+                          {isAdmin && c.transcript_summary && (
                             <div
                               title={c.transcript_summary}
                               style={{
@@ -874,6 +876,7 @@ export default function ClinicCallReview({ id }) {
           </Card>
 
           {/* AI Clinical Summary */}
+          {isAdmin && (
           <Card>
             <CardHead title="AI Clinical Summary & Discussion Notes" />
             {call.transcript_summary ? (
@@ -884,8 +887,10 @@ export default function ClinicCallReview({ id }) {
               <p className="co-sm co-mut">No AI summary generated for this call.</p>
             )}
           </Card>
+          )}
 
           {/* Conversation Dialogue Transcript */}
+          {isAdmin && (
           <Card>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
               <CardHead title="Full Conversation Transcript" hint={turns.length > 0 ? `${turns.length} message turn${turns.length === 1 ? '' : 's'}` : 'No turns'} />
@@ -969,6 +974,7 @@ export default function ClinicCallReview({ id }) {
               </div>
             )}
           </Card>
+          )}
         </div>
 
         {/* Sidebar Actions */}

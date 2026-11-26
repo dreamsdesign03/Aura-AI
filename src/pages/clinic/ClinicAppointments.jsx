@@ -13,6 +13,7 @@ import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
 import { cleanEmail } from '@/lib/emails';
 import { useBranch } from '@/contexts/BranchContext';
+import { useIsAdmin } from '@/contexts/AuthContext';
 
 export function getAppointmentCategory(a) {
   if (!a) return 'ria';
@@ -328,6 +329,7 @@ function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
 }
 
 function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDelete, onLinkedCall, busy, error }) {
+  const isAdmin = useIsAdmin();
   const [reschedule, setReschedule] = useState(false);
   const [date, setDate] = useState(toDateInput(new Date(appointment.starts_at)));
   const [time, setTime] = useState(toTimeInput(new Date(appointment.starts_at)));
@@ -439,7 +441,7 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
         )}
 
         {/* AI Clinical Summary Notes */}
-        {appointment.transcript_summary && (
+        {isAdmin && appointment.transcript_summary && (
           <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px' }}>
             <div className="co-spread" style={{ marginBottom: 6 }}>
               <div className="co-label" style={{ color: '#334155', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -462,7 +464,7 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
         )}
 
         {/* Full Conversation Dialogue Transcript */}
-        {turns.length > 0 && (
+        {isAdmin && turns.length > 0 && (
           <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 10, padding: '12px 14px' }}>
             <div className="co-spread" style={{ marginBottom: 10 }}>
               <div className="co-label" style={{ color: '#1E293B', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -632,6 +634,7 @@ function LinkCallModal({ appointment, onClose, onLinked }) {
     },
   });
 
+  const isAdmin = useIsAdmin();
   const calls = data?.calls || [];
 
   return (
@@ -681,7 +684,7 @@ function LinkCallModal({ appointment, onClose, onLinked }) {
                     {c.lead_name || 'Name not available'} · {c.to_phone || 'Number not available'}
                     {c.duration_secs ? ` · ${Math.round(c.duration_secs / 60)} min` : ''}
                   </div>
-                  {c.transcript_summary ? (
+                  {isAdmin && c.transcript_summary ? (
                     <div className="co-sm" style={{ marginTop: 4, color: '#334155', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.45, paddingBottom: 2 }}>
                       {c.transcript_summary}
                     </div>

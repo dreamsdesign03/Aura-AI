@@ -26,6 +26,8 @@ async function requireUserCookie(req, res, next) {
     if (role !== "admin" && role !== "leader") {
       return res.status(403).json({ error: 'Admin or Leader access required', code: 'ROLE_FORBIDDEN' });
     }
+    req.user = u.rows[0];
+    req.userRole = role;
     next();
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -35,6 +37,9 @@ async function requireUserCookie(req, res, next) {
 // Full conversation (original language) for one call, with database cache and Sarvam upstream.
 router.get('/calls/transcript', requireUserCookie, async (req, res) => {
   try {
+    if (!isAdminRole(req.userRole, req.user)) {
+      return res.json({ messages: [] });
+    }
     const iid = String(req.query.iid || '');
     if (!validInteractionId(iid)) return res.status(400).json({ error: 'invalid iid' });
 
@@ -181,10 +186,10 @@ function sourceWhere(source, params) {
   return '';
 }
 
-function decorateConversation(row, { includeTranscript = false } = {}) {
+function decorateConversation(row, { includeTranscript = false, canViewTranscript = true } = {}) {
   const source = deriveCallSource(row);
   const classification = classifyConversation(row);
-  const preview = transcriptToText(row.transcript).replace(/\s+/g, ' ').trim().slice(0, 220);
+  const preview = canViewTranscript ? transcriptToText(row.transcript).replace(/\s+/g, ' ').trim().slice(0, 220) : '';
 
   const out = {
     id: row.id,
@@ -203,12 +208,12 @@ function decorateConversation(row, { includeTranscript = false } = {}) {
     purpose: purposeLabel(row.booking_type),
     started_at: row.started_at,
     duration_secs: row.duration_secs || 0,
-    transcript_summary: row.transcript_summary,
+    transcript_summary: canViewTranscript ? row.transcript_summary : null,
     recording_url: row.recording_url,
     sentiment: row.sentiment,
     pipeline_stage: row.pipeline_stage,
-    turn_count: Number(row.turn_count) || 0,
-    has_transcript: Boolean(row.has_transcript),
+    turn_count: canViewTranscript ? (Number(row.turn_count) || 0) : 0,
+    has_transcript: canViewTranscript ? Boolean(row.has_transcript) : false,
     transcript_preview: preview,
     conversation_type: classification.type,
     conversation_type_label: classification.label,
@@ -217,11 +222,15 @@ function decorateConversation(row, { includeTranscript = false } = {}) {
   };
 
   if (includeTranscript) {
-    let turns = row.transcript;
-    if (typeof turns === 'string') {
-      try { turns = JSON.parse(turns); } catch { turns = []; }
+    if (!canViewTranscript) {
+      out.transcript = [];
+    } else {
+      let turns = row.transcript;
+      if (typeof turns === 'string') {
+        try { turns = JSON.parse(turns); } catch { turns = []; }
+      }
+      out.transcript = Array.isArray(turns) ? turns : [];
     }
-    out.transcript = Array.isArray(turns) ? turns : [];
   }
 
   return out;
@@ -385,8 +394,9 @@ router.get('/conversations', requireUserCookie, async (req, res) => {
       db.query(`SELECT COUNT(*)::int AS total FROM ai_calls ac LEFT JOIN leads l ON l.id = ac.lead_id${baseWhere}`, [userId]),
     ]);
 
-    const filtered = r.rows.map((row) => decorateConversation(row));
-    const allForCounts = globalRows.rows.map((row) => decorateConversation(row));
+    const canViewTranscript = isAdminRole(req.userRole, req.user);
+    const filtered = r.rows.map((row) => decorateConversation(row, { canViewTranscript }));
+    const allForCounts = globalRows.rows.map((row) => decorateConversation(row, { canViewTranscript }));
     const byType = { marketing_sales: 0, patient_consultation: 0, customer_care: 0 };
     const bySource = { bulk: 0, dialer: 0, inbound: 0, single: 0 };
     for (const c of allForCounts) {
@@ -428,12 +438,13 @@ router.get('/conversations/:id', requireUserCookie, async (req, res) => {
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Conversation not found' });
 
+    const canViewTranscript = isAdminRole(req.userRole, req.user);
     const row = r.rows[0];
-    let cachedTranscript = row.transcript;
-    if (typeof cachedTranscript === 'string') {
+    let cachedTranscript = canViewTranscript ? row.transcript : [];
+    if (canViewTranscript && typeof cachedTranscript === 'string') {
       try { cachedTranscript = JSON.parse(cachedTranscript); } catch { cachedTranscript = []; }
     }
-    if ((!Array.isArray(cachedTranscript) || cachedTranscript.length === 0) &&
+    if (canViewTranscript && (!Array.isArray(cachedTranscript) || cachedTranscript.length === 0) &&
         String(row.provider || '').toLowerCase() === 'sarvam' && row.conversation_id &&
         validInteractionId(row.conversation_id)) {
       try {
@@ -448,7 +459,7 @@ router.get('/conversations/:id', requireUserCookie, async (req, res) => {
       }
     }
     row.transcript = Array.isArray(cachedTranscript) ? cachedTranscript : [];
-    res.json({ conversation: decorateConversation(row, { includeTranscript: true }) });
+    res.json({ conversation: decorateConversation(row, { includeTranscript: true, canViewTranscript }) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -923,20 +934,29 @@ router.get('/:id/contacts/:contactId/attempts', requireUserCookie, async (req, r
       [req.params.contactId, req.params.id]
     );
 
-    // Backfill any attempt whose transcript was missing
-    for (const a of attempts.rows) {
-      if (!a.transcript || a.transcript === 'null' || (Array.isArray(a.transcript) && a.transcript.length === 0)) {
-        try {
-          const callMatch = await db.query(
-            `SELECT transcript, recording_url FROM ai_calls WHERE (conversation_id = $1 OR call_sid = $2 OR conversation_id = $2) AND transcript IS NOT NULL AND jsonb_typeof(transcript) != 'null' LIMIT 1`,
-            [a.interaction_id, a.request_id]
-          );
-          if (callMatch.rows.length > 0 && callMatch.rows[0].transcript) {
-            a.transcript = callMatch.rows[0].transcript;
-            a.recording_url = a.recording_url || callMatch.rows[0].recording_url;
-            db.query('UPDATE bulk_attempts SET transcript = $1, recording_url = COALESCE(recording_url, $2) WHERE id = $3', [JSON.stringify(a.transcript), a.recording_url, a.id]).catch(() => {});
-          }
-        } catch {}
+    const canViewTranscript = isAdminRole(req.userRole, req.user);
+
+    // Backfill any attempt whose transcript was missing (admin only)
+    if (canViewTranscript) {
+      for (const a of attempts.rows) {
+        if (!a.transcript || a.transcript === 'null' || (Array.isArray(a.transcript) && a.transcript.length === 0)) {
+          try {
+            const callMatch = await db.query(
+              `SELECT transcript, recording_url FROM ai_calls WHERE (conversation_id = $1 OR call_sid = $2 OR conversation_id = $2) AND transcript IS NOT NULL AND jsonb_typeof(transcript) != 'null' LIMIT 1`,
+              [a.interaction_id, a.request_id]
+            );
+            if (callMatch.rows.length > 0 && callMatch.rows[0].transcript) {
+              a.transcript = callMatch.rows[0].transcript;
+              a.recording_url = a.recording_url || callMatch.rows[0].recording_url;
+              db.query('UPDATE bulk_attempts SET transcript = $1, recording_url = COALESCE(recording_url, $2) WHERE id = $3', [JSON.stringify(a.transcript), a.recording_url, a.id]).catch(() => {});
+            }
+          } catch {}
+        }
+      }
+    } else {
+      for (const a of attempts.rows) {
+        a.transcript = [];
+        a.summary = null;
       }
     }
 

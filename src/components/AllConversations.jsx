@@ -4,6 +4,7 @@ import {
   ChevronDown, ChevronRight, Play, CheckCircle2, Clock, Sparkles,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useIsAdmin } from '@/contexts/AuthContext';
 
 const SOURCE_META = {
   all: { label: 'All calls' },
@@ -316,6 +317,7 @@ export default function AllConversations() {
 }
 
 function ConversationCard({ conversation: c, expanded, detail, loadingDetail, onToggle }) {
+  const isAdmin = useIsAdmin();
   const sourceMeta = SOURCE_META[c.source] || SOURCE_META.single;
   const typeMeta = TYPE_META[c.conversation_type] || {
     label: c.conversation_type_label || 'Unclassified',
@@ -362,16 +364,16 @@ function ConversationCard({ conversation: c, expanded, detail, loadingDetail, on
               {c.purpose && <span className="text-gray-400">· {c.purpose}</span>}
             </div>
 
-            {c.transcript_summary ? (
+            {isAdmin && (c.transcript_summary ? (
               <p className="mt-1.5 text-[11px] text-gray-600 line-clamp-2">{c.transcript_summary}</p>
             ) : c.transcript_preview ? (
               <p className="mt-1.5 text-[11px] text-gray-500 line-clamp-2">{c.transcript_preview}</p>
-            ) : null}
+            ) : null)}
           </div>
 
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
             <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-              {c.has_transcript && <CheckCircle2 className="w-3 h-3 text-green-500" />}
+              {isAdmin && c.has_transcript && <CheckCircle2 className="w-3 h-3 text-green-500" />}
               {c.conversation_confidence > 0 && <span>{Math.round(c.conversation_confidence * 100)}%</span>}
               {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
             </div>
@@ -401,7 +403,7 @@ function ConversationCard({ conversation: c, expanded, detail, loadingDetail, on
                 </span>
               </div>
 
-              {turns.length === 0 ? (
+              {isAdmin && (turns.length === 0 ? (
                 <div className="text-[11px] text-gray-400">
                   No transcript was stored for this call.
                 </div>
@@ -434,7 +436,7 @@ function ConversationCard({ conversation: c, expanded, detail, loadingDetail, on
                     );
                   })}
                 </div>
-              )}
+              ))}
 
               {c.recording_url && (
                 <div className="mt-3">
