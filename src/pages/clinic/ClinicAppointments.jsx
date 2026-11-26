@@ -355,11 +355,11 @@ function AppointmentPanel({ appointment, onClose, onStatus, onReschedule, onDele
           <StatusChip status={appointment.status} />
           {isMisha ? (
             <span className="co-chip" style={{ background: '#F5F3FF', color: '#7C3AED', borderColor: '#DDD6FE', fontWeight: 700 }}>
-              <Handshake size={11} /> Meeting: Vishw &amp; {patientCleanName}
+              <Handshake size={11} /> Meeting: {hostName} &amp; {patientCleanName}
             </span>
           ) : (
             <span className="co-chip" style={{ background: '#FDF2F8', color: '#CB3273', borderColor: '#FBCFE8', fontWeight: 700 }}>
-              <User size={11} /> Consultation: Dr. Aditya Shah &amp; {patientCleanName}
+              <User size={11} /> Consultation: {hostName} &amp; {patientCleanName}
             </span>
           )}
           {appointment.source ? (
@@ -1162,20 +1162,21 @@ export default function ClinicAppointments() {
                         >
                           {items.map((a) => {
                             const isMisha = getAppointmentCategory(a) === 'misha';
+                            const slotProvider = a.provider || (isMisha ? 'Vishw' : 'Dr. Aditya Shah');
                             return (
                               <button
                                 key={a.id}
                                 type="button"
                                 className={`co-slot ${a.status}`}
                                 onClick={(e) => { e.stopPropagation(); setSelected(a); }}
-                                title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)} (${isMisha ? 'Vishw · Skinnonest' : 'Dr. Aditya Shah · Aura Clinic'})`}
+                                title={`${getContactDisplayName(a)} · ${cleanEnglishTreatment(a.treatment)} (${slotProvider}${isMisha ? ' · Skinnonest' : ' · Aura Clinic'})`}
                                 style={isMisha ? { borderLeft: '3px solid #7C3AED', background: '#F5F3FF' } : { borderLeft: '3px solid #CB3273' }}
                               >
                                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
                                   <span style={{ fontWeight: 600 }}>{getContactDisplayName(a)}</span>
                                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2.5, fontSize: 9, fontWeight: 700, padding: '1px 5px', borderRadius: 4, background: isMisha ? '#EDE9FE' : '#FCE7F3', color: isMisha ? '#6D28D9' : '#BE185D' }}>
                                     {isMisha ? <Handshake size={9} /> : <User size={9} />}
-                                    {isMisha ? 'Vishw' : 'Dr. Aditya'}
+                                    {slotProvider}
                                   </span>
                                 </div>
                                 <small>
@@ -1305,11 +1306,11 @@ export default function ClinicAppointments() {
                           <td style={{ whiteSpace: 'nowrap' }}>
                             {getAppointmentCategory(a) === 'misha' ? (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#F5F3FF', color: '#7C3AED', border: '1px solid #DDD6FE' }}>
-                                <Handshake size={11} /> Vishw &amp; {getContactDisplayName(a)}
+                                <Handshake size={11} /> {a.provider || 'Vishw'} &amp; {getContactDisplayName(a)}
                               </span>
                             ) : (
                               <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10.5, fontWeight: 700, padding: '2.5px 8px', borderRadius: 9999, background: '#FDF2F8', color: '#CB3273', border: '1px solid #FBCFE8' }}>
-                                <User size={11} /> Dr. Aditya &amp; {getContactDisplayName(a)}
+                                <User size={11} /> {a.provider || 'Dr. Aditya Shah'} &amp; {getContactDisplayName(a)}
                               </span>
                             )}
                           </td>
