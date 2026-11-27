@@ -5547,6 +5547,7 @@ router.get('/call-review', requireUser, async (req, res) => {
 
 router.get('/call-review/:id', requireUser, async (req, res) => {
   try {
+    const isSuper = isAdminRole(req.user?.accessRole, req.user) || req.user?.accessRole === 'leader';
     const r = await db.query(
       `SELECT ac.*, 
               COALESCE(ac.lead_name, CONCAT_WS(' ', l.first_name, l.last_name), 'Patient') AS display_name,
@@ -5557,8 +5558,9 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
               COALESCE(ac.direction, 'outbound') AS direction
          FROM ai_calls ac
          LEFT JOIN leads l ON l.id = ac.lead_id
-        WHERE ac.id = $1 AND (l.user_id = $2 OR ac.lead_id IS NULL OR l.user_id IS NULL)`,
-      [req.params.id, req.user.id]
+        WHERE (ac.id::text = $1 OR ac.call_sid = $1 OR ac.conversation_id = $1)
+          AND (${isSuper ? '1=1' : '(l.user_id = $2 OR ac.lead_id IS NULL OR l.user_id IS NULL OR ac.agent_user_id = $2)'})`,
+      isSuper ? [String(req.params.id)] : [String(req.params.id), req.user.id]
     );
     if (r.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     const call = r.rows[0];
