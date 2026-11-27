@@ -2453,8 +2453,33 @@ router.post('/seed-demo', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 router.get('/settings', requireUser, async (req, res) => {
   try {
-    const r = await db.query('SELECT * FROM clinic_settings WHERE user_id = $1', [req.user.id]);
-    res.json({ settings: r.rows[0] || { branches: [], treatments: [], hours: {}, ai_notes: '', consent: {} } });
+    let r = await db.query('SELECT * FROM clinic_settings WHERE user_id = $1', [req.user.id]);
+    let row = r.rows[0];
+    if (!row || !Array.isArray(row.branches) || row.branches.length === 0) {
+      const shared = await db.query(
+        `SELECT * FROM clinic_settings
+          WHERE jsonb_typeof(branches) = 'array' AND jsonb_array_length(branches) > 0
+          ORDER BY updated_at DESC NULLS LAST, user_id ASC
+          LIMIT 1`
+      );
+      if (shared.rows[0]) {
+        row = shared.rows[0];
+      }
+    }
+    res.json({
+      settings: row || {
+        branches: [
+          { name: 'Alkapuri branch', isDefault: true },
+          { name: 'Manjalpur' },
+          { name: 'Waghodia Road' },
+          { name: 'Vasna Bhayli' },
+        ],
+        treatments: [],
+        hours: {},
+        ai_notes: '',
+        consent: {},
+      },
+    });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
