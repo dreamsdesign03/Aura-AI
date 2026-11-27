@@ -149,12 +149,53 @@ function PackageForm({ leadId }) {
 export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
   const qc = useQueryClient();
   const [tab, setTab] = useState('overview');
+  const [showAddVisit, setShowAddVisit] = useState(false);
+  const [visitForm, setVisitForm] = useState(() => {
+    const now = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    const localDt = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    return {
+      visitDate: localDt,
+      visitType: 'Consultation',
+      provider: 'Dr. Aditya Shah',
+      branch: 'Alkapuri Main Clinic',
+      outcome: 'completed',
+      notes: '',
+      nextSteps: '',
+    };
+  });
+  const [editingVisitId, setEditingVisitId] = useState(null);
+  const [editVisitNotes, setEditVisitNotes] = useState('');
+  const [editVisitNextSteps, setEditVisitNextSteps] = useState('');
+
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['clinic', 'patient', id],
     queryFn: () => clinicApi.patient(id),
     refetchInterval: 6_000,
     staleTime: 2_000,
     refetchOnWindowFocus: true,
+  });
+
+  const createVisit = useMutation({
+    mutationFn: (body) => clinicApi.createVisit(body),
+    onSuccess: () => {
+      setShowAddVisit(false);
+      setVisitForm((f) => ({ ...f, notes: '', nextSteps: '' }));
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+    },
+  });
+
+  const updateVisit = useMutation({
+    mutationFn: ({ visitId, body }) => clinicApi.updateVisit(visitId, body),
+    onSuccess: () => {
+      setEditingVisitId(null);
+      qc.invalidateQueries({ queryKey: ['clinic'] });
+    },
+  });
+
+  const deleteVisit = useMutation({
+    mutationFn: (visitId) => clinicApi.deleteVisit(visitId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['clinic'] }),
   });
 
   const useSession = useMutation({
@@ -341,25 +382,239 @@ export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
           ) : null}
 
           {tab === 'visits' ? (
-            <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div className="co-spread">
+                <span className="co-xs co-mut">
+                  Record clinic visits &amp; what the patient discussed at each visit.
+                </span>
+                <button
+                  type="button"
+                  className="co-btn co-btn-primary co-btn-sm"
+                  onClick={() => setShowAddVisit((v) => !v)}
+                >
+                  <Plus size={13} /> {showAddVisit ? 'Close' : 'Add Visit'}
+                </button>
+              </div>
+
+              {showAddVisit && (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!visitForm.visitDate) return;
+                    createVisit.mutate({
+                      leadId: Number(id),
+                      patientName: p ? getContactDisplayName(p) : 'Patient',
+                      phone: p?.phone || null,
+                      branch: visitForm.branch || null,
+                      provider: visitForm.provider || null,
+                      visitType: visitForm.visitType || 'Consultation',
+                      visitDate: new Date(visitForm.visitDate).toISOString(),
+                      notes: visitForm.notes.trim() || null,
+                      outcome: visitForm.outcome || 'completed',
+                      nextSteps: visitForm.nextSteps.trim() || null,
+                    });
+                  }}
+                  style={{
+                    background: '#FFF9FC',
+                    border: '1px solid #F3D9E5',
+                    borderRadius: 12,
+                    padding: 14,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 10,
+                  }}
+                >
+                  <div className="co-form-grid">
+                    <div className="co-field">
+                      <label className="co-label">Visit Date &amp; Time *</label>
+                      <input
+                        type="datetime-local"
+                        className="co-input"
+                        style={{ colorScheme: 'light' }}
+                        value={visitForm.visitDate}
+                        onChange={(e) => setVisitForm((f) => ({ ...f, visitDate: e.target.value }))}
+                        required
+                      />
+                    </div>
+                    <div className="co-field">
+                      <label className="co-label">Visit Type</label>
+                      <select
+                        className="co-input"
+                        style={{ colorScheme: 'light' }}
+                        value={visitForm.visitType}
+                        onChange={(e) => setVisitForm((f) => ({ ...f, visitType: e.target.value }))}
+                      >
+                        <option value="Consultation">Consultation</option>
+                        <option value="Follow-up">Follow-up</option>
+                        <option value="Treatment Session">Treatment Session</option>
+                        <option value="Procedure">Procedure</option>
+                        <option value="Review">Review</option>
+                      </select>
+                    </div>
+                    <div className="co-field">
+                      <label className="co-label">Doctor / Provider</label>
+                      <input
+                        className="co-input"
+                        value={visitForm.provider}
+                        onChange={(e) => setVisitForm((f) => ({ ...f, provider: e.target.value }))}
+                        placeholder="e.g. Dr. Aditya Shah"
+                      />
+                    </div>
+                    <div className="co-field">
+                      <label className="co-label">Branch</label>
+                      <input
+                        className="co-input"
+                        value={visitForm.branch}
+                        onChange={(e) => setVisitForm((f) => ({ ...f, branch: e.target.value }))}
+                        placeholder="e.g. Alkapuri Main Clinic"
+                      />
+                    </div>
+                    <div className="co-field co-span-2">
+                      <label className="co-label">Visit Note (What was discussed / patient feedback)</label>
+                      <textarea
+                        className="co-input"
+                        style={{ height: 'auto', padding: '8px 12px' }}
+                        rows={3}
+                        value={visitForm.notes}
+                        onChange={(e) => setVisitForm((f) => ({ ...f, notes: e.target.value }))}
+                        placeholder="e.g. Patient wants laser hair reduction package, asked for pricing next week..."
+                      />
+                    </div>
+                    <div className="co-field">
+                      <label className="co-label">Outcome</label>
+                      <select
+                        className="co-input"
+                        style={{ colorScheme: 'light' }}
+                        value={visitForm.outcome}
+                        onChange={(e) => setVisitForm((f) => ({ ...f, outcome: e.target.value }))}
+                      >
+                        <option value="completed">Completed</option>
+                        <option value="scheduled">Scheduled</option>
+                        <option value="no_show">No Show</option>
+                      </select>
+                    </div>
+                    <div className="co-field">
+                      <label className="co-label">Next Steps (Optional)</label>
+                      <input
+                        className="co-input"
+                        value={visitForm.nextSteps}
+                        onChange={(e) => setVisitForm((f) => ({ ...f, nextSteps: e.target.value }))}
+                        placeholder="e.g. Follow up in 7 days"
+                      />
+                    </div>
+                  </div>
+                  {createVisit.isError && (
+                    <div className="co-xs" style={{ color: '#B91C1C' }}>
+                      {createVisit.error?.message || 'Failed to save visit'}
+                    </div>
+                  )}
+                  <div className="co-row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+                    <button type="button" className="co-btn co-btn-sm" onClick={() => setShowAddVisit(false)}>
+                      Cancel
+                    </button>
+                    <button type="submit" className="co-btn co-btn-primary co-btn-sm" disabled={createVisit.isPending}>
+                      {createVisit.isPending ? 'Saving...' : 'Save Visit'}
+                    </button>
+                  </div>
+                </form>
+              )}
+
               {visits?.length === 0 ? (
                 <p className="co-sm co-mut">No visits recorded yet.</p>
               ) : (
                 <div className="co-list">
-                  {visits.map((v) => (
-                    <div className="co-list-item" key={v.id} style={{ flexDirection: 'column', alignItems: 'stretch' }}>
-                      <div className="co-spread">
-                        <span className="co-strong" style={{ fontSize: 13 }}>{v.visit_type || 'Visit'}</span>
-                        <StatusChip status={v.outcome || 'completed'} />
+                  {visits.map((v) => {
+                    const isEditingThis = editingVisitId === v.id;
+                    return (
+                      <div className="co-list-item" key={v.id} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+                        <div className="co-spread">
+                          <span className="co-strong" style={{ fontSize: 13 }}>{v.visit_type || 'Visit'}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <StatusChip status={v.outcome || 'completed'} />
+                            <button
+                              type="button"
+                              className="co-btn co-btn-sm co-btn-ghost"
+                              style={{ padding: '2px 6px', fontSize: 11 }}
+                              onClick={() => {
+                                if (isEditingThis) {
+                                  setEditingVisitId(null);
+                                } else {
+                                  setEditingVisitId(v.id);
+                                  setEditVisitNotes(v.notes || '');
+                                  setEditVisitNextSteps(v.next_steps || '');
+                                }
+                              }}
+                              title="Add or edit visit note"
+                            >
+                              <Pencil size={11} /> {v.notes ? 'Edit Note' : 'Add Note'}
+                            </button>
+                            <button
+                              type="button"
+                              className="co-btn co-btn-sm co-btn-ghost"
+                              style={{ padding: '2px 6px', color: '#DC2626' }}
+                              onClick={() => deleteVisit.mutate(v.id)}
+                              title="Delete visit"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                          </div>
+                        </div>
+                        <div className="co-xs co-mut">
+                          {v.visit_date ? `${dateLabel(v.visit_date)} · ${timeLabel(v.visit_date)}` : 'Date not set'}
+                          {v.branch ? ` · ${v.branch}` : ''}
+                          {v.provider ? ` · ${v.provider}` : ''}
+                        </div>
+
+                        {isEditingThis ? (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 }}>
+                            <textarea
+                              className="co-input"
+                              style={{ height: 'auto', padding: '6px 10px', fontSize: 12 }}
+                              rows={2}
+                              value={editVisitNotes}
+                              onChange={(e) => setEditVisitNotes(e.target.value)}
+                              placeholder="What was discussed during this visit..."
+                            />
+                            <input
+                              className="co-input"
+                              style={{ height: 30, fontSize: 12 }}
+                              value={editVisitNextSteps}
+                              onChange={(e) => setEditVisitNextSteps(e.target.value)}
+                              placeholder="Next steps (optional)"
+                            />
+                            <div className="co-row" style={{ justifyContent: 'flex-end', gap: 6 }}>
+                              <button type="button" className="co-btn co-btn-sm" onClick={() => setEditingVisitId(null)}>
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                className="co-btn co-btn-primary co-btn-sm"
+                                disabled={updateVisit.isPending}
+                                onClick={() => updateVisit.mutate({
+                                  visitId: v.id,
+                                  body: { notes: editVisitNotes.trim() || null, nextSteps: editVisitNextSteps.trim() || null },
+                                })}
+                              >
+                                {updateVisit.isPending ? 'Saving...' : 'Save Note'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <>
+                            {v.notes ? (
+                              <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '8px 10px', fontSize: 12, color: '#1E293B', whiteSpace: 'pre-wrap' }}>
+                                <span style={{ fontWeight: 700, fontSize: 10.5, color: '#64748B', display: 'block', marginBottom: 2 }}>VISIT NOTE</span>
+                                {v.notes}
+                              </div>
+                            ) : null}
+                            {v.next_steps ? (
+                              <div className="co-xs co-mut">Next: {v.next_steps}</div>
+                            ) : null}
+                          </>
+                        )}
                       </div>
-                      <div className="co-xs co-mut" style={{ marginTop: 3 }}>
-                        {dateLabel(v.visit_date)} · {v.branch ? ` · ${v.branch}` : ''}{v.provider ? ` · ${v.provider}` : ''}
-                      </div>
-                      {v.notes ? <div className="co-xs co-mut" style={{ marginTop: 3 }}>{v.notes}</div> : null}
-                      {v.outcome ? <div className="co-xs co-mut" style={{ marginTop: 3 }}>Outcome: {v.outcome}</div> : null}
-                      {v.next_steps ? <div className="co-xs co-mut" style={{ marginTop: 3 }}>Next: {v.next_steps}</div> : null}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

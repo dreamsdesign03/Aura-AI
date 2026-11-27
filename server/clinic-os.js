@@ -1579,15 +1579,31 @@ router.post('/appointments/reminders', async (req, res) => {
   router.patch('/visits/:id', requireUser, async (req, res) => {
     try {
       const uid = req.user.id;
-      const { patientName, phone, branch, provider, visitType, visitDate, notes, outcome, nextSteps, appointmentId } = req.body || {};
-      
-      const allowed = ['patientName', 'phone', 'branch', 'provider', 'visitType', 'visitDate', 'notes', 'outcome', 'nextSteps', 'appointmentId'];
+      const colMap = {
+        patientName: 'patient_name',
+        patient_name: 'patient_name',
+        phone: 'phone',
+        branch: 'branch',
+        provider: 'provider',
+        visitType: 'visit_type',
+        visit_type: 'visit_type',
+        visitDate: 'visit_date',
+        visit_date: 'visit_date',
+        notes: 'notes',
+        outcome: 'outcome',
+        nextSteps: 'next_steps',
+        next_steps: 'next_steps',
+        appointmentId: 'appointment_id',
+        appointment_id: 'appointment_id',
+      };
       const sets = [];
       const vals = [req.params.id, uid];
-      
+      const seenCols = new Set();
+
       for (const [k, v] of Object.entries(req.body || {})) {
-        const col = k;
-        if (!allowed.includes(k)) continue;
+        const col = colMap[k];
+        if (!col || seenCols.has(col) || v === undefined) continue;
+        seenCols.add(col);
         vals.push(v);
         sets.push(`${col} = $${vals.length}`);
       }
