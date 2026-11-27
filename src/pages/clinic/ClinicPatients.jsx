@@ -657,7 +657,11 @@ export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
 export default function ClinicPatients() {
   const [, params] = useRoute('/clinic/patients/:id');
   const qc = useQueryClient();
-  const { selectedBranch } = useBranch();
+  const { selectedBranch, branches } = useBranch();
+  const branchOptions = useMemo(() => {
+    const names = (branches || []).map((b) => b?.name).filter(Boolean);
+    return names.length > 0 ? names : ['Alkapuri Main Clinic', 'Vasna Branch', 'Virtual Consultation Hub'];
+  }, [branches]);
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
   const [openId, setOpenId] = useState(null);
@@ -1215,9 +1219,12 @@ export default function ClinicPatients() {
                   value={editForm.branch}
                   onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
                 >
-                  <option value="Alkapuri Main Clinic">Alkapuri Main Clinic</option>
-                  <option value="Vasna Branch">Vasna Branch</option>
-                  <option value="Virtual Consultation Hub">Virtual Consultation Hub</option>
+                  {editForm.branch && !branchOptions.includes(editForm.branch) && (
+                    <option value={editForm.branch}>{editForm.branch}</option>
+                  )}
+                  {branchOptions.map((bName) => (
+                    <option key={bName} value={bName}>{bName}</option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -1324,9 +1331,12 @@ export default function ClinicPatients() {
                   value={patientForm.branch}
                   onChange={(e) => setPatientForm({ ...patientForm, branch: e.target.value })}
                 >
-                  <option value="Alkapuri Main Clinic">Alkapuri Main Clinic</option>
-                  <option value="Vasna Branch">Vasna Branch</option>
-                  <option value="Virtual Consultation Hub">Virtual Consultation Hub</option>
+                  {patientForm.branch && !branchOptions.includes(patientForm.branch) && (
+                    <option value={patientForm.branch}>{patientForm.branch}</option>
+                  )}
+                  {branchOptions.map((bName) => (
+                    <option key={bName} value={bName}>{bName}</option>
+                  ))}
                 </select>
               </div>
             </div>
