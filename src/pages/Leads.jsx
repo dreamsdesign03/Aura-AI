@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import * as XLSX from "xlsx-js-style";
 import { Link, useLocation } from "wouter";
 import { useListLeads, useCreateLead, useDeleteLead, useBulkUpdateLeads, useImportLeadsPaste, useImportLeadsCsv, useGetLead, useUpdateLead, useListSequences, useInitiateWhatsApp, useInitiateWhatsAppBulk, useListIcps, useListTeamMembers, useLeadAssigneeCounts, } from "@workspace/api-client-react";
-import { useAuthUser, useIsAdmin } from "@/contexts/AuthContext";
+import { useAuthUser, useIsAdmin, useUserRole } from "@/contexts/AuthContext";
 import { getListLeadsQueryKey, getLeadAssigneeCountsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -11,7 +11,7 @@ import { StatusBadge } from "@/components/Badge";
 import { formatDate, statusLabel, statusColor, cleanCompanyName } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import { cleanEmail } from "@/lib/emails";
-import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing, List, KanbanSquare, HeartPulse } from "lucide-react";
+import { Plus, Search, Trash2, Upload, FileSpreadsheet, AlertTriangle, CheckCircle2, X, Download, ExternalLink, Globe, ArrowUpDown, ArrowUp, ArrowDown, Zap, Loader2, BarChart2, MessageCircle, Sparkles, Layers, ListPlus, Brain, ShieldAlert, RotateCcw, Users, Phone, Mail, ChevronDown, MoreVertical, SlidersHorizontal, WifiOff, Activity, Send, PhoneOutgoing, List, KanbanSquare, HeartPulse, Pencil } from "lucide-react";
 import { getContactInitials } from "@/lib/contactName";
 import { PipelineBoard } from "./Pipeline";
 import FetchLeads from "./FetchLeads";
@@ -71,6 +71,9 @@ export default function Leads() {
     const { toast } = useToast();
     const currentUser = useAuthUser();
     const isAdmin = useIsAdmin();
+    const userRole = useUserRole();
+    const [execEditLead, setExecEditLead] = useState(null);
+    const [execDeleteId, setExecDeleteId] = useState(null);
     const [loadingLeads, setLoadingLeads] = useState(new Set());
     const [scoreErrors, setScoreErrors] = useState(new Map());
     const initiateWa = useInitiateWhatsApp();
@@ -293,6 +296,18 @@ export default function Leads() {
     });
     const deleteLead = useDeleteLead({
         mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListLeadsQueryKey() }); qc.invalidateQueries({ queryKey: getLeadAssigneeCountsQueryKey() }); } },
+    });
+    const execUpdateLead = useUpdateLead({
+        mutation: {
+            onSuccess: () => {
+                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+                setExecEditLead(null);
+                toast({ title: "Contact updated" });
+            },
+            onError: (err) => {
+                toast({ title: "Update failed", description: err.message ?? "Could not update contact.", variant: "destructive" });
+            },
+        },
     });
     const bulkUpdate = useBulkUpdateLeads({
         mutation: {
@@ -1004,6 +1019,261 @@ export default function Leads() {
         setDeadPoolTotal(prev => Math.max(0, prev - 1));
         toast({ title: "Lead removed from dead pool" });
     };
+    if (userRole === "executive") {
+        const list = allLeads.length > 0 ? allLeads : leads;
+        return (
+            <div className="flex flex-col gap-3 pb-4">
+              {/* Search + Add Contact card */}
+              <div className="bg-white rounded-2xl border border-[#F3D9E5] shadow-sm p-3 flex flex-col gap-2.5">
+                <div className="relative flex items-center bg-[#FBF6F8] rounded-xl px-3 py-2 border border-[#F3D9E5]/60">
+                  <Search className="w-4 h-4 text-slate-400 shrink-0 mr-2" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search name, email or phone"
+                    className="w-full bg-transparent text-[13.5px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+                  />
+                  {search ? (
+                    <button
+                      type="button"
+                      onClick={() => setSearch("")}
+                      className="text-slate-400 hover:text-slate-600 ml-1"
+                      aria-label="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  ) : null}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowAdd(true)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#A4285E] hover:bg-[#8E2050] text-white text-[13.5px] font-semibold flex items-center justify-center gap-1.5 shadow-sm transition"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add contact</span>
+                </button>
+              </div>
+
+              {/* Clinic Phone Book list */}
+              <div className="bg-white rounded-2xl border border-[#F3D9E5] shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#F3D9E5]/70 flex items-center justify-between">
+                  <span className="text-[13.5px] font-bold text-slate-900">Clinic phone book</span>
+                  <span className="text-[12px] text-slate-500">{total} entries</span>
+                </div>
+
+                {isLoading && list.length === 0 ? (
+                  <div className="py-10 flex items-center justify-center text-slate-400 text-sm gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Loading contacts...</span>
+                  </div>
+                ) : list.length === 0 ? (
+                  <div className="py-10 text-center text-slate-500 text-sm">No contacts found.</div>
+                ) : (
+                  <div className="divide-y divide-slate-100">
+                    {list.map((lead) => {
+                      const displayName = [lead.firstName, lead.lastName].filter((x) => x && x !== "-").join(" ").trim() || lead.leadOwner || lead.company || "Contact";
+                      const phoneVal = lead.phone || lead.whatsapp || "";
+                      const initials = getContactInitials(lead);
+                      return (
+                        <div key={lead.id} className="px-3.5 py-2.5 flex items-center gap-3 hover:bg-[#FBF6F8]/60 transition">
+                          <div
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-[12px] font-bold shrink-0"
+                            style={{ background: "#FBE9F1", color: "#A4285E" }}
+                          >
+                            {initials}
+                          </div>
+                          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => navigate(`/leads/${lead.id}`)}>
+                            <div className="text-[13.5px] font-semibold text-slate-900 truncate">{displayName}</div>
+                            <div className="text-[12px] text-slate-500 truncate">{phoneVal || "No phone"}</div>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            {phoneVal ? (
+                              <button
+                                type="button"
+                                onClick={() => navigate(`/clinic/dialer?phone=${encodeURIComponent(phoneVal)}`)}
+                                title={`Call ${displayName}`}
+                                aria-label={`Call ${displayName}`}
+                                className="w-8 h-8 rounded-full flex items-center justify-center bg-[#EBF7F1] text-[#146C43] hover:bg-[#D5EFE2] transition"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => setExecEditLead({
+                                id: lead.id,
+                                firstName: lead.firstName || "",
+                                lastName: lead.lastName === "-" ? "" : (lead.lastName || ""),
+                                phone: lead.phone || "",
+                                email: lead.email || "",
+                              })}
+                              title="Edit contact"
+                              aria-label="Edit contact"
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-[#A4285E] hover:bg-[#FBE9F1] transition"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setExecDeleteId(lead.id)}
+                              title="Delete contact"
+                              aria-label="Delete contact"
+                              className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-red-600 hover:bg-red-50 transition"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Add Contact Modal */}
+              {showAdd && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setShowAdd(false)}>
+                  <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base font-bold text-slate-900">Add contact</h3>
+                      <button type="button" onClick={() => setShowAdd(false)} className="text-slate-400 hover:text-slate-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        const fd = new FormData(e.currentTarget);
+                        const fn = String(fd.get("firstName") || "").trim();
+                        const ln = String(fd.get("lastName") || "").trim();
+                        const phone = String(fd.get("phone") || "").trim();
+                        const email = String(fd.get("email") || "").trim() || `${fn.toLowerCase().replace(/[^a-z0-9]/g, "") || "contact"}.${Date.now()}@clinic.local`;
+                        if (!fn) return;
+                        createLead.mutate({
+                          data: {
+                            firstName: fn,
+                            lastName: ln || "-",
+                            email,
+                            phone: phone || null,
+                            whatsapp: phone || null,
+                            company: "Aura Laser & Cosmetic Clinic",
+                            source: "manual",
+                            leadOwner: [fn, ln].filter(Boolean).join(" "),
+                            lead_owner: [fn, ln].filter(Boolean).join(" "),
+                          },
+                        });
+                      }}
+                      className="flex flex-col gap-3"
+                    >
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <input name="firstName" required placeholder="First name *" className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]" />
+                        <input name="lastName" placeholder="Last name" className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]" />
+                      </div>
+                      <input name="phone" type="tel" required placeholder="Phone number *" className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]" />
+                      <input name="email" type="email" placeholder="Email (optional)" className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]" />
+                      <div className="flex justify-end gap-2 mt-1">
+                        <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+                        <button type="submit" disabled={createLead.isPending} className="px-4 py-2 rounded-xl text-sm font-semibold bg-[#A4285E] text-white hover:bg-[#8E2050] disabled:opacity-50">
+                          {createLead.isPending ? "Saving..." : "Save contact"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Edit Contact Modal */}
+              {execEditLead && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setExecEditLead(null)}>
+                  <div className="bg-white rounded-2xl w-full max-w-md p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-base font-bold text-slate-900">Edit contact</h3>
+                      <button type="button" onClick={() => setExecEditLead(null)} className="text-slate-400 hover:text-slate-600">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <form
+                      onSubmit={(e) => {
+                        e.preventDefault();
+                        execUpdateLead.mutate({
+                          id: execEditLead.id,
+                          data: {
+                            firstName: execEditLead.firstName.trim(),
+                            lastName: execEditLead.lastName.trim() || "-",
+                            phone: execEditLead.phone.trim() || null,
+                            email: execEditLead.email.trim(),
+                          },
+                        });
+                      }}
+                      className="flex flex-col gap-3"
+                    >
+                      <div className="grid grid-cols-2 gap-2.5">
+                        <input
+                          required
+                          value={execEditLead.firstName}
+                          onChange={(e) => setExecEditLead((p) => ({ ...p, firstName: e.target.value }))}
+                          placeholder="First name *"
+                          className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]"
+                        />
+                        <input
+                          value={execEditLead.lastName}
+                          onChange={(e) => setExecEditLead((p) => ({ ...p, lastName: e.target.value }))}
+                          placeholder="Last name"
+                          className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]"
+                        />
+                      </div>
+                      <input
+                        type="tel"
+                        value={execEditLead.phone}
+                        onChange={(e) => setExecEditLead((p) => ({ ...p, phone: e.target.value }))}
+                        placeholder="Phone number"
+                        className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]"
+                      />
+                      <input
+                        type="email"
+                        value={execEditLead.email}
+                        onChange={(e) => setExecEditLead((p) => ({ ...p, email: e.target.value }))}
+                        placeholder="Email"
+                        className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#A4285E]"
+                      />
+                      <div className="flex justify-end gap-2 mt-1">
+                        <button type="button" onClick={() => setExecEditLead(null)} className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+                        <button type="submit" disabled={execUpdateLead.isPending} className="px-4 py-2 rounded-xl text-sm font-semibold bg-[#A4285E] text-white hover:bg-[#8E2050] disabled:opacity-50">
+                          {execUpdateLead.isPending ? "Saving..." : "Save"}
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* Delete Confirm Modal */}
+              {execDeleteId && (
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4" onClick={() => setExecDeleteId(null)}>
+                  <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+                    <h3 className="text-base font-bold text-slate-900 mb-1">Delete contact?</h3>
+                    <p className="text-sm text-slate-500 mb-4">This will permanently remove this contact from the clinic phone book.</p>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setExecDeleteId(null)} className="px-4 py-2 rounded-xl text-sm font-medium text-slate-600 hover:bg-slate-100">Cancel</button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          deleteLead.mutate({ id: execDeleteId });
+                          setExecDeleteId(null);
+                        }}
+                        className="px-4 py-2 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+        );
+    }
+
     return (<div className="flex flex-col" style={{ height: "calc(100vh - 56px)" }}>
 
       {/* ── Top bar ─────────────────────────────────────────────── */}

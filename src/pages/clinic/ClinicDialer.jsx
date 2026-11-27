@@ -1,17 +1,18 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import {
   PhoneCall, Phone, PhoneOff, PhoneIncoming, PhoneOutgoing,
   Search, RefreshCw, Plus, Volume2, VolumeX, Mic, MicOff,
   Clock, User, UserPlus, MapPin, Calendar, CalendarDays,
   CheckCircle2, AlertCircle, XCircle, Copy, Check, Delete,
-  ShieldCheck, ArrowUpRight, Sliders, Sparkles, Play,
+  ShieldCheck, ArrowUpRight, Sliders, Sparkles, Play, ClipboardPaste,
 } from 'lucide-react';
 import { clinicApi, dateLabel, timeLabel, fullName, money } from '@/clinic/api';
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner, Kpi, Modal } from '@/clinic/ui';
 import { useBranch } from '@/contexts/BranchContext';
+import { useUserRole } from '@/contexts/AuthContext';
 
 // 12 standard telephony dial keys with alpha sub-labels
 const KEYS = [
@@ -94,14 +95,20 @@ function formatDuration(sec) {
 
 export default function ClinicDialer() {
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
+  const userRole = useUserRole();
   const { branches, selectedBranch } = useBranch();
 
   // Tab: 'keypad' | 'leads' | 'history' | 'settings'
   const [activeTab, setActiveTab] = useState('keypad');
 
-  // Dialer input state
-  const [number, setNumber] = useState('');
+  // Dialer input state (supports ?phone= pre-fill from Phone book)
+  const [number, setNumber] = useState(() => {
+    const p = new URLSearchParams(window.location.search).get('phone');
+    return p ? String(p).replace(/[^\d+*#\s-]/g, '') : '';
+  });
   const [selectedLead, setSelectedLead] = useState(null);
+  const [bookingAssist, setBookingAssist] = useState(true);
 
   // Call configuration
   const [conversationType, setConversationType] = useState('patient_consultation');
@@ -450,6 +457,205 @@ export default function ClinicDialer() {
   }, [leads, search]);
 
   const isBusy = ['preparing', 'connecting', 'ringing', 'connected'].includes(callPhase);
+
+  if (userRole === 'executive') {
+    const displayContactName = matchedContact ? getContactDisplayName(matchedContact) : null;
+    return (
+      <div className="w-full h-full max-w-[440px] max-h-[670px] bg-white rounded-2xl border border-[#F3D9E5] shadow-sm p-3 sm:p-4 flex flex-col justify-between gap-2 overflow-hidden">
+        {/* Number Display */}
+        <div className="bg-[#FBF6F8] rounded-xl px-3 py-2.5 flex items-center gap-2 shrink-0 border border-[#F3D9E5]/60">
+          <button
+            type="button"
+            onClick={handlePaste}
+            title="Paste number"
+            aria-label="Paste number"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-[#A4285E] hover:bg-white transition shrink-0"
+          >
+            <ClipboardPaste className="w-4 h-4" />
+          </button>
+          <div className="flex-1 min-w-0 text-center">
+            <input
+              type="tel"
+              value={number}
+              onChange={(e) => {
+                setNumber(e.target.value.replace(/[^\d+*#\s-]/g, ''));
+                if (selectedLead) setSelectedLead(null);
+              }}
+              placeholder="Enter number"
+              className="w-full bg-transparent text-center text-[20px] sm:text-[22px] font-semibold tracking-wide text-slate-900 placeholder:text-slate-400 focus:outline-none"
+            />
+            <div className="text-[11px] text-slate-500 truncate mt-0.5">
+              {displayContactName ? (
+                <span className="font-semibold text-[#A4285E]">{displayContactName}</span>
+              ) : (
+                'Type or paste a number'
+              )}
+            </div>
+          </div>
+          <button
+            type="button"
+            onMouseDown={handleDownBack}
+            onMouseUp={handleUpBack}
+            onMouseLeave={handleUpBack}
+            onTouchStart={handleDownBack}
+            onTouchEnd={handleUpBack}
+            onClick={handleClickBack}
+            disabled={!number}
+            title="Backspace (hold to clear)"
+            aria-label="Backspace"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-[#A4285E] hover:bg-white disabled:opacity-35 transition shrink-0"
+          >
+            <Delete className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Quick Pills */}
+        <div className="flex items-center justify-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => navigate('/clinic/appointments')}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-[#FBE9F1] text-[#A4285E] hover:bg-[#F7D6E6] transition"
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            <span>Book</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              const next = !bookingAssist;
+              setBookingAssist(next);
+              setConversationType(next ? 'appointment_booking' : 'patient_consultation');
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition"
+            style={
+              bookingAssist
+                ? { background: '#EBF7F1', color: '#146C43' }
+                : { background: '#F1F5F9', color: '#475569' }
+            }
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>Booking assist</span>
+            <span className="font-bold">{bookingAssist ? 'On' : 'Off'}</span>
+          </button>
+        </div>
+
+        {/* Type & Branch Selectors */}
+        <div className="grid grid-cols-2 gap-2 shrink-0">
+          <label className="block bg-[#FBF6F8] rounded-xl px-2.5 py-1.5 border border-[#F3D9E5]/60">
+            <span className="block text-[9.5px] font-bold uppercase tracking-wider text-[#A4285E]">
+              Type *
+            </span>
+            <select
+              value={conversationType}
+              onChange={(e) => setConversationType(e.target.value)}
+              className="w-full bg-transparent text-[12.5px] font-semibold text-slate-800 focus:outline-none truncate"
+            >
+              {CONVERSATION_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block bg-[#FBF6F8] rounded-xl px-2.5 py-1.5 border border-[#F3D9E5]/60">
+            <span className="block text-[9.5px] font-bold uppercase tracking-wider text-slate-500">
+              Branch
+            </span>
+            <select
+              value={branch}
+              onChange={(e) => setBranch(e.target.value)}
+              className="w-full bg-transparent text-[12.5px] font-semibold text-slate-800 focus:outline-none truncate"
+            >
+              {branches.length === 0 ? (
+                <option value="">Clinic default</option>
+              ) : (
+                branches.map((b) => (
+                  <option key={b.name} value={b.name}>
+                    {b.name}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+        </div>
+
+        {/* 3x4 Keypad */}
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-2 flex-1 min-h-0">
+          {KEYS.map(([digit, sub]) => (
+            <button
+              key={digit}
+              type="button"
+              onClick={() => handleKeyPress(digit)}
+              className="w-full h-full min-h-[42px] rounded-xl bg-[#FBF6F8] hover:bg-[#FBE9F1] active:scale-[0.98] border border-[#F3D9E5]/50 flex flex-col items-center justify-center transition select-none"
+            >
+              <span className="text-[20px] sm:text-[22px] font-semibold text-slate-900 leading-none">
+                {digit}
+              </span>
+              {sub ? (
+                <span className="text-[9px] font-semibold tracking-widest text-slate-400 mt-1 leading-none">
+                  {sub}
+                </span>
+              ) : null}
+            </button>
+          ))}
+        </div>
+
+        {/* Bottom Notice + Call Button */}
+        <div className="flex items-center justify-between gap-2 pt-0.5 shrink-0">
+          <div
+            className="flex-1 min-w-0 rounded-xl px-2.5 py-2 flex items-center gap-2 text-[11px]"
+            style={
+              errorMessage
+                ? { background: '#FEF2F2', color: '#B91C1C' }
+                : isBusy
+                  ? { background: '#FBE9F1', color: '#A4285E' }
+                  : { background: '#EBF7F1', color: '#146C43' }
+            }
+          >
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <div className="min-w-0 leading-tight">
+              {errorMessage ? (
+                <div className="font-semibold truncate">{errorMessage}</div>
+              ) : isBusy ? (
+                <>
+                  <div className="font-semibold capitalize">
+                    {callPhase === 'connected' ? `Connected · ${formatDuration(callSeconds)}` : `${callPhase}...`}
+                  </div>
+                  <div className="opacity-80 truncate">Live clinic call in progress</div>
+                </>
+              ) : (
+                <>
+                  <div className="font-semibold truncate">Recorded call · notice v1</div>
+                  <div className="opacity-80 truncate">Press Call, then confirm.</div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {isBusy ? (
+            <button
+              type="button"
+              onClick={handleHangup}
+              className="shrink-0 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[13.5px] font-semibold flex items-center gap-1.5 shadow-sm transition"
+            >
+              <PhoneOff className="w-4 h-4" />
+              <span>End</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleStartCall()}
+              disabled={callMutation.isPending}
+              className="shrink-0 px-5 py-2.5 rounded-xl bg-[#A4285E] hover:bg-[#8E2050] disabled:opacity-50 text-white text-[13.5px] font-semibold flex items-center gap-1.5 shadow-sm transition"
+            >
+              <Phone className="w-4 h-4" />
+              <span>{callMutation.isPending ? 'Calling...' : 'Call'}</span>
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="clinic-os">

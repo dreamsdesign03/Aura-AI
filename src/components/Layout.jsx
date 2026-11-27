@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useUserRole, useAuthUser, useRefreshUser, getUserInitials } from "@/contexts/AuthContext";
-import { canAccessPath } from "@/lib/permissions";
+import { canAccessPath, roleLabel } from "@/lib/permissions";
 import { BranchSelectorWithRefresh } from "@/components/BranchSelector";
 function usePendingEmailCountdown(expiresAt) {
     const [now, setNow] = useState(() => new Date());
@@ -32,7 +32,7 @@ function usePendingEmailCountdown(expiresAt) {
     const label = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
     return { expired: false, label, nearExpiry: totalMinutes < 10 };
 }
-import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, MessageSquare, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, PhoneOutgoing, Star, Headphones, BookOpen, Route as RouteIcon, Shield } from "lucide-react";
+import { LayoutDashboard, Target, Search, CheckSquare, Mail, Calendar, MessageCircle, MessageSquare, Settings, KanbanSquare, X, Building2, Link2, Check as CheckIcon, LogOut, Menu, Bot, MessageSquarePlus, AlertCircle, Loader2, Zap, Users, FileText, User, Activity, Palette, Globe, BarChart2, TrendingUp, Globe as Chrome, ChevronRight, RefreshCw, MailCheck, Clock, ArrowRight, Lock, PhoneOutgoing, Star, Headphones, BookOpen, Route as RouteIcon, Shield, Grid3X3, BookUser } from "lucide-react";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import MysaAssistant from "@/components/MysaAssistant";
 import { usePlan, planLabel, planBadgeStyle } from "@/hooks/usePlan";
@@ -653,6 +653,93 @@ export default function Layout({ children }) {
     const currentPage = nav.filter((n) => canSee(n.href)).find(n => n.href === "/" ? location === "/" : location.startsWith(n.href))?.label ?? "Dashboard";
     function navIsActive(href) {
         return href === "/" ? location === "/" : location.startsWith(href);
+    }
+    if (userRole === "executive") {
+        const execTabs = [
+            { href: "/clinic/dialer", label: "Dialer", icon: Grid3X3 },
+            { href: "/leads", label: "Phone book", icon: BookUser },
+            { href: "/clinic/appointments", label: "Appointments", icon: Calendar },
+        ];
+        const isDialerRoute = location.startsWith("/clinic/dialer");
+        return (
+            <div className="flex flex-col h-[100dvh] w-full overflow-hidden" style={{ background: "#FCF7F4" }}>
+              {/* Compact top bar */}
+              <header className="shrink-0 h-14 bg-white border-b border-slate-200/80 px-3 sm:px-5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 overflow-hidden border border-[#F3D9E5] bg-white">
+                    <img src={auraLogo} alt="Aura" className="w-7 h-7 object-contain" />
+                  </div>
+                  <div className="min-w-0 leading-tight">
+                    <div className="text-[13.5px] font-bold text-slate-900 truncate">
+                      Aura Clinic <span className="font-normal text-slate-400">· CallHub</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 truncate">
+                      {authUser?.name || "Executive"} · {roleLabel(userRole, authUser)}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold"
+                    style={{ background: "#FBE9F1", color: "#A4285E" }}
+                    title={authUser?.name || "Executive"}
+                  >
+                    {initials}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={doLogout}
+                    title="Sign out"
+                    aria-label="Sign out"
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 hover:text-[#A4285E] hover:bg-[#FBE9F1] transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                  </button>
+                </div>
+              </header>
+
+              {/* Main content: Dialer fits without vertical scroll; Phone book & Appointments scroll cleanly */}
+              <main
+                className={cn(
+                  "flex-1 min-h-0 min-w-0 w-full",
+                  isDialerRoute
+                    ? "overflow-hidden flex items-center justify-center p-2 sm:p-4"
+                    : "overflow-y-auto overflow-x-hidden px-2.5 py-3 sm:px-5 sm:py-4"
+                )}
+              >
+                <div className={cn("mx-auto w-full", isDialerRoute ? "h-full flex items-center justify-center max-w-[460px]" : "max-w-3xl")}>
+                  {children}
+                </div>
+              </main>
+
+              {/* 3-tab bottom navigation */}
+              <nav
+                className="shrink-0 bg-white border-t border-slate-200/80 px-2 py-1.5"
+                style={{ paddingBottom: "max(6px, env(safe-area-inset-bottom, 0px))", boxShadow: "0 -4px 20px rgba(0,0,0,0.04)" }}
+              >
+                <div className="max-w-lg mx-auto grid grid-cols-3 gap-1.5">
+                  {execTabs.map(({ href, label, icon: Icon }) => {
+                    const active = navIsActive(href);
+                    return (
+                      <Link
+                        key={href}
+                        href={href}
+                        className="flex flex-col items-center justify-center gap-0.5 py-1.5 px-2 rounded-xl text-[11px] font-semibold transition-all"
+                        style={
+                          active
+                            ? { background: "#A4285E", color: "#FFFFFF" }
+                            : { color: "#475569", background: "transparent" }
+                        }
+                      >
+                        <Icon className="w-4 h-4" />
+                        <span>{label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              </nav>
+            </div>
+        );
     }
     return (<>
       <div className="flex h-screen overflow-hidden" style={{ background: "#FCF7F4" }}>
