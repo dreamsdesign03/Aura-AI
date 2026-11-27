@@ -146,6 +146,7 @@ export default function ClinicDialer() {
   const [activeCallId, setActiveCallId] = useState(null);
   const [lastCallResult, setLastCallResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [webrtcStatus, setWebrtcStatus] = useState('connecting'); // 'connecting' | 'ready' | 'error'
   const timerRef = useRef(null);
   const plivoBrowserRef = useRef(null);
   const plivoReadyRef = useRef(false);
@@ -160,58 +161,78 @@ export default function ClinicDialer() {
     callSecondsRef.current = callSeconds;
   }, [callSeconds]);
 
+  const initPlivoWebrtc = async () => {
+    if (plivoReadyRef.current && plivoBrowserRef.current?.client) return true;
+    const tok = await clinicApi.dialerWebrtcToken();
+    if (!tok?.enabled || !tok.username || !tok.password) {
+      throw new Error(tok?.error || 'WebRTC credentials unavailable');
+    }
+    const PlivoCtor = Plivo?.default || Plivo;
+    if (typeof PlivoCtor !== 'function') {
+      throw new Error('Plivo WebRTC SDK failed to load');
+    }
+    return await new Promise((resolve, reject) => {
+      const sdk = new PlivoCtor({
+        debug: 'ERROR',
+        permOnClick: true,
+        enableTracking: true,
+        closeProtection: false,
+        codecPrefs: ['OPUS', 'PCMU'],
+      });
+      plivoBrowserRef.current = sdk;
+      const timeout = setTimeout(() => {
+        if (!plivoReadyRef.current) {
+          setWebrtcStatus('error');
+          reject(new Error('Voice connection timed out. Please refresh and try again.'));
+        }
+      }, 10000);
+      sdk.client.on('onLogin', () => {
+        clearTimeout(timeout);
+        plivoReadyRef.current = true;
+        setWebrtcStatus('ready');
+        resolve(true);
+      });
+      sdk.client.on('onLoginFailed', (reason) => {
+        clearTimeout(timeout);
+        plivoReadyRef.current = false;
+        setWebrtcStatus('error');
+        reject(new Error(typeof reason === 'string' ? reason : 'Plivo WebRTC login failed'));
+      });
+      sdk.client.on('onCallRemoteRinging', () => {
+        setCallPhase('ringing');
+      });
+      sdk.client.on('onCallAnswered', () => {
+        setCallPhase('connected');
+      });
+      sdk.client.on('onCallTerminated', () => {
+        setCallPhase('ended');
+        const id = activeCallIdRef.current;
+        if (id) {
+          clinicApi.updateDialerCall(id, { status: 'completed', durationSecs: callSecondsRef.current }).catch(() => {});
+        }
+        refetchHistory();
+      });
+      sdk.client.on('onCallFailed', (cause) => {
+        setCallPhase('error');
+        setErrorMessage(typeof cause === 'string' ? cause : 'Call failed or was rejected.');
+        const id = activeCallIdRef.current;
+        if (id) {
+          clinicApi.updateDialerCall(id, { status: 'failed', durationSecs: 0 }).catch(() => {});
+        }
+      });
+      sdk.client.login(tok.username, tok.password);
+    });
+  };
+
   // Initialize Plivo Browser SDK for two-way live WebRTC audio
   useEffect(() => {
     if (telephonyEngine !== 'plivo') return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const tok = await clinicApi.dialerWebrtcToken();
-        if (cancelled || !tok?.enabled || !tok.username || !tok.password) return;
-        const sdk = new Plivo({
-          debug: 'ERROR',
-          permOnClick: true,
-          enableTracking: true,
-          closeProtection: false,
-          codecPrefs: ['OPUS', 'PCMU'],
-        });
-        plivoBrowserRef.current = sdk;
-        sdk.client.on('onLogin', () => {
-          plivoReadyRef.current = true;
-        });
-        sdk.client.on('onLoginFailed', (reason) => {
-          plivoReadyRef.current = false;
-          console.warn('[Plivo WebRTC login failed]:', reason);
-        });
-        sdk.client.on('onCallRemoteRinging', () => {
-          setCallPhase('ringing');
-        });
-        sdk.client.on('onCallAnswered', () => {
-          setCallPhase('connected');
-        });
-        sdk.client.on('onCallTerminated', () => {
-          setCallPhase('ended');
-          const id = activeCallIdRef.current;
-          if (id) {
-            clinicApi.updateDialerCall(id, { status: 'completed', durationSecs: callSecondsRef.current }).catch(() => {});
-          }
-          refetchHistory();
-        });
-        sdk.client.on('onCallFailed', (cause) => {
-          setCallPhase('error');
-          setErrorMessage(typeof cause === 'string' ? cause : 'Call failed or was rejected.');
-          const id = activeCallIdRef.current;
-          if (id) {
-            clinicApi.updateDialerCall(id, { status: 'failed', durationSecs: 0 }).catch(() => {});
-          }
-        });
-        sdk.client.login(tok.username, tok.password);
-      } catch (e) {
-        console.warn('[Plivo WebRTC init]:', e?.message || e);
-      }
-    })();
+    setWebrtcStatus('connecting');
+    initPlivoWebrtc().catch((e) => {
+      setWebrtcStatus('error');
+      console.warn('[Plivo WebRTC init]:', e?.message || e);
+    });
     return () => {
-      cancelled = true;
       try {
         plivoBrowserRef.current?.client?.logout?.();
       } catch { /* ignore */ }
@@ -396,8 +417,17 @@ export default function ClinicDialer() {
     const branchObj = branches.find((b) => b.name === branch);
 
     try {
-      // 1. Immediately insert/dispatch call into PostgreSQL DB and Plivo telephony!
+      // 1. Ensure browser microphone & Plivo WebRTC are ready for live two-way audio
       const isMockMode = telephonyEngine === 'mock';
+      if (!isMockMode && telephonyEngine === 'plivo') {
+        if (navigator.mediaDevices?.getUserMedia) {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          stream.getTracks().forEach((t) => t.stop());
+        }
+        if (!plivoReadyRef.current || !plivoBrowserRef.current?.client) {
+          await initPlivoWebrtc();
+        }
+      }
       const useWebrtc = !isMockMode && telephonyEngine === 'plivo' && plivoReadyRef.current && plivoBrowserRef.current?.client;
       const res = await callMutation.mutateAsync({
         destination: destination || finalLead?.phone,
