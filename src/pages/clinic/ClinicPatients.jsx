@@ -148,6 +148,11 @@ function PackageForm({ leadId }) {
 
 export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
   const qc = useQueryClient();
+  const { selectedBranch, branches } = useBranch();
+  const branchOptions = useMemo(() => {
+    const names = (branches || []).map((b) => b?.name).filter(Boolean);
+    return names.length > 0 ? names : ['Alkapuri Main Clinic', 'Vasna Branch', 'Virtual Consultation Hub'];
+  }, [branches]);
   const [tab, setTab] = useState('overview');
   const [showAddVisit, setShowAddVisit] = useState(false);
   const [visitForm, setVisitForm] = useState(() => {
@@ -158,7 +163,7 @@ export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
       visitDate: localDt,
       visitType: 'Consultation',
       provider: 'Dr. Aditya Shah',
-      branch: 'Alkapuri Main Clinic',
+      branch: selectedBranch || branchOptions[0] || 'Alkapuri Main Clinic',
       outcome: 'completed',
       notes: '',
       nextSteps: '',
@@ -440,12 +445,19 @@ export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
                     </div>
                     <div className="co-field">
                       <label className="co-label">Branch</label>
-                      <input
+                      <select
                         className="co-input"
+                        style={{ colorScheme: 'light' }}
                         value={visitForm.branch}
                         onChange={(e) => setVisitForm((f) => ({ ...f, branch: e.target.value }))}
-                        placeholder="e.g. Alkapuri Main Clinic"
-                      />
+                      >
+                        {visitForm.branch && !branchOptions.includes(visitForm.branch) && (
+                          <option value={visitForm.branch}>{visitForm.branch}</option>
+                        )}
+                        {branchOptions.map((bName) => (
+                          <option key={bName} value={bName}>{bName}</option>
+                        ))}
+                      </select>
                     </div>
                     <div className="co-field co-span-2">
                       <label className="co-label">Visit Note (What was discussed / patient feedback)</label>
