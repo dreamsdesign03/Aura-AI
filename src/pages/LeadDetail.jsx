@@ -172,7 +172,7 @@ export default function LeadDetail() {
         queryFn: () => clinicApi.appointments({ all: true }),
     });
     const bookAppointment = useMutation({
-        mutationFn: (body) => clinicApi.bookAppointment(body),
+        mutationFn: (body) => clinicApi.createAppointment(body),
         onSuccess: async () => {
             setShowScheduleModal(false);
             toast({ title: "Appointment booked", description: "Created in Cal.com and added to Appointments & Meetings." });

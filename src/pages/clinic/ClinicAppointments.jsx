@@ -245,6 +245,7 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
           <select
             id="co-category"
             className="co-input font-medium"
+            style={{ colorScheme: 'light' }}
             value={form.category}
             onChange={(e) => {
               const cat = e.target.value;
@@ -258,15 +259,6 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
           >
             <option value="ria">Clinic Consultation · Dr. Aditya Shah</option>
             <option value="misha">Makeup Artist Partnership · Skinnonest Vishw</option>
-          </select>
-        </div>
-        <div className="co-field co-span-2">
-          <label className="co-label" htmlFor="co-patient">Link to patient (optional)</label>
-          <select id="co-patient" className="co-input" value={form.leadId} onChange={(e) => pickPatient(e.target.value)}>
-            <option value="">New / walk-in patient</option>
-            {patients.map((p) => (
-              <option key={p.id} value={p.id}>{fullName(p)}{p.phone ? ` · ${p.phone}` : ''}</option>
-            ))}
           </select>
         </div>
         <div className="co-field">
