@@ -837,7 +837,7 @@ export default function Layout({ children }) {
 
 
           {/* Page content — padded bottom on mobile so content clears the fixed nav */}
-          <main className="flex-1 overflow-y-auto pb-[60px] md:pb-0 relative" style={{ background: "#FCF7F4" }}>
+          <main className="flex-1 min-w-0 overflow-y-auto overflow-x-hidden pb-[60px] md:pb-0 relative" style={{ background: "#FCF7F4" }}>
             {children}
             <UpgradeWall />
           </main>

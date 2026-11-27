@@ -200,16 +200,18 @@ export function Modal({ title, subtitle, onClose, children, width = 560 }) {
         style={{
           position: 'relative',
           zIndex: 83,
-          width: `min(${width}px, 100%)`,
-          maxHeight: '88vh',
-          overflow: 'auto',
+          width: `min(${width}px, calc(100vw - 24px))`,
+          maxHeight: '90dvh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
           background: '#fff',
           borderRadius: 16,
           boxShadow: '0 30px 80px -30px rgba(30, 12, 20, .55)',
           animation: 'coRise .3s cubic-bezier(.22,1,.36,1) both',
         }}
       >
-        <div className="co-drawer-hd" style={{ padding: '16px 20px' }}>
+        <div className="co-drawer-hd" style={{ padding: '16px 20px', flexShrink: 0 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
             <h2>{title}</h2>
             {subtitle ? <p className="co-sm co-mut" style={{ marginTop: 4 }}>{subtitle}</p> : null}
@@ -218,7 +220,7 @@ export function Modal({ title, subtitle, onClose, children, width = 560 }) {
             <X size={16} />
           </button>
         </div>
-        <div style={{ padding: '18px 20px 22px' }}>{children}</div>
+        <div style={{ padding: '18px 20px 22px', overflowY: 'auto', flex: 1 }}>{children}</div>
       </div>
     </div>
   );
