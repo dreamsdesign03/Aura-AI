@@ -1019,7 +1019,7 @@ export default function Leads() {
         setDeadPoolTotal(prev => Math.max(0, prev - 1));
         toast({ title: "Lead removed from dead pool" });
     };
-    if (userRole === "executive") {
+    if (userRole !== "admin") {
         const list = allLeads.length > 0 ? allLeads : leads;
         return (
             <div className="flex flex-col gap-3 pb-4">

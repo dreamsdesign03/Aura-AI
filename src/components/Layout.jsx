@@ -654,7 +654,7 @@ export default function Layout({ children }) {
     function navIsActive(href) {
         return href === "/" ? location === "/" : location.startsWith(href);
     }
-    if (userRole === "executive") {
+    if (userRole !== "admin") {
         const execTabs = [
             { href: "/clinic/dialer", label: "Dialer", icon: Grid3X3 },
             { href: "/leads", label: "Phone book", icon: BookUser },

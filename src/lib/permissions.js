@@ -28,11 +28,8 @@ const PUBLIC_PATHS = ["/login", "/register", "/verify", "/invite", "/audit/share
  */
 export const LEADER_ROUTES = [
   { path: "/leads", prefix: true },
-  { path: "/clinic", exact: true },
   { path: "/clinic/appointments", prefix: true },
-  { path: "/clinic/inbox", prefix: true },
   { path: "/clinic/dialer", prefix: true },
-  { path: "/bulk-calling", prefix: true },
   // Legacy links that immediately redirect to an allowed clinic page.
   { path: "/appointments", exact: true },
   { path: "/meetings", exact: true },
@@ -115,8 +112,7 @@ export function canAccessPath(role, pathname, user) {
 /** Landing page for a role after login / when an unauthorised page is opened. */
 export function homePathForRole(role, user) {
   if (isAdminRole(role, user)) return "/";
-  if (normalizeRole(role, user) === "executive") return "/clinic/dialer";
-  return "/leads";
+  return "/clinic/dialer";
 }
 
 export function allowedNavHrefs(role, user) {

@@ -469,7 +469,7 @@ export default function ClinicDialer() {
 
   const isBusy = ['preparing', 'connecting', 'ringing', 'connected'].includes(callPhase);
 
-  if (userRole === 'executive') {
+  if (userRole !== 'admin') {
     const displayContactName = matchedContact ? getContactDisplayName(matchedContact) : null;
     return (
       <div className="w-full h-full max-w-[440px] max-h-[670px] bg-white rounded-2xl border border-[#F3D9E5] shadow-sm p-3 sm:p-4 flex flex-col justify-between gap-2 overflow-hidden">
