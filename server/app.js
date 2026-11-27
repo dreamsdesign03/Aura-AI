@@ -2223,9 +2223,13 @@ async function deleteLeadAndRelations(leadId) {
   await db.query('DELETE FROM leads WHERE id = $1', [leadId]);
 }
 
-// Delete Lead
+// Delete Lead (Admin only)
 app.delete('/api/leads/:id', async (req, res) => {
   try {
+    const actor = await getRequestActor(req);
+    if (!actor || !isAdminRole(actor.role, actor.user)) {
+      return res.status(403).json({ error: 'Only admins can delete contacts', code: 'ROLE_FORBIDDEN' });
+    }
     const { id } = req.params;
     await deleteLeadAndRelations(id);
     res.json({ message: 'Lead deleted successfully', id });
@@ -2234,9 +2238,13 @@ app.delete('/api/leads/:id', async (req, res) => {
   }
 });
 
-// POST /api/leads/delete — Delete lead via POST body (for frontend mutation hooks)
+// POST /api/leads/delete — Delete lead via POST body (Admin only)
 app.post('/api/leads/delete', async (req, res) => {
   try {
+    const actor = await getRequestActor(req);
+    if (!actor || !isAdminRole(actor.role, actor.user)) {
+      return res.status(403).json({ error: 'Only admins can delete contacts', code: 'ROLE_FORBIDDEN' });
+    }
     const { id } = req.body;
     if (!id) return res.status(400).json({ error: 'Lead ID is required' });
     await deleteLeadAndRelations(id);
