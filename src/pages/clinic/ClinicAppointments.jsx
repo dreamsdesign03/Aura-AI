@@ -186,6 +186,21 @@ function parseApptTurns(raw) {
   return [];
 }
 
+export const TREATMENT_OPTIONS = [
+  'Routine Skin & Hair Treatment',
+  'Hydrafacial',
+  'Hair Transplant',
+  'PRP, GFC, Exosomes',
+  'Botox, Fillers & Thread Lift',
+  'Acne And Acne Scar Treatment',
+  'Chemical Peel',
+  'Microneedling',
+  'Fractional Co2 & Face',
+  'Dermatosurgery:Wart/Skin tag/Mole Removal',
+  'Partnership',
+  'Others',
+];
+
 export function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
   const { branches, selectedBranch } = useBranch();
   const branchOptions = useMemo(() => (branches || []).map((b) => b?.name).filter(Boolean), [branches]);
@@ -197,7 +212,7 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
     patientName: initial?.patientName || '',
     phone: initial?.phone || '',
     email: initial?.email || '',
-    treatment: initial?.treatment || (initial?.category === 'misha' ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation'),
+    treatment: initial?.treatment || (initial?.category === 'misha' ? 'Partnership' : 'Routine Skin & Hair Treatment'),
     branch: initial?.branch || defaultBranch,
     date: toDateInput(base),
     time: initial?.startsAt ? toTimeInput(base) : '10:00',
@@ -255,7 +270,7 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
               setForm((f) => ({
                 ...f,
                 category: cat,
-                treatment: cat === 'misha' ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation',
+                treatment: cat === 'misha' ? 'Partnership' : 'Routine Skin & Hair Treatment',
                 branch: cat === 'misha' ? 'Online (Google Meet)' : 'Alkapuri Main Clinic',
               }));
             }}
@@ -277,8 +292,15 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
           <input id="co-email" type="email" className="co-input" value={form.email} onChange={set('email')} placeholder="patient@example.com" />
         </div>
         <div className="co-field">
-          <label className="co-label" htmlFor="co-treatment">Treatment / Service</label>
-          <input id="co-treatment" className="co-input" value={form.treatment} onChange={set('treatment')} placeholder="e.g. Consultation / Acne treatment" />
+          <label className="co-label" htmlFor="co-treatment">Treatment / Purpose Of Visit *</label>
+          <select id="co-treatment" className="co-input" style={{ colorScheme: 'light' }} value={form.treatment} onChange={set('treatment')} required>
+            {!TREATMENT_OPTIONS.includes(form.treatment) && form.treatment ? (
+              <option value={form.treatment}>{form.treatment}</option>
+            ) : null}
+            {TREATMENT_OPTIONS.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-branch">Branch</label>

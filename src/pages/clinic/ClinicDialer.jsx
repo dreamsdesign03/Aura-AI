@@ -1855,12 +1855,26 @@ export default function ClinicDialer() {
             </div>
 
             <div className="co-field">
-              <label className="co-label">Treatment</label>
-              <input
+              <label className="co-label">Treatment / Purpose Of Visit</label>
+              <select
                 className="co-input"
                 id="dialer-book-treatment"
-                defaultValue="Laser Hair Reduction Consultation"
-              />
+                style={{ colorScheme: 'light' }}
+                defaultValue="Routine Skin & Hair Treatment"
+              >
+                <option value="Routine Skin & Hair Treatment">Routine Skin & Hair Treatment</option>
+                <option value="Hydrafacial">Hydrafacial</option>
+                <option value="Hair Transplant">Hair Transplant</option>
+                <option value="PRP, GFC, Exosomes">PRP, GFC, Exosomes</option>
+                <option value="Botox, Fillers & Thread Lift">Botox, Fillers & Thread Lift</option>
+                <option value="Acne And Acne Scar Treatment">Acne And Acne Scar Treatment</option>
+                <option value="Chemical Peel">Chemical Peel</option>
+                <option value="Microneedling">Microneedling</option>
+                <option value="Fractional Co2 & Face">Fractional Co2 & Face</option>
+                <option value="Dermatosurgery:Wart/Skin tag/Mole Removal">Dermatosurgery:Wart/Skin tag/Mole Removal</option>
+                <option value="Partnership">Partnership</option>
+                <option value="Others">Others</option>
+              </select>
             </div>
 
             <div className="co-form-grid">
