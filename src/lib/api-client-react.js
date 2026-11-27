@@ -94,10 +94,14 @@ function createMutationHook(key) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
-          }).then(r => r.json());
-          return res;
+          });
+          const payload = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            throw new Error(payload?.error || payload?.message || `Request failed (${res.status})`);
+          }
+          return payload;
         } catch (e) {
-          return { success: true };
+          throw e;
         }
       },
       ...extraOpts
@@ -153,16 +157,21 @@ export function useGetLead(id, options = {}) {
 }
 
 export function useUpdateLead(options = {}) {
+  const extraOpts = options.mutation ? { ...options, ...options.mutation } : options;
   return useMutation({
     mutationFn: async ({ id, data }) => {
       const res = await fetch(`/api/leads/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
-      }).then((r) => r.json());
-      return res;
+      });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(payload?.error || payload?.message || `Request failed (${res.status})`);
+      }
+      return payload;
     },
-    ...options,
+    ...extraOpts,
   });
 }
 export const useListMeetings = createQueryHook("useListMeetings");

@@ -1904,18 +1904,23 @@ export default function ClinicDialer() {
                   const timeStr = timeEl?.value || '11:00';
                   const startsAt = new Date(`${dateStr}T${timeStr}:00`).toISOString();
 
-                  await clinicApi.createAppointment({
-                    lead_id: bookModalLead.id,
-                    patient_name: getContactDisplayName(bookModalLead),
-                    phone: bookModalLead.phone,
-                    treatment,
-                    branch: 'Alkapuri Main Clinic',
-                    starts_at: startsAt,
-                    duration_min: 45,
-                    status: 'booked',
-                  });
-                  qc.invalidateQueries({ queryKey: ['clinic'] });
-                  setBookModalLead(null);
+                  try {
+                    await clinicApi.createAppointment({
+                      lead_id: bookModalLead.id,
+                      patient_name: getContactDisplayName(bookModalLead),
+                      phone: bookModalLead.phone,
+                      treatment,
+                      branch: branch || 'Alkapuri Main Clinic',
+                      starts_at: startsAt,
+                      duration_min: 45,
+                      status: 'booked',
+                    });
+                    qc.invalidateQueries({ queryKey: ['clinic'] });
+                    setBookModalLead(null);
+                  } catch (err) {
+                    setErrorMessage(err?.message || 'Could not book appointment.');
+                    setBookModalLead(null);
+                  }
                 }}
               >
                 Confirm Appointment
