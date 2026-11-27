@@ -570,7 +570,7 @@ export default function ClinicPatients() {
 
   const totals = useMemo(() => ({
     count: patients.length,
-    visits: patients.reduce((n, p) => n + Number(p.appointments || 0), 0),
+    visits: patients.reduce((n, p) => n + Number(p.visits || 0), 0),
     value: patients.reduce((n, p) => n + Number(p.package_value || 0), 0),
   }), [patients]);
 
@@ -713,7 +713,7 @@ export default function ClinicPatients() {
           {/* KPIs Summary */}
           <div className="co-kpis co-rise-1" style={{ gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' }}>
             <Kpi label="Patients" value={selectedStage ? displayPatients.length : totals.count} foot={selectedStage ? `Filtered to Stage ${selectedStage.n}` : 'Registered clinic patients'} icon={Users} />
-            <Kpi label="Consultations & visits" value={totals.visits} foot="Online & clinic bookings" icon={CalendarDays} />
+            <Kpi label="Clinic visits" value={totals.visits} foot="Admin-recorded patient visits" icon={CalendarDays} />
             <Kpi label="Treatment packages" value={money(totals.value)} foot="Active patient care plans" icon={IndianRupee} />
           </div>
 
@@ -813,7 +813,7 @@ export default function ClinicPatients() {
                           );
                         })()}
                       </td>
-                      <td className="co-strong">{p.appointments || 0}</td>
+                      <td className="co-strong">{p.visits || 0}</td>
                       <td className="co-mut" style={{ whiteSpace: 'nowrap' }}>{p.last_visit ? dateLabel(p.last_visit) : '—'}</td>
                       <td>{p.packages ? `${p.packages} · ${money(p.package_value)}` : '—'}</td>
                       <td onClick={(e) => e.stopPropagation()}>

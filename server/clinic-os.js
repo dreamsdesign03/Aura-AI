@@ -1899,26 +1899,14 @@ router.get('/patients', requireUser, async (req, res) => {
               ) AS display_name,
               l.company, l.status,
               l.pipeline_stage, l.deal_value, l.created_at,
-              ((SELECT COUNT(*)::int FROM clinic_appointments a WHERE a.lead_id = l.id) +
-               (SELECT COUNT(*)::int FROM calendly_events ce WHERE 
+              ((SELECT COUNT(*)::int FROM clinic_appointments a WHERE a.lead_id = l.id AND COALESCE(LOWER(a.status), '') NOT IN ('cancelled', 'canceled')) +
+               (SELECT COUNT(*)::int FROM calendly_events ce WHERE COALESCE(ce.is_deleted, false) = false AND COALESCE(LOWER(ce.status), '') NOT IN ('cancelled', 'canceled', 'rejected') AND (
                  (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
-                 OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
-                 OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
-                      LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
-                      OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
-                    ))
-               )) AS appointments,
-              COALESCE(
-                (SELECT MAX(a.starts_at) FROM clinic_appointments a WHERE a.lead_id = l.id),
-                (SELECT MAX(ce.start_time) FROM calendly_events ce WHERE 
-                  (ce.invitee_email IS NOT NULL AND ce.invitee_email <> '' AND LOWER(ce.invitee_email) = LOWER(l.email))
-                  OR (l.phone IS NOT NULL AND l.phone <> '' AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
-                  OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND (
-                       LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT(l.first_name, ' ', l.last_name))) 
-                       OR LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(l.first_name))
-                     ))
-                )
-              ) AS last_visit,
+                 OR (LENGTH(REGEXP_REPLACE(COALESCE(l.phone, ''), '[^0-9]', '', 'g')) >= 10 AND ce.questions->>'Phone / WhatsApp' LIKE '%' || RIGHT(REGEXP_REPLACE(l.phone, '[^0-9]', '', 'g'), 10))
+                 OR (ce.invitee_name IS NOT NULL AND ce.invitee_name <> '' AND TRIM(CONCAT_WS(' ', l.first_name, l.last_name)) <> '' AND LOWER(TRIM(ce.invitee_name)) = LOWER(TRIM(CONCAT_WS(' ', l.first_name, l.last_name))))
+               ))) AS appointments,
+              (SELECT COUNT(*)::int FROM clinic_visits v WHERE v.lead_id = l.id) AS visits,
+              (SELECT MAX(v.visit_date) FROM clinic_visits v WHERE v.lead_id = l.id) AS last_visit,
               (SELECT COUNT(*)::int FROM clinic_packages p WHERE p.lead_id = l.id) AS packages,
               (SELECT COALESCE(SUM(p.amount),0)::numeric FROM clinic_packages p WHERE p.lead_id = l.id) AS package_value
          FROM leads l
