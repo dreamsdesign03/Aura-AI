@@ -13,8 +13,9 @@ export function BranchProvider({ children }) {
       const data = await res.json();
       if (data?.settings?.branches?.length) {
         setBranches(data.settings.branches);
-        // Set default branch
-        const def = data.settings.branches.find(b => b.isDefault);
+        // Set default branch (prefer Alkapuri / isDefault)
+        const def = data.settings.branches.find(b => b.isDefault)
+          || data.settings.branches.find(b => /alkapuri/i.test(b.name));
         setSelectedBranch(def?.name || data.settings.branches[0]?.name || '');
       }
     } catch (e) {

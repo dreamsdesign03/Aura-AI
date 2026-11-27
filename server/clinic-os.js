@@ -4584,6 +4584,8 @@ router.post('/dialer/call', requireUser, async (req, res) => {
     }
 
     const typeLabels = {
+      sales: 'Sales',
+      customer_care: 'Customer Care',
       patient_consultation: 'Patient Consultation',
       follow_up: 'Post-Treatment Follow-up',
       treatment_query: 'Treatment Inquiry',

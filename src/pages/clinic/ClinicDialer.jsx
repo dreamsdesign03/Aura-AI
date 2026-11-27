@@ -31,12 +31,9 @@ const KEYS = [
 ];
 
 const CONVERSATION_TYPES = [
-  { value: 'patient_consultation', label: 'Patient Consultation (Initial Assessment)' },
-  { value: 'follow_up', label: 'Post-Treatment Follow-up' },
-  { value: 'treatment_query', label: 'Treatment & Pricing Inquiry' },
-  { value: 'appointment_booking', label: 'Appointment Scheduling' },
-  { value: 'payment_reminder', label: 'Package / Payment Reminder' },
-  { value: 'general', label: 'General Front-Desk Inquiry' },
+  { value: 'sales', label: 'Sales' },
+  { value: 'customer_care', label: 'Customer Care' },
+  { value: 'patient_consultation', label: 'Patient Consultation' },
 ];
 
 const DOCTORS = [
@@ -97,7 +94,13 @@ export default function ClinicDialer() {
   const qc = useQueryClient();
   const [, navigate] = useLocation();
   const userRole = useUserRole();
-  const { branches, selectedBranch } = useBranch();
+  const { branches, selectedBranch, refetch: refetchBranches } = useBranch();
+
+  useEffect(() => {
+    if (!branches.length) {
+      refetchBranches();
+    }
+  }, [branches.length, refetchBranches]);
 
   // Tab: 'keypad' | 'leads' | 'history' | 'settings'
   const [activeTab, setActiveTab] = useState('keypad');
@@ -535,7 +538,6 @@ export default function ClinicDialer() {
             onClick={() => {
               const next = !bookingAssist;
               setBookingAssist(next);
-              setConversationType(next ? 'appointment_booking' : 'patient_consultation');
             }}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition"
             style={
@@ -578,7 +580,7 @@ export default function ClinicDialer() {
               className="w-full bg-transparent text-[12.5px] font-semibold text-slate-800 focus:outline-none truncate"
             >
               {branches.length === 0 ? (
-                <option value="">Clinic default</option>
+                <option value="Alkapuri branch">Alkapuri branch</option>
               ) : (
                 branches.map((b) => (
                   <option key={b.name} value={b.name}>
