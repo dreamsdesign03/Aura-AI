@@ -182,6 +182,7 @@ export default function AgentHub() {
     const [resettingFailure, setResettingFailure] = useState(false);
     const [loading, setLoading] = useState(true);
     const [running, setRunning] = useState({});
+    const [scoutRunResult, setScoutRunResult] = useState(null);
     const [agentFilter, setAgentFilter] = useState("all");
     const [lastRefresh, setLastRefresh] = useState(Date.now());
     const fetchStatus = useCallback(async () => {
@@ -255,7 +256,11 @@ export default function AgentHub() {
     async function runAgent(key, agent) {
         setRunning(r => ({ ...r, [key]: true }));
         try {
-            await fetch(`/api/agent-hub/${agent}/run-now`, { method: "POST", credentials: "include" });
+            const res = await fetch(`/api/agent-hub/${agent}/run-now`, { method: "POST", credentials: "include" });
+            const data = await res.json().catch(() => null);
+            if (key === "scout" && data) {
+                setScoutRunResult(data);
+            }
             await fetchAll();
         }
         finally {
@@ -609,6 +614,106 @@ export default function AgentHub() {
             ]} onToggle={() => toggleAgent("lead_hunter")} onRun={() => runAgent("lead_hunter", "lead_hunter")} running={running["lead_hunter"] ?? false} accentColor="#DE377C"/>
           </div>
 
+          {/* ── Scout Website Analysis & Live Scan Process ────────────── */}
+          {(running["scout"] || scoutRunResult || activities.some(a => a.activityType === "scout_website_checked")) && (() => {
+            const recentScans = scoutRunResult?.results?.length
+              ? scoutRunResult.results.map((r, idx) => ({
+                  id: r.leadId || idx,
+                  leadName: r.name,
+                  companyName: r.company,
+                  website: r.website,
+                  status: r.status === "live" ? "completed" : "warning",
+                  detail: r.status === "live" ? `${r.website} — live` : `${r.website} — down (HTTP ${r.code || "no response"})`,
+                  executedAt: new Date().toISOString(),
+                }))
+              : activities.filter(a => a.activityType === "scout_website_checked").slice(0, 15);
+            const liveCount = scoutRunResult ? scoutRunResult.live : recentScans.filter(s => s.status === "completed").length;
+            const downCount = scoutRunResult ? scoutRunResult.down : recentScans.filter(s => s.status !== "completed").length;
+            const totalCount = scoutRunResult ? scoutRunResult.scanned : recentScans.length;
+
+            return (
+              <div style={{
+                background: "#fff", border: "1px solid #CFFAFE",
+                borderRadius: 16, overflow: "hidden", marginBottom: 20,
+              }}>
+                <div style={{
+                  padding: "14px 18px",
+                  borderBottom: "1px solid #ECFEFF",
+                  background: "linear-gradient(135deg, #ECFEFF 0%, #F8FAFC 100%)",
+                  display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap",
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Globe size={16} style={{ color: "#0891B2" }}/>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#0F172A" }}>Scout Website Analysis</span>
+                    {running["scout"] ? (
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 9px", borderRadius: 99, background: "#E0F2FE", color: "#0369A1", display: "inline-flex", alignItems: "center", gap: 5 }}>
+                        <Loader2 size={11} className="animate-spin"/> Scanning lead websites (HTTP reachability check)...
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: 10.5, fontWeight: 700, padding: "2px 8px", borderRadius: 99, background: "#CFFAFE", color: "#0E7490" }}>
+                        {totalCount} scanned · {liveCount} live · {downCount} down
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => runAgent("scout", "scout")}
+                    disabled={running["scout"]}
+                    style={{
+                      fontSize: 11, fontWeight: 700, padding: "5px 12px", borderRadius: 8,
+                      border: "1px solid #A5F3FC", background: "#fff", color: "#0E7490",
+                      cursor: running["scout"] ? "wait" : "pointer",
+                      opacity: running["scout"] ? 0.6 : 1,
+                    }}
+                  >
+                    {running["scout"] ? "Scanning..." : "Scan Websites Now"}
+                  </button>
+                </div>
+
+                {running["scout"] && (
+                  <div style={{ padding: "12px 18px", background: "#F0FDFA", borderBottom: "1px solid #CCFBF1", fontSize: 12, color: "#0F766E" }}>
+                    Checking each lead website URL for live HTTP response, redirects, and availability. Results will update below automatically.
+                  </div>
+                )}
+
+                {recentScans.length > 0 && (
+                  <div style={{ maxHeight: 260, overflowY: "auto" }}>
+                    {recentScans.map((s) => {
+                      const isLive = s.status === "completed";
+                      return (
+                        <div key={s.id} style={{
+                          display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+                          padding: "9px 18px", borderBottom: "1px solid #F1F5F9", fontSize: 12,
+                        }}>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontWeight: 600, color: "#0F172A", truncate: true }}>
+                              {[s.leadName, s.companyName].filter(Boolean).join(" — ") || "Lead"}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#64748B", wordBreak: "break-all" }}>
+                              {s.detail || s.website}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 99,
+                              background: isLive ? "#DCFCE7" : "#FEF3C7",
+                              color: isLive ? "#15803D" : "#B45309",
+                            }}>
+                              {isLive ? "Live" : "Down"}
+                            </span>
+                            <span style={{ fontSize: 10, color: "#94A3B8" }}>
+                              {relativeTime(s.executedAt)}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* ── Toggle History ────────────────────────────────────────── */}
           <div style={{
                 background: "#fff", border: "1px solid #E5E7EB",
@@ -733,7 +838,7 @@ export default function AgentHub() {
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                     <Activity size={16} style={{ color: PURPLE }}/>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Live Mail Activity Feed</span>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: "#111827" }}>Live Agent Activity Feed</span>
                     <span style={{
                     fontSize: 10, fontWeight: 700, padding: "2px 7px",
                     background: `${PURPLE}15`, color: PURPLE, borderRadius: 99,

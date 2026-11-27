@@ -285,7 +285,7 @@ async function runScout(userId) {
      WHERE user_id = $1 AND website IS NOT NULL AND website <> '' ORDER BY created_at DESC LIMIT 60`,
     [userId]
   );
-  const summary = { ok: true, scanned: 0, live: 0, down: 0, noWebsite: 0 };
+  const summary = { ok: true, scanned: 0, live: 0, down: 0, noWebsite: 0, results: [] };
   for (const lead of leads.rows) {
     const res = await checkWebsite(lead.website);
     let status = res.status;
@@ -300,6 +300,14 @@ async function runScout(userId) {
       companyName: lead.company,
       detail: `${lead.website} — ${status === 'live' ? 'live' : `down (HTTP ${res.code || 'no response'})`}`,
       errorMessage: status === 'live' ? null : 'Website down',
+    });
+    summary.results.push({
+      leadId: lead.id,
+      name,
+      company: lead.company || '',
+      website: lead.website,
+      status: status === 'live' ? 'live' : 'down',
+      code: res.code || 0,
     });
     summary.scanned++;
     if (status === 'live') summary.live++;
@@ -1055,11 +1063,15 @@ function registerAgentHubRoutes(app, resolveUserId) {
 
       params.push(limit);
       const r = await db.query(
-        `SELECT DISTINCT ON (COALESCE(lead_name, company_name, id::text))
-                id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at
-         FROM agent_activity ${where} ORDER BY COALESCE(lead_name, company_name, id::text), executed_at DESC LIMIT $${params.length}`, params);
-      const sorted = r.rows.sort((a, b) => new Date(b.executed_at) - new Date(a.executed_at));
-      const rows = sorted.map(row => ({
+        `SELECT * FROM (
+           SELECT DISTINCT ON (COALESCE(lead_name, company_name, id::text))
+                  id, agent_name, activity_type, status, lead_name, company_name, detail, error_message, executed_at
+           FROM agent_activity ${where}
+           ORDER BY COALESCE(lead_name, company_name, id::text), executed_at DESC
+         ) sub
+         ORDER BY executed_at DESC
+         LIMIT $${params.length}`, params);
+      const rows = r.rows.map(row => ({
         id: row.id,
         agentName: row.agent_name,
         activityType: row.activity_type,
