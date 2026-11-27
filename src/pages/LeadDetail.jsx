@@ -351,11 +351,11 @@ export default function LeadDetail() {
           </div>)}
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
-        <div className="col-span-2 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4 min-w-0">
           {/* Header */}
-          <div className="rounded-xl border border-gray-200 p-5 bg-white shadow-sm">
-            <div className="flex items-start justify-between gap-3">
+          <div className="rounded-xl border border-gray-200 p-4 sm:p-5 bg-white shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
               <div className="flex-1 min-w-0">
                 {isEditing && draft ? (<div className="space-y-2">
                     <div className="flex gap-2">
@@ -401,7 +401,7 @@ export default function LeadDetail() {
                   </div>)}
               </div>
 
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-wrap">
                 {isEditing ? (<>
                     <button onClick={saveEditing} disabled={updateLead.isPending} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50" style={{ background: "#A4285E" }}>
                       <Check className="w-3.5 h-3.5"/>
@@ -434,7 +434,7 @@ export default function LeadDetail() {
             {saveError && (<div className="mt-2 text-xs text-red-600 bg-red-50 border border-red-200 rounded px-2 py-1">{saveError}</div>)}
 
             {isEditing && draft ? (<div className="mt-4 pt-4 border-t border-gray-200 space-y-3">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <div className={LABEL_CLS}>Email</div>
                     <input className={INPUT_CLS} type="email" value={draft.email} onChange={set("email")}/>
@@ -478,7 +478,7 @@ export default function LeadDetail() {
                 </div>
               </div>) : (<>
                 {/* Contact details grid */}
-                <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4 pt-4 border-t border-gray-100">
                   {cleanEmail(lead.email) && (<div className="flex items-center gap-2 text-xs text-gray-500">
                     <Mail className="w-3.5 h-3.5 flex-shrink-0"/>
                     <a href={`mailto:${cleanEmail(lead.email)}`} className="hover:text-gray-900 truncate">{cleanEmail(lead.email)}</a>
@@ -573,7 +573,7 @@ export default function LeadDetail() {
                           <div className="text-gray-500 text-[11px]">{dateLabel} · {m.duration} min</div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">{m.status}</span>
                         <button onClick={() => downloadICS(m)} title="Download .ics" className="p-1 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
                           <Download className="w-3.5 h-3.5"/>
