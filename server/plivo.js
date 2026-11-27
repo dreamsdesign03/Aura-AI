@@ -174,7 +174,7 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
       method: 'POST',
       headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        app_name: `Aura Clinic WebRTC Dialer ${Date.now()}`,
+        app_name: `Aura_Clinic_WebRTC_Dialer_${Date.now()}`,
         answer_url: answerUrl,
         answer_method: 'POST',
         hangup_url: hangupUrl,
@@ -183,7 +183,7 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
     });
     const appData = await appRes.json().catch(() => ({}));
     if (!appRes.ok || !appData.app_id) {
-      throw new Error(appData?.error || appData?.message || 'Failed to create Plivo WebRTC application');
+      throw new Error(typeof appData?.error === 'string' ? appData.error : JSON.stringify(appData?.error || appData?.message || 'Failed to create Plivo WebRTC application'));
     }
     appId = appData.app_id;
   }
@@ -201,13 +201,13 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
       body: JSON.stringify({
         username,
         password,
-        alias: 'Aura Clinic Browser Dialer',
+        alias: 'Aura_Clinic_Browser_Dialer',
         app_id: appId,
       }),
     });
     const epData = await epRes.json().catch(() => ({}));
     if (!epRes.ok) {
-      throw new Error(epData?.error || epData?.message || 'Failed to create Plivo SIP endpoint');
+      throw new Error(typeof epData?.error === 'string' ? epData.error : JSON.stringify(epData?.error || epData?.message || 'Failed to create Plivo SIP endpoint'));
     }
   }
 
