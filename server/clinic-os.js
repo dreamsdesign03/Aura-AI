@@ -5140,20 +5140,70 @@ router.get('/dialer/plivo/recording-stream/:id', async (req, res) => {
   }
 });
 
-// Helper: Fetch recording URL directly from Plivo Recording API by CallUUID
-async function fetchPlivoRecordingUrl(callUuid) {
-  if (!callUuid || String(callUuid).startsWith('webrtc_')) return null;
+// Helper: Fetch recording URL directly from Plivo Recording API by CallUUID, parent_call_uuid, or phone+time fallback
+async function fetchPlivoRecordingUrl(callUuid, callMeta = null) {
   try {
     const plivo = require('./plivo');
     const creds = plivo.getPlivoCredentials();
     if (!creds.isConfigured) return null;
     const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
-    const url = `https://api.plivo.com/v1/Account/${encodeURIComponent(creds.authId)}/Recording/?call_uuid=${encodeURIComponent(callUuid)}`;
-    const res = await fetch(url, { headers: { Authorization: authHeader, Accept: 'application/json' } });
-    if (!res.ok) return null;
-    const data = await res.json().catch(() => ({}));
-    const rec = (data.objects || [])[0];
-    return rec?.recording_url || rec?.url || null;
+    const base = `https://api.plivo.com/v1/Account/${encodeURIComponent(creds.authId)}`;
+    const headers = { Authorization: authHeader, Accept: 'application/json' };
+
+    const lookupByUuid = async (uuid) => {
+      if (!uuid || String(uuid).startsWith('webrtc_')) return null;
+      const r = await fetch(`${base}/Recording/?call_uuid=${encodeURIComponent(uuid)}`, { headers });
+      if (!r.ok) return null;
+      const d = await r.json().catch(() => ({}));
+      const rec = (d.objects || [])[0];
+      return rec?.recording_url || rec?.url || null;
+    };
+
+    if (callUuid && !String(callUuid).startsWith('webrtc_')) {
+      const direct = await lookupByUuid(callUuid);
+      if (direct) return direct;
+
+      // B-leg calls often store recordings on their parent A-leg CallUUID
+      const cRes = await fetch(`${base}/Call/${encodeURIComponent(callUuid)}/`, { headers }).catch(() => null);
+      if (cRes && cRes.ok) {
+        const cData = await cRes.json().catch(() => ({}));
+        if (cData.parent_call_uuid) {
+          const parentRec = await lookupByUuid(cData.parent_call_uuid);
+          if (parentRec) return parentRec;
+        }
+      }
+    }
+
+    // Fallback: match recent Plivo recordings by destination/caller phone + call timestamp
+    const phoneDigits = String(callMeta?.to_phone || callMeta?.from_phone || '').replace(/\D/g, '').slice(-10);
+    if (phoneDigits.length === 10) {
+      const [callsRes, recsRes] = await Promise.all([
+        fetch(`${base}/Call/?limit=20`, { headers }).catch(() => null),
+        fetch(`${base}/Recording/?limit=20`, { headers }).catch(() => null),
+      ]);
+      if (callsRes?.ok && recsRes?.ok) {
+        const callsData = await callsRes.json().catch(() => ({}));
+        const recsData = await recsRes.json().catch(() => ({}));
+        const recMap = new Map();
+        for (const item of (recsData.objects || [])) {
+          const u = item.call_uuid || item.call_uuid_id;
+          const url = item.recording_url || item.url;
+          if (u && url) recMap.set(u, url);
+        }
+        const targetTime = callMeta?.started_at ? new Date(callMeta.started_at).getTime() : 0;
+        for (const c of (callsData.objects || [])) {
+          const cTo = String(c.to_number || c.to || '').replace(/\D/g, '').slice(-10);
+          const cFrom = String(c.from_number || c.from || '').replace(/\D/g, '').slice(-10);
+          if (cTo !== phoneDigits && cFrom !== phoneDigits) continue;
+          const cTime = new Date(c.initiation_time || c.answer_time || c.end_time || 0).getTime();
+          if (targetTime && cTime && Math.abs(cTime - targetTime) > 10 * 60 * 1000) continue;
+          const matchedUrl = recMap.get(c.call_uuid) || (c.parent_call_uuid ? recMap.get(c.parent_call_uuid) : null);
+          if (matchedUrl) return matchedUrl;
+        }
+      }
+    }
+
+    return null;
   } catch {
     return null;
   }
@@ -5571,12 +5621,20 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     const baseUrl = `${rawProto}://${host}`;
 
     let rawRecordingUrl = call.recording_url;
-    if (!rawRecordingUrl && call.provider === 'plivo' && call.call_sid) {
-      const fetchedUrl = await fetchPlivoRecordingUrl(call.call_sid);
+    if (!rawRecordingUrl && call.provider === 'plivo') {
+      const fetchedUrl = await fetchPlivoRecordingUrl(call.call_sid, call);
       if (fetchedUrl) {
         rawRecordingUrl = fetchedUrl;
         call.recording_url = fetchedUrl;
         await db.query('UPDATE ai_calls SET recording_url = $1, updated_at = NOW() WHERE id = $2', [fetchedUrl, call.id]).catch(() => {});
+      }
+    }
+    if (!rawRecordingUrl && call.provider === 'sarvam' && call.conversation_id) {
+      const { recordingProxyUrl } = require('./sarvam');
+      const proxyUrl = recordingProxyUrl(call.conversation_id);
+      if (proxyUrl) {
+        rawRecordingUrl = proxyUrl;
+        call.recording_url = proxyUrl;
       }
     }
     if (call.recording_url && call.recording_url.includes('plivo.com')) {
@@ -5664,8 +5722,8 @@ router.post('/call-review/:id/transcribe', requireUser, async (req, res) => {
     if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     const call = callRes.rows[0];
     let recUrl = call.recording_url;
-    if (!recUrl && call.provider === 'plivo' && call.call_sid) {
-      recUrl = await fetchPlivoRecordingUrl(call.call_sid);
+    if (!recUrl && call.provider === 'plivo') {
+      recUrl = await fetchPlivoRecordingUrl(call.call_sid, call);
       if (recUrl) {
         await db.query('UPDATE ai_calls SET recording_url = $1, updated_at = NOW() WHERE id = $2', [recUrl, call.id]).catch(() => {});
       }
