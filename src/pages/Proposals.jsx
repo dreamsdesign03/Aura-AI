@@ -351,7 +351,7 @@ export default function Proposals() {
                 <input name="title" required placeholder="Brand Identity & Digital Presence Package" className="w-full text-xs rounded border border-gray-200 bg-white text-gray-900 px-2.5 py-1.5 focus:outline-none"/>
               </div>
               <div>
-                <label className="block text-[11px] text-muted-foreground mb-1">Investment (USD)</label>
+                <label className="block text-[11px] text-muted-foreground mb-1">Investment (INR)</label>
                 <input name="investment" required type="number" placeholder="15000" className="w-full text-xs rounded border border-gray-200 bg-white text-gray-900 px-2.5 py-1.5 focus:outline-none"/>
               </div>
               <div>

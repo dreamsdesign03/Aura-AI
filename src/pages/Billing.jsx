@@ -85,16 +85,14 @@ function PlanCard({ plan, isCurrent, isDowngrade, onUpgrade, upgrading, interval
 
         <div className="flex items-baseline gap-1 mb-1">
           <span className="text-3xl font-black text-gray-900">
-            {currency === "USD" ? `$${monthlyUSD}` : `₹${monthlyINR.toLocaleString("en-IN")}`}
+            ₹{monthlyINR.toLocaleString("en-IN")}
           </span>
           <span className="text-sm text-gray-400">/month</span>
         </div>
         <div className="text-[11px] text-gray-400 mb-4">
-          {currency === "USD"
-            ? <span className="text-blue-500 font-medium">USD pricing — contact us to subscribe</span>
-            : interval === "yearly"
-                ? <>₹{plan.priceINRYearly.toLocaleString("en-IN")}/year · <span className="text-green-600 font-bold">20% off</span></>
-                : <>Or ₹{plan.priceINRYearly.toLocaleString("en-IN")}/year · save 20%</>}
+          {interval === "yearly"
+            ? <>₹{plan.priceINRYearly.toLocaleString("en-IN")}/year · <span className="text-green-600 font-bold">20% off</span></>
+            : <>Or ₹{plan.priceINRYearly.toLocaleString("en-IN")}/year · save 20%</>}
         </div>
 
         <div className="space-y-2 flex-1 mb-5">
@@ -112,9 +110,7 @@ function PlanCard({ plan, isCurrent, isDowngrade, onUpgrade, upgrading, interval
             ✓ Current Plan
           </div>) : isDowngrade ? (<button disabled className="w-full py-2.5 rounded-xl text-sm font-bold text-gray-400 cursor-not-allowed" style={{ background: "#F3F4F6" }}>
             Downgrade — contact support
-          </button>) : currency === "USD" ? (<a href={`mailto:sales@mysaai.in?subject=${encodeURIComponent(`AuraAI ${plan.name} Plan — USD Pricing`)}&body=${encodeURIComponent(`Hi,\n\nI'd like to subscribe to the AuraAI ${plan.name} plan with USD pricing.\n\nPlease share payment details.\n\nThanks`)}`} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 flex items-center justify-center gap-2 text-white no-underline" style={{ background: colors.gradient, display: "flex" }}>
-            Contact Us for USD
-          </a>) : (<button onClick={() => onUpgrade(plan)} disabled={upgrading} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 text-white" style={{ background: colors.gradient }}>
+          </button>) : (<button onClick={() => onUpgrade(plan)} disabled={upgrading} className="w-full py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2 text-white" style={{ background: colors.gradient }}>
             {upgrading ? <Loader2 className="w-4 h-4 animate-spin"/> : null}
             {upgrading ? "Processing…" : `Upgrade to ${plan.name}`}
           </button>)}
@@ -293,18 +289,6 @@ export default function Billing() {
         <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
           <div className="text-sm font-bold text-gray-900">Choose a Plan</div>
           <div className="flex items-center gap-2 flex-wrap">
-            <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "#F3F4F6" }}>
-              <button onClick={() => setCurrency("INR")} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all" style={currency === "INR"
-            ? { background: "#fff", color: "#1F2937", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
-            : { color: "#6B7280" }}>
-                ₹ INR
-              </button>
-              <button onClick={() => setCurrency("USD")} className="px-3 py-1.5 rounded-lg text-sm font-medium transition-all" style={currency === "USD"
-            ? { background: "#fff", color: "#1F2937", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }
-            : { color: "#6B7280" }}>
-                $ USD
-              </button>
-            </div>
             <div className="flex items-center gap-1 p-1 rounded-xl" style={{ background: "#F3F4F6" }}>
               <button onClick={() => setBillingInterval("monthly")} className="px-4 py-1.5 rounded-lg text-sm font-medium transition-all" style={billingInterval === "monthly"
             ? { background: "#fff", color: "#1F2937", boxShadow: "0 1px 3px rgba(0,0,0,0.1)" }

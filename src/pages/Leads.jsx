@@ -2547,7 +2547,7 @@ export default function Leads() {
                   </div>
                   <div>
                     <label className="block text-[11px] text-gray-500 mb-1">Annual Revenue</label>
-                    <input name="annualRevenue" placeholder="e.g. $5M" className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-300"/>
+                    <input name="annualRevenue" placeholder="e.g. ₹5 Cr" className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-teal-300"/>
                   </div>
                 </div>
               </div>

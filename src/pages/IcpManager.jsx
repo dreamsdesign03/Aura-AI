@@ -98,7 +98,7 @@ function IcpFormFields({ form, setForm, qualFilters, setQualFilters, }) {
         </div>
         <div>
           <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-1.5">
-            <DollarSign className="w-3 h-3"/> Monthly Ad Spend Range (USD)
+            <DollarSign className="w-3 h-3"/> Monthly Ad Spend Range (INR)
           </div>
           <div className="flex items-center gap-2">
             <input type="number" placeholder="Min" value={qualFilters.adSpendMin} onChange={(e) => setQualFilters((f) => ({ ...f, adSpendMin: e.target.value }))} className="flex-1 px-2.5 py-1.5 text-xs rounded border border-gray-200 bg-white text-gray-900 placeholder-gray-400/50 focus:outline-none focus:ring-1 focus:ring-amber-500/50"/>

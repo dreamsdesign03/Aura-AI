@@ -252,7 +252,7 @@ export default function ComposeModal({ onClose, initialEmail, initialLead }) {
         toName: `${selectedLead.firstName} ${selectedLead.lastName}`,
         company: selectedLead.company,
         country: selectedLead.country ?? "",
-        currency: "USD",
+        currency: "INR",
         subject,
         body: getBodyText(),
         bodyHtml: getBodyHtml(),
