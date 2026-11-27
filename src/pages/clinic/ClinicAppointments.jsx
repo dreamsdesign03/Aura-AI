@@ -262,7 +262,7 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
         </div>
         <div className="co-field co-span-2">
           <label className="co-label" htmlFor="co-patient">Link to patient (optional)</label>
-          <select id="co-patient" value={form.leadId} onChange={(e) => pickPatient(e.target.value)}>
+          <select id="co-patient" className="co-input" value={form.leadId} onChange={(e) => pickPatient(e.target.value)}>
             <option value="">New / walk-in patient</option>
             {patients.map((p) => (
               <option key={p.id} value={p.id}>{fullName(p)}{p.phone ? ` · ${p.phone}` : ''}</option>
@@ -291,11 +291,11 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-date">Date *</label>
-          <input id="co-date" type="date" className="co-input" value={form.date} onChange={set('date')} required />
+          <input id="co-date" type="date" className="co-input" style={{ colorScheme: 'light' }} value={form.date} onChange={set('date')} onClick={(e) => e.currentTarget.showPicker?.()} required />
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-time">Time *</label>
-          <input id="co-time" type="time" className="co-input" value={form.time} onChange={set('time')} required />
+          <input id="co-time" type="time" className="co-input" style={{ colorScheme: 'light' }} value={form.time} onChange={set('time')} onClick={(e) => e.currentTarget.showPicker?.()} required />
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-duration">Duration (min)</label>
@@ -307,7 +307,7 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
         </div>
         <div className="co-field co-span-2">
           <label className="co-label" htmlFor="co-notes">Notes</label>
-          <textarea id="co-notes" rows="2" value={form.notes} onChange={set('notes')} placeholder="Anything the front desk should know" />
+          <textarea id="co-notes" className="co-input" style={{ height: 'auto', padding: '10px 12px' }} rows="2" value={form.notes} onChange={set('notes')} placeholder="Anything the front desk should know" />
         </div>
         <div className="co-field co-span-2">
           <label className="co-label flex items-center gap-2 cursor-pointer">
