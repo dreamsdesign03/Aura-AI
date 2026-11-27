@@ -337,6 +337,8 @@ function ensureSchema() {
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS call_cost NUMERIC;
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS transcription_status TEXT DEFAULT 'pending';
     ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS transcription_error TEXT;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS agent_name TEXT;
+    ALTER TABLE ai_calls ADD COLUMN IF NOT EXISTS agent_user_id INT;
 
     -- WhatsApp inbox safety: inbound webhooks arrive from numbers that are not
     -- in leads, so these constraints must be relaxed or messages are dropped.
@@ -4662,12 +4664,13 @@ router.post('/dialer/call', requireUser, async (req, res) => {
         if (!destE164 || !/^\+[1-9]\d{7,14}$/.test(destE164)) {
           return res.status(400).json({ error: `Invalid destination phone number: ${destination}` });
         }
+        const agentName = [req.user?.first_name, req.user?.last_name].filter(Boolean).join(' ').trim() || req.user?.username || req.user?.email || 'Aura User';
         const tempUuid = `webrtc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
         const inserted = await db.query(
-          `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, started_at)
-           VALUES ($1, $2, $2, $3, $4, $5, $6, 'ringing', $7, 'plivo', 'outbound', NOW())
+          `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, agent_name, agent_user_id, started_at)
+           VALUES ($1, $2, $2, $3, $4, $5, $6, 'ringing', $7, 'plivo', 'outbound', $8, $9, NOW())
            RETURNING *`,
-          [finalLeadId, tempUuid, callerE164, destE164, contactName, companyName, conversationType]
+          [finalLeadId, tempUuid, callerE164, destE164, contactName, companyName, conversationType, agentName, req.user?.id || null]
         );
         if (finalLeadId) {
           await db.query(
@@ -5111,6 +5114,25 @@ router.get('/dialer/plivo/recording-stream/:id', async (req, res) => {
   }
 });
 
+// Helper: Fetch recording URL directly from Plivo Recording API by CallUUID
+async function fetchPlivoRecordingUrl(callUuid) {
+  if (!callUuid || String(callUuid).startsWith('webrtc_')) return null;
+  try {
+    const plivo = require('./plivo');
+    const creds = plivo.getPlivoCredentials();
+    if (!creds.isConfigured) return null;
+    const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
+    const url = `https://api.plivo.com/v1/Account/${encodeURIComponent(creds.authId)}/Recording/?call_uuid=${encodeURIComponent(callUuid)}`;
+    const res = await fetch(url, { headers: { Authorization: authHeader, Accept: 'application/json' } });
+    if (!res.ok) return null;
+    const data = await res.json().catch(() => ({}));
+    const rec = (data.objects || [])[0];
+    return rec?.recording_url || rec?.url || null;
+  } catch {
+    return null;
+  }
+}
+
 // Helper: Transcribe Plivo audio using Gemini 2.5 Flash
 async function transcribePlivoRecording(callId, recordingUrl) {
   if (!recordingUrl) return null;
@@ -5125,6 +5147,22 @@ async function transcribePlivoRecording(callId, recordingUrl) {
   if (!claim.rows.length) return null;
   try {
     if (!process.env.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY is not configured on the server');
+    const callMetaRes = await db.query(
+      `SELECT ac.agent_name, ac.lead_name, ac.to_phone, ac.from_phone, ac.direction,
+              CONCAT_WS(' ', l.first_name, l.last_name) AS lead_full_name
+         FROM ai_calls ac
+         LEFT JOIN leads l ON l.id = ac.lead_id
+        WHERE ac.id = $1 LIMIT 1`,
+      [callId]
+    );
+    const meta = callMetaRes.rows[0] || {};
+    const auraSpeakerLabel = (meta.agent_name || '').trim() || 'Aura User';
+    const rawContactName = cleanEnglishName(meta.lead_name || meta.lead_full_name || '');
+    const contactPhone = (meta.direction === 'inbound' ? meta.from_phone : meta.to_phone) || '';
+    const contactSpeakerLabel = (rawContactName && !/^(patient|unknown|unknown caller|unnamed patient)$/i.test(rawContactName))
+      ? rawContactName
+      : (contactPhone || 'Patient');
+
     const plivo = require('./plivo');
     const creds = plivo.getPlivoCredentials();
     const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
@@ -5138,15 +5176,16 @@ async function transcribePlivoRecording(callId, recordingUrl) {
     const base64Audio = Buffer.from(arrayBuf).toString('base64');
 
     const prompt = `You are an expert clinical conversation transcriptionist and analyst for Dr. Aditya Shah's Aura Laser & Cosmetic Clinic.
-Listen carefully to this phone call recording.
-Analyze the speech between the clinic coordinator/agent and the patient/caller.
+Listen carefully to this phone call recording between the Aura Clinic user ("${auraSpeakerLabel}") and the external contact ("${contactSpeakerLabel}").
 Produce a valid JSON object with:
 1. "transcript": Array of conversation turns. Each turn MUST be:
    {
-     "speaker": "AI Coordinator" | "Patient" | "Clinic Doctor",
+     "speaker": "${auraSpeakerLabel}" | "${contactSpeakerLabel}",
+     "speaker_role": "agent" | "customer",
      "text": "Exact words spoken (preserve Hindi, Gujarati, or English phrases accurately)",
      "time": "MM:SS"
    }
+   Use "${auraSpeakerLabel}" (with speaker_role "agent") for the person speaking from Aura Clinic / web dialer, and "${contactSpeakerLabel}" (with speaker_role "customer") for the person on the other end of the call.
 2. "transcript_summary": 2-3 sentences summarizing what was discussed, doctor requested, branch, treatments, and call outcome.
 3. "sentiment": "Positive" | "Neutral" | "Negative"
 4. "outcome": "booked" | "connected" | "inquiry" | "follow_up" | "rescheduled" | "not_interested"
@@ -5503,7 +5542,15 @@ router.get('/call-review/:id', requireUser, async (req, res) => {
     const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const baseUrl = `${rawProto}://${host}`;
 
-    const rawRecordingUrl = call.recording_url;
+    let rawRecordingUrl = call.recording_url;
+    if (!rawRecordingUrl && call.provider === 'plivo' && call.call_sid) {
+      const fetchedUrl = await fetchPlivoRecordingUrl(call.call_sid);
+      if (fetchedUrl) {
+        rawRecordingUrl = fetchedUrl;
+        call.recording_url = fetchedUrl;
+        await db.query('UPDATE ai_calls SET recording_url = $1, updated_at = NOW() WHERE id = $2', [fetchedUrl, call.id]).catch(() => {});
+      }
+    }
     if (call.recording_url && call.recording_url.includes('plivo.com')) {
       call.recording_url = `${baseUrl}/api/clinic/dialer/plivo/recording-stream/${call.id}`;
     }
@@ -5588,10 +5635,17 @@ router.post('/call-review/:id/transcribe', requireUser, async (req, res) => {
     const callRes = await db.query('SELECT * FROM ai_calls WHERE id = $1', [req.params.id]);
     if (callRes.rows.length === 0) return res.status(404).json({ error: 'Call not found' });
     const call = callRes.rows[0];
-    if (!call.recording_url) return res.status(400).json({ error: 'No audio recording found for this call' });
+    let recUrl = call.recording_url;
+    if (!recUrl && call.provider === 'plivo' && call.call_sid) {
+      recUrl = await fetchPlivoRecordingUrl(call.call_sid);
+      if (recUrl) {
+        await db.query('UPDATE ai_calls SET recording_url = $1, updated_at = NOW() WHERE id = $2', [recUrl, call.id]).catch(() => {});
+      }
+    }
+    if (!recUrl) return res.status(400).json({ error: 'No audio recording found for this call' });
     await db.query(`UPDATE ai_calls SET transcription_status = 'pending', transcription_error = NULL WHERE id = $1 AND (transcript IS NULL OR jsonb_typeof(transcript) = 'null' OR transcript = '[]'::jsonb)`, [call.id]);
 
-    const result = await transcribePlivoRecording(call.id, call.recording_url);
+    const result = await transcribePlivoRecording(call.id, recUrl);
     if (!result) return res.status(500).json({ error: 'Failed to transcribe audio with AI' });
 
     res.json({ success: true, ...result });

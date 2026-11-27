@@ -266,8 +266,13 @@ function normalizeTranscriptTurns(rawTranscript) {
   if (Array.isArray(parsed)) {
     return parsed.map((t, idx) => {
       // Sarvam format: { role: 'agent'|'user', en_text: '...', indic_text: '...' }
-      // ElevenLabs / standard format: { speaker, text, message, content, role }
-      const isAgent = t.role === 'agent' || t.role === 'assistant' || (t.speaker && /ai|agent|coordinator/i.test(t.speaker));
+      // Plivo / standard format: { speaker, speaker_role, text, message, content, role }
+      const rawSpeaker = (t.speaker || '').trim();
+      const isAgent =
+        t.speaker_role === 'agent' ||
+        t.role === 'agent' ||
+        t.role === 'assistant' ||
+        (rawSpeaker && /ai|agent|coordinator|aura/i.test(rawSpeaker));
       const enText = (t.en_text || t.text || t.message || t.content || t.original_message || '').trim();
       const indicText = (t.indic_text && t.indic_text.trim() !== enText) ? t.indic_text.trim() : '';
       const displayText = enText || indicText || (typeof t === 'string' ? t.trim() : '');
@@ -275,7 +280,9 @@ function normalizeTranscriptTurns(rawTranscript) {
 
       return {
         id: idx,
-        speaker: isAgent ? 'Aura AI / Coordinator' : (t.speaker || 'Patient'),
+        isAgent,
+        rawSpeaker,
+        speaker: rawSpeaker || (isAgent ? 'Aura AI / Coordinator' : 'Patient'),
         text: displayText,
         indicText: indicText,
         time: timeStr,
@@ -914,7 +921,15 @@ export default function ClinicCallReview({ id }) {
             {turns.length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
                 {turns.map((t) => {
-                  const isAgent = t.speaker.toLowerCase().includes('ai') || t.speaker.toLowerCase().includes('agent') || t.speaker.toLowerCase().includes('coordinator');
+                  const agentDisplayName = call.agent_name || (call.provider === 'sarvam' ? 'Aura AI' : 'Aura User');
+                  const contactDisplayName =
+                    (patientDisplayName && !/^(patient|unknown|unknown caller|unnamed patient)$/i.test(patientDisplayName))
+                      ? patientDisplayName
+                      : ((call.display_phone && call.display_phone !== '—' ? call.display_phone : (call.direction === 'inbound' ? call.from_phone : call.to_phone)) || 'Caller');
+                  const isAgent = t.isAgent ?? (t.speaker.toLowerCase().includes('ai') || t.speaker.toLowerCase().includes('agent') || t.speaker.toLowerCase().includes('coordinator') || (call.agent_name && t.speaker === call.agent_name));
+                  const speakerLabel = isAgent
+                    ? (t.rawSpeaker && !/^(ai coordinator|aura ai \/ coordinator|agent)$/i.test(t.rawSpeaker) ? t.rawSpeaker : agentDisplayName)
+                    : contactDisplayName;
                   return (
                     <div
                       key={t.id}
@@ -931,7 +946,7 @@ export default function ClinicCallReview({ id }) {
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4, gap: 12 }}>
                         <span style={{ fontSize: 11, fontWeight: 700, color: isAgent ? '#A4285E' : '#2563EB' }}>
-                          {isAgent ? 'Aura AI / Coordinator' : patientDisplayName}
+                          {speakerLabel}
                         </span>
                         {t.time && <span style={{ fontSize: 10, color: '#9CA3AF' }}>{t.time}</span>}
                       </div>
