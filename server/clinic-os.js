@@ -4571,10 +4571,10 @@ router.post('/dialer/call', requireUser, async (req, res) => {
       } else {
         const cleanPhone = cleaned || destination.trim();
         const insLead = await db.query(
-          `INSERT INTO leads (user_id, first_name, last_name, phone, whatsapp, company, clinic_branch, source, pipeline_stage, status, created_at, updated_at)
-           VALUES ($1, '', '', $2, $2, NULL, $3, 'dialer', 'New Lead', 'Active', NOW(), NOW())
+          `INSERT INTO leads (user_id, first_name, last_name, phone, whatsapp, company, source, pipeline_stage, status, created_at, updated_at)
+           VALUES ($1, '', '', $2, $2, NULL, 'dialer', 'New Lead', 'Active', NOW(), NOW())
            RETURNING id`,
-          [req.user.id, cleanPhone, branch || 'Alkapuri branch']
+          [req.user.id, cleanPhone]
         );
         if (insLead.rows.length > 0) {
           finalLeadId = insLead.rows[0].id;

@@ -977,6 +977,42 @@ export default function ClinicDialer() {
                 </div>
               </div>
 
+              {/* Type & Branch Selectors */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                <label className="co-field" style={{ margin: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#A4285E' }}>Type *</span>
+                  <select
+                    className="co-input"
+                    value={conversationType}
+                    onChange={(e) => setConversationType(e.target.value)}
+                    disabled={isBusy}
+                    style={{ fontSize: 12.5, fontWeight: 600 }}
+                  >
+                    {CONVERSATION_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="co-field" style={{ margin: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#64748B' }}>Branch</span>
+                  <select
+                    className="co-input"
+                    value={branch}
+                    onChange={(e) => setBranch(e.target.value)}
+                    disabled={isBusy}
+                    style={{ fontSize: 12.5, fontWeight: 600 }}
+                  >
+                    {branches.length === 0 ? (
+                      <option value="Alkapuri branch">Alkapuri branch</option>
+                    ) : (
+                      branches.map((b) => (
+                        <option key={b.name} value={b.name}>{b.name}</option>
+                      ))
+                    )}
+                  </select>
+                </label>
+              </div>
+
               {/* 12-Key Dialpad Grid */}
               <div
                 style={{
