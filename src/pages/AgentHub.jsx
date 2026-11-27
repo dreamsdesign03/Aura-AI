@@ -811,6 +811,9 @@ export default function AgentHub() {
                         </div>)}
 
                       {/* Detail summary */}
+                      {a.detail && typeof a.detail === "string" && (<div style={{ fontSize: 11, color: "#6B7280", marginTop: 2, wordBreak: "break-word" }}>
+                          {a.detail}
+                        </div>)}
                       {a.detail && typeof a.detail === "object" && (<div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
                           {Object.entries(a.detail)
                             .filter(([, v]) => typeof v === "string" || typeof v === "number")
