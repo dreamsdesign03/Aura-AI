@@ -4853,7 +4853,8 @@ router.get('/dialer/webrtc-token', requireUser, async (req, res) => {
     const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
     const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
     const hostUrl = host.includes('localhost') ? 'https://aura-ai-six-beta.vercel.app' : `${rawProto}://${host}`;
-    const setup = await plivo.ensurePlivoWebrtcSetup(hostUrl);
+    const forceRefresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const setup = await plivo.ensurePlivoWebrtcSetup(hostUrl, { forceRefresh });
     res.json({ enabled: true, username: setup.username, password: setup.password, callerId: setup.callerId });
   } catch (err) {
     res.status(500).json({ enabled: false, error: err.message });

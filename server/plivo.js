@@ -107,7 +107,7 @@ async function dispatchPlivoCall({ to, from, conversationType = 'patient_consult
  * Ensures a Plivo Application + SIP Endpoint exist for browser WebRTC two-way calling.
  * Persists credentials in PostgreSQL so they survive serverless cold starts.
  */
-async function ensurePlivoWebrtcSetup(hostUrl) {
+async function ensurePlivoWebrtcSetup(hostUrl, { forceRefresh = false } = {}) {
   const creds = getPlivoCredentials();
   if (!creds.isConfigured) {
     throw new Error('Plivo credentials not configured.');
@@ -127,7 +127,7 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
   const answerUrl = `${cleanHost}/api/clinic/dialer/plivo/webrtc-answer`;
   const hangupUrl = `${cleanHost}/api/clinic/dialer/plivo/hangup`;
 
-  if (process.env.PLIVO_ENDPOINT_USERNAME && process.env.PLIVO_ENDPOINT_PASSWORD) {
+  if (!forceRefresh && process.env.PLIVO_ENDPOINT_USERNAME && process.env.PLIVO_ENDPOINT_PASSWORD) {
     return {
       username: process.env.PLIVO_ENDPOINT_USERNAME.trim(),
       password: process.env.PLIVO_ENDPOINT_PASSWORD.trim(),
@@ -140,19 +140,47 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
     CREATE TABLE IF NOT EXISTS clinic_dialer_webrtc (
       id INT PRIMARY KEY DEFAULT 1,
       app_id TEXT,
+      endpoint_id TEXT,
       username TEXT NOT NULL,
       password TEXT NOT NULL,
       answer_url TEXT,
       updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
+  await db.query(`ALTER TABLE clinic_dialer_webrtc ADD COLUMN IF NOT EXISTS endpoint_id TEXT`).catch(() => {});
 
   const existing = await db.query('SELECT * FROM clinic_dialer_webrtc WHERE id = 1');
   const row = existing.rows[0];
   const authHeader = `Basic ${Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64')}`;
   const apiBase = `https://api.plivo.com/v1/Account/${encodeURIComponent(creds.authId)}`;
 
-  if (row && row.username && row.password && row.app_id && row.answer_url === answerUrl) {
+  let cachedEndpointValid = false;
+  if (!forceRefresh && row && row.username && row.password && row.app_id) {
+    try {
+      if (row.endpoint_id) {
+        const epCheck = await fetch(`${apiBase}/Endpoint/${encodeURIComponent(row.endpoint_id)}/`, {
+          headers: { Authorization: authHeader },
+        });
+        cachedEndpointValid = epCheck.ok;
+      } else {
+        const epListRes = await fetch(`${apiBase}/Endpoint/?limit=20`, {
+          headers: { Authorization: authHeader },
+        });
+        if (epListRes.ok) {
+          const epList = await epListRes.json().catch(() => ({}));
+          const found = (epList.objects || []).find((e) => e.username === row.username);
+          if (found) {
+            cachedEndpointValid = true;
+            await db.query('UPDATE clinic_dialer_webrtc SET endpoint_id = $1 WHERE id = 1', [found.endpoint_id]).catch(() => {});
+          }
+        }
+      }
+    } catch {
+      cachedEndpointValid = false;
+    }
+  }
+
+  if (!forceRefresh && cachedEndpointValid && row.answer_url === answerUrl) {
     return {
       username: row.username,
       password: row.password,
@@ -161,15 +189,19 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
     };
   }
 
-  // 1. Create or update Plivo Application for WebRTC Dialer
+  // 1. Verify, update, or create Plivo Application for WebRTC Dialer
   let appId = row?.app_id || '';
   if (appId) {
-    await fetch(`${apiBase}/Application/${encodeURIComponent(appId)}/`, {
+    const appCheck = await fetch(`${apiBase}/Application/${encodeURIComponent(appId)}/`, {
       method: 'POST',
       headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({ answer_url: answerUrl, answer_method: 'POST', hangup_url: hangupUrl, hangup_method: 'POST' }),
-    }).catch(() => {});
-  } else {
+    }).catch(() => null);
+    if (!appCheck || !appCheck.ok) {
+      appId = '';
+    }
+  }
+  if (!appId) {
     const appRes = await fetch(`${apiBase}/Application/`, {
       method: 'POST',
       headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
@@ -188,18 +220,26 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
     appId = appData.app_id;
   }
 
-  // 2. Create SIP Endpoint if not yet saved
-  let username = row?.username || '';
-  let password = row?.password || '';
+  // 2. Create SIP Endpoint if missing, invalid, or force-refreshed
+  let username = cachedEndpointValid ? row.username : '';
+  let password = cachedEndpointValid ? row.password : '';
+  let endpointId = cachedEndpointValid ? (row.endpoint_id || '') : '';
+
   if (!username || !password) {
+    if (forceRefresh && row?.endpoint_id) {
+      await fetch(`${apiBase}/Endpoint/${encodeURIComponent(row.endpoint_id)}/`, {
+        method: 'DELETE',
+        headers: { Authorization: authHeader },
+      }).catch(() => {});
+    }
     const suffix = Math.random().toString(36).slice(2, 8);
-    username = `auraclinic${suffix}`;
-    password = `Aura#${Math.random().toString(36).slice(2, 10)}9`;
+    const desiredUsername = `auraclinic${suffix}`;
+    password = `Aura${Math.random().toString(36).slice(2, 10)}9A`;
     const epRes = await fetch(`${apiBase}/Endpoint/`, {
       method: 'POST',
       headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username,
+        username: desiredUsername,
         password,
         alias: 'Aura_Clinic_Browser_Dialer',
         app_id: appId,
@@ -209,13 +249,15 @@ async function ensurePlivoWebrtcSetup(hostUrl) {
     if (!epRes.ok) {
       throw new Error(typeof epData?.error === 'string' ? epData.error : JSON.stringify(epData?.error || epData?.message || 'Failed to create Plivo SIP endpoint'));
     }
+    username = epData.username || desiredUsername;
+    endpointId = epData.endpoint_id || '';
   }
 
   await db.query(
-    `INSERT INTO clinic_dialer_webrtc (id, app_id, username, password, answer_url, updated_at)
-     VALUES (1, $1, $2, $3, $4, NOW())
-     ON CONFLICT (id) DO UPDATE SET app_id = EXCLUDED.app_id, username = EXCLUDED.username, password = EXCLUDED.password, answer_url = EXCLUDED.answer_url, updated_at = NOW()`,
-    [appId, username, password, answerUrl]
+    `INSERT INTO clinic_dialer_webrtc (id, app_id, endpoint_id, username, password, answer_url, updated_at)
+     VALUES (1, $1, $2, $3, $4, $5, NOW())
+     ON CONFLICT (id) DO UPDATE SET app_id = EXCLUDED.app_id, endpoint_id = EXCLUDED.endpoint_id, username = EXCLUDED.username, password = EXCLUDED.password, answer_url = EXCLUDED.answer_url, updated_at = NOW()`,
+    [appId, endpointId, username, password, answerUrl]
   );
 
   return {

@@ -112,7 +112,7 @@ export const clinicApi = {
   updateDialerCall: (id, body) => request(`/dialer/call/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),
   addDialerContact: (body) => request('/dialer/contact', { method: 'POST', body: JSON.stringify(body) }),
   dialerSettings: () => request('/dialer/settings'),
-  dialerWebrtcToken: () => request('/dialer/webrtc-token'),
+  dialerWebrtcToken: (refresh = false) => request(`/dialer/webrtc-token${refresh ? '?refresh=1' : ''}`),
   saveDialerSettings: (body) => request('/dialer/settings', { method: 'POST', body: JSON.stringify(body) }),
 
   // Call review

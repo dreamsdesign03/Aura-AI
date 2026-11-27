@@ -150,6 +150,7 @@ export default function ClinicDialer() {
   const timerRef = useRef(null);
   const plivoBrowserRef = useRef(null);
   const plivoReadyRef = useRef(false);
+  const webrtcInitPromiseRef = useRef(null);
   const activeCallIdRef = useRef(null);
   const callSecondsRef = useRef(0);
 
@@ -161,67 +162,93 @@ export default function ClinicDialer() {
     callSecondsRef.current = callSeconds;
   }, [callSeconds]);
 
-  const initPlivoWebrtc = async () => {
-    if (plivoReadyRef.current && plivoBrowserRef.current?.client) return true;
-    const tok = await clinicApi.dialerWebrtcToken();
-    if (!tok?.enabled || !tok.username || !tok.password) {
-      throw new Error(tok?.error || 'WebRTC credentials unavailable');
+  const initPlivoWebrtc = (forceRefresh = false) => {
+    if (!forceRefresh && plivoReadyRef.current && plivoBrowserRef.current?.client) {
+      return Promise.resolve(true);
     }
-    const PlivoCtor = Plivo?.default || Plivo;
-    if (typeof PlivoCtor !== 'function') {
-      throw new Error('Plivo WebRTC SDK failed to load');
+    if (!forceRefresh && webrtcInitPromiseRef.current) {
+      return webrtcInitPromiseRef.current;
     }
-    return await new Promise((resolve, reject) => {
-      const sdk = new PlivoCtor({
-        debug: 'ERROR',
-        permOnClick: true,
-        enableTracking: true,
-        closeProtection: false,
-        codecPrefs: ['OPUS', 'PCMU'],
-      });
-      plivoBrowserRef.current = sdk;
-      const timeout = setTimeout(() => {
-        if (!plivoReadyRef.current) {
+
+    const run = async (refreshAttempt) => {
+      const tok = await clinicApi.dialerWebrtcToken(refreshAttempt);
+      if (!tok?.enabled || !tok.username || !tok.password) {
+        throw new Error(tok?.error || 'WebRTC credentials unavailable');
+      }
+      const PlivoCtor = Plivo?.default || Plivo;
+      if (typeof PlivoCtor !== 'function') {
+        throw new Error('Plivo WebRTC SDK failed to load');
+      }
+      try {
+        plivoBrowserRef.current?.client?.logout?.();
+      } catch { /* ignore */ }
+      plivoReadyRef.current = false;
+
+      return await new Promise((resolve, reject) => {
+        const sdk = new PlivoCtor({
+          debug: 'ERROR',
+          permOnClick: true,
+          enableTracking: true,
+          closeProtection: false,
+          codecPrefs: ['OPUS', 'PCMU'],
+        });
+        plivoBrowserRef.current = sdk;
+        const timeout = setTimeout(() => {
+          if (!plivoReadyRef.current) {
+            setWebrtcStatus('error');
+            reject(new Error('Voice connection timed out. Please refresh and try again.'));
+          }
+        }, 10000);
+        sdk.client.on('onLogin', () => {
+          clearTimeout(timeout);
+          plivoReadyRef.current = true;
+          setWebrtcStatus('ready');
+          resolve(true);
+        });
+        sdk.client.on('onLoginFailed', (reason) => {
+          clearTimeout(timeout);
+          plivoReadyRef.current = false;
           setWebrtcStatus('error');
-          reject(new Error('Voice connection timed out. Please refresh and try again.'));
-        }
-      }, 10000);
-      sdk.client.on('onLogin', () => {
-        clearTimeout(timeout);
-        plivoReadyRef.current = true;
-        setWebrtcStatus('ready');
-        resolve(true);
+          reject(new Error(typeof reason === 'string' ? reason : 'Plivo WebRTC login failed'));
+        });
+        sdk.client.on('onCallRemoteRinging', () => {
+          setCallPhase('ringing');
+        });
+        sdk.client.on('onCallAnswered', () => {
+          setCallPhase('connected');
+        });
+        sdk.client.on('onCallTerminated', () => {
+          setCallPhase('ended');
+          const id = activeCallIdRef.current;
+          if (id) {
+            clinicApi.updateDialerCall(id, { status: 'completed', durationSecs: callSecondsRef.current }).catch(() => {});
+          }
+          refetchHistory();
+        });
+        sdk.client.on('onCallFailed', (cause) => {
+          setCallPhase('error');
+          setErrorMessage(typeof cause === 'string' ? cause : 'Call failed or was rejected.');
+          const id = activeCallIdRef.current;
+          if (id) {
+            clinicApi.updateDialerCall(id, { status: 'failed', durationSecs: 0 }).catch(() => {});
+          }
+        });
+        sdk.client.login(tok.username.trim(), tok.password.trim());
       });
-      sdk.client.on('onLoginFailed', (reason) => {
-        clearTimeout(timeout);
-        plivoReadyRef.current = false;
-        setWebrtcStatus('error');
-        reject(new Error(typeof reason === 'string' ? reason : 'Plivo WebRTC login failed'));
-      });
-      sdk.client.on('onCallRemoteRinging', () => {
-        setCallPhase('ringing');
-      });
-      sdk.client.on('onCallAnswered', () => {
-        setCallPhase('connected');
-      });
-      sdk.client.on('onCallTerminated', () => {
-        setCallPhase('ended');
-        const id = activeCallIdRef.current;
-        if (id) {
-          clinicApi.updateDialerCall(id, { status: 'completed', durationSecs: callSecondsRef.current }).catch(() => {});
-        }
-        refetchHistory();
-      });
-      sdk.client.on('onCallFailed', (cause) => {
-        setCallPhase('error');
-        setErrorMessage(typeof cause === 'string' ? cause : 'Call failed or was rejected.');
-        const id = activeCallIdRef.current;
-        if (id) {
-          clinicApi.updateDialerCall(id, { status: 'failed', durationSecs: 0 }).catch(() => {});
-        }
-      });
-      sdk.client.login(tok.username, tok.password);
+    };
+
+    const promise = run(forceRefresh).catch(async (err) => {
+      // If cached SIP credentials fail authentication, regenerate the endpoint once and retry
+      if (!forceRefresh && /auth/i.test(String(err?.message || ''))) {
+        return await run(true);
+      }
+      throw err;
+    }).finally(() => {
+      webrtcInitPromiseRef.current = null;
     });
+
+    webrtcInitPromiseRef.current = promise;
+    return promise;
   };
 
   // Initialize Plivo Browser SDK for two-way live WebRTC audio
