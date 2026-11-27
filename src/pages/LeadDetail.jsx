@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRoute, useLocation } from "wouter";
 import { useGetLead, useUpdateLead, useListMeetings, useListLeads, useListTeamMembers, getListMeetingsQueryKey } from "@workspace/api-client-react";
 import { getGetLeadQueryKey, getListLeadsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuthUser } from "@/contexts/AuthContext";
 import { StatusBadge, Tag } from "@/components/Badge";
 import { formatDate, formatRelative } from "@/lib/utils";
@@ -11,7 +11,10 @@ import { cleanEmail } from "@/lib/emails";
 import { ArrowLeft, ChevronLeft, ChevronRight, Globe, Globe as Linkedin, Phone, Mail, Building2, MapPin, MessageCircle, Pencil, X, Check, Loader2, Sparkles, CalendarPlus, CalendarDays, Download, UserCheck, Send, FileText, CheckCircle2, HeartPulse } from "lucide-react";
 import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
-import { NewMeetingModal, downloadICS } from "@/components/NewMeetingModal";
+import { downloadICS } from "@/components/NewMeetingModal";
+import { BookingForm } from "@/pages/clinic/ClinicAppointments";
+import { Modal } from "@/clinic/ui";
+import { clinicApi } from "@/clinic/api";
 import { AiPanelOverlay } from "@/components/AiLoader";
 import { IntelReport } from "@/components/IntelReport";
 import SendWhatsAppModal from "@/components/SendWhatsAppModal";
@@ -164,6 +167,25 @@ export default function LeadDetail() {
     };
     const { toast } = useToast();
     const { data: allMeetings = [] } = useListMeetings();
+    const { data: clinicApptsResp } = useQuery({
+        queryKey: ['clinic', 'appointments', 'all'],
+        queryFn: () => clinicApi.appointments({ all: true }),
+    });
+    const bookAppointment = useMutation({
+        mutationFn: (body) => clinicApi.bookAppointment(body),
+        onSuccess: async () => {
+            setShowScheduleModal(false);
+            toast({ title: "Appointment booked", description: "Created in Cal.com and added to Appointments & Meetings." });
+            await Promise.all([
+                qc.invalidateQueries({ queryKey: ['clinic'] }),
+                qc.invalidateQueries({ queryKey: getListMeetingsQueryKey() }),
+                qc.invalidateQueries({ queryKey: getGetLeadQueryKey(id) }),
+            ]);
+        },
+        onError: (err) => {
+            toast({ title: "Booking failed", description: err?.message || "Could not book appointment.", variant: "destructive" });
+        },
+    });
     const { data: leadsResp } = useListLeads();
     const { data: teamMembers = [] } = useListTeamMembers();
     const authUser = useAuthUser();
@@ -282,16 +304,32 @@ export default function LeadDetail() {
     const leadFullName = ln ? `${fn} ${ln}` : fn;
     const initials = leadFullName.substring(0, 2).toUpperCase();
 
+    const leadPhoneDigits = (lead?.phone || "").replace(/\D/g, "").slice(-10);
+    const leadEmailLower = (lead?.email || "").trim().toLowerCase();
+    const clinicAppts = (clinicApptsResp?.appointments ?? []).filter((a) => {
+        if (a.lead_id && Number(a.lead_id) === Number(id)) return true;
+        const aDigits = (a.phone || "").replace(/\D/g, "").slice(-10);
+        if (leadPhoneDigits && aDigits && aDigits === leadPhoneDigits) return true;
+        if (leadEmailLower && a.email && a.email.trim().toLowerCase() === leadEmailLower) return true;
+        return false;
+    });
+
     return (<div className="p-6 space-y-4">
-      {showScheduleModal && leadOptions.length > 0 && (<NewMeetingModal leads={leadOptions} defaultLeadId={id} onClose={() => setShowScheduleModal(false)} onCreated={(meeting, shouldDownload) => {
-                setShowScheduleModal(false);
-                if (shouldDownload)
-                    downloadICS(meeting);
-                qc.invalidateQueries({ queryKey: getListMeetingsQueryKey() });
-                qc.invalidateQueries({ queryKey: getGetLeadQueryKey(id) });
-                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
-                toast({ title: "Meeting scheduled", description: `${meeting.type.replace(/_/g, " ")} meeting created successfully.` });
-            }}/>)}
+      {showScheduleModal && (<Modal title="Book appointment" onClose={() => { setShowScheduleModal(false); bookAppointment.reset(); }} width={560}>
+          <BookingForm
+            initial={{
+              leadId: lead.id,
+              patientName: leadFullName,
+              phone: lead.phone || "",
+              email: cleanEmail(lead.email) || "",
+            }}
+            patients={leadOptions.length > 0 ? leadOptions : [lead]}
+            onSubmit={(payload) => bookAppointment.mutate(payload)}
+            onClose={() => { setShowScheduleModal(false); bookAppointment.reset(); }}
+            busy={bookAppointment.isPending}
+            error={bookAppointment.error?.message}
+          />
+        </Modal>)}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <Link href="/leads">
@@ -504,10 +542,26 @@ export default function LeadDetail() {
                 <CalendarPlus className="w-3.5 h-3.5"/> Schedule
               </button>
             </div>
-            {leadMeetings.length === 0 ? (<div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
+            {leadMeetings.length === 0 && clinicAppts.length === 0 ? (<div className="flex flex-col items-center justify-center gap-2 py-6 text-center">
                 <CalendarDays className="w-7 h-7 text-gray-300"/>
                 <div className="text-xs text-gray-400 font-medium">No meetings scheduled yet</div>
               </div>) : (<div className="space-y-2">
+                {clinicAppts.map((a) => {
+                  const d = new Date(a.starts_at);
+                  const dateLabel = d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });
+                  return (
+                    <Link key={`appt-${a.id}`} href="/clinic/appointments" className="flex items-center justify-between gap-3 rounded-lg border border-pink-100 px-3 py-2.5 text-xs bg-pink-50/40 hover:bg-pink-50 transition-colors">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <CalendarDays className="w-4 h-4 text-[#A4285E] flex-shrink-0"/>
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-800">{a.treatment || "Clinical Consultation"}</div>
+                          <div className="text-gray-500 text-[11px]">{dateLabel}{a.branch ? ` · ${a.branch}` : ""}</div>
+                        </div>
+                      </div>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 capitalize">{a.status || "scheduled"}</span>
+                    </Link>
+                  );
+                })}
                 {leadMeetings.map((m) => {
                 const d = new Date(m.scheduledAt);
                 const dateLabel = d.toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true });

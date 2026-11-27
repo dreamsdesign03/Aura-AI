@@ -186,10 +186,10 @@ function parseApptTurns(raw) {
   return [];
 }
 
-function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
+export function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
   const base = initial?.startsAt ? new Date(initial.startsAt) : new Date();
   const [form, setForm] = useState({
-    leadId: '',
+    leadId: initial?.leadId ? String(initial.leadId) : '',
     category: initial?.category || 'ria',
     patientName: initial?.patientName || '',
     phone: initial?.phone || '',
