@@ -718,19 +718,21 @@ export default function ClinicAppointments() {
   const { selectedBranch } = useBranch();
   const [anchor, setAnchor] = useState(() => new Date());
   
-  // View toggle: 'calendar' or 'list'
+  // View toggle: 'list' (default), 'calendar', or 'online_booking'
   const [viewMode, setViewMode] = useState(() => {
     const v = new URLSearchParams(window.location.search).get('view');
-    return v === 'list' ? 'list' : 'calendar';
+    if (v === 'calendar') return 'calendar';
+    if (v === 'online_booking') return 'online_booking';
+    return 'list';
   });
 
   const handleViewChange = (mode) => {
     setViewMode(mode);
     const url = new URL(window.location.href);
     if (mode === 'list') {
-      url.searchParams.set('view', 'list');
-    } else {
       url.searchParams.delete('view');
+    } else {
+      url.searchParams.set('view', mode);
     }
     window.history.replaceState({}, '', url.toString());
   };
@@ -738,7 +740,9 @@ export default function ClinicAppointments() {
   useEffect(() => {
     const onPop = () => {
       const v = new URLSearchParams(window.location.search).get('view');
-      setViewMode(v === 'list' ? 'list' : 'calendar');
+      if (v === 'calendar') setViewMode('calendar');
+      else if (v === 'online_booking') setViewMode('online_booking');
+      else setViewMode('list');
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);

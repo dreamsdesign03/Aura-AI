@@ -114,7 +114,6 @@ const leaderMobileBottomNav = [
 // Executive only gets the restricted clinic modules (no Bulk Calling)
 const executiveMobileBottomNav = [
     { href: "/leads", label: "Contacts", icon: Users },
-    { href: "/clinic", label: "Clinic", icon: Activity },
     { href: "/clinic/appointments", label: "Appts", icon: Calendar },
     { href: "/clinic/dialer", label: "Dialer", icon: PhoneOutgoing },
 ];

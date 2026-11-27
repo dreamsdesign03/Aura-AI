@@ -43,9 +43,7 @@ export const LEADER_ROUTES = [
  */
 export const EXECUTIVE_ROUTES = [
   { path: "/leads", prefix: true },
-  { path: "/clinic", exact: true },
   { path: "/clinic/appointments", prefix: true },
-  { path: "/clinic/inbox", prefix: true },
   { path: "/clinic/dialer", prefix: true },
   // Legacy links that immediately redirect to an allowed clinic page.
   { path: "/appointments", exact: true },
