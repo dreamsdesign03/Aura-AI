@@ -356,28 +356,6 @@ export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
                   <p className="co-sm co-mut">—</p>
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <div className="co-label">Call Summary</div>
-                {calls.length > 0 ? (
-                  <div className="co-card" style={{ padding: 12 }}>
-                    <div className="co-sm co-strong">{calls[0].transcript_summary || 'Call completed'}</div>
-                    <div className="co-xs co-mut" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                      <span>{calls[0].started_at ? datetimeLabel(calls[0].started_at) : '—'} · {calls[0].status || 'completed'}</span>
-                      {calls[0].booking_type && (
-                        <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: '#F3F4F6', color: '#374151', border: '1px solid #E5E7EB' }}>
-                          {calls[0].booking_type === 'bulk_campaign' ? 'Bulk' : calls[0].booking_type === 'single_call' ? 'Single' : calls[0].booking_type === 'inbound_call' ? 'Inbound' : calls[0].booking_type}
-                        </span>
-                      )}
-                    </div>
-                    {calls[0].outcome && (
-                      <div className="co-xs co-mut" style={{ marginTop: 4, color: '#059669' }}>Outcome: {calls[0].outcome}</div>
-                    )}
-                  </div>
-                ) : (
-                  <p className="co-sm co-mut">No call records yet.</p>
-                )}
-              </div>
-              <NoteForm leadId={Number(id)} />
             </div>
           ) : null}
 

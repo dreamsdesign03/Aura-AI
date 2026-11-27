@@ -2010,18 +2010,47 @@ router.get('/patients/:id', requireUser, async (req, res) => {
     const [notes, appointments, packages, calls, visits] = await Promise.all([
       db.query('SELECT * FROM clinic_notes WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC LIMIT 50', [uid, leadId]),
       (async () => {
+        const phoneDigits = String(patientRow?.phone || '').replace(/\D/g, '');
+        const last10 = phoneDigits.length >= 10 ? phoneDigits.slice(-10) : '';
+        const realEmail = patientRow?.email && !/noemail\+|@patient\.auraclinic\.in/i.test(patientRow.email)
+          ? String(patientRow.email).trim()
+          : '';
         const [appts, cal] = await Promise.all([
-          db.query('SELECT * FROM clinic_appointments WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY starts_at DESC LIMIT 30', [uid, leadId]),
-          patientRow?.email ? db.query(
+          db.query(
+            `SELECT * FROM clinic_appointments
+              WHERE (user_id = $1 OR user_id IS NULL)
+                AND COALESCE(LOWER(status), '') NOT IN ('cancelled', 'canceled')
+                AND (
+                  lead_id = $2
+                  OR ($3 <> '' AND RIGHT(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g'), 10) = $3)
+                  OR ($4 <> '' AND LOWER(COALESCE(email, '')) = LOWER($4))
+                )
+              ORDER BY starts_at DESC LIMIT 30`,
+            [uid, leadId, last10, realEmail]
+          ),
+          (last10 || realEmail) ? db.query(
             `SELECT * FROM calendly_events
-              WHERE (user_id = $1 OR user_id IS NULL) AND COALESCE(is_deleted, false) = false
-                AND LOWER(invitee_email) = LOWER($2)
+              WHERE (user_id = $1 OR user_id IS NULL)
+                AND COALESCE(is_deleted, false) = false
+                AND COALESCE(LOWER(status), '') NOT IN ('cancelled', 'canceled', 'rejected')
+                AND (
+                  ($2 <> '' AND LOWER(COALESCE(invitee_email, '')) = LOWER($2))
+                  OR ($3 <> '' AND COALESCE(questions->>'Phone / WhatsApp', '') LIKE '%' || $3)
+                )
               ORDER BY start_time DESC LIMIT 30`,
-            [uid, patientRow.email]
+            [uid, realEmail, last10]
           ) : { rows: [] }
         ]);
         const mappedCal = cal.rows.map(mapCalRowToClinic);
-        return [...appts.rows, ...mappedCal].sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+        const seen = new Set();
+        return [...appts.rows, ...mappedCal]
+          .filter((a) => {
+            const key = `${a.cal_uid || a.id || ''}_${new Date(a.starts_at).toISOString()}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
       })(),
       db.query('SELECT * FROM clinic_packages WHERE (user_id = $1 OR user_id IS NULL) AND lead_id = $2 ORDER BY created_at DESC', [uid, leadId]),
       tryQuery(
