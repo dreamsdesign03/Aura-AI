@@ -52,6 +52,7 @@
     "nodemailer": "^9.0.3",
     "papaparse": "^5.7.0",
     "pg": "^8.16.3",
+    "plivo-browser-sdk": "^2.2.21",
     "react": "^19.0.0",
     "react-day-picker": "^10.0.1",
     "react-dom": "^19.0.0",

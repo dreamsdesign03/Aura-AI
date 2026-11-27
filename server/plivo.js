@@ -103,9 +103,133 @@ async function dispatchPlivoCall({ to, from, conversationType = 'patient_consult
   };
 }
 
+/**
+ * Ensures a Plivo Application + SIP Endpoint exist for browser WebRTC two-way calling.
+ * Persists credentials in PostgreSQL so they survive serverless cold starts.
+ */
+async function ensurePlivoWebrtcSetup(hostUrl) {
+  const creds = getPlivoCredentials();
+  if (!creds.isConfigured) {
+    throw new Error('Plivo credentials not configured.');
+  }
+
+  let cleanHost = (
+    process.env.APP_BASE_URL ||
+    (hostUrl && !hostUrl.includes('localhost') && !hostUrl.includes('127.0.0.1') ? hostUrl : null) ||
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+    'https://aura-ai-six-beta.vercel.app'
+  ).replace(/\/$/, '');
+  if (!/^https?:\/\//i.test(cleanHost)) cleanHost = `https://${cleanHost}`;
+  if (cleanHost.startsWith('http://') && !cleanHost.includes('localhost') && !cleanHost.includes('127.0.0.1')) {
+    cleanHost = cleanHost.replace('http://', 'https://');
+  }
+
+  const answerUrl = `${cleanHost}/api/clinic/dialer/plivo/webrtc-answer`;
+  const hangupUrl = `${cleanHost}/api/clinic/dialer/plivo/hangup`;
+
+  if (process.env.PLIVO_ENDPOINT_USERNAME && process.env.PLIVO_ENDPOINT_PASSWORD) {
+    return {
+      username: process.env.PLIVO_ENDPOINT_USERNAME.trim(),
+      password: process.env.PLIVO_ENDPOINT_PASSWORD.trim(),
+      appId: (process.env.PLIVO_APP_ID || '').trim(),
+      callerId: normalizeE164(creds.callerId),
+    };
+  }
+
+  await db.query(`
+    CREATE TABLE IF NOT EXISTS clinic_dialer_webrtc (
+      id INT PRIMARY KEY DEFAULT 1,
+      app_id TEXT,
+      username TEXT NOT NULL,
+      password TEXT NOT NULL,
+      answer_url TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  const existing = await db.query('SELECT * FROM clinic_dialer_webrtc WHERE id = 1');
+  const row = existing.rows[0];
+  const authHeader = `Basic ${Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64')}`;
+  const apiBase = `https://api.plivo.com/v1/Account/${encodeURIComponent(creds.authId)}`;
+
+  if (row && row.username && row.password && row.app_id && row.answer_url === answerUrl) {
+    return {
+      username: row.username,
+      password: row.password,
+      appId: row.app_id,
+      callerId: normalizeE164(creds.callerId),
+    };
+  }
+
+  // 1. Create or update Plivo Application for WebRTC Dialer
+  let appId = row?.app_id || '';
+  if (appId) {
+    await fetch(`${apiBase}/Application/${encodeURIComponent(appId)}/`, {
+      method: 'POST',
+      headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer_url: answerUrl, answer_method: 'POST', hangup_url: hangupUrl, hangup_method: 'POST' }),
+    }).catch(() => {});
+  } else {
+    const appRes = await fetch(`${apiBase}/Application/`, {
+      method: 'POST',
+      headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        app_name: `Aura Clinic WebRTC Dialer ${Date.now()}`,
+        answer_url: answerUrl,
+        answer_method: 'POST',
+        hangup_url: hangupUrl,
+        hangup_method: 'POST',
+      }),
+    });
+    const appData = await appRes.json().catch(() => ({}));
+    if (!appRes.ok || !appData.app_id) {
+      throw new Error(appData?.error || appData?.message || 'Failed to create Plivo WebRTC application');
+    }
+    appId = appData.app_id;
+  }
+
+  // 2. Create SIP Endpoint if not yet saved
+  let username = row?.username || '';
+  let password = row?.password || '';
+  if (!username || !password) {
+    const suffix = Math.random().toString(36).slice(2, 8);
+    username = `auraclinic${suffix}`;
+    password = `Aura#${Math.random().toString(36).slice(2, 10)}9`;
+    const epRes = await fetch(`${apiBase}/Endpoint/`, {
+      method: 'POST',
+      headers: { Authorization: authHeader, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username,
+        password,
+        alias: 'Aura Clinic Browser Dialer',
+        app_id: appId,
+      }),
+    });
+    const epData = await epRes.json().catch(() => ({}));
+    if (!epRes.ok) {
+      throw new Error(epData?.error || epData?.message || 'Failed to create Plivo SIP endpoint');
+    }
+  }
+
+  await db.query(
+    `INSERT INTO clinic_dialer_webrtc (id, app_id, username, password, answer_url, updated_at)
+     VALUES (1, $1, $2, $3, $4, NOW())
+     ON CONFLICT (id) DO UPDATE SET app_id = EXCLUDED.app_id, username = EXCLUDED.username, password = EXCLUDED.password, answer_url = EXCLUDED.answer_url, updated_at = NOW()`,
+    [appId, username, password, answerUrl]
+  );
+
+  return {
+    username,
+    password,
+    appId,
+    callerId: normalizeE164(creds.callerId),
+  };
+}
+
 module.exports = {
   getPlivoCredentials,
   normalizeE164,
   dispatchPlivoCall,
+  ensurePlivoWebrtcSetup,
 };
 

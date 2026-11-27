@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
+import Plivo from 'plivo-browser-sdk';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import {
@@ -146,6 +147,77 @@ export default function ClinicDialer() {
   const [lastCallResult, setLastCallResult] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
   const timerRef = useRef(null);
+  const plivoBrowserRef = useRef(null);
+  const plivoReadyRef = useRef(false);
+  const activeCallIdRef = useRef(null);
+  const callSecondsRef = useRef(0);
+
+  useEffect(() => {
+    activeCallIdRef.current = activeCallId;
+  }, [activeCallId]);
+
+  useEffect(() => {
+    callSecondsRef.current = callSeconds;
+  }, [callSeconds]);
+
+  // Initialize Plivo Browser SDK for two-way live WebRTC audio
+  useEffect(() => {
+    if (telephonyEngine !== 'plivo') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const tok = await clinicApi.dialerWebrtcToken();
+        if (cancelled || !tok?.enabled || !tok.username || !tok.password) return;
+        const sdk = new Plivo({
+          debug: 'ERROR',
+          permOnClick: true,
+          enableTracking: true,
+          closeProtection: false,
+          codecPrefs: ['OPUS', 'PCMU'],
+        });
+        plivoBrowserRef.current = sdk;
+        sdk.client.on('onLogin', () => {
+          plivoReadyRef.current = true;
+        });
+        sdk.client.on('onLoginFailed', (reason) => {
+          plivoReadyRef.current = false;
+          console.warn('[Plivo WebRTC login failed]:', reason);
+        });
+        sdk.client.on('onCallRemoteRinging', () => {
+          setCallPhase('ringing');
+        });
+        sdk.client.on('onCallAnswered', () => {
+          setCallPhase('connected');
+        });
+        sdk.client.on('onCallTerminated', () => {
+          setCallPhase('ended');
+          const id = activeCallIdRef.current;
+          if (id) {
+            clinicApi.updateDialerCall(id, { status: 'completed', durationSecs: callSecondsRef.current }).catch(() => {});
+          }
+          refetchHistory();
+        });
+        sdk.client.on('onCallFailed', (cause) => {
+          setCallPhase('error');
+          setErrorMessage(typeof cause === 'string' ? cause : 'Call failed or was rejected.');
+          const id = activeCallIdRef.current;
+          if (id) {
+            clinicApi.updateDialerCall(id, { status: 'failed', durationSecs: 0 }).catch(() => {});
+          }
+        });
+        sdk.client.login(tok.username, tok.password);
+      } catch (e) {
+        console.warn('[Plivo WebRTC init]:', e?.message || e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      try {
+        plivoBrowserRef.current?.client?.logout?.();
+      } catch { /* ignore */ }
+      plivoReadyRef.current = false;
+    };
+  }, [telephonyEngine]);
 
   // Modals
   const [addContactOpen, setAddContactOpen] = useState(false);
@@ -326,6 +398,7 @@ export default function ClinicDialer() {
     try {
       // 1. Immediately insert/dispatch call into PostgreSQL DB and Plivo telephony!
       const isMockMode = telephonyEngine === 'mock';
+      const useWebrtc = !isMockMode && telephonyEngine === 'plivo' && plivoReadyRef.current && plivoBrowserRef.current?.client;
       const res = await callMutation.mutateAsync({
         destination: destination || finalLead?.phone,
         conversationType,
@@ -333,6 +406,7 @@ export default function ClinicDialer() {
         branch: branchObj?.name,
         leadId: finalLead?.id || null,
         engine: telephonyEngine,
+        skipServerDial: !!useWebrtc,
         isMock: isMockMode,
         mockOutcome,
         durationSecs: 0,
@@ -363,8 +437,15 @@ export default function ClinicDialer() {
             }
           }, 3800);
         }
+      } else if (useWebrtc) {
+        setCallPhase('connecting');
+        const destE164 = res?.destinationE164 || (destination || finalLead?.phone);
+        plivoBrowserRef.current.client.call(destE164, {
+          'X-PH-Destination': destE164,
+          'X-PH-CallRecordId': String(callId || ''),
+        });
       } else {
-        // Live real call via Plivo (or Sarvam)
+        // Fallback server-side call
         setTimeout(() => setCallPhase('connecting'), 600);
         setTimeout(() => setCallPhase('ringing'), 1500);
         setTimeout(() => setCallPhase('connected'), 3500);
@@ -377,6 +458,9 @@ export default function ClinicDialer() {
 
   // Hang Up Handler - Saves duration & full transcript in DB
   const handleHangup = async () => {
+    try {
+      plivoBrowserRef.current?.client?.hangup?.();
+    } catch { /* ignore */ }
     const finalSeconds = callSeconds;
     setCallPhase('ended');
 
@@ -756,7 +840,14 @@ export default function ClinicDialer() {
                   <button
                     type="button"
                     className="co-btn co-btn-sm"
-                    onClick={() => setIsMuted(!isMuted)}
+                    onClick={() => {
+                      const next = !isMuted;
+                      setIsMuted(next);
+                      try {
+                        if (next) plivoBrowserRef.current?.client?.mute?.();
+                        else plivoBrowserRef.current?.client?.unmute?.();
+                      } catch { /* ignore */ }
+                    }}
                     disabled={callPhase !== 'connected'}
                     style={{ background: isMuted ? '#FEE2E2' : '#fff', color: isMuted ? '#B91C1C' : 'inherit' }}
                   >

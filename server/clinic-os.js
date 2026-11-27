@@ -4645,7 +4645,7 @@ router.post('/dialer/call', requireUser, async (req, res) => {
     }
 
     // 1. Plivo Real Call (Default when live telephony engine is Plivo)
-    const { engine = 'plivo' } = req.body || {};
+    const { engine = 'plivo', skipServerDial = false } = req.body || {};
     if (engine === 'plivo') {
       const plivo = require('./plivo');
       const creds = plivo.getPlivoCredentials();
@@ -4654,6 +4654,29 @@ router.post('/dialer/call', requireUser, async (req, res) => {
           error: 'Plivo credentials are not configured yet. Please configure your Plivo Auth ID, Auth Token, and Plivo Number.',
           requiresPlivoConfig: true,
         });
+      }
+
+      if (skipServerDial) {
+        const destE164 = plivo.normalizeE164(destination);
+        const callerE164 = plivo.normalizeE164(creds.callerId);
+        if (!destE164 || !/^\+[1-9]\d{7,14}$/.test(destE164)) {
+          return res.status(400).json({ error: `Invalid destination phone number: ${destination}` });
+        }
+        const tempUuid = `webrtc_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const inserted = await db.query(
+          `INSERT INTO ai_calls (lead_id, conversation_id, call_sid, from_phone, to_phone, lead_name, company_name, status, booking_type, provider, direction, started_at)
+           VALUES ($1, $2, $2, $3, $4, $5, $6, 'ringing', $7, 'plivo', 'outbound', NOW())
+           RETURNING *`,
+          [finalLeadId, tempUuid, callerE164, destE164, contactName, companyName, conversationType]
+        );
+        if (finalLeadId) {
+          await db.query(
+            `INSERT INTO clinic_notes (user_id, lead_id, kind, title, body, created_at)
+             VALUES ($1, $2, 'call', $3, $4, NOW())`,
+            [req.user.id, finalLeadId, `Plivo Call: ${label}`, `Live browser voice call placed via Plivo to ${destE164}.`]
+          );
+        }
+        return res.json({ success: true, isMock: false, engine: 'plivo', webrtc: true, destinationE164: destE164, callerId: callerE164, call: inserted.rows[0], callUuid: tempUuid });
       }
 
       const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
@@ -4824,6 +4847,62 @@ router.post('/dialer/contact', requireUser, async (req, res) => {
 // ---------------------------------------------------------------------------
 // Plivo Telephony Webhooks & Settings
 // ---------------------------------------------------------------------------
+router.get('/dialer/webrtc-token', requireUser, async (req, res) => {
+  try {
+    const plivo = require('./plivo');
+    const rawProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.get('host') || 'aura-ai-six-beta.vercel.app';
+    const hostUrl = host.includes('localhost') ? 'https://aura-ai-six-beta.vercel.app' : `${rawProto}://${host}`;
+    const setup = await plivo.ensurePlivoWebrtcSetup(hostUrl);
+    res.json({ enabled: true, username: setup.username, password: setup.password, callerId: setup.callerId });
+  } catch (err) {
+    res.status(500).json({ enabled: false, error: err.message });
+  }
+});
+
+router.post('/dialer/plivo/webrtc-answer', async (req, res) => {
+  const plivo = require('./plivo');
+  const creds = plivo.getPlivoCredentials();
+  const body = req.body || {};
+  const { CallUUID, To } = body;
+  const rawDest = body['X-PH-Destination'] || req.query.to || To || '';
+  const callRecordId = body['X-PH-CallRecordId'] || req.query.callRecordId || '';
+  const destinationE164 = plivo.normalizeE164(rawDest);
+  const callerId = plivo.normalizeE164(creds.callerId) || '+918065587555';
+
+  if (callRecordId && CallUUID) {
+    await db.query(
+      `UPDATE ai_calls SET call_sid = $1, conversation_id = $1 WHERE id = $2`,
+      [CallUUID, Number(callRecordId)]
+    ).catch(() => {});
+  }
+
+  const callbackProto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const callbackHost = req.get('host') || 'aura-ai-six-beta.vercel.app';
+  const recordingCallbackUrl = `${callbackProto}://${callbackHost}/api/clinic/dialer/plivo/recording?callUuid=${encodeURIComponent(CallUUID || '')}`;
+
+  if (!destinationE164) {
+    res.set('Content-Type', 'text/xml');
+    return res.send('<?xml version="1.0" encoding="UTF-8"?><Response><Hangup reason="rejected"/></Response>');
+  }
+
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Record
+    recordSession="true"
+    fileFormat="mp3"
+    maxLength="900"
+    callbackUrl="${recordingCallbackUrl}"
+    callbackMethod="POST"
+  />
+  <Dial callerId="${callerId}">
+    <Number>${destinationE164}</Number>
+  </Dial>
+</Response>`;
+  res.set('Content-Type', 'text/xml');
+  res.send(xml);
+});
+
 router.post('/dialer/plivo/answer', async (req, res) => {
   const { type = 'patient_consultation', doctor = 'Dr. Aditya Shah', branch = 'Alkapuri Main Clinic' } = req.query;
   const { CallUUID, Direction, From, To } = req.body || {};
