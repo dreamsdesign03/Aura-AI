@@ -5077,13 +5077,13 @@ router.post('/dialer/plivo/recording', async (req, res) => {
   }
 });
 
-// Stream Plivo recording securely with basic auth proxy
+// Stream Plivo recording securely with basic auth proxy + Range support
 router.get('/dialer/plivo/recording-stream/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const callRes = await db.query(
-      'SELECT id, recording_url, call_sid, conversation_id FROM ai_calls WHERE id = $1 OR call_sid = $1 OR conversation_id = $1 LIMIT 1',
-      [id]
+      'SELECT id, recording_url, call_sid, conversation_id FROM ai_calls WHERE id::text = $1 OR call_sid = $1 OR conversation_id = $1 LIMIT 1',
+      [String(id)]
     );
     if (callRes.rows.length === 0) return res.status(404).send('Call not found');
 
@@ -5094,20 +5094,46 @@ router.get('/dialer/plivo/recording-stream/:id', async (req, res) => {
     const creds = plivo.getPlivoCredentials();
     const authHeader = 'Basic ' + Buffer.from(`${creds.authId}:${creds.authToken}`).toString('base64');
 
-    const audioRes = await fetch(rawUrl, {
-      headers: rawUrl.includes('plivo.com') ? { Authorization: authHeader } : {}
+    let audioRes = await fetch(rawUrl, {
+      headers: rawUrl.includes('plivo.com') ? { Authorization: authHeader } : {},
+      redirect: 'follow',
     });
+
+    // Pre-signed S3 / CDN URLs reject extra Authorization headers
+    if (!audioRes.ok && rawUrl.includes('plivo.com') && (audioRes.status === 400 || audioRes.status === 403)) {
+      audioRes = await fetch(rawUrl, { redirect: 'follow' });
+    }
 
     if (!audioRes.ok) {
       return res.status(audioRes.status).send('Could not fetch audio stream from Plivo');
     }
 
-    res.set('Content-Type', audioRes.headers.get('content-type') || 'audio/mpeg');
-    res.set('Content-Length', audioRes.headers.get('content-length') || '');
-    res.set('Accept-Ranges', 'bytes');
+    const buf = Buffer.from(await audioRes.arrayBuffer());
+    const fallbackType = rawUrl.toLowerCase().includes('.wav') ? 'audio/wav' : 'audio/mpeg';
+    const upstreamType = audioRes.headers.get('content-type');
+    const contentType = (upstreamType && upstreamType.startsWith('audio/')) ? upstreamType : fallbackType;
 
-    const arrayBuf = await audioRes.arrayBuffer();
-    res.send(Buffer.from(arrayBuf));
+    res.set('Content-Type', contentType);
+    res.set('Accept-Ranges', 'bytes');
+    res.set('Cache-Control', 'private, max-age=3600');
+
+    const range = req.headers.range;
+    if (range && buf.length > 0) {
+      const match = /bytes=(\d*)-(\d*)/.exec(range);
+      if (match) {
+        const start = match[1] ? parseInt(match[1], 10) : 0;
+        const end = match[2] ? Math.min(parseInt(match[2], 10), buf.length - 1) : buf.length - 1;
+        if (start >= 0 && start <= end && end < buf.length) {
+          res.status(206);
+          res.set('Content-Range', `bytes ${start}-${end}/${buf.length}`);
+          res.set('Content-Length', String(end - start + 1));
+          return res.send(buf.subarray(start, end + 1));
+        }
+      }
+    }
+
+    res.set('Content-Length', String(buf.length));
+    res.send(buf);
   } catch (err) {
     console.error('[Plivo Recording Stream Error]:', err);
     res.status(500).send(err.message);

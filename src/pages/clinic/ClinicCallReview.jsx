@@ -25,20 +25,41 @@ function AudioPlayer({ src }) {
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [audioError, setAudioError] = useState('');
 
   useEffect(() => {
+    setPlaying(false);
+    setCurrent(0);
+    setDuration(0);
+    setAudioError('');
     const a = audioRef.current;
     if (!a) return;
     const onTime = () => setCurrent(a.currentTime);
-    const onLoaded = () => setDuration(a.duration || 0);
+    const onLoaded = () => {
+      if (Number.isFinite(a.duration) && a.duration > 0) setDuration(a.duration);
+    };
     const onEnded = () => setPlaying(false);
+    const onPause = () => setPlaying(false);
+    const onPlay = () => { setPlaying(true); setAudioError(''); };
+    const onError = () => {
+      setPlaying(false);
+      setAudioError('Unable to load audio stream. Try downloading MP3/WAV.');
+    };
     a.addEventListener('timeupdate', onTime);
     a.addEventListener('loadedmetadata', onLoaded);
+    a.addEventListener('durationchange', onLoaded);
     a.addEventListener('ended', onEnded);
+    a.addEventListener('pause', onPause);
+    a.addEventListener('play', onPlay);
+    a.addEventListener('error', onError);
     return () => {
       a.removeEventListener('timeupdate', onTime);
       a.removeEventListener('loadedmetadata', onLoaded);
+      a.removeEventListener('durationchange', onLoaded);
       a.removeEventListener('ended', onEnded);
+      a.removeEventListener('pause', onPause);
+      a.removeEventListener('play', onPlay);
+      a.removeEventListener('error', onError);
     };
   }, [src]);
 
@@ -48,8 +69,13 @@ function AudioPlayer({ src }) {
       audioRef.current.pause();
       setPlaying(false);
     } else {
-      audioRef.current.play().catch(() => {});
-      setPlaying(true);
+      setAudioError('');
+      audioRef.current.play()
+        .then(() => setPlaying(true))
+        .catch(() => {
+          setPlaying(false);
+          setAudioError('Playback failed. Try downloading MP3/WAV.');
+        });
     }
   };
 
@@ -118,6 +144,9 @@ function AudioPlayer({ src }) {
           <span className="co-xs co-mut">Audio recording unavailable</span>
         )}
       </div>
+      {audioError && (
+        <div style={{ fontSize: 11.5, color: '#DC2626', marginTop: 2 }}>{audioError}</div>
+      )}
     </div>
   );
 }
