@@ -1072,8 +1072,8 @@ export default function Leads() {
                 ) : (
                   <div className="divide-y divide-slate-100">
                     {list.map((lead) => {
-                      const displayName = [lead.firstName, lead.lastName].filter((x) => x && x !== "-").join(" ").trim() || lead.leadOwner || lead.company || "Contact";
                       const phoneVal = lead.phone || lead.whatsapp || "";
+                      const displayName = [lead.firstName, lead.lastName].filter((x) => x && x !== "-").join(" ").trim() || lead.leadOwner || phoneVal || lead.company || "Contact";
                       const initials = getContactInitials(lead);
                       return (
                         <div key={lead.id} className="px-3.5 py-2.5 flex items-center gap-3 hover:bg-[#FBF6F8]/60 transition">

@@ -110,17 +110,26 @@ export default function ClinicDialer() {
   const [selectedLead, setSelectedLead] = useState(null);
   const [bookingAssist, setBookingAssist] = useState(true);
 
+  const defaultAlkapuriBranch = useMemo(() => {
+    const match = branches.find((b) => /alkapuri/i.test(b.name));
+    return match?.name || branches[0]?.name || 'Alkapuri branch';
+  }, [branches]);
+
   // Call configuration
   const [conversationType, setConversationType] = useState('patient_consultation');
   const [doctor, setDoctor] = useState('dr_aditya');
-  const [branch, setBranch] = useState(selectedBranch || (branches[0]?.name || ''));
+  const [branch, setBranch] = useState(() => selectedBranch || defaultAlkapuriBranch);
   const [telephonyEngine, setTelephonyEngine] = useState('plivo');
   const [mockOutcome, setMockOutcome] = useState('connected');
 
-  // Sync branch with selectedBranch from context
+  // Sync branch with selectedBranch or default to Alkapuri branch
   useEffect(() => {
-    if (selectedBranch) setBranch(selectedBranch);
-  }, [selectedBranch]);
+    if (selectedBranch) {
+      setBranch(selectedBranch);
+    } else if (!branch || !branches.some((b) => b.name === branch)) {
+      setBranch(defaultAlkapuriBranch);
+    }
+  }, [selectedBranch, branches, defaultAlkapuriBranch, branch]);
 
   // Plivo Settings state
   const [plivoForm, setPlivoForm] = useState({ authId: '', authToken: '', callerId: '' });
@@ -284,6 +293,8 @@ export default function ClinicDialer() {
     onSuccess: (data) => {
       setLastCallResult(data?.call || null);
       qc.invalidateQueries({ queryKey: ['clinic'] });
+      qc.invalidateQueries({ queryKey: ['/api/leads'] });
+      refetchLeads();
       refetchHistory();
     },
     onError: (err) => {

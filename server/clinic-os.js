@@ -4566,12 +4566,20 @@ router.post('/dialer/call', requireUser, async (req, res) => {
       );
       if (l.rows.length > 0) {
         finalLeadId = l.rows[0].id;
-        contactName = [l.rows[0].first_name, l.rows[0].last_name].filter(Boolean).join(' ') || contactName;
+        contactName = [l.rows[0].first_name, l.rows[0].last_name].filter(Boolean).join(' ') || l.rows[0].phone || destination;
         companyName = l.rows[0].company || companyName;
       } else {
-        // Do not invent a "Patient ####" contact name or create a placeholder lead.
-        // If no saved contact matches, keep the phone number as the visible identity.
-        contactName = destination;
+        const cleanPhone = cleaned || destination.trim();
+        const insLead = await db.query(
+          `INSERT INTO leads (user_id, first_name, last_name, phone, whatsapp, company, clinic_branch, source, pipeline_stage, status, created_at, updated_at)
+           VALUES ($1, '', '', $2, $2, NULL, $3, 'dialer', 'New Lead', 'Active', NOW(), NOW())
+           RETURNING id`,
+          [req.user.id, cleanPhone, branch || 'Alkapuri branch']
+        );
+        if (insLead.rows.length > 0) {
+          finalLeadId = insLead.rows[0].id;
+        }
+        contactName = cleanPhone;
       }
     }
 
