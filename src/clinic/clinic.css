@@ -136,15 +136,10 @@
 .co-pill-tabs {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 8px;
-  overflow-x: auto;
   padding-bottom: 4px;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  -webkit-overflow-scrolling: touch;
-}
-.co-pill-tabs::-webkit-scrollbar {
-  display: none;
 }
 .co-pill-tab {
   padding: 8px 14px;

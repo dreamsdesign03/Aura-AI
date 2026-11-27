@@ -13,7 +13,7 @@ import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, StatusChip, EmptyState, Spinner, Modal, Avatar } from '@/clinic/ui';
 import { cleanEmail } from '@/lib/emails';
 import { useBranch } from '@/contexts/BranchContext';
-import { useIsAdmin } from '@/contexts/AuthContext';
+import { useIsAdmin, useUserRole } from '@/contexts/AuthContext';
 
 export function getAppointmentCategory(a) {
   if (!a) return 'ria';
@@ -715,6 +715,7 @@ function LinkCallModal({ appointment, onClose, onLinked }) {
 
 export default function ClinicAppointments() {
   const qc = useQueryClient();
+  const userRole = useUserRole();
   const { selectedBranch } = useBranch();
   const [anchor, setAnchor] = useState(() => new Date());
   
@@ -888,6 +889,162 @@ export default function ClinicAppointments() {
       setAnchor(new Date(allRows[0].starts_at));
     }
   };
+
+  if (userRole !== 'admin') {
+    return (
+      <div className="flex flex-col gap-3 pb-4 w-full min-w-0">
+        {/* Compact Header */}
+        <div className="bg-white rounded-2xl border border-[#F3D9E5] shadow-sm p-3.5 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-[17px] font-bold text-slate-900 leading-tight">Appointments</h1>
+            <p className="text-[11.5px] text-slate-500 mt-0.5 truncate">Shared schedule · all times IST</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => openBooking(null)}
+            className="shrink-0 px-3.5 py-2 rounded-xl bg-[#A4285E] hover:bg-[#8E2050] text-white text-[12.5px] font-semibold flex items-center gap-1.5 shadow-sm transition"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New booking</span>
+          </button>
+        </div>
+
+        {/* Search & Status Filters */}
+        <div className="bg-white rounded-2xl border border-[#F3D9E5] shadow-sm p-3 flex flex-col gap-2.5">
+          <div className="relative flex items-center bg-[#FBF6F8] rounded-xl px-3 py-2 border border-[#F3D9E5]/60">
+            <Search className="w-4 h-4 text-slate-400 shrink-0 mr-2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search attendee, phone, treatment…"
+              className="w-full bg-transparent text-[13px] text-slate-800 placeholder:text-slate-400 focus:outline-none"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              ['all', 'All', allRows.length],
+              ['confirmed', 'Confirmed', allRows.filter((r) => r.status === 'confirmed').length],
+              ['completed', 'Completed', allRows.filter((r) => r.status === 'completed').length],
+              ['cancelled', 'Cancelled', allRows.filter((r) => r.status === 'cancelled').length],
+            ].map(([st, label, count]) => {
+              const active = statusFilter === st;
+              return (
+                <button
+                  key={st}
+                  type="button"
+                  onClick={() => setStatusFilter(st)}
+                  className="px-2.5 py-1 rounded-full text-[11.5px] font-semibold flex items-center gap-1.5 border transition"
+                  style={
+                    active
+                      ? { background: '#A4285E', color: '#FFFFFF', borderColor: '#A4285E' }
+                      : { background: '#FBF6F8', color: '#475569', borderColor: '#F3D9E5' }
+                  }
+                >
+                  <span>{label}</span>
+                  <span
+                    className="px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                    style={
+                      active
+                        ? { background: 'rgba(255,255,255,0.22)', color: '#FFFFFF' }
+                        : { background: '#FFFFFF', color: '#A4285E' }
+                    }
+                  >
+                    {count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Appointment Cards List (zero horizontal scroll) */}
+        <div className="bg-white rounded-2xl border border-[#F3D9E5] shadow-sm overflow-hidden">
+          {filteredList.length === 0 ? (
+            <div className="py-10 px-4 text-center">
+              <CalendarDays className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+              <div className="text-sm font-semibold text-slate-700">No bookings found</div>
+              <div className="text-xs text-slate-400 mt-1">
+                {searchQuery ? 'Try clearing your search query' : 'Tap New booking to schedule an appointment'}
+              </div>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {filteredList.map((a) => {
+                const name = getContactDisplayName(a);
+                const treatment = cleanEnglishTreatment(a.treatment || '');
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setSelected(a)}
+                    className="w-full text-left px-3.5 py-3 hover:bg-[#FBF6F8]/70 transition flex flex-col gap-1.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="text-[13.5px] font-bold text-slate-900 truncate">{name}</div>
+                        <div className="text-[11.5px] font-medium text-[#A4285E] mt-0.5">
+                          {dateLabel(a.starts_at)} · {timeLabel(a.starts_at)} IST
+                        </div>
+                      </div>
+                      <StatusChip status={a.status} />
+                    </div>
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-slate-500">
+                      {treatment ? <span className="truncate max-w-full">{treatment}</span> : null}
+                      {a.phone ? (
+                        <span className="inline-flex items-center gap-1">
+                          <Phone className="w-3 h-3 text-slate-400" />
+                          {a.phone}
+                        </span>
+                      ) : null}
+                      {a.branch ? (
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-[#CB3273]" />
+                          {a.branch}
+                        </span>
+                      ) : null}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* New Booking Modal */}
+        {booking ? (
+          <Modal title="New appointment" subtitle="Schedule an appointment or consultation slot." onClose={() => setBooking(null)} width={620}>
+            <BookingForm
+              initial={booking}
+              patients={patientsQ.data?.patients || []}
+              busy={create.isPending}
+              error={error}
+              onClose={() => setBooking(null)}
+              onSubmit={(body) => create.mutate(body)}
+            />
+          </Modal>
+        ) : null}
+
+        {/* Selected Appointment Detail Modal */}
+        {selected ? (
+          <AppointmentPanel
+            appointment={selected}
+            busy={update.isPending || remove.isPending}
+            error={error}
+            onClose={() => { setSelected(null); setError(''); }}
+            onStatus={(status) => update.mutate({ id: selected.id, body: { status } })}
+            onReschedule={(startsAt) => update.mutate({ id: selected.id, body: { startsAt } })}
+            onDelete={() => remove.mutate(selected.id)}
+            onLinkedCall={() => { setSelected(null); invalidate(); }}
+          />
+        ) : null}
+
+        {error && !booking && !selected ? (
+          <p className="co-sm" style={{ color: '#B91C1C' }}>{error}</p>
+        ) : null}
+      </div>
+    );
+  }
 
   return (
     <div className="clinic-os" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1224,7 +1381,7 @@ export default function ClinicAppointments() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {/* List Search & Filter Bar */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', width: 320 }}>
+            <div style={{ position: 'relative', width: '100%', maxWidth: 340, flex: '1 1 220px' }}>
               <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#94A3B8' }} />
               <input
                 type="text"
