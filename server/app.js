@@ -2025,20 +2025,31 @@ app.post('/api/leads', async (req, res) => {
 app.put('/api/leads/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { first_name, last_name, email, company, status, pipeline_stage, deal_value } = req.body;
+    const b = req.body || {};
+    const first_name = b.first_name !== undefined ? b.first_name : b.firstName;
+    const last_name = b.last_name !== undefined ? b.last_name : b.lastName;
+    const email = b.email;
+    const phone = b.phone;
+    const company = b.company;
+    const status = b.status;
+    const pipeline_stage = b.pipeline_stage !== undefined ? b.pipeline_stage : b.pipelineStage;
+    const deal_value = b.deal_value !== undefined ? b.deal_value : b.dealValue;
+    const fullName = [first_name, last_name].filter((x) => x && x !== '-').join(' ').trim() || null;
 
     const updateRes = await db.query(
       `UPDATE leads SET 
         first_name = COALESCE($1, first_name),
         last_name = COALESCE($2, last_name),
         email = COALESCE($3, email),
-        company = COALESCE($4, company),
-        status = COALESCE($5, status),
-        pipeline_stage = COALESCE($6, pipeline_stage),
-        deal_value = COALESCE($7, deal_value),
+        phone = COALESCE($4, phone),
+        company = COALESCE($5, company),
+        status = COALESCE($6, status),
+        pipeline_stage = COALESCE($7, pipeline_stage),
+        deal_value = COALESCE($8, deal_value),
+        name_english = COALESCE($9, name_english),
         updated_at = NOW()
-      WHERE id = $8 RETURNING *`,
-      [first_name, last_name, email, company, status, pipeline_stage, deal_value, id]
+      WHERE id = $10 RETURNING *`,
+      [first_name, last_name, email, phone, company, status, pipeline_stage, deal_value, fullName, id]
     );
 
     if (updateRes.rows.length === 0) {
@@ -2131,6 +2142,19 @@ app.patch('/api/leads/:id', async (req, res) => {
       params
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Lead not found' });
+
+    if (seenCols.has('first_name') || seenCols.has('last_name')) {
+      const u = result.rows[0];
+      const fullName = [u.first_name, u.last_name].filter((x) => x && x !== '-').join(' ').trim();
+      if (fullName) {
+        await db.query(
+          `UPDATE leads SET name_english = $1, lead_owner = COALESCE(NULLIF(lead_owner, ''), $1) WHERE id = $2`,
+          [fullName, u.id]
+        );
+        u.name_english = fullName;
+        if (!u.lead_owner) u.lead_owner = fullName;
+      }
+    }
 
     if (/lost|cold|dead/i.test(fields.status || '')) {
       const updated = result.rows[0];

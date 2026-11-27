@@ -299,8 +299,13 @@ export default function Leads() {
     });
     const execUpdateLead = useUpdateLead({
         mutation: {
-            onSuccess: () => {
+            onSuccess: (updated) => {
+                if (updated?.id) {
+                    setAllLeads((prev) => prev.map((l) => (l.id === updated.id ? { ...l, ...updated } : l)));
+                }
+                qc.invalidateQueries({ queryKey: ["/api/leads"] });
                 qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+                qc.invalidateQueries({ queryKey: ["clinic"] });
                 setExecEditLead(null);
                 toast({ title: "Contact updated" });
             },
@@ -1196,13 +1201,17 @@ export default function Leads() {
                     <form
                       onSubmit={(e) => {
                         e.preventDefault();
+                        const fn = execEditLead.firstName.trim();
+                        const ln = execEditLead.lastName.trim();
+                        const full = [fn, ln].filter(Boolean).join(" ").trim();
                         execUpdateLead.mutate({
                           id: execEditLead.id,
                           data: {
-                            firstName: execEditLead.firstName.trim(),
-                            lastName: execEditLead.lastName.trim() || "-",
+                            firstName: fn,
+                            lastName: ln || "-",
+                            leadOwner: full || undefined,
                             phone: execEditLead.phone.trim() || null,
-                            email: execEditLead.email.trim(),
+                            email: execEditLead.email.trim() || null,
                           },
                         });
                       }}
