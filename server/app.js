@@ -4975,12 +4975,13 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
                 const insertRes = await db.query(
                   `INSERT INTO leads (
                     user_id, icp_id, first_name, last_name, email, phone, company,
-                    designation, website, industry, country, status, pipeline_stage, created_at, updated_at
-                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'New', 'Lead In', NOW(), NOW())
+                    designation, website, industry, country, source, status, pipeline_stage, created_at, updated_at
+                  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'New', 'Lead In', NOW(), NOW())
                   RETURNING *`,
                   [
                     userId, lead.icpId, lead.firstName, lead.lastName, lead.email,
-                    lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country
+                    lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country,
+                    'ICP'
                   ]
                 );
                 results.totalImported++;
@@ -5227,12 +5228,13 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               const insertRes = await db.query(
                 `INSERT INTO leads (
                   user_id, icp_id, first_name, last_name, email, phone, company,
-                  designation, website, industry, country, status, pipeline_stage, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'New', 'Lead In', NOW(), NOW())
+                  designation, website, industry, country, source, status, pipeline_stage, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'New', 'Lead In', NOW(), NOW())
                 RETURNING *`,
                 [
                   userId, lead.icpId, lead.firstName, lead.lastName, lead.email,
-                  lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country
+                  lead.phone, lead.company, lead.designation, lead.website, lead.industry, lead.country,
+                  'ICP'
                 ]
               );
               results.totalImported++;
@@ -5289,13 +5291,14 @@ app.post('/api/leads/fetch-poll', async (req, res) => {
               const insertRes = await db.query(
                 `INSERT INTO leads (
                   user_id, icp_id, first_name, last_name, email, phone, company,
-                  designation, website, industry, country, status, pipeline_stage, created_at, updated_at
-                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, 'New', 'Lead In', NOW(), NOW())
+                  designation, website, industry, country, source, status, pipeline_stage, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'New', 'Lead In', NOW(), NOW())
                 RETURNING *`,
                 [
                   userId, icpId ? Number(icpId) : null, lead.firstName || cleanedCompany, lead.lastName || '', lead.email,
                   lead.phone || null, cleanedCompany, lead.designation || 'Owner / Director', lead.website || null,
-                  lead.industry || (icp.industries || [])[0] || 'Dermatology / Clinic', lead.country || 'India'
+                  lead.industry || (icp.industries || [])[0] || 'Dermatology / Clinic', lead.country || 'India',
+                  'ICP'
                 ]
               );
               results.totalImported++;
