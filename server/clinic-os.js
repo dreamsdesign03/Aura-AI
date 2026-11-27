@@ -2023,10 +2023,9 @@ router.get('/patients/:id', requireUser, async (req, res) => {
                 AND (
                   lead_id = $2
                   OR ($3 <> '' AND RIGHT(REGEXP_REPLACE(COALESCE(phone, ''), '[^0-9]', '', 'g'), 10) = $3)
-                  OR ($4 <> '' AND LOWER(COALESCE(email, '')) = LOWER($4))
                 )
               ORDER BY starts_at DESC LIMIT 30`,
-            [uid, leadId, last10, realEmail]
+            [uid, leadId, last10]
           ),
           (last10 || realEmail) ? db.query(
             `SELECT * FROM calendly_events
