@@ -523,35 +523,6 @@ export default function ClinicDialer() {
           </button>
         </div>
 
-        {/* Quick Pills */}
-        <div className="flex items-center justify-center gap-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => navigate('/clinic/appointments')}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold bg-[#FBE9F1] text-[#A4285E] hover:bg-[#F7D6E6] transition"
-          >
-            <CalendarDays className="w-3.5 h-3.5" />
-            <span>Book</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              const next = !bookingAssist;
-              setBookingAssist(next);
-            }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[12px] font-semibold transition"
-            style={
-              bookingAssist
-                ? { background: '#EBF7F1', color: '#146C43' }
-                : { background: '#F1F5F9', color: '#475569' }
-            }
-          >
-            <Sliders className="w-3.5 h-3.5" />
-            <span>Booking assist</span>
-            <span className="font-bold">{bookingAssist ? 'On' : 'Off'}</span>
-          </button>
-        </div>
-
         {/* Type & Branch Selectors */}
         <div className="grid grid-cols-2 gap-2 shrink-0">
           <label className="block bg-[#FBF6F8] rounded-xl px-2.5 py-1.5 border border-[#F3D9E5]/60">
@@ -613,43 +584,34 @@ export default function ClinicDialer() {
           ))}
         </div>
 
-        {/* Bottom Notice + Call Button */}
-        <div className="flex items-center justify-between gap-2 pt-0.5 shrink-0">
+        {/* Live call / error status (shown only when active or errored) */}
+        {(errorMessage || isBusy) && (
           <div
-            className="flex-1 min-w-0 rounded-xl px-2.5 py-2 flex items-center gap-2 text-[11px]"
+            className="rounded-xl px-3 py-2 flex items-center justify-center gap-2 text-[11.5px] shrink-0"
             style={
               errorMessage
                 ? { background: '#FEF2F2', color: '#B91C1C' }
-                : isBusy
-                  ? { background: '#FBE9F1', color: '#A4285E' }
-                  : { background: '#EBF7F1', color: '#146C43' }
+                : { background: '#FBE9F1', color: '#A4285E' }
             }
           >
             <ShieldCheck className="w-4 h-4 shrink-0" />
-            <div className="min-w-0 leading-tight">
-              {errorMessage ? (
-                <div className="font-semibold truncate">{errorMessage}</div>
-              ) : isBusy ? (
-                <>
-                  <div className="font-semibold capitalize">
-                    {callPhase === 'connected' ? `Connected · ${formatDuration(callSeconds)}` : `${callPhase}...`}
-                  </div>
-                  <div className="opacity-80 truncate">Live clinic call in progress</div>
-                </>
-              ) : (
-                <>
-                  <div className="font-semibold truncate">Recorded call · notice v1</div>
-                  <div className="opacity-80 truncate">Press Call, then confirm.</div>
-                </>
-              )}
-            </div>
+            <span className="font-semibold truncate">
+              {errorMessage
+                ? errorMessage
+                : callPhase === 'connected'
+                  ? `Connected · ${formatDuration(callSeconds)}`
+                  : `${callPhase}...`}
+            </span>
           </div>
+        )}
 
+        {/* Centered Call Button */}
+        <div className="flex items-center justify-center pt-1 shrink-0">
           {isBusy ? (
             <button
               type="button"
               onClick={handleHangup}
-              className="shrink-0 px-5 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[13.5px] font-semibold flex items-center gap-1.5 shadow-sm transition"
+              className="px-10 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-[14px] font-semibold flex items-center justify-center gap-2 shadow-sm transition"
             >
               <PhoneOff className="w-4 h-4" />
               <span>End</span>
@@ -659,7 +621,7 @@ export default function ClinicDialer() {
               type="button"
               onClick={() => handleStartCall()}
               disabled={callMutation.isPending}
-              className="shrink-0 px-5 py-2.5 rounded-xl bg-[#A4285E] hover:bg-[#8E2050] disabled:opacity-50 text-white text-[13.5px] font-semibold flex items-center gap-1.5 shadow-sm transition"
+              className="px-10 py-2.5 rounded-xl bg-[#A4285E] hover:bg-[#8E2050] disabled:opacity-50 text-white text-[14px] font-semibold flex items-center justify-center gap-2 shadow-sm transition"
             >
               <Phone className="w-4 h-4" />
               <span>{callMutation.isPending ? 'Calling...' : 'Call'}</span>
