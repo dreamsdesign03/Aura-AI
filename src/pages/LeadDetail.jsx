@@ -177,14 +177,21 @@ export default function LeadDetail() {
     const isLoading = isLeadLoading && !lead;
     const updateLead = useUpdateLead({
         mutation: {
-            onSuccess: () => {
-                qc.invalidateQueries({ queryKey: getGetLeadQueryKey(id) });
-                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+            onSuccess: async () => {
                 setIsEditing(false);
                 setDraft(null);
                 setSaveError(null);
+                toast({ title: "Contact saved" });
+                await Promise.all([
+                    qc.invalidateQueries({ queryKey: getGetLeadQueryKey(id) }),
+                    qc.invalidateQueries({ queryKey: getListLeadsQueryKey() }),
+                ]);
             },
-            onError: () => setSaveError("Failed to save changes. Please try again."),
+            onError: (err) => {
+                const msg = err?.message || "Failed to save changes. Please try again.";
+                setSaveError(msg);
+                toast({ title: "Save failed", description: msg, variant: "destructive" });
+            },
         },
     });
     const startEditing = () => {

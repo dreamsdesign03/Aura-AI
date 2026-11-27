@@ -2069,18 +2069,60 @@ app.put('/api/leads/:id', async (req, res) => {
   }
 });
 
-// Patch Lead (alias for PUT — used by Pipeline drag-and-drop)
+// Patch Lead (alias for PUT — used by Pipeline drag-and-drop & LeadDetail edit)
+const LEAD_PATCH_COLUMN_MAP = {
+  firstName: 'first_name',
+  first_name: 'first_name',
+  lastName: 'last_name',
+  last_name: 'last_name',
+  email: 'email',
+  phone: 'phone',
+  whatsapp: 'whatsapp',
+  linkedInUrl: 'linkedin_url',
+  linkedin_url: 'linkedin_url',
+  company: 'company',
+  city: 'city',
+  country: 'country',
+  designation: 'designation',
+  website: 'website',
+  industry: 'industry',
+  companySize: 'company_size',
+  company_size: 'company_size',
+  annualRevenue: 'annual_revenue',
+  annual_revenue: 'annual_revenue',
+  source: 'source',
+  tags: 'tags',
+  notes: 'notes',
+  status: 'status',
+  pipelineStage: 'pipeline_stage',
+  pipeline_stage: 'pipeline_stage',
+  assignedToId: 'assigned_to_id',
+  assigned_to_id: 'assigned_to_id',
+  dealValue: 'deal_value',
+  deal_value: 'deal_value',
+  currency: 'currency',
+  leadOwner: 'lead_owner',
+  lead_owner: 'lead_owner',
+  doNotCall: 'do_not_call',
+  do_not_call: 'do_not_call',
+  icpId: 'icp_id',
+  icp_id: 'icp_id',
+};
+
 app.patch('/api/leads/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const fields = req.body;
+    const fields = req.body || {};
     const sets = [];
     const params = [];
+    const seenCols = new Set();
     Object.entries(fields).forEach(([key, val]) => {
-      if (val !== undefined && key !== 'id') {
-        params.push(val);
-        sets.push(`${key} = $${params.length}`);
-      }
+      if (val === undefined || key === 'id') return;
+      const col = LEAD_PATCH_COLUMN_MAP[key];
+      if (!col || seenCols.has(col)) return;
+      seenCols.add(col);
+      params.push(val);
+      sets.push(`${col} = $${params.length}`);
     });
     if (sets.length === 0) return res.status(400).json({ error: 'No fields to update' });
     params.push(id);
