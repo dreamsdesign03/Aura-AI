@@ -2352,30 +2352,40 @@ export default function Leads() {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="flex items-center justify-center gap-1">
-                        <button
-                          onClick={async (e) => {
-                            e.stopPropagation();
-                            if (!confirm(`Convert ${leadNameStr} to a registered clinic patient?`)) return;
-                            try {
-                              const res = await fetch(`/api/leads/${lead.id}/convert-to-patient`, {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ stage: 'Stage 1: Discover' })
-                              });
-                              if (res.ok) {
-                                qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
-                                qc.invalidateQueries({ queryKey: ['clinic'] });
-                                toast({ title: 'Converted to Patient', description: `${leadNameStr} moved to Clinic Patients directory.` });
-                              }
-                            } catch (err) {
-                              toast({ title: 'Conversion failed', description: err.message, variant: 'destructive' });
-                            }
-                          }}
-                          title="Convert to Clinic Patient"
-                          className="p-1.5 rounded-md hover:bg-pink-50 text-gray-400 hover:text-pink-600 transition-colors"
-                        >
-                          <HeartPulse className="w-3.5 h-3.5" />
-                        </button>
+                        {(() => {
+                          const isAlreadyPatient = ['Active Patient', 'Patient', 'New Patient', 'Consultation', 'Treatment Plan', 'In Treatment', 'Active Care', 'Completed'].includes(lead.pipelineStage) || /patient/i.test(lead.designation || '');
+                          return (
+                            <button
+                              type="button"
+                              disabled={isAlreadyPatient}
+                              onClick={async (e) => {
+                                e.stopPropagation();
+                                if (isAlreadyPatient) return;
+                                if (!confirm(`Convert ${leadNameStr} to a registered clinic patient?`)) return;
+                                try {
+                                  const res = await fetch(`/api/leads/${lead.id}/convert-to-patient`, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ stage: 'Stage 1: Discover' })
+                                  });
+                                  if (res.ok) {
+                                    qc.invalidateQueries({ queryKey: getListLeadsQueryKey() });
+                                    qc.invalidateQueries({ queryKey: ['clinic'] });
+                                    toast({ title: 'Converted to Patient', description: `${leadNameStr} added to Clinic Patients.` });
+                                  }
+                                } catch (err) {
+                                  toast({ title: 'Conversion failed', description: err.message, variant: 'destructive' });
+                                }
+                              }}
+                              title={isAlreadyPatient ? 'Already converted to Patient' : 'Convert to Clinic Patient'}
+                              className={isAlreadyPatient
+                                ? 'p-1.5 rounded-md bg-emerald-50 text-emerald-600 opacity-50 cursor-not-allowed'
+                                : 'p-1.5 rounded-md hover:bg-pink-50 text-gray-400 hover:text-pink-600 transition-colors'}
+                            >
+                              <HeartPulse className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })()}
                         <button
                           onClick={() => navigate(`/leads/${lead.id}`)}
                           title="Open Details"

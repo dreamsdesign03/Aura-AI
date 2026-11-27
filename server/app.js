@@ -1788,13 +1788,6 @@ app.get('/api/leads', async (req, res) => {
     if (stage) {
       queryParams.push(stage);
       whereClauses.push(`pipeline_stage = $${queryParams.length}`);
-    } else {
-      // Exclude clinical patients from general sales leads
-      whereClauses.push(`(
-        (pipeline_stage NOT IN ('Active Patient', 'Patient', 'New Patient', 'Consultation', 'Treatment Plan', 'In Treatment', 'Active Care', 'Completed') OR pipeline_stage IS NULL)
-        AND (designation IS NULL OR designation NOT ILIKE '%patient%')
-        AND (source IS NULL OR source NOT IN ('Clinic OS', 'Cal.com Booking'))
-      )`);
     }
 
     const whereString = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';

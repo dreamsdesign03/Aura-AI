@@ -758,7 +758,7 @@ export default function ClinicPatients() {
         phone: '',
         email: '',
         treatment: 'Laser Skin Rejuvenation',
-        branch: 'Alkapuri Main Clinic',
+        branch: selectedBranch || branchOptions[0] || 'Alkapuri branch',
       });
       qc.invalidateQueries({ queryKey: ['clinic'] });
       refetch();
@@ -1320,6 +1320,7 @@ export default function ClinicPatients() {
               <div className="co-field">
                 <label className="co-label">Treatment Interest</label>
                 <select
+                  className="co-input"
                   value={patientForm.treatment}
                   onChange={(e) => setPatientForm({ ...patientForm, treatment: e.target.value })}
                 >
@@ -1334,6 +1335,7 @@ export default function ClinicPatients() {
               <div className="co-field">
                 <label className="co-label">Clinic Branch</label>
                 <select
+                  className="co-input"
                   value={patientForm.branch}
                   onChange={(e) => setPatientForm({ ...patientForm, branch: e.target.value })}
                 >

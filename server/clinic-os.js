@@ -1892,12 +1892,13 @@ router.get('/journey-stats', requireUser, async (req, res) => {
 router.get('/patients', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
+    const isSuper = isAdminRole(req.user?.accessRole, req.user) || req.user?.accessRole === 'leader';
     const search = req.query.search ? `%${req.query.search}%` : null;
     const rawBranch = req.query.branch && req.query.branch !== 'all'
-      ? String(req.query.branch).replace(/\s*\(Default\)\s*/i, '').trim()
+      ? String(req.query.branch).replace(/\s*\(Default\)\s*/i, '').replace(/\s*\bbranch\b\s*/i, '').trim()
       : '';
     const branchPattern = rawBranch ? `%${rawBranch.toLowerCase()}%` : null;
-    const params = [uid];
+    const params = isSuper ? [] : [uid];
     let searchClause = '';
     if (search) {
       params.push(search);
@@ -1909,6 +1910,8 @@ router.get('/patients', requireUser, async (req, res) => {
       const bi = params.length;
       branchClause = `AND (
         LOWER(COALESCE(l.company, '')) LIKE $${bi}
+        OR COALESCE(l.company, '') = ''
+        OR LOWER(COALESCE(l.company, '')) LIKE '%aura%'
         OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id AND LOWER(COALESCE(a.branch, '')) LIKE $${bi})
         OR EXISTS (SELECT 1 FROM clinic_visits v WHERE v.lead_id = l.id AND LOWER(COALESCE(v.branch, '')) LIKE $${bi})
       )`;
@@ -1948,7 +1951,7 @@ router.get('/patients', requireUser, async (req, res) => {
               (SELECT COUNT(*)::int FROM clinic_packages p WHERE p.lead_id = l.id) AS packages,
               (SELECT COALESCE(SUM(p.amount),0)::numeric FROM clinic_packages p WHERE p.lead_id = l.id) AS package_value
          FROM leads l
-        WHERE (l.user_id = $1 OR l.user_id IS NULL)
+        WHERE (${isSuper ? '1=1' : '(l.user_id = $1 OR l.user_id IS NULL)'})
           AND (
             l.pipeline_stage IN ('New Patient', 'Patient', 'Active Patient', 'Consultation', 'Follow-up')
             OR l.pipeline_stage ILIKE 'Stage%'
@@ -2000,7 +2003,7 @@ router.post('/patients', requireUser, async (req, res) => {
         'Active Patient', 'Active', 'Clinic OS', NOW(), NOW()
       )
       RETURNING *`,
-      [req.user.id, first, last, patientEmail, phone ? phone.trim() : null, company || branch || 'Aura Laser & Cosmetic Clinic']
+      [req.user.id, first, last, patientEmail, phone ? phone.trim() : null, branch || company || 'Alkapuri branch']
     );
 
     const lead = ins.rows[0];
