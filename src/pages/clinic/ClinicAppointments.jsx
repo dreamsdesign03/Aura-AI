@@ -187,6 +187,9 @@ function parseApptTurns(raw) {
 }
 
 export function BookingForm({ initial, patients, onSubmit, onClose, busy, error }) {
+  const { branches, selectedBranch } = useBranch();
+  const branchOptions = useMemo(() => (branches || []).map((b) => b?.name).filter(Boolean), [branches]);
+  const defaultBranch = selectedBranch || branchOptions[0] || '';
   const base = initial?.startsAt ? new Date(initial.startsAt) : new Date();
   const [form, setForm] = useState({
     leadId: initial?.leadId ? String(initial.leadId) : '',
@@ -195,7 +198,7 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
     phone: initial?.phone || '',
     email: initial?.email || '',
     treatment: initial?.treatment || (initial?.category === 'misha' ? 'Skinnonest Makeup Artist Partnership' : 'Clinical Consultation'),
-    branch: initial?.branch || (initial?.category === 'misha' ? 'Online (Google Meet)' : 'Alkapuri Main Clinic'),
+    branch: initial?.branch || defaultBranch,
     date: toDateInput(base),
     time: initial?.startsAt ? toTimeInput(base) : '10:00',
     durationMin: 30,
@@ -279,7 +282,11 @@ export function BookingForm({ initial, patients, onSubmit, onClose, busy, error 
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-branch">Branch</label>
-          <input id="co-branch" className="co-input" value={form.branch} onChange={set('branch')} placeholder="e.g. Alkapuri Main Clinic" />
+          <select id="co-branch" className="co-input" style={{ colorScheme: 'light' }} value={form.branch} onChange={set('branch')}>
+            {branchOptions.map((bName) => (
+              <option key={bName} value={bName}>{bName}</option>
+            ))}
+          </select>
         </div>
         <div className="co-field">
           <label className="co-label" htmlFor="co-date">Date *</label>

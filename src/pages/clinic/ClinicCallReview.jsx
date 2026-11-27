@@ -10,6 +10,7 @@ import { clinicApi, dateLabel, timeLabel, datetimeLabel, fullName, cleanEnglishN
 import { getContactDisplayName } from '@/lib/contactName';
 import { PageHead, Card, CardHead, Avatar, StatusChip, EmptyState, Spinner } from '@/clinic/ui';
 import { useIsAdmin } from '@/contexts/AuthContext';
+import { useBranch } from '@/contexts/BranchContext';
 
 function formatDuration(sec) {
   if (!sec && sec !== 0) return '—';
@@ -287,6 +288,7 @@ function normalizeTranscriptTurns(rawTranscript) {
 
 export default function ClinicCallReview({ id }) {
   const isAdmin = useIsAdmin();
+  const { selectedBranch } = useBranch();
   const [, params] = useRoute('/clinic/call-review/:id');
   const activeId = id || params?.id;
 
@@ -313,8 +315,8 @@ export default function ClinicCallReview({ id }) {
   }, []);
 
   const listQuery = useQuery({
-    queryKey: ['clinic', 'call-reviews'],
-    queryFn: () => clinicApi.callReviews(),
+    queryKey: ['clinic', 'call-reviews', selectedBranch],
+    queryFn: () => clinicApi.callReviews({ branch: selectedBranch || undefined }),
     enabled: !activeId,
     refetchInterval: 8_000,
     staleTime: 2_000,

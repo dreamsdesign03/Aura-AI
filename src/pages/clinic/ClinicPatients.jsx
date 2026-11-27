@@ -150,8 +150,7 @@ export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
   const qc = useQueryClient();
   const { selectedBranch, branches } = useBranch();
   const branchOptions = useMemo(() => {
-    const names = (branches || []).map((b) => b?.name).filter(Boolean);
-    return names.length > 0 ? names : ['Alkapuri Main Clinic', 'Vasna Branch', 'Virtual Consultation Hub'];
+    return (branches || []).map((b) => b?.name).filter(Boolean);
   }, [branches]);
   const [tab, setTab] = useState('overview');
   const [showAddVisit, setShowAddVisit] = useState(false);
@@ -451,9 +450,6 @@ export function PatientDrawer({ id, onClose, onDeleteClick, onEditClick }) {
                         value={visitForm.branch}
                         onChange={(e) => setVisitForm((f) => ({ ...f, branch: e.target.value }))}
                       >
-                        {visitForm.branch && !branchOptions.includes(visitForm.branch) && (
-                          <option value={visitForm.branch}>{visitForm.branch}</option>
-                        )}
                         {branchOptions.map((bName) => (
                           <option key={bName} value={bName}>{bName}</option>
                         ))}
@@ -671,8 +667,7 @@ export default function ClinicPatients() {
   const qc = useQueryClient();
   const { selectedBranch, branches } = useBranch();
   const branchOptions = useMemo(() => {
-    const names = (branches || []).map((b) => b?.name).filter(Boolean);
-    return names.length > 0 ? names : ['Alkapuri Main Clinic', 'Vasna Branch', 'Virtual Consultation Hub'];
+    return (branches || []).map((b) => b?.name).filter(Boolean);
   }, [branches]);
   const [search, setSearch] = useState('');
   const [term, setTerm] = useState('');
@@ -786,12 +781,14 @@ export default function ClinicPatients() {
     const rawFirst = (p.first_name || '').trim();
     const rawLast = (p.last_name || '').trim();
     const isPlaceholder = !rawFirst || rawFirst === p.phone || /^\+?\d[\d\s-]{6,}$/.test(rawFirst) || rawFirst.toLowerCase() === 'patient';
+    const candidateBranch = p.company || p.branch || '';
+    const matchedBranch = branchOptions.find((b) => b.toLowerCase() === candidateBranch.toLowerCase());
     setEditForm({
       firstName: isPlaceholder ? '' : rawFirst,
       lastName: rawLast,
       phone: p.phone || '',
       email: p.email && !isPlaceholderEmail(p.email) ? p.email : '',
-      branch: p.company || p.branch || 'Alkapuri Main Clinic',
+      branch: matchedBranch || selectedBranch || branchOptions[0] || '',
     });
     setEditPatient(p);
   };
@@ -1231,9 +1228,6 @@ export default function ClinicPatients() {
                   value={editForm.branch}
                   onChange={(e) => setEditForm({ ...editForm, branch: e.target.value })}
                 >
-                  {editForm.branch && !branchOptions.includes(editForm.branch) && (
-                    <option value={editForm.branch}>{editForm.branch}</option>
-                  )}
                   {branchOptions.map((bName) => (
                     <option key={bName} value={bName}>{bName}</option>
                   ))}
@@ -1343,9 +1337,6 @@ export default function ClinicPatients() {
                   value={patientForm.branch}
                   onChange={(e) => setPatientForm({ ...patientForm, branch: e.target.value })}
                 >
-                  {patientForm.branch && !branchOptions.includes(patientForm.branch) && (
-                    <option value={patientForm.branch}>{patientForm.branch}</option>
-                  )}
                   {branchOptions.map((bName) => (
                     <option key={bName} value={bName}>{bName}</option>
                   ))}

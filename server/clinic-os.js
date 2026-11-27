@@ -1891,6 +1891,26 @@ router.get('/patients', requireUser, async (req, res) => {
   try {
     const uid = req.user.id;
     const search = req.query.search ? `%${req.query.search}%` : null;
+    const rawBranch = req.query.branch && req.query.branch !== 'all'
+      ? String(req.query.branch).replace(/\s*\(Default\)\s*/i, '').trim()
+      : '';
+    const branchPattern = rawBranch ? `%${rawBranch.toLowerCase()}%` : null;
+    const params = [uid];
+    let searchClause = '';
+    if (search) {
+      params.push(search);
+      searchClause = `AND (l.first_name ILIKE $${params.length} OR l.last_name ILIKE $${params.length} OR l.phone ILIKE $${params.length} OR l.email ILIKE $${params.length})`;
+    }
+    let branchClause = '';
+    if (branchPattern) {
+      params.push(branchPattern);
+      const bi = params.length;
+      branchClause = `AND (
+        LOWER(COALESCE(l.company, '')) LIKE $${bi}
+        OR EXISTS (SELECT 1 FROM clinic_appointments a WHERE a.lead_id = l.id AND LOWER(COALESCE(a.branch, '')) LIKE $${bi})
+        OR EXISTS (SELECT 1 FROM clinic_visits v WHERE v.lead_id = l.id AND LOWER(COALESCE(v.branch, '')) LIKE $${bi})
+      )`;
+    }
 
     const r = await db.query(
       `SELECT l.id, l.first_name, l.last_name, l.email,
@@ -1944,10 +1964,11 @@ router.get('/patients', requireUser, async (req, res) => {
                  ))
             )
           )
-          ${search ? 'AND (l.first_name ILIKE $2 OR l.last_name ILIKE $2 OR l.phone ILIKE $2 OR l.email ILIKE $2)' : ''}
+          ${searchClause}
+          ${branchClause}
         ORDER BY COALESCE(l.updated_at, l.created_at) DESC
         LIMIT 250`,
-      search ? [uid, search] : [uid]
+      params
     );
     res.json({ patients: r.rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
