@@ -346,7 +346,7 @@ async function runSales(userId, opts = {}) {
   const emailAutopilot = await getSetting(userId, 'autopilot_email');
   const autopilotActive = Boolean(emailAutopilot.active);
   const dailyCap = Number(sales.config?.dailyCap) || 50;
-  const autoSend = sales.config?.autoSend === true;
+  const autoSend = sales.config?.autoSend !== false;
 
   if (autoSend && !manual && !autopilotActive) {
     return { ok: true, drafted: 0, sent: 0, skipped: 0, failed: 0, paused: true, reason: 'Email sending is paused — enable Email Autopilot or use Run Now' };
@@ -485,7 +485,8 @@ OUTPUT JSON:
 }
 
 // ── FOLLOW-UP AGENT ─────────────────────────────────────────
-async function runFollowup(userId) {
+async function runFollowup(userId, opts = {}) {
+  const { manual = false } = opts;
   const followup = await getSetting(userId, 'followup');
   const dailyCap = Number(followup.config?.dailyCap) || 15;
   const emailAutopilot = await getSetting(userId, 'autopilot_email');
@@ -524,7 +525,7 @@ async function runFollowup(userId) {
     `SELECT COUNT(*)::int AS n FROM outreach_emails WHERE user_id = $1 AND status = 'sent' AND sent_at >= ${todayStartSql()}`,
     [userId]
   );
-  const canSend = emailAutopilot.active && sentToday.rows[0].n < dailyCap;
+  const canSend = (manual || emailAutopilot.active) && sentToday.rows[0].n < dailyCap;
 
   for (const { lead, followupCount, daysSince } of dueLeads) {
     summary.due++;
@@ -794,7 +795,7 @@ async function runAgent(userId, key, opts = {}) {
   switch (key) {
     case 'scout': return runScout(userId);
     case 'sales': return runSales(userId, opts);
-    case 'followup': return runFollowup(userId);
+    case 'followup': return runFollowup(userId, { manual: true });
     case 'lead_hunter': return runLeadHunter(userId);
     case 'brain': return runBrain(userId);
     default: return { ok: false, reason: `Unknown agent: ${key}` };
@@ -943,7 +944,7 @@ async function buildStatus(userId) {
     db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND activity_type = 'whatsapp_sent' AND status = 'completed' AND executed_at >= ${today}`, [userId]),
     db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND activity_type = 'scout_website_checked' AND executed_at >= ${today}`, [userId]),
     db.query(`SELECT COUNT(*)::int AS n FROM proposals WHERE user_id = $1 AND created_at >= ${today}`, [userId]),
-    db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND status = 'failed' AND executed_at >= ${today}`, [userId]),
+    db.query(`SELECT COUNT(*)::int AS n FROM agent_activity WHERE user_id = $1 AND status = 'failed' AND COALESCE(activity_type, '') <> 'call_completed' AND executed_at >= ${today}`, [userId]),
   ]);
 
   const totals = await db.query(
@@ -955,7 +956,8 @@ async function buildStatus(userId) {
 
   const recentErrors = await db.query(
     `SELECT detail, error_message, executed_at FROM agent_activity
-     WHERE user_id = $1 AND status = 'failed' ORDER BY executed_at DESC LIMIT 5`,
+     WHERE user_id = $1 AND status = 'failed' AND COALESCE(activity_type, '') <> 'call_completed' AND executed_at >= NOW() - INTERVAL '7 days'
+     ORDER BY executed_at DESC LIMIT 5`,
     [userId]
   );
 
